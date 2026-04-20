@@ -1,0 +1,9 @@
+streamlit
+pandas
+folium
+streamlit-folium
+gspread
+oauth2client
+streamlit-js-eval
+numpy
+openpyxl
