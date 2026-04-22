@@ -45,7 +45,7 @@ def escribir_registro(nombre_pestana, datos_fila):
         hoja.append_row(datos_fila)
         return True
     except Exception as e:
-        st.error(f"Falla de enlace: {e}")
+        st.error(f"Falla de enlace de escritura en matriz: {e}")
         return False
 
 @st.cache_data(ttl=60)
@@ -54,11 +54,15 @@ def cargar_matriz_objetivos():
         gc = conectar_google()
         hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("OBJETIVOS")
         df = pd.DataFrame(hoja.get_all_records())
+        # Blindaje contra espacios fantasmas en Excel
+        df.columns = df.columns.str.strip().str.upper()
         df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
-    except:
-        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"SISTEMA AISLADO: No se pudo leer el archivo maestro. Verifique permisos de la cuenta de servicio. Error: {e}")
+        # Esqueleto de contingencia para evitar colapso de pantalla roja
+        return pd.DataFrame(columns=['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD'])
 
 # Inicialización de Estados Dinámicos
 if 'alerta_activa' not in st.session_state: st.session_state.alerta_activa = False
@@ -69,7 +73,7 @@ df_objetivos = cargar_matriz_objetivos()
 
 # Motor Analítico SQL (Procesamiento en Memoria)
 conn = sqlite3.connect(":memory:", check_same_thread=False)
-if not df_objetivos.empty:
+if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
     df_objetivos.to_sql("objetivos", conn, index=False, if_exists="replace")
 
 # --- 3. SISTEMA DE COMUNICACIONES ---
@@ -119,7 +123,10 @@ if rol == "SUPERVISOR" and usuario_auth:
     
     with tab1:
         apellido = usuario_auth.split()[-1].upper()
-        df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)]
+        # Filtro blindado
+        df_zona = pd.DataFrame()
+        if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
+            df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)]
         
         col_m, col_g = st.columns([2, 1])
         with col_m:
@@ -128,6 +135,8 @@ if rol == "SUPERVISOR" and usuario_auth:
                 for _, row in df_zona.iterrows():
                     folium.Marker([row['LATITUD'], row['LONGITUD']], popup=row['OBJETIVO']).add_to(m_s)
                 st_folium(m_s, width="100%", height=400)
+            else:
+                st.warning("Sin objetivos asignados en la matriz o conexión caída.")
         
         with col_g:
             if not df_zona.empty:
@@ -148,6 +157,8 @@ if rol == "SUPERVISOR" and usuario_auth:
                         bloqueo = False
                     else: st.warning(f"📡 FUERA DE RANGO ({round(d/1000, 2)}km)")
                 else: st.info("Sincronizando GPS...")
+            else:
+                bloqueo = True
 
     with tab2:
         with st.form("form_registro"):
@@ -158,8 +169,11 @@ if rol == "SUPERVISOR" and usuario_auth:
             f_nov = st.text_area("Novedades de la Visita")
             f_foto = st.camera_input("Evidencia")
             
+            # Ajustado para proteger el botón si la lista de destinos está vacía
+            dest_valid = dest if not df_zona.empty else "N/A"
+            
             if st.form_submit_button("IMPACTAR MATRIZ", disabled=bloqueo):
-                if escribir_registro("ACTAS_FLOTAS", [str(datetime.now()), usuario_auth, f_movil, "", f_km, "", f_vig, dest, f_nov]):
+                if escribir_registro("ACTAS_FLOTAS", [str(datetime.now()), usuario_auth, f_movil, "", f_km, "", f_vig, dest_valid, f_nov]):
                     st.success("Acta registrada correctamente.")
 
 # --- 6. MONITOREO Y GERENCIA ---
@@ -171,16 +185,22 @@ elif rol == "MONITOREO":
             st.session_state.alerta_activa = False
             st.rerun()
     else:
-        m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-        for _, row in df_objetivos.iterrows(): folium.Marker([row['LATITUD'], row['LONGITUD']], tooltip=row['OBJETIVO']).add_to(m_mon)
-        st_folium(m_mon, width="100%", height=500)
+        if not df_objetivos.empty and 'LATITUD' in df_objetivos.columns:
+            m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            for _, row in df_objetivos.iterrows(): folium.Marker([row['LATITUD'], row['LONGITUD']], tooltip=row['OBJETIVO']).add_to(m_mon)
+            st_folium(m_mon, width="100%", height=500)
+        else:
+            st.warning("Matriz vacía. Verifique enlace de datos.")
 
 elif rol == "GERENCIA":
     st.header(f"Tablero Ejecutivo: {usuario_auth}")
     st.subheader("Auditoría de Servicios")
-    res_sql = pd.read_sql_query("SELECT SUPERVISOR, COUNT(*) as Servicios FROM objetivos GROUP BY SUPERVISOR", conn)
-    st.dataframe(res_sql, use_container_width=True)
-    st.download_button("Descargar Auditoría", res_sql.to_csv(index=False), "auditoria_yaroku.csv")
+    if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
+        res_sql = pd.read_sql_query("SELECT SUPERVISOR, COUNT(*) as Servicios FROM objetivos GROUP BY SUPERVISOR", conn)
+        st.dataframe(res_sql, use_container_width=True)
+        st.download_button("Descargar Auditoría", res_sql.to_csv(index=False), "auditoria_yaroku.csv")
+    else:
+        st.warning("Base de datos sin procesar.")
 
 # --- 7. ADMINISTRADOR ---
 elif rol == "ADMINISTRADOR":
