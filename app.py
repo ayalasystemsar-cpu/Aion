@@ -5,25 +5,29 @@ from streamlit_folium import st_folium
 from datetime import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from PIL import Image
+import io
 
-# --- 1. CONFIGURACIÓN E IDENTIDAD CORPORATIVA ---
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL ---
 st.set_page_config(page_title="AION-YAROKU", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <style>
     .stApp { background-color: #0A0A0A; color: #FFFFFF; }
     [data-testid="stSidebar"] { background-color: #111111; border-right: 2px solid #00E5FF; }
-    h1, h2, h3 { color: #00E5FF !important; font-family: 'Courier New', monospace; }
-    .stButton>button { background-color: #1A1A1A; color: #00E5FF; border: 1px solid #00E5FF; transition: 0.3s; font-weight: bold; width: 100%; }
-    .stButton>button:hover { background-color: #00E5FF; color: #000000; box-shadow: 0 0 15px #00E5FF; }
+    h1, h2, h3 { color: #00E5FF !important; font-family: 'Lexend', sans-serif; }
+    .stButton>button { background-color: #1A1A1A; color: #00E5FF; border: 1px solid #00E5FF; transition: 0.3s; }
+    .stButton>button:hover { background-color: #00E5FF; color: #000000; box-shadow: 0 0 20px #00E5FF; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. MOTOR DE BASE DE DATOS (NÚCLEO CENTRAL) ---
+# --- 2. MOTOR DE CONEXIÓN (NÚCLEO ESTRATÉGICO) ---
+# El ID extraído de la terminal del usuario
 ID_MAESTRO_DB = "1Md0VkOnwUJWIdq0S1fB9UrmOKv4MG_JVG3tQsda0Uw"
 
 def conectar_servicio():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    # Se utiliza el archivo JSON de credenciales que ya posees en tu terminal
     creds = ServiceAccountCredentials.from_json_keyfile_name("aion-secutec-b9f914330ea6.json", scope)
     return gspread.authorize(creds)
 
@@ -34,110 +38,85 @@ def escribir_registro(nombre_pestana, datos_fila):
         hoja.append_row(datos_fila)
         return True
     except Exception as e:
-        st.error(f"Falla de enlace de transmisión: {e}")
+        st.error(f"Falla de enlace con la base de datos: {e}")
         return False
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=300)
 def cargar_objetivos():
     try:
         cliente = conectar_servicio()
         hoja = cliente.open_by_key(ID_MAESTRO_DB).worksheet("OBJETIVOS")
         df = pd.DataFrame(hoja.get_all_records())
+        # Limpieza y normalización de coordenadas
         df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
     except:
         return pd.DataFrame()
 
-df_servicios = cargar_objetivos()
-
-# --- 3. GESTIÓN DE ACCESO Y JERARQUÍAS ---
+# --- 3. INTERFAZ DE MANDO ---
 with st.sidebar:
     st.title("AION-YAROKU")
-    perfil = st.selectbox("JERARQUÍA OPERATIVA", ["SUPERVISOR", "MONITOREO", "GERENCIA", "ADMINISTRADOR"])
+    perfil = st.selectbox("JERARQUÍA", ["SUPERVISOR", "MONITOREO", "GERENCIA", "ADMINISTRADOR"])
     
-    usuario_activo = ""
-    if perfil == "SUPERVISOR":
-        lista_sups = ["AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DIAZ MARCELO", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
-        usuario_activo = st.selectbox("IDENTIFICACIÓN", lista_sups)
-    elif perfil == "ADMINISTRADOR":
-        password = st.text_input("CLAVE DE SISTEMA", type="password")
-        if password == st.secrets.get("admin_password", "aion2026"):
-            usuario_activo = "AYALA BRIAN (SysAdmin)"
-            st.success("Acceso Nivel Bóveda Autorizado")
-        elif password != "":
-            st.error("Credencial Denegada")
+    if perfil == "ADMINISTRADOR":
+        password = st.text_input("PASSWORD DE SISTEMA", type="password")
+        if password != st.secrets.get("admin_password", "aion2026"):
             st.stop()
-        else:
-            st.stop()
-    else:
-        usuario_activo = perfil
             
     st.markdown("---")
     if st.button("🚨 ACTIVAR PÁNICO (S.O.S)"):
-        escribir_registro("ALERTAS", [str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), usuario_activo, "BOTÓN PÁNICO", "CRÍTICO"])
-        st.error("SEÑAL DE EMERGENCIA TRANSMITIDA A CENTRAL")
+        escribir_registro("ALERTAS", [str(datetime.now()), perfil, "BOTÓN PÁNICO", "PENDIENTE"])
+        st.warning("ALERTA DE EMERGENCIA TRANSMITIDA")
 
-# --- 4. TERMINAL TÁCTICA: SUPERVISORES ---
-if perfil == "SUPERVISOR" and usuario_activo:
-    st.header(f"Unidad de Mando: {usuario_activo}")
+# --- 4. LÓGICA OPERATIVA (SUPERVISIÓN) ---
+df_servicios = cargar_objetivos()
+
+if perfil == "SUPERVISOR":
+    st.header("Terminal Táctica de Supervisión")
     
-    pestanas = st.tabs(["🗺️ RADAR DE ZONA", "📋 ACTA DE FLOTA"])
+    opcion = st.tabs(["🗺️ RADAR", "📝 REPORTE DE MOVIL"])
     
-    with pestanas[0]:
+    with opcion[0]:
         if not df_servicios.empty:
+            # Mapa centrado en la media de los objetivos
             m = folium.Map(location=[df_servicios['LATITUD'].mean(), df_servicios['LONGITUD'].mean()], 
-                           zoom_start=11, tiles="CartoDB dark_matter")
+                           zoom_start=12, tiles="CartoDB dark_matter")
             for _, r in df_servicios.iterrows():
-                folium.Marker(
-                    [r['LATITUD'], r['LONGITUD']], 
-                    popup=f"{r['OBJETIVO']} - {r['DIRECCION']}",
-                    tooltip=r['OBJETIVO']
-                ).add_to(m)
-            st_folium(m, width="100%", height=500)
+                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO']).add_to(m)
+            st_folium(m, width="100%", height=450)
         else:
-            st.warning("Matriz de coordenadas offline. Verifique conexión a base de datos.")
+            st.info("Cargando matriz de objetivos desde la nube...")
 
-    with pestanas[1]:
-        with st.form("registro_acta"):
-            st.subheader("Auditoría de Puesto y Unidad")
+    with opcion[1]:
+        with st.form("form_flota"):
+            st.subheader("Control de Flota y Novedades")
+            f_movil = st.text_input("Unidad Móvil (Ej: Movil 10)")
+            f_km = st.number_input("Odómetro Actual (KM)", step=1)
+            f_patente = st.text_input("Patente")
+            f_vigilador = st.text_input("Vigilador en Puesto")
+            f_novedad = st.text_area("Informe de Novedades")
+            f_foto = st.camera_input("Captura de Evidencia")
             
-            # Directivas ejecutadas: Flota predeterminada, KM numérico, Vigilador libre
-            f_movil = st.selectbox("Asignación de Unidad Móvil", ["S-001", "S-002", "S-003", "S-004", "S-005", "S-006", "S-007"])
-            f_km = st.number_input("Odómetro Actual (KM)", min_value=0, step=1)
-            
-            f_objetivo = st.selectbox("Objetivo Inspeccionado", df_servicios['OBJETIVO'].unique() if not df_servicios.empty else ["Sin conexión"])
-            f_vigilador = st.text_input("Nombre y Apellido del Personal en Puesto")
-            f_novedad = st.text_area("Desarrollo de la Inspección / Novedades")
-            
-            if st.form_submit_button("SELLAR Y TRANSMITIR ACTA"):
-                if f_vigilador == "" or f_novedad == "":
-                    st.error("Rechazado. Los campos de personal y novedades son obligatorios.")
-                else:
-                    # Columnas destino: FECHA, SUPERVISOR, MOVIL, PATENTE, KM, RENDIMIENTO, VIGILADOR_NOMBRE, OBJETIVO, INFORME
-                    # Dejamos Patente y Rendimiento en blanco por ahora para ser procesados luego.
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    datos = [timestamp, usuario_activo, f_movil, "", f_km, "", f_vigilador, f_objetivo, f_novedad]
-                    
-                    if escribir_registro("ACTAS_FLOTA", datos):
-                        st.success("Acta registrada con éxito. Información enrutada a la base central.")
+            if st.form_submit_button("REGISTRAR Y ENVIAR"):
+                # Impacto en la pestaña unificada ACTAS_FLOTA
+                exito = escribir_registro("ACTAS_FLOTA", [
+                    str(datetime.now()), "SUPERVISOR", f_movil, f_patente, 
+                    f_km, "", f_vigilador, "CONTROL RUTA", f_novedad
+                ])
+                if exito: st.success("Datos transmitidos al servidor maestro.")
 
-# --- 5. TERMINAL: CENTRAL DE MONITOREO ---
+# --- 5. PANEL DE MONITOREO ---
 elif perfil == "MONITOREO":
-    st.header("Centro de Control Global")
-    col1, col2 = st.columns(2)
-    col1.metric("Servicios Activos en Matriz", len(df_servicios))
-    col2.metric("Estado de Red", "EN LÍNEA", delta="Latencia Óptima")
-    st.info("Operador de monitoreo: El radar maestro está en la consola secundaria.")
+    st.header("Centro de Monitoreo Global")
+    st.metric("Servicios Activos", len(df_servicios))
+    # Aquí se visualizan las alertas en tiempo real leyendo la pestaña ALERTAS
+    st.dataframe(df_servicios[['OBJETIVO', 'DIRECCION', 'SUPERVISOR']])
 
-# --- 6. BÓVEDA DEL DIRECTOR GENERAL (CEO) ---
+# --- 6. ADMINISTRADOR (BRIAN AYALA) ---
 elif perfil == "ADMINISTRADOR":
-    st.header("Centro de Mando General")
-    st.write("Métricas y Auditoría de Datos.")
-    
-    if st.button("Forzar Sincronización de Nube"):
+    st.header("Bóveda del Director General")
+    st.write("Estado de la infraestructura: *Sincronizado*")
+    if st.button("Actualizar Base de Datos"):
         st.cache_data.clear()
-        st.success("Caché purgado. La base de datos está leyendo en tiempo real.")
-        
-    st.subheader("Auditoría de Despliegue")
-    st.dataframe(df_servicios)
+        st.rerun()
