@@ -131,11 +131,7 @@ def enviar_msg(rem, dest, asun, texto):
 
 # --- 4. PANEL LATERAL (IDENTIDAD) ---
 with st.sidebar:
-    logo_path = os.path.join("assets", "logo_aion.png")
-    if os.path.exists(logo_path): st.image(logo_path, width=200)
-    else: st.image("https://img.icons8.com/nolan/128/security-shield.png", width=80)
-
-    st.title("AION-YAROKU")
+    # 🔹 Se eliminó el bloque que duplicaba el logo y el título
     rol = st.selectbox("PERFIL OPERATIVO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
     
     usuario_auth = ""
@@ -155,6 +151,7 @@ with st.sidebar:
         st.session_state.alerta_activa = True
         escribir_registro("ALERTAS", [str(datetime.now()), usuario_auth, "CRÍTICO", "PENDIENTE"])
         st.error("S.O.S TRANSMITIDO")
+
 
 # --- 5. LÓGICA DE SUPERVISOR (DOBLE QR + RUTEO) ---
 if rol == "SUPERVISOR" and usuario_auth:
