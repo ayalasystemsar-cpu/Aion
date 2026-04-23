@@ -58,7 +58,6 @@ st.markdown(
 
     <div class='logo-container'>
         <img src='assets/logo_aion.png' alt='AION-YAROKU'>
-        <h3>AION‑YAROKU</h3>
     </div>
     """,
     unsafe_allow_html=True
