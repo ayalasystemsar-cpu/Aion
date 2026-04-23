@@ -10,78 +10,37 @@ from streamlit_js_eval import get_geolocation
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA ---
-st.set_page_config(page_title="AION-YAROKU v6.0", layout="wide", initial_sidebar_state="expanded")
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL ---
+st.set_page_config(page_title="AION-YAROKU", layout="wide", initial_sidebar_state="expanded")
 
-# --- LOGO CORPORATIVO (WEB + CELULAR) ---
+# --- LOGO CORPORATIVO DINÁMICO ---
 st.markdown(
     """
     <style>
-    /* Contenedor del logo */
-    .logo-container {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        z-index: 999;
-    }
-
-    /* Imagen del logo */
-    .logo-container img {
-        width: 12vw; /* Escala proporcional al ancho de la ventana */
-        max-width: 140px; /* Límite superior para pantallas grandes */
-        min-width: 80px;  /* Límite inferior para móviles */
-        height: auto;
-    }
-
-    /* Texto debajo del logo */
-    .logo-container h3 {
-        color: cyan;
-        font-family: 'Courier New', monospace;
-        font-weight: bold;
-        margin: 5px 0 0 0;
-        font-size: 1.2vw;
-        text-shadow: 0 0 8px #00E5FF;
-    }
-
-    @media (max-width: 768px) {
-        .logo-container img {
-            width: 20vw;
-        }
-        .logo-container h3 {
-            font-size: 3vw;
-        }
-    }
+    .logo-container { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; align-items: flex-start; z-index: 999; }
+    .logo-container img { width: 12vw; max-width: 140px; min-width: 80px; height: auto; }
+    @media (max-width: 768px) { .logo-container img { width: 20vw; } }
     </style>
-
-    <div class='logo-container'>
-        <img src='assets/logo_aion.png' alt='AION-YAROKU'>
-    </div>
+    <div class='logo-container'><img src='assets/logo_aion.png' alt='AION-YAROKU'></div>
     """,
     unsafe_allow_html=True
 )
 
-# --- CSS PRINCIPAL ---
+# --- CSS DE ALTA PERFORMANCE ---
 st.markdown("""
     <style>
     .stApp { background-color: #0A0A0A; color: #FFFFFF; }
-    [data-testid="stSidebar"] { background-color: #111111; border-right: 2px solid #00E5FF; }
+    [data-testid="stSidebar"] { background-color: #111111; border-right: 2px solid #00E5FF; padding-top: 80px; }
     h1, h2, h3, .stSubheader { color: #00E5FF !important; font-family: 'Lexend', sans-serif; font-weight: bold; }
-    div[data-testid="metric-container"] {
-        background-color: #1A1A1A; border: 1px solid #333; border-left: 5px solid #00E5FF; padding: 15px; border-radius: 5px;
-    }
-    .stButton>button {
-        background-color: #1A1A1A; color: #00E5FF; border: 1px solid #00E5FF; border-radius: 4px; transition: 0.3s; width: 100%; font-weight: bold;
-    }
+    div[data-testid="metric-container"] { background-color: #1A1A1A; border: 1px solid #333; border-left: 5px solid #00E5FF; padding: 15px; border-radius: 5px; }
+    .stButton>button { background-color: #1A1A1A; color: #00E5FF; border: 1px solid #00E5FF; border-radius: 4px; transition: 0.3s; width: 100%; font-weight: bold; }
     .stButton>button:hover { background-color: #00E5FF; color: #000000; box-shadow: 0 0 20px #00E5FF; }
     .alerta-panico { background-color: #FF0000 !important; color: white !important; font-size: 24px; text-align: center; padding: 20px; border-radius: 10px; font-weight: bold; border: 2px solid white; animation: blink 1s infinite; }
     @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. NÚCLEO DE CONEXIÓN Y MATRIZ DE DATOS ---
+# --- 2. NÚCLEO DE DATOS (SINCRONIZACIÓN NUBE) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
 def conectar_google():
@@ -95,22 +54,14 @@ def escribir_registro(nombre_pestana, datos_fila):
         hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_pestana)
         hoja.append_row(datos_fila)
         return True
-    except Exception as e:
-        st.error(f"Error de enlace: {e}")
-        return False
+    except: return False
 
-@st.cache_data(ttl=60)
-def cargar_matriz_objetivos():
+@st.cache_data(ttl=15)
+def leer_matriz_nube(pestana):
     try:
         gc = conectar_google()
-        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("OBJETIVOS")
-        df = pd.DataFrame(hoja.get_all_records())
-        df.columns = df.columns.str.strip().str.upper()
-        df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        return df.dropna(subset=['LATITUD', 'LONGITUD'])
-    except:
-        return pd.DataFrame(columns=['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD'])
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+        return pd
 
 # Inicialización de Estados
 if 'alerta_activa' not in st.session_state: st.session_state.alerta_activa = False
