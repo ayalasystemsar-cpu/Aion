@@ -135,7 +135,7 @@ with st.sidebar:
     if os.path.exists(logo_path): st.image(logo_path, width=200)
     else: st.image("https://img.icons8.com/nolan/128/security-shield.png", width=80)
 
-    st.title("AION-YAROKU")
+    # st.title("AION-YAROKU")
     rol = st.selectbox("PERFIL OPERATIVO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
     
     usuario_auth = ""
