@@ -64,8 +64,8 @@ def leer_matriz_nube(pestana):
         df = pd.DataFrame(hoja.get_all_records())
         df.columns = df.columns.str.strip().str.upper()
         return df
-    except:
-        return pd.DataFrame()
+    # <-- acá falta el except
+
 
 # Inicialización de Estados
 if 'alerta_activa' not in st.session_state: st.session_state.alerta_activa = False
