@@ -36,33 +36,20 @@ st.markdown(
         height: auto;
     }
 
-    /* Texto debajo del logo */
-    .logo-container h3 {
-        color: cyan;
-        font-family: 'Courier New', monospace;
-        font-weight: bold;
-        margin: 5px 0 0 0;
-        font-size: 1.2vw;
-        text-shadow: 0 0 8px #00E5FF;
-    }
-
     @media (max-width: 768px) {
         .logo-container img {
             width: 20vw;
-        }
-        .logo-container h3 {
-            font-size: 3vw;
         }
     }
     </style>
 
     <div class='logo-container'>
         <img src='assets/logo_aion.png'>
-        <h3>AION‑YAROKU</h3>
     </div>
     """,
     unsafe_allow_html=True
 )
+
 
 # --- CSS PRINCIPAL ---
 st.markdown("""
