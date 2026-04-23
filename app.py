@@ -73,7 +73,8 @@ if 'alerta_activa' not in st.session_state: st.session_state.alerta_activa = Fal
 if 'db_mensajes' not in st.session_state: 
     st.session_state.db_mensajes = pd.DataFrame(columns=['ID', 'FECHA', 'REMITENTE', 'DESTINATARIO', 'ASUNTO', 'MENSAJE', 'ESTADO'])
 
-df_objetivos = cargar_matriz_objetivos()
+df_objetivos = leer_matriz_nube("OBJETIVOS")
+
 conn = sqlite3.connect(":memory:", check_same_thread=False)
 if not df_objetivos.empty: df_objetivos.to_sql("objetivos", conn, index=False, if_exists="replace")
 
