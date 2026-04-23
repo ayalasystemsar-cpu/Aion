@@ -63,7 +63,6 @@ def leer_matriz_nube(pestana):
         hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
         return pd
 # Inicialización de Estados
-
 if 'alerta_activa' not in st.session_state: st.session_state.alerta_activa = False
 if 'db_mensajes' not in st.session_state: 
     st.session_state.db_mensajes = pd.DataFrame(columns=['ID', 'FECHA', 'REMITENTE', 'DESTINATARIO', 'ASUNTO', 'MENSAJE', 'ESTADO'])
