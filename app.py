@@ -130,7 +130,7 @@ def enviar_msg(rem, dest, asun, texto):
 
 
 # --- 4. PANEL LATERAL (IDENTIDAD) ---
-# with st.sidebar:
+ with st.sidebar:
     logo_path = os.path.join("assets", "logo_aion.png")
     if os.path.exists(logo_path): st.image(logo_path, width=200)
     else: st.image("https://img.icons8.com/nolan/128/security-shield.png", width=80)
