@@ -55,7 +55,6 @@ def escribir_registro(nombre_pestana, datos_fila):
         hoja.append_row(datos_fila)
         return True
     except: return False
-
 @st.cache_data(ttl=15)
 def leer_matriz_nube(pestana):
     try:
@@ -64,8 +63,8 @@ def leer_matriz_nube(pestana):
         df = pd.DataFrame(hoja.get_all_records())
         df.columns = df.columns.str.strip().str.upper()
         return df
-    # <-- acá falta el except
-
+    except:
+        return pd.DataFrame()   # <-- este bloque faltaba
 
 # Inicialización de Estados
 if 'alerta_activa' not in st.session_state: st.session_state.alerta_activa = False
