@@ -310,72 +310,146 @@ if rol == "SUPERVISOR" and usuario_auth:
     with t3:
         mostrar_buzon(usuario_auth)
 
-# --- 7. MÓDULO MONITOREO: RESPUESTA CRÍTICA CONTINUA ---
+# --- 7. MÓDULO MONITOREO: RESPUESTA CRÍTICA Y GESTIÓN CONTINUA ---
 elif rol == "MONITOREO":
     st.header("Consola Central de Inteligencia")
+    
+    # 1. Telemetría Frontal (Mini-Dashboard de Estado de Red)
+    st.markdown("### Estado de Red en Tiempo Real")
+    m1, m2, m3 = st.columns(3)
+    
     df_alertas = leer_matriz_nube("ALERTAS")
-    alerta_critica = not df_alertas.empty and 'ESTADO' in df_alertas.columns and str(df_alertas.iloc[-1]['ESTADO']).strip().upper() == "PENDIENTE"
+    sos_activos = len(df_alertas[df_alertas['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE']) if not df_alertas.empty and 'ESTADO' in df_alertas.columns else 0
+    m1.metric("🚨 S.O.S Activos", sos_activos)
+    
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    amarillas = len(df_msg[(df_msg['GRAVEDAD'].astype(str).str.upper() == 'AMARILLO') & (df_msg['ESTADO'].astype(str).str.upper() != 'LEÍDO')]) if not df_msg.empty and 'GRAVEDAD' in df_msg.columns else 0
+    m2.metric("⚠️ Novedades en Proceso (Amarillo)", amarillas)
+    
+    df_p = leer_matriz_nube("LOG_PRESENCIA")
+    fecha_hoy = obtener_hora_argentina().split(" ")[0]
+    qrs_hoy = len(df_p[df_p['FECHA'].astype(str).str.contains(fecha_hoy)]) if not df_p.empty and 'FECHA' in df_p.columns else 0
+    m3.metric("📲 Fichajes QR (Hoy)", qrs_hoy)
+    
+    st.markdown("---")
 
-    if alerta_critica:
-        datos_sos = df_alertas.iloc[-1]
-        op_en_riesgo = datos_sos.get('USUARIO', 'Desconocido')
-        carga_util = str(datos_sos.get('CARGA_UTIL', ''))
-        
-        # Extracción de coordenadas y triangulación
-        lat_alerta, lon_alerta = "Desconocida", "Desconocida"
-        if "LAT" in carga_util:
-            try:
-                partes = carga_util.split("|")
-                lat_alerta = float(partes[0].split(":")[1].strip())
-                lon_alerta = float(partes[1].split(":")[1].strip())
-            except: pass
-        
-        obj_cercano, policia_zona = calcular_objetivo_cercano(lat_alerta, lon_alerta, df_objetivos)
-        
-        # Alarma Sonora Constante
-        st.markdown("""
-            <audio autoplay loop>
-              <source src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3" type="audio/mpeg">
-            </audio>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f'''
-            <div class="alerta-panico">
-                🚨 BRECHA DE SEGURIDAD DETECTADA 🚨<br>
-                <span style="font-size:20px;">Unidad: {op_en_riesgo} | {carga_util}</span><br>
-                <span style="font-size:22px; color: #FFFF00;">OBJETIVO POSIBLE: {obj_cercano}</span><br>
-                <span style="font-size:24px; font-weight: 900;">POLICÍA ASIGNADA: {policia_zona}</span>
-            </div>
-        ''', unsafe_allow_html=True)
+    # 2. División táctica del espacio de trabajo
+    tab_radar, tab_libro, tab_com = st.tabs(["🚨 RADAR & S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN"])
+    
+    with tab_radar:
+        alerta_critica = sos_activos > 0
 
-        with st.form("resolucion_crisis"):
-            st.write("Libro de Actas - Resolución de Crisis")
-            op = st.text_input("Firma del Monitorista (Identidad)")
-            res = st.text_area("Detalle de Resolución Operativa")
-            if st.form_submit_button("Neutralizar Alarma y Sellar Acta"):
-                hora_cierre = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                fila_alerta = len(df_alertas) + 1 
+        if alerta_critica:
+            datos_sos = df_alertas[df_alertas['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE'].iloc[-1]
+            op_en_riesgo = datos_sos.get('USUARIO', 'Desconocido')
+            carga_util = str(datos_sos.get('CARGA_UTIL', ''))
+            
+            # Extracción de coordenadas y triangulación
+            lat_alerta, lon_alerta = "Desconocida", "Desconocida"
+            if "LAT" in carga_util:
+                try:
+                    partes = carga_util.split("|")
+                    lat_alerta = float(partes[0].split(":")[1].strip())
+                    lon_alerta = float(partes[1].split(":")[1].strip())
+                except: pass
+            
+            obj_cercano, policia_zona = calcular_objetivo_cercano(lat_alerta, lon_alerta, df_objetivos)
+            
+            # Alarma Sonora Constante
+            st.markdown("""
+                <audio autoplay loop>
+                  <source src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3" type="audio/mpeg">
+                </audio>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f'''
+                <div class="alerta-panico">
+                    🚨 BRECHA DE SEGURIDAD DETECTADA 🚨<br>
+                    <span style="font-size:20px;">Unidad: {op_en_riesgo} | {carga_util}</span><br>
+                    <span style="font-size:22px; color: #FFFF00;">OBJETIVO POSIBLE: {obj_cercano}</span><br>
+                    <span style="font-size:24px; font-weight: 900;">POLICÍA ASIGNADA: {policia_zona}</span>
+                </div>
+            ''', unsafe_allow_html=True)
+
+            with st.form("resolucion_crisis"):
+                st.write("Resolución Operativa y Respaldo Legal")
+                op = st.text_input("Firma del Monitorista (Identidad)")
                 
-                # Actualiza ESTADO (Col D) y RESOLUCION (Col F)
-                actualizar_celda("ALERTAS", fila_alerta, "D", "RESUELTO") 
-                actualizar_celda("ALERTAS", fila_alerta, "F", f"Cierre: {hora_cierre} | OPE: {op} | Acta: {res}")
+                # Clasificación de Derivación Externa (Blindaje Legal)
+                derivacion = st.selectbox("Derivación Institucional:", ["Intervención Interna (Secutec)", "911 - Comando Policial", "107 - SAME / Ambulancia", "100 - Bomberos", "Gendarmería Nacional"])
                 
-                st.success("S.O.S Neutralizado. Actas enviadas a Jefatura.")
-                st.cache_data.clear()
-                st.rerun()
+                res = st.text_area("Detalle de la acción tomada")
+                
+                if st.form_submit_button("Neutralizar Alarma y Notificar Mando"):
+                    hora_cierre = obtener_hora_argentina()
+                    fila_alerta = df_alertas[df_alertas['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE'].index[-1] + 2 
+                    
+                    # Cierre en matriz ALERTAS
+                    actualizar_celda("ALERTAS", fila_alerta, "D", "RESUELTO") 
+                    actualizar_celda("ALERTAS", fila_alerta, "F", f"OPE: {op} | Cierre: {hora_cierre} | Entidad: {derivacion} | Acta: {res}")
+                    
+                    # Doble Impacto: Envío a MENSAJERIA para que Jefatura/Gerencia se enteren instantáneamente
+                    escribir_registro("MENSAJERIA", [
+                        hora_cierre, 
+                        "SISTEMA SOS", 
+                        "TODOS", 
+                        f"ALERTA RESUELTA: {obj_cercano}", 
+                        f"Operador: {op}\nDerivación: {derivacion}\nResolución: {res}", 
+                        "ENVIADO", 
+                        "ROJO"
+                    ])
+                    
+                    st.success("S.O.S Neutralizado. Cierre legal registrado y reporte enviado a toda la línea de mando.")
+                    st.cache_data.clear()
+                    st.rerun()
 
-    c_map, c_log = st.columns([2, 1])
-    with c_map:
-        if not df_objetivos.empty:
-            m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows(): folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
-            st_folium(m_mon, width="100%", height=500)
-    with c_log:
-        st.subheader("Auditoría de Terreno (QR)")
-        df_p = leer_matriz_nube("LOG_PRESENCIA")
-        if not df_p.empty: st.dataframe(df_p.tail(15).iloc[::-1], use_container_width=True, hide_index=True)
-    mostrar_buzon(usuario_auth)
+        c_map, c_log = st.columns([2, 1])
+        with c_map:
+            if not df_objetivos.empty:
+                m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+                for _, r in df_objetivos.iterrows(): folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
+                st_folium(m_mon, width="100%", height=500)
+        with c_log:
+            st.subheader("Auditoría QR en Vivo")
+            if not df_p.empty: st.dataframe(df_p.tail(15).iloc[::-1], use_container_width=True, hide_index=True)
 
+    with tab_libro:
+        st.subheader("Libro de Actas de Base")
+        with st.form("acta_rutina_base"):
+            novedades_base = st.text_area("Novedades de la guardia / Relevos / Fallas de sistema")
+            if st.form_submit_button("Sellar Acta de Base"):
+                escribir_registro("MENSAJERIA", [
+                    obtener_hora_argentina(), 
+                    usuario_auth, 
+                    "DARÍO CECILIA", 
+                    "Libro de Base - Rutina", 
+                    novedades_base, 
+                    "ENVIADO", 
+                    "VERDE"
+                ])
+                st.success("Acta de rutina sellada y reportada a Jefatura de Operaciones.")
+
+    with tab_com:
+        mostrar_buzon(usuario_auth)
+        st.markdown("---")
+        with st.form("emision_monitoreo"):
+            st.subheader("Transmisión Táctica")
+            destinatario_m = st.selectbox("Enviar a:", ["TODOS", "DARÍO CECILIA", "LUIS BONGIORNO"] + lista_sups)
+            asunto_m = st.text_input("Asunto")
+            mensaje_m = st.text_area("Cuerpo de la directiva o reporte")
+            gravedad_m = st.selectbox("Nivel de Prioridad", ["VERDE", "AMARILLO", "ROJO"])
+            
+            if st.form_submit_button("Transmitir a la Red"):
+                escribir_registro("MENSAJERIA", [
+                    obtener_hora_argentina(), 
+                    usuario_auth, 
+                    destinatario_m, 
+                    asunto_m, 
+                    mensaje_m, 
+                    "ENVIADO", 
+                    gravedad_m
+                ])
+                st.success("Mensaje inyectado en la red de comunicaciones.")
 # --- 8. MÓDULO EJECUTIVO (JEFATURA Y GERENCIA) ---
 elif rol in ["JEFE DE OPERACIONES", "GERENCIA"]:
     st.header(f"Comando Estratégico: {usuario_auth}")
