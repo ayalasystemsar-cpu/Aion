@@ -129,10 +129,21 @@ if escribir_registro("ALERTAS", [
 ]):
     st.error("S.O.S TRANSMITIDO A LA MATRIZ. APOYO EN CAMINO.")
 
+# Activar SOS
+if escribir_registro("ALERTAS", [
+    obtener_hora_argentina(),
+    usuario_auth,   # ✅ sin comillas, ahora se usa la variable
+    "CRÍTICO",
+    "PENDIENTE",
+    "LAT: -34.6 | LON: -58.4",
+    ""
+]):
+    st.error("S.O.S TRANSMITIDO A LA MATRIZ. APOYO EN CAMINO.")
+
 # Actas Flotas
 escribir_registro("ACTAS_FLOTAS", [
     obtener_hora_argentina(),
-    "usuario_auth",
+    usuario_auth,   # ✅ sin comillas
     "S-001",
     "PATENTE",
     12000,
@@ -146,13 +157,14 @@ escribir_registro("ACTAS_FLOTAS", [
 # Mensajería
 escribir_registro("MENSAJERIA", [
     obtener_hora_argentina(),
-    "usuario_auth",
+    usuario_auth,   # ✅ sin comillas
     "TODOS",
     "Asunto de prueba",
     "Mensaje de prueba",
     "ENVIADO",
     "ROJO"
 ])
+
 
 
 # --- 4. MENSAJERÍA Y ENRUTAMIENTO INTELIGENTE (7 COLUMNAS) ---
