@@ -150,82 +150,45 @@ def mostrar_buzon(usuario):
 
 # --- 5. ESTRUCTURA LATERAL E IDENTIDAD ---
 with st.sidebar:
-    # Logo Reestructurado (Escudo Corporativo)
     st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-    try:
+    try: 
         st.image("assets/logo_aion.png", use_column_width=True)
-    except:
-        st.markdown("<h2 style='margin:0;'>AION<br>YAROKU</h2>", unsafe_allow_html=True)
+    except: 
+        st.markdown("<h2>AION YAROKU</h2>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # 1. ASIGNACIÓN DE IDENTIDAD (Secuencia obligatoria para evitar el NameError)
     st.session_state.rol_sel = st.selectbox("PERFIL OPERATIVO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"], index=["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"].index(st.session_state.rol_sel))
     rol = st.session_state.rol_sel
     
     lista_sups = ["AYALA BRIAN", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "DIAZ MARCELO", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
-    usuario_auth = ""
     
-    if rol == "SUPERVISOR": 
-        st.session_state.user_sel = st.selectbox("IDENTIFICACIÓN", lista_sups, index=lista_sups.index(st.session_state.user_sel) if st.session_state.user_sel in lista_sups else 0)
+    if rol == "SUPERVISOR":
         usuario_auth = st.session_state.user_sel
-    elif rol == "JEFE DE OPERACIONES": usuario_auth = "DARÍO CECILIA"
-    elif rol == "GERENCIA": usuario_auth = "LUIS BONGIORNO"
-    elif rol == "MONITOREO": usuario_auth = "CENTRAL MONITOREO"
+    elif rol == "MONITOREO":
+        usuario_auth = "CENTRAL MONITOREO"
+    elif rol == "JEFE DE OPERACIONES":
+        usuario_auth = "DARÍO CECILIA"
+    elif rol == "GERENCIA":
+        usuario_auth = "LUIS BONGIORNO"
     elif rol == "ADMINISTRADOR":
-        clave = st.text_input("CREDENCIAL MAESTRA", type="password")
-        if clave != st.secrets.get("admin_password", "aion2026"):
-            st.error("ACCESO DENEGADO. NÚCLEO BLOQUEADO.")
+        if st.text_input("CREDENCIAL", type="password") != st.secrets.get("admin_password", "aion2026"): 
             st.stop()
         usuario_auth = "AYALA BRIAN (ADMIN)"
 
+    # 2. BOTONES TÁCTICOS (Ejecución post-identidad)
     st.markdown("---")
-    # --- BLOQUE DE REGISTROS ---
-    escribir_registro("ALERTAS", [
-        obtener_hora_argentina(),
-        usuario_auth,   # ✅ ya definido en el sidebar
-        "CRÍTICO",
-        "PENDIENTE",
-        "LAT: -34.6 | LON: -58.4",
-        ""
-    ])
-    st.error("S.O.S TRANSMITIDO A LA MATRIZ. APOYO EN CAMINO.")
-
-    escribir_registro("ACTAS_FLOTAS", [
-        obtener_hora_argentina(),
-        usuario_auth,
-        "S-001",
-        "PATENTE",
-        12000,
-        "10.0",
-        "Vigilador Demo",
-        "OBJETIVO DEMO",
-        "Informe de prueba",
-        "VERDE"
-    ])
-
-    escribir_registro("MENSAJERIA", [
-        obtener_hora_argentina(),
-        usuario_auth,
-        "TODOS",
-        "Asunto de prueba",
-        "Mensaje de prueba",
-        "ENVIADO",
-        "ROJO"
-    ])
-
-    # Motor S.O.S Balístico (Carga Útil Completa a tabla ALERTAS 6 columnas)
     if rol == "SUPERVISOR":
         if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
             loc = get_geolocation()
-            lat_sos, lon_sos = "Desconocida", "Desconocida"
-            if loc: 
-                lat_sos, lon_sos = loc['coords']['latitude'], loc['coords']['longitude']
+            lat, lon = (loc['coords']['latitude'], loc['coords']['longitude']) if loc else ("Desconocida", "Desconocida")
             
-            carga_sos = f"LAT: {lat_sos} | LON: {lon_sos}"
-            # Escribe 6 columnas exactas: Fecha, Usuario, Tipo, Estado, Carga_Util, Resolucion
-            if escribir_registro("ALERTAS", [str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), usuario_auth, "CRÍTICO", "PENDIENTE", carga_sos, ""]):
-                st.error("S.O.S TRANSMITIDO A LA MATRIZ. APOYO EN CAMINO.")
+            if escribir_registro("ALERTAS", [obtener_hora_argentina(), usuario_auth, "CRÍTICO", "PENDIENTE", f"LAT: {lat} | LON: {lon}", ""]):
+                st.error("S.O.S TRANSMITIDO. TRIANGULANDO APOYO.")
 
-    if st.button("🔄 FORZAR REFRESCO MATRIZ"): st.cache_data.clear(); st.rerun()
+    if st.button("🔄 FORZAR REFRESCO"): 
+        st.cache_data.clear()
+        st.rerun()
 
 # --- 6. MÓDULO SUPERVISOR: TÁCTICA Y TELEMETRÍA ---
 if rol == "SUPERVISOR" and usuario_auth:
