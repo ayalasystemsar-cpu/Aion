@@ -8,7 +8,7 @@ import numpy as np
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
-
+from streamlit_autorefresh import st_autorefresh
     
 # --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA ---
 st.set_page_config(page_title="AION-YAROKU", layout="wide", initial_sidebar_state="expanded")
