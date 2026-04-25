@@ -121,7 +121,7 @@ def calcular_objetivo_cercano(lat, lon, df_obj):
 # Activar SOS
 if escribir_registro("ALERTAS", [
     obtener_hora_argentina(),
-    "USUARIO_DEMO",
+    "usuario_auth",
     "CRÍTICO",
     "PENDIENTE",
     "LAT: -34.6 | LON: -58.4",
@@ -132,7 +132,7 @@ if escribir_registro("ALERTAS", [
 # Actas Flotas
 escribir_registro("ACTAS_FLOTAS", [
     obtener_hora_argentina(),
-    "USUARIO_DEMO",
+    "usuario_auth",
     "S-001",
     "PATENTE",
     12000,
@@ -146,7 +146,7 @@ escribir_registro("ACTAS_FLOTAS", [
 # Mensajería
 escribir_registro("MENSAJERIA", [
     obtener_hora_argentina(),
-    "USUARIO_DEMO",
+    "usuario_auth",
     "TODOS",
     "Asunto de prueba",
     "Mensaje de prueba",
