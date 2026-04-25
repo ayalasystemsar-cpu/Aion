@@ -163,7 +163,9 @@ with st.sidebar:
     
     lista_sups = ["AYALA BRIAN", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "DIAZ MARCELO", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
     
+    # Despliegue de la lista de identidades solo para supervisores
     if rol == "SUPERVISOR":
+        st.session_state.user_sel = st.selectbox("IDENTIDAD DEL SUPERVISOR", lista_sups)
         usuario_auth = st.session_state.user_sel
     elif rol == "MONITOREO":
         usuario_auth = "CENTRAL MONITOREO"
@@ -189,7 +191,6 @@ with st.sidebar:
     if st.button("🔄 FORZAR REFRESCO"): 
         st.cache_data.clear()
         st.rerun()
-
 # --- 6. MÓDULO SUPERVISOR: TÁCTICA Y TELEMETRÍA ---
 if rol == "SUPERVISOR" and usuario_auth:
     st.header(f"Estación Táctica: {usuario_auth}")
