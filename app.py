@@ -108,7 +108,6 @@ def cargar_objetivos():
     return pd.DataFrame(columns=['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR', 'LATITUD', 'LONGITUD', 'RESPONSABLE', 'ALARMA', 'POLICIA'])
 
 df_objetivos = cargar_objetivos()
-
 def calcular_objetivo_cercano(lat, lon, df_obj):
 
 
