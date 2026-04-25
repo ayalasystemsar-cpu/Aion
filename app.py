@@ -118,42 +118,7 @@ def calcular_objetivo_cercano(lat, lon, df_obj):
     cercano = df_temp.loc[df_temp['distancia'].idxmin()]
     return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
 
-# --- BLOQUE DE REGISTROS ---
-# Activar SOS
-if escribir_registro("ALERTAS", [
-    obtener_hora_argentina(),
-    usuario_auth,   # ✅ nombre real del supervisor/rol
-    "CRÍTICO",
-    "PENDIENTE",
-    "LAT: -34.6 | LON: -58.4",
-    ""
-]):
-    st.error("S.O.S TRANSMITIDO A LA MATRIZ. APOYO EN CAMINO.")
 
-# Actas Flotas
-escribir_registro("ACTAS_FLOTAS", [
-    obtener_hora_argentina(),
-    usuario_auth,   # ✅ supervisor activo
-    "S-001",
-    "PATENTE",
-    12000,
-    "10.0",
-    "Vigilador Demo",
-    "OBJETIVO DEMO",
-    "Informe de prueba",
-    "VERDE"
-])
-
-# Mensajería
-escribir_registro("MENSAJERIA", [
-    obtener_hora_argentina(),
-    usuario_auth,   # ✅ supervisor activo
-    "TODOS",
-    "Asunto de prueba",
-    "Mensaje de prueba",
-    "ENVIADO",
-    "ROJO"
-])
 # --- 4. MENSAJERÍA Y ENRUTAMIENTO INTELIGENTE (7 COLUMNAS) ---
 def mostrar_buzon(usuario):
     st.subheader("📥 Bandeja de Inteligencia (Comunicaciones)")
@@ -213,7 +178,41 @@ with st.sidebar:
         usuario_auth = "AYALA BRIAN (ADMIN)"
 
     st.markdown("---")
-    
+    # --- BLOQUE DE REGISTROS ---
+if st.button("Ejecutar registros"):
+    escribir_registro("ALERTAS", [
+        obtener_hora_argentina(),
+        usuario_auth,   # ✅ ya definido en el sidebar
+        "CRÍTICO",
+        "PENDIENTE",
+        "LAT: -34.6 | LON: -58.4",
+        ""
+    ])
+    st.error("S.O.S TRANSMITIDO A LA MATRIZ. APOYO EN CAMINO.")
+
+    escribir_registro("ACTAS_FLOTAS", [
+        obtener_hora_argentina(),
+        usuario_auth,
+        "S-001",
+        "PATENTE",
+        12000,
+        "10.0",
+        "Vigilador Demo",
+        "OBJETIVO DEMO",
+        "Informe de prueba",
+        "VERDE"
+    ])
+
+    escribir_registro("MENSAJERIA", [
+        obtener_hora_argentina(),
+        usuario_auth,
+        "TODOS",
+        "Asunto de prueba",
+        "Mensaje de prueba",
+        "ENVIADO",
+        "ROJO"
+    ])
+
     # Motor S.O.S Balístico (Carga Útil Completa a tabla ALERTAS 6 columnas)
     if rol == "SUPERVISOR":
         if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
