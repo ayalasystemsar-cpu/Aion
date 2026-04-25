@@ -3,19 +3,21 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime, timedelta, timezone
+import pytz  
 import numpy as np
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
 
-# --- MOTOR DE TIEMPO (ZONA HORARIA ARGENTINA UTC-3) ---
-def obtener_hora_argentina():
-    tz_arg = timezone(timedelta(hours=-3))
-    return datetime.now(tz_arg).strftime("%Y-%m-%d %H:%M:%S")
     
 # --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA ---
 st.set_page_config(page_title="AION-YAROKU", layout="wide", initial_sidebar_state="expanded")
 
+# ✅ Función para hora Argentina (va aquí, después de los imports y configuración)
+def obtener_hora_argentina():
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+    
 # Inyección CSS Avanzada (Glassmorphism, Alarmas y Estética Letal)
 st.markdown(
     """
@@ -108,6 +110,46 @@ def cargar_objetivos():
 df_objetivos = cargar_objetivos()
 
 def calcular_objetivo_cercano(lat, lon, df_obj):
+
+
+
+    # --- BLOQUE DE PRUEBA DEMO ---
+if st.button("Ejecutar pruebas demo"):
+    # Activar SOS
+    if escribir_registro("ALERTAS", [
+        obtener_hora_argentina(),
+        "USUARIO_DEMO",
+        "CRÍTICO",
+        "PENDIENTE",
+        "LAT: -34.6 | LON: -58.4",
+        ""
+    ]):
+        st.error("S.O.S TRANSMITIDO A LA MATRIZ. APOYO EN CAMINO.")
+
+    # Actas Flotas
+    escribir_registro("ACTAS_FLOTAS", [
+        obtener_hora_argentina(),
+        "USUARIO_DEMO",
+        "S-001",
+        "PATENTE",
+        12000,
+        "10.0",
+        "Vigilador Demo",
+        "OBJETIVO DEMO",
+        "Informe de prueba",
+        "VERDE"
+    ])
+
+    # Mensajería
+    escribir_registro("MENSAJERIA", [
+        obtener_hora_argentina(),
+        "USUARIO_DEMO",
+        "TODOS",
+        "Asunto de prueba",
+        "Mensaje de prueba",
+        "ENVIADO",
+        "ROJO"
+    ])
     # Triangulación euclidiana rápida para módulo SOS
     if df_obj.empty or lat == "Desconocida": return "Sin datos", "Sin datos"
     df_temp = df_obj.copy()
