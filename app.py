@@ -118,21 +118,11 @@ def calcular_objetivo_cercano(lat, lon, df_obj):
     cercano = df_temp.loc[df_temp['distancia'].idxmin()]
     return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
 
+# --- BLOQUE DE REGISTROS ---
 # Activar SOS
 if escribir_registro("ALERTAS", [
     obtener_hora_argentina(),
-    "usuario_auth",
-    "CRÍTICO",
-    "PENDIENTE",
-    "LAT: -34.6 | LON: -58.4",
-    ""
-]):
-    st.error("S.O.S TRANSMITIDO A LA MATRIZ. APOYO EN CAMINO.")
-
-# Activar SOS
-if escribir_registro("ALERTAS", [
-    obtener_hora_argentina(),
-    usuario_auth,   # ✅ sin comillas, ahora se usa la variable
+    usuario_auth,   # ✅ nombre real del supervisor/rol
     "CRÍTICO",
     "PENDIENTE",
     "LAT: -34.6 | LON: -58.4",
@@ -143,7 +133,7 @@ if escribir_registro("ALERTAS", [
 # Actas Flotas
 escribir_registro("ACTAS_FLOTAS", [
     obtener_hora_argentina(),
-    usuario_auth,   # ✅ sin comillas
+    usuario_auth,   # ✅ supervisor activo
     "S-001",
     "PATENTE",
     12000,
@@ -157,16 +147,13 @@ escribir_registro("ACTAS_FLOTAS", [
 # Mensajería
 escribir_registro("MENSAJERIA", [
     obtener_hora_argentina(),
-    usuario_auth,   # ✅ sin comillas
+    usuario_auth,   # ✅ supervisor activo
     "TODOS",
     "Asunto de prueba",
     "Mensaje de prueba",
     "ENVIADO",
     "ROJO"
 ])
-
-
-
 # --- 4. MENSAJERÍA Y ENRUTAMIENTO INTELIGENTE (7 COLUMNAS) ---
 def mostrar_buzon(usuario):
     st.subheader("📥 Bandeja de Inteligencia (Comunicaciones)")
