@@ -3,7 +3,6 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime, timedelta, timezone
-import pytz 
 import numpy as np
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -49,7 +48,12 @@ st.markdown(
     </style>
     """, unsafe_allow_html=True
 )
+ # --- MOTOR DE TIEMPO (ZONA HORARIA ARGENTINA UTC-3) ---
 
+def obtener_hora_argentina():
+    tz_arg = timezone(timedelta(hours=-3))
+    return datetime.now(tz_arg).strftime("%Y-%m-%d %H:%M:%S")
+ 
 # --- 2. MEMORIA DE SESIÓN Y TELEMETRÍA (ANTI-RESETEO) ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "AYALA BRIAN"
