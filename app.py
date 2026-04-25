@@ -315,122 +315,204 @@ if rol == "SUPERVISOR" and usuario_auth:
     with t3:
         mostrar_buzon(usuario_auth)
 
-# --- 7. MÓDULO MONITOREO: RESPUESTA CRÍTICA CONTINUA ---
+# --- 7. MÓDULO MONITOREO: RESPUESTA CRÍTICA Y GESTIÓN CONTINUA ---
 elif rol == "MONITOREO":
     st.header("Consola Central de Inteligencia")
+    
+    # Telemetría Frontal
+    st.markdown("### Estado de Red en Tiempo Real")
+    m1, m2, m3 = st.columns(3)
     df_alertas = leer_matriz_nube("ALERTAS")
-    alerta_critica = not df_alertas.empty and 'ESTADO' in df_alertas.columns and str(df_alertas.iloc[-1]['ESTADO']).strip().upper() == "PENDIENTE"
+    sos_activos = len(df_alertas[df_alertas['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE']) if not df_alertas.empty and 'ESTADO' in df_alertas.columns else 0
+    m1.metric("🚨 S.O.S Activos", sos_activos)
+    
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    amarillas = len(df_msg[(df_msg['GRAVEDAD'].astype(str).str.upper() == 'AMARILLO') & (df_msg['ESTADO'].astype(str).str.upper() != 'LEÍDO')]) if not df_msg.empty and 'GRAVEDAD' in df_msg.columns else 0
+    m2.metric("⚠️ Novedades en Proceso", amarillas)
+    
+    df_p = leer_matriz_nube("LOG_PRESENCIA")
+    fecha_hoy = obtener_hora_argentina().split(" ")[0]
+    qrs_hoy = len(df_p[df_p['FECHA'].astype(str).str.contains(fecha_hoy)]) if not df_p.empty and 'FECHA' in df_p.columns else 0
+    m3.metric("📲 Fichajes QR (Hoy)", qrs_hoy)
+    st.markdown("---")
 
-    if alerta_critica:
-        datos_sos = df_alertas.iloc[-1]
-        op_en_riesgo = datos_sos.get('USUARIO', 'Desconocido')
-        carga_util = str(datos_sos.get('CARGA_UTIL', ''))
-        
-        # Extracción de coordenadas y triangulación
-        lat_alerta, lon_alerta = "Desconocida", "Desconocida"
-        if "LAT" in carga_util:
-            try:
-                partes = carga_util.split("|")
-                lat_alerta = float(partes[0].split(":")[1].strip())
-                lon_alerta = float(partes[1].split(":")[1].strip())
-            except: pass
-        
-        obj_cercano, policia_zona = calcular_objetivo_cercano(lat_alerta, lon_alerta, df_objetivos)
-        
-        # Alarma Sonora Constante
-        st.markdown("""
-            <audio autoplay loop>
-              <source src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3" type="audio/mpeg">
-            </audio>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f'''
-            <div class="alerta-panico">
-                🚨 BRECHA DE SEGURIDAD DETECTADA 🚨<br>
-                <span style="font-size:20px;">Unidad: {op_en_riesgo} | {carga_util}</span><br>
-                <span style="font-size:22px; color: #FFFF00;">OBJETIVO POSIBLE: {obj_cercano}</span><br>
-                <span style="font-size:24px; font-weight: 900;">POLICÍA ASIGNADA: {policia_zona}</span>
-            </div>
-        ''', unsafe_allow_html=True)
+    tab_radar, tab_libro, tab_com = st.tabs(["🚨 RADAR & S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN"])
+    
+    with tab_radar:
+        if sos_activos > 0:
+            datos_sos = df_alertas[df_alertas['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE'].iloc[-1]
+            op_en_riesgo = datos_sos.get('USUARIO', 'Desconocido')
+            carga_util = str(datos_sos.get('CARGA_UTIL', ''))
+            
+            lat_alerta, lon_alerta = "Desconocida", "Desconocida"
+            if "LAT" in carga_util:
+                try:
+                    partes = carga_util.split("|")
+                    lat_alerta = float(partes[0].split(":")[1].strip())
+                    lon_alerta = float(partes[1].split(":")[1].strip())
+                except: pass
+            
+            obj_cercano, policia_zona = calcular_objetivo_cercano(lat_alerta, lon_alerta, df_objetivos)
+            
+            st.markdown("""<audio autoplay loop><source src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3" type="audio/mpeg"></audio>""", unsafe_allow_html=True)
+            st.markdown(f'''
+                <div class="alerta-panico">
+                    🚨 BRECHA DE SEGURIDAD DETECTADA 🚨<br>
+                    <span style="font-size:20px;">Unidad: {op_en_riesgo} | {carga_util}</span><br>
+                    <span style="font-size:22px; color: #FFFF00;">OBJETIVO POSIBLE: {obj_cercano}</span><br>
+                    <span style="font-size:24px; font-weight: 900;">POLICÍA ASIGNADA: {policia_zona}</span>
+                </div>
+            ''', unsafe_allow_html=True)
 
-        with st.form("resolucion_crisis"):
-            st.write("Libro de Actas - Resolución de Crisis")
-            op = st.text_input("Firma del Monitorista (Identidad)")
-            res = st.text_area("Detalle de Resolución Operativa")
-            if st.form_submit_button("Neutralizar Alarma y Sellar Acta"):
-                hora_cierre = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                fila_alerta = len(df_alertas) + 1 
+            with st.form("resolucion_crisis"):
+                st.write("Resolución Operativa y Clasificación")
+                op = st.text_input("Firma del Monitorista")
                 
-                # Actualiza ESTADO (Col D) y RESOLUCION (Col F)
-                actualizar_celda("ALERTAS", fila_alerta, "D", "RESUELTO") 
-                actualizar_celda("ALERTAS", fila_alerta, "F", f"Cierre: {hora_cierre} | OPE: {op} | Acta: {res}")
+                # Menú estricto de semáforos tácticos
+                opciones_semaforo = [
+                    "🔴 911 - Comando Policial", 
+                    "🔴 Robo en Proceso", 
+                    "🔴 Gendarmería Nacional",
+                    "🟡 107 - SAME / Ambulancia", 
+                    "🟡 100 - Bomberos",
+                    "🟢 Intervención Interna (Secutec)", 
+                    "🟢 Falsa Alarma / Error de Operador", 
+                    "🟢 Simulacro / Prueba de Sistema"
+                ]
+                derivacion = st.selectbox("Clasificación de Derivación (Semáforo):", opciones_semaforo)
+                res = st.text_area("Detalle del acta")
                 
-                st.success("S.O.S Neutralizado. Actas enviadas a Jefatura.")
-                st.cache_data.clear()
-                st.rerun()
+                if st.form_submit_button("Neutralizar y Clasificar"):
+                    hora_cierre = obtener_hora_argentina()
+                    fila_alerta = df_alertas[df_alertas['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE'].index[-1] + 2 
+                    
+                    actualizar_celda("ALERTAS", fila_alerta, "D", "RESUELTO") 
+                    actualizar_celda("ALERTAS", fila_alerta, "F", f"OPE: {op} | Cierre: {hora_cierre} | Entidad: {derivacion} | Acta: {res}")
+                    st.success("S.O.S Neutralizado y clasificado en la matriz.")
+                    st.cache_data.clear()
+                    st.rerun()
 
-    c_map, c_log = st.columns([2, 1])
-    with c_map:
-        if not df_objetivos.empty:
-            m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows(): folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
-            st_folium(m_mon, width="100%", height=500)
-    with c_log:
-        st.subheader("Auditoría de Terreno (QR)")
-        df_p = leer_matriz_nube("LOG_PRESENCIA")
-        if not df_p.empty: st.dataframe(df_p.tail(15).iloc[::-1], use_container_width=True, hide_index=True)
-    mostrar_buzon(usuario_auth)
+        c_map, c_log = st.columns([2, 1])
+        with c_map:
+            if not df_objetivos.empty:
+                m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+                for _, r in df_objetivos.iterrows(): folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
+                st_folium(m_mon, width="100%", height=500)
+        with c_log:
+            st.subheader("Auditoría QR en Vivo")
+            if not df_p.empty: st.dataframe(df_p.tail(15).iloc[::-1], use_container_width=True, hide_index=True)
+
+    with tab_libro:
+        with st.form("acta_rutina"):
+            novedades_base = st.text_area("Novedades de la guardia / Relevos")
+            if st.form_submit_button("Sellar Acta"):
+                escribir_registro("MENSAJERIA", [obtener_hora_argentina(), usuario_auth, "DARÍO CECILIA", "Libro de Base", novedades_base, "ENVIADO", "VERDE"])
+                st.success("Acta sellada.")
+
+    with tab_com:
+        mostrar_buzon(usuario_auth)
+        with st.form("emision_monitoreo"):
+            dest_m = st.selectbox("Para:", ["TODOS", "DARÍO CECILIA", "LUIS BONGIORNO"] + lista_sups)
+            asu_m = st.text_input("Asunto"); men_m = st.text_area("Mensaje"); grav_m = st.selectbox("Prioridad", ["VERDE", "AMARILLO", "ROJO"])
+            if st.form_submit_button("Transmitir"):
+                escribir_registro("MENSAJERIA", [obtener_hora_argentina(), usuario_auth, dest_m, asu_m, men_m, "ENVIADO", grav_m])
+                st.success("Transmitido.")
 
 # --- 8. MÓDULO EJECUTIVO (JEFATURA Y GERENCIA) ---
 elif rol in ["JEFE DE OPERACIONES", "GERENCIA"]:
     st.header(f"Comando Estratégico: {usuario_auth}")
     
-    if rol == "GERENCIA":
-        st.subheader("Panel de Rentabilidad Operativa")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Ahorro de Riesgo (Estimado)", "$1.200.000")
-        m2.metric("Nivel de Cobertura", f"{len(df_objetivos)}/93")
-        
-        # Rendimiento derivado de LOG_PRESENCIA
-        df_p = leer_matriz_nube("LOG_PRESENCIA")
-        total_qrs = len(df_p) if not df_p.empty else 0
-        m3.metric("Auditorías Físicas (QRs)", f"{total_qrs}")
-        
-        # Telemetría leída de CONTROL_FLOTA
-        df_tel = leer_matriz_nube("CONTROL_FLOTA")
-        if not df_tel.empty and 'KM_FINAL' in df_tel.columns and 'KM_INICIAL' in df_tel.columns:
-            # Cálculo de suma de diferencias para obtener el KM real recorrido
-            df_tel['KM_INICIAL'] = pd.to_numeric(df_tel['KM_INICIAL'], errors='coerce')
-            df_tel['KM_FINAL'] = pd.to_numeric(df_tel['KM_FINAL'], errors='coerce')
-            km_totales = (df_tel['KM_FINAL'] - df_tel['KM_INICIAL']).sum()
-        else:
-            km_totales = 0
-        m4.metric("Desgaste Flota (Km)", f"{km_totales} Km")
+    # CSS dinámico para las tarjetas semáforo
+    st.markdown("""
+    <style>
+    .card-roja { background: linear-gradient(145deg, #1a0000, #330000); border-left: 6px solid #FF0000; padding: 15px; margin-bottom: 15px; border-radius: 5px; box-shadow: 0 2px 10px rgba(255,0,0,0.2); }
+    .card-amarilla { background: linear-gradient(145deg, #1a1a00, #333300); border-left: 6px solid #FFCC00; padding: 15px; margin-bottom: 15px; border-radius: 5px; box-shadow: 0 2px 10px rgba(255,204,0,0.2); }
+    .card-verde { background: linear-gradient(145deg, #001a00, #003300); border-left: 6px solid #00FF00; padding: 15px; margin-bottom: 15px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,255,0,0.2); }
+    .titulo-card { font-size: 14px; color: #00E5FF; font-weight: bold; text-transform: uppercase; margin-bottom: 8px;}
+    .texto-card { font-size: 14px; color: #FFFFFF; font-family: monospace; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    t_crisis, t_com, t_gest, t_aud = st.tabs(["🚨 CENTRO DE CRISIS", "📥 COMUNICACIONES", "📤 EJECUCIÓN ESTRATÉGICA", "📍 TABLERO DE AUDITORÍA"])
     
-    t1, t2, t3 = st.tabs(["📥 COMUNICACIÓN ESTRATÉGICA", "📤 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    with t1: mostrar_buzon(usuario_auth)
-    with t2:
-        if rol == "GERENCIA":
-            c1, c2 = st.columns(2)
-            with c1:
-                with st.form("alta"):
-                    st.write("Alta Servicio"); n = st.text_input("Nombre"); s = st.selectbox("Asignar a:", lista_sups)
-                    # PETICIONES: 6 Columnas (Fecha, Gerente, Acción, Detalle, Estado, Categoría)
-                    if st.form_submit_button("Solicitar Alta a Admin"): escribir_registro("PETICIONES", [str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), usuario_auth, "ALTA", f"{n} | {s}", "PENDIENTE", "OBJETIVO"])
-            with c2:
-                with st.form("baja"):
-                    st.write("Baja Servicio"); rem = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
-                    if st.form_submit_button("Solicitar Baja a Admin"): escribir_registro("PETICIONES", [str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), usuario_auth, "BAJA", rem, "PENDIENTE", "OBJETIVO"])
-        with st.form("orden"):
-            st.write("Transmitir Directiva (Push a Celulares)")
-            dest = st.selectbox("Para:", ["TODOS", "LUIS BONGIORNO", "DARÍO CECILIA"] + lista_sups); a = st.text_input("Asunto"); m = st.text_area("Orden"); grav = st.selectbox("Prioridad", ["VERDE", "AMARILLO", "ROJO"])
-            # Escribe 7 Columnas a MENSAJERIA
-            if st.form_submit_button("Ejecutar Directiva"): escribir_registro("MENSAJERIA", [str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), usuario_auth, dest, a, m, "ENVIADO", grav]); st.success("Directiva inyectada en la red.")
-    with t3:
-        st.subheader("Auditoría de Actas Tácticas")
-        df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_actas.empty: st.dataframe(df_actas.tail(20).iloc[::-1], use_container_width=True)
-        else: st.info("Sin registros de actas.")
+    with t_crisis:
+        st.markdown("### Historial de S.O.S (Clasificación por Gravedad)")
+        df_alertas = leer_matriz_nube("ALERTAS")
+        
+        if not df_alertas.empty and 'ESTADO' in df_alertas.columns:
+            resueltas = df_alertas[df_alertas['ESTADO'].astype(str).str.strip().str.upper() == 'RESUELTO']
+            
+            # Contadores lógicos
+            c_rojas = c_amarillas = c_verdes = 0
+            tarjetas_html = ""
+            
+            for idx, row in resueltas.iloc[::-1].iterrows():
+                hora = row.get('FECHA_HORA', 'Sin datos')
+                usuario_r = row.get('USUARIO', 'Desconocido')
+                resolucion_raw = str(row.get('RESOLUCION', ''))
+                
+                op_mon = "Desconocido"; entidad = "N/A"; acta = resolucion_raw
+                try:
+                    if " | " in resolucion_raw:
+                        partes = resolucion_raw.split(" | ")
+                        for p in partes:
+                            if p.startswith("OPE:"): op_mon = p.replace("OPE:", "").strip()
+                            elif p.startswith("Entidad:"): entidad = p.replace("Entidad:", "").strip()
+                            elif p.startswith("Acta:"): acta = p.replace("Acta:", "").strip()
+                except: pass
+
+                # Clasificación automática por presencia del emoji
+                clase_css = "card-verde"
+                if "🔴" in entidad:
+                    clase_css = "card-roja"; c_rojas += 1
+                elif "🟡" in entidad:
+                    clase_css = "card-amarilla"; c_amarillas += 1
+                elif "🟢" in entidad:
+                    clase_css = "card-verde"; c_verdes += 1
+                else:
+                    c_verdes += 1 
+
+                tarjetas_html += f"""
+                <div class="{clase_css}">
+                    <div class="titulo-card">{entidad}</div>
+                    <div class="texto-card">
+                        <b>Detonó:</b> {usuario_r} a las {hora}<br>
+                        <b>Neutralizó:</b> {op_mon}<br>
+                        <b>Acta Operativa:</b> {acta}
+                    </div>
+                </div>
+                """
+
+            # Panel frontal de contadores
+            col1, col2, col3 = st.columns(3)
+            col1.metric("🔴 CRÍTICAS", c_rojas)
+            col2.metric("🟡 ASISTENCIALES", c_amarillas)
+            col3.metric("🟢 PRUEBAS/INTERNAS", c_verdes)
+            st.markdown("---")
+            
+            if resueltas.empty:
+                st.info("No hay eventos registrados en la matriz.")
+            else:
+                st.markdown(tarjetas_html, unsafe_allow_html=True)
+        else:
+            st.warning("Sin conexión a la matriz de alertas.")
+
+    with t_com: 
+        mostrar_buzon(usuario_auth)
+    
+    with t_gest:
+        st.subheader("Emisión de Directivas")
+        with st.form("orden_e"):
+            dest_e = st.selectbox("Destinatario:", ["TODOS", "LUIS BONGIORNO", "DARÍO CECILIA"] + lista_sups)
+            asu_e = st.text_input("Asunto")
+            men_e = st.text_area("Cuerpo de la orden")
+            grav_e = st.selectbox("Nivel de Prioridad", ["VERDE", "AMARILLO", "ROJO"])
+            if st.form_submit_button("Ejecutar Orden"):
+                escribir_registro("MENSAJERIA", [obtener_hora_argentina(), usuario_auth, dest_e, asu_e, men_e, "ENVIADO", grav_e])
+                st.success("Directiva inyectada a la red.")
+                
+    with t_aud: 
+        st.write("Panel de control de kilómetros y fichajes en desarrollo estratégico.")
 
 # --- 9. ADMINISTRADOR (CANDADO DE TITANIO MANTENIDO Y PLENAMENTE OPERATIVO) ---
 elif rol == "ADMINISTRADOR":
