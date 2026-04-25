@@ -179,7 +179,6 @@ with st.sidebar:
 
     st.markdown("---")
     # --- BLOQUE DE REGISTROS ---
-if st.button("Ejecutar registros"):
     escribir_registro("ALERTAS", [
         obtener_hora_argentina(),
         usuario_auth,   # ✅ ya definido en el sidebar
