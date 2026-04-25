@@ -119,8 +119,7 @@ def calcular_objetivo_cercano(lat, lon, df_obj):
     return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
 
 
-# --- BLOQUE DE PRUEBA DEMO ---
-if st.button("Ejecutar pruebas demo"):
+
     # Activar SOS
     if escribir_registro("ALERTAS", [
         obtener_hora_argentina(),
