@@ -8,3 +8,4 @@ streamlit-js-eval
 numpy
 openpyxl
 pytz
+streamlit-autorefresh
