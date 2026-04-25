@@ -110,6 +110,15 @@ def cargar_objetivos():
 df_objetivos = cargar_objetivos()
 def calcular_objetivo_cercano(lat, lon, df_obj):
 
+
+    # Triangulación euclidiana rápida para módulo SOS
+    if df_obj.empty or lat == "Desconocida": return "Sin datos", "Sin datos"
+    df_temp = df_obj.copy()
+    df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - lat)*2 + (df_temp['LONGITUD'] - lon)*2)
+    cercano = df_temp.loc[df_temp['distancia'].idxmin()]
+    return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
+
+
 # --- BLOQUE DE PRUEBA DEMO ---
 if st.button("Ejecutar pruebas demo"):
     # Activar SOS
@@ -147,13 +156,6 @@ if st.button("Ejecutar pruebas demo"):
         "ENVIADO",
         "ROJO"
     ])
-
-    # Triangulación euclidiana rápida para módulo SOS
-    if df_obj.empty or lat == "Desconocida": return "Sin datos", "Sin datos"
-    df_temp = df_obj.copy()
-    df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - lat)*2 + (df_temp['LONGITUD'] - lon)*2)
-    cercano = df_temp.loc[df_temp['distancia'].idxmin()]
-    return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
 
 # --- 4. MENSAJERÍA Y ENRUTAMIENTO INTELIGENTE (7 COLUMNAS) ---
 def mostrar_buzon(usuario):
