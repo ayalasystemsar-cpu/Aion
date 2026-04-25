@@ -320,6 +320,9 @@ if rol == "SUPERVISOR" and usuario_auth:
 elif rol == "MONITOREO":
     st.header("Consola Central de Inteligencia")
     
+    # Motor de Radar Automático (Escanea la base cada 10 segundos)
+    st_autorefresh(interval=10000, key="radar_monitoreo")
+    
     # Telemetría Frontal
     st.markdown("### Estado de Red en Tiempo Real")
     m1, m2, m3 = st.columns(3)
@@ -366,42 +369,26 @@ elif rol == "MONITOREO":
             ''', unsafe_allow_html=True)
 
             with st.form("resolucion_crisis"):
-                st.write("Resolución Operativa y Clasificación")
                 op = st.text_input("Firma del Monitorista")
-                
-                # Menú estricto de semáforos tácticos
-                opciones_semaforo = [
-                    "🔴 911 - Comando Policial", 
-                    "🔴 Robo en Proceso", 
-                    "🔴 Gendarmería Nacional",
-                    "🟡 107 - SAME / Ambulancia", 
-                    "🟡 100 - Bomberos",
-                    "🟢 Intervención Interna (Secutec)", 
-                    "🟢 Falsa Alarma / Error de Operador", 
-                    "🟢 Simulacro / Prueba de Sistema"
-                ]
-                derivacion = st.selectbox("Clasificación de Derivación (Semáforo):", opciones_semaforo)
+                derivacion = st.selectbox("Clasificación de Derivación (Semáforo):", [
+                    "🔴 911 - Comando Policial", "🔴 Robo en Proceso", "🔴 Gendarmería Nacional",
+                    "🟡 107 - SAME / Ambulancia", "🟡 100 - Bomberos",
+                    "🟢 Intervención Interna (Secutec)", "🟢 Falsa Alarma / Error de Operador", "🟢 Simulacro / Prueba de Sistema"
+                ])
                 res = st.text_area("Detalle del acta")
                 
                 if st.form_submit_button("Neutralizar y Clasificar"):
                     hora_cierre = obtener_hora_argentina()
                     fila_alerta = df_alertas[df_alertas['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE'].index[-1] + 2 
-                    
                     actualizar_celda("ALERTAS", fila_alerta, "D", "RESUELTO") 
                     actualizar_celda("ALERTAS", fila_alerta, "F", f"OPE: {op} | Cierre: {hora_cierre} | Entidad: {derivacion} | Acta: {res}")
-                    st.success("S.O.S Neutralizado y clasificado en la matriz.")
-                    st.cache_data.clear()
-                    st.rerun()
+                    st.success("S.O.S Neutralizado.")
+                    st.cache_data.clear(); st.rerun()
 
-        c_map, c_log = st.columns([2, 1])
-        with c_map:
-            if not df_objetivos.empty:
-                m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-                for _, r in df_objetivos.iterrows(): folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
-                st_folium(m_mon, width="100%", height=500)
-        with c_log:
-            st.subheader("Auditoría QR en Vivo")
-            if not df_p.empty: st.dataframe(df_p.tail(15).iloc[::-1], use_container_width=True, hide_index=True)
+        if not df_objetivos.empty:
+            m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            for _, r in df_objetivos.iterrows(): folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
+            st_folium(m_mon, width="100%", height=500)
 
     with tab_libro:
         with st.form("acta_rutina"):
@@ -423,7 +410,7 @@ elif rol == "MONITOREO":
 elif rol in ["JEFE DE OPERACIONES", "GERENCIA"]:
     st.header(f"Comando Estratégico: {usuario_auth}")
     
-    # CSS dinámico para las tarjetas semáforo
+    # CSS dinámico para las tarjetas semáforo original
     st.markdown("""
     <style>
     .card-roja { background: linear-gradient(145deg, #1a0000, #330000); border-left: 6px solid #FF0000; padding: 15px; margin-bottom: 15px; border-radius: 5px; box-shadow: 0 2px 10px rgba(255,0,0,0.2); }
@@ -502,26 +489,41 @@ elif rol in ["JEFE DE OPERACIONES", "GERENCIA"]:
         mostrar_buzon(usuario_auth)
     
     with t_gest:
-        st.subheader("Emisión de Directivas")
-        with st.form("orden_e"):
-            dest_e = st.selectbox("Destinatario:", ["TODOS", "LUIS BONGIORNO", "DARÍO CECILIA"] + lista_sups)
-            asu_e = st.text_input("Asunto")
-            men_e = st.text_area("Cuerpo de la orden")
-            grav_e = st.selectbox("Nivel de Prioridad", ["VERDE", "AMARILLO", "ROJO"])
-            if st.form_submit_button("Ejecutar Orden"):
-                escribir_registro("MENSAJERIA", [obtener_hora_argentina(), usuario_auth, dest_e, asu_e, men_e, "ENVIADO", grav_e])
-                st.success("Directiva inyectada a la red.")
+        st.subheader("Emisión de Directivas y Gestión de Nodos")
+        col_ord, col_pet = st.columns(2)
+        
+        with col_ord:
+            with st.form("orden_e"):
+                st.write("Transmitir Orden Directa")
+                dest_e = st.selectbox("Destinatario:", ["TODOS", "LUIS BONGIORNO", "DARÍO CECILIA"] + lista_sups)
+                asu_e = st.text_input("Asunto")
+                men_e = st.text_area("Cuerpo de la orden")
+                grav_e = st.selectbox("Prioridad", ["VERDE", "AMARILLO", "ROJO"])
+                if st.form_submit_button("Ejecutar Orden"):
+                    escribir_registro("MENSAJERIA", [obtener_hora_argentina(), usuario_auth, dest_e, asu_e, men_e, "ENVIADO", grav_e])
+                    st.success("Directiva inyectada.")
+                    
+        with col_pet:
+            with st.form("peticion_alta_baja"):
+                st.write("Petición de Altas/Bajas al Administrador")
+                tipo_pet = st.selectbox("Acción", ["ALTA", "BAJA"])
+                cat_pet = st.selectbox("Entidad", ["OBJETIVO", "SUPERVISOR", "MONITORISTA"])
+                det_pet = st.text_input("Nombre exacto del objetivo/personal")
+                if st.form_submit_button("Elevar Petición"):
+                    escribir_registro("PETICIONES", [obtener_hora_argentina(), usuario_auth, tipo_pet, cat_pet, det_pet, "PENDIENTE"])
+                    st.success("Solicitud enviada a B. Ayala.")
                 
     with t_aud: 
-        st.write("Panel de control de kilómetros y fichajes en desarrollo estratégico.")
+        st.subheader("Auditoría Cruda de Terreno")
+        df_p = leer_matriz_nube("LOG_PRESENCIA")
+        if not df_p.empty: st.dataframe(df_p.tail(30).iloc[::-1], use_container_width=True)
 
-# --- 9. ADMINISTRADOR (CANDADO DE TITANIO MANTENIDO Y PLENAMENTE OPERATIVO) ---
+# --- 9. ADMINISTRADOR (CANDADO DE TITANIO) ---
 elif rol == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO AION-YAROKU")
     st.success("AUTENTICACIÓN EXITOSA. BIENVENIDO AL SISTEMA, AYALA BRIAN.")
-    
     st.markdown("---")
-    # --- SISTEMA DE MANTENIMIENTO Y BÓVEDA HISTÓRICA ---
+
     # 1. DETECTOR DE PROTOCOLO DOMINICAL (6 = Domingo)
     es_domingo = datetime.now(timezone(timedelta(hours=-3))).weekday() == 6
     
@@ -534,87 +536,90 @@ elif rol == "ADMINISTRADOR":
         ''', unsafe_allow_html=True)
         st.write("")
 
-    # 2. ACCIÓN DE ARCHIVADO QUIRÚRGICO
+    # 2. ACCIÓN DE ARCHIVADO QUIRÚRGICO (Motor Corregido)
     if st.button("📦 EJECUTAR BARRIDA Y ARCHIVADO HISTÓRICO", use_container_width=True):
         with st.status("Iniciando migración a Bóvedas Históricas...", expanded=True) as status:
             
             st.write("Analizando matriz de ALERTAS...")
             df_a = leer_matriz_nube("ALERTAS")
-            if not df_a.empty:
-                a_mover = df_a[df_a['ESTADO'].astype(str).str.strip().str.upper() == 'RESUELTO']
-                a_quedar = df_a[df_a['ESTADO'].astype(str).str.strip().str.upper() != 'RESUELTO']
+            if not df_a.empty and 'ESTADO' in df_a.columns:
+                # Filtramos las resueltas para mover
+                indices_a = df_a[df_a['ESTADO'].astype(str).str.strip().str.upper() == 'RESUELTO'].index.tolist()
                 
-                if not a_mover.empty:
-                    for _, fila in a_mover.iterrows():
-                        escribir_registro("HISTORICO_ALERTAS", fila.tolist())
-                    
-                    sh = conectar_google_sheets()
-                    ws_a = sh.worksheet("ALERTAS")
-                    ws_a.clear()
-                    ws_a.append_row(df_a.columns.tolist())
-                    if not a_quedar.empty:
-                        ws_a.append_rows(a_quedar.values.tolist())
-                    st.write(f"✅ {len(a_mover)} Alertas resguardadas en Bóveda.")
+                if indices_a:
+                    for idx in sorted(indices_a, reverse=True):
+                        fila_datos = df_a.iloc[idx].fillna("").tolist()
+                        escribir_registro("HISTORICO_ALERTAS", fila_datos)
+                        borrar_fila_excel("ALERTAS", idx + 2)
+                    st.write(f"✅ {len(indices_a)} Alertas resguardadas en Bóveda.")
 
             st.write("Analizando matriz de MENSAJERÍA...")
             df_m = leer_matriz_nube("MENSAJERIA")
-            if not df_m.empty:
-                m_mover = df_m[df_m['ESTADO'].astype(str).str.strip().str.upper() == 'LEÍDO']
-                m_quedar = df_m[df_m['ESTADO'].astype(str).str.strip().str.upper() != 'LEÍDO']
+            if not df_m.empty and 'ESTADO' in df_m.columns:
+                # Filtramos los leídos para mover
+                indices_m = df_m[df_m['ESTADO'].astype(str).str.strip().str.upper() == 'LEÍDO'].index.tolist()
                 
-                if not m_mover.empty:
-                    for _, fila in m_mover.iterrows():
-                        escribir_registro("HISTORICO", fila.tolist())
-                    
-                    ws_m = sh.worksheet("MENSAJERIA")
-                    ws_m.clear()
-                    ws_m.append_row(df_m.columns.tolist())
-                    if not m_quedar.empty:
-                        ws_m.append_rows(m_quedar.values.tolist())
-                    st.write(f"✅ {len(m_mover)} Mensajes archivados con éxito.")
+                if indices_m:
+                    for idx in sorted(indices_m, reverse=True):
+                        fila_datos = df_m.iloc[idx].fillna("").tolist()
+                        escribir_registro("HISTORICO", fila_datos)
+                        borrar_fila_excel("MENSAJERIA", idx + 2)
+                    st.write(f"✅ {len(indices_m)} Mensajes archivados con éxito.")
 
             status.update(label="Mantenimiento Finalizado. Matriz Optimizada.", state="complete", expanded=False)
             st.balloons()
             st.cache_data.clear()
             st.rerun()
+
     st.markdown("---")
-    # --- FIN DEL SISTEMA DE MANTENIMIENTO ---
+
+    # 3. BUZÓN DE PETICIONES Y EJECUCIÓN (Gestión de Base)
     st.subheader("⚖️ Buzón de Peticiones y Ejecución (Gestión de Base)")
     df_pet = leer_matriz_nube("PETICIONES")
+    
     if not df_pet.empty and 'ESTADO' in df_pet.columns:
         pendientes = df_pet[df_pet['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE']
-        if pendientes.empty: st.info("No hay solicitudes pendientes de Gerencia o Jefatura.")
+        
+        if pendientes.empty: 
+            st.info("No hay solicitudes pendientes de Gerencia o Jefatura.")
         else:
             for idx, r in pendientes.iterrows():
                 tipo = str(r.get('ACCIÓN', r.get('ACCION', '')))
                 detalle = str(r.get('DETALLE', ''))
                 categoria = str(r.get('CATEGORIA', 'OBJETIVO'))
+                solicitante = str(r.get('GERENTE', r.get('USUARIO', '')))
                 fila_pet_real = idx + 2
                 
-                with st.expander(f"⚠️ Solicitud de {tipo} - De: {r.get('GERENTE', r.get('USUARIO', ''))} - Detalle: {detalle} ({categoria})"):
+                with st.expander(f"⚠️ Solicitud de {tipo} - De: {solicitante} - Detalle: {detalle} ({categoria})"):
                     c_ok, c_no = st.columns(2)
+                    
                     if c_ok.button(f"✅ AUTORIZAR EJECUCIÓN", key=f"ok_{idx}"):
+                        # Ejecución física en la base si es BAJA de OBJETIVO
                         if tipo.upper() == "BAJA" and categoria.upper() == "OBJETIVO":
                             indice_borrar = df_objetivos[df_objetivos['OBJETIVO'] == detalle].index
                             if not indice_borrar.empty:
-                                # Borra de la pestaña OBJETIVOS (+2 para convertir índice a fila Google Sheet)
                                 if borrar_fila_excel("OBJETIVOS", int(indice_borrar[0]) + 2):
-                                    actualizar_celda("PETICIONES", fila_pet_real, "E", "EJECUTADO") # Columna E = ESTADO
+                                    actualizar_celda("PETICIONES", fila_pet_real, "E", "EJECUTADO")
                                     st.success(f"Servicio {detalle} eliminado de la base.")
                                     st.cache_data.clear(); st.rerun()
-                        elif tipo.upper() == "ALTA" and categoria.upper() == "OBJETIVO":
+                        else:
+                            # Para otras peticiones marcamos como ejecutado para registro manual
                             actualizar_celda("PETICIONES", fila_pet_real, "E", "EJECUTADO")
-                            st.success(f"Autorizado. (El alta física en mapa requiere cargar lat/lon en el Excel).")
+                            st.success(f"Autorizado. Petición marcada como EJECUTADA.")
                             st.cache_data.clear(); st.rerun()
 
                     if c_no.button(f"❌ RECHAZAR SOLICITUD", key=f"no_{idx}"):
                         actualizar_celda("PETICIONES", fila_pet_real, "E", "RECHAZADO")
                         st.warning("Petición rechazada y archivada.")
                         st.cache_data.clear(); st.rerun()
-    else: st.info("Matriz de peticiones no detectada o vacía.")
+    else: 
+        st.info("Matriz de peticiones no detectada o vacía.")
 
     st.markdown("---")
+
+    # 4. AUDITORÍA CRUDA DE TERRENO (Logs Nube)
     st.subheader("Auditoría Cruda de Terreno (Logs Nube)")
     df_p = leer_matriz_nube("LOG_PRESENCIA")
-    if not df_p.empty: st.dataframe(df_p.tail(30).iloc[::-1], use_container_width=True)
+    if not df_p.empty: 
+        st.dataframe(df_p.tail(30).iloc[::-1], use_container_width=True)
 
