@@ -520,6 +520,64 @@ elif rol == "ADMINISTRADOR":
     st.success("AUTENTICACIÓN EXITOSA. BIENVENIDO AL SISTEMA, AYALA BRIAN.")
     
     st.markdown("---")
+    # --- SISTEMA DE MANTENIMIENTO Y BÓVEDA HISTÓRICA ---
+    # 1. DETECTOR DE PROTOCOLO DOMINICAL (6 = Domingo)
+    es_domingo = datetime.now(timezone(timedelta(hours=-3))).weekday() == 6
+    
+    if es_domingo:
+        st.markdown('''
+            <div style="background-color: #FF0000; color: white; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid white; animation: blink 1s infinite;">
+                ⚠️ PROTOCOLO DE CIERRE DOMINICAL ACTIVO ⚠️<br>
+                <span style="font-size: 14px;">Ejecute el archivado para liberar carga de la matriz y resguardar el historial semanal.</span>
+            </div>
+        ''', unsafe_allow_html=True)
+        st.write("")
+
+    # 2. ACCIÓN DE ARCHIVADO QUIRÚRGICO
+    if st.button("📦 EJECUTAR BARRIDA Y ARCHIVADO HISTÓRICO", use_container_width=True):
+        with st.status("Iniciando migración a Bóvedas Históricas...", expanded=True) as status:
+            
+            st.write("Analizando matriz de ALERTAS...")
+            df_a = leer_matriz_nube("ALERTAS")
+            if not df_a.empty:
+                a_mover = df_a[df_a['ESTADO'].astype(str).str.strip().str.upper() == 'RESUELTO']
+                a_quedar = df_a[df_a['ESTADO'].astype(str).str.strip().str.upper() != 'RESUELTO']
+                
+                if not a_mover.empty:
+                    for _, fila in a_mover.iterrows():
+                        escribir_registro("HISTORICO_ALERTAS", fila.tolist())
+                    
+                    sh = conectar_google_sheets()
+                    ws_a = sh.worksheet("ALERTAS")
+                    ws_a.clear()
+                    ws_a.append_row(df_a.columns.tolist())
+                    if not a_quedar.empty:
+                        ws_a.append_rows(a_quedar.values.tolist())
+                    st.write(f"✅ {len(a_mover)} Alertas resguardadas en Bóveda.")
+
+            st.write("Analizando matriz de MENSAJERÍA...")
+            df_m = leer_matriz_nube("MENSAJERIA")
+            if not df_m.empty:
+                m_mover = df_m[df_m['ESTADO'].astype(str).str.strip().str.upper() == 'LEÍDO']
+                m_quedar = df_m[df_m['ESTADO'].astype(str).str.strip().str.upper() != 'LEÍDO']
+                
+                if not m_mover.empty:
+                    for _, fila in m_mover.iterrows():
+                        escribir_registro("HISTORICO", fila.tolist())
+                    
+                    ws_m = sh.worksheet("MENSAJERIA")
+                    ws_m.clear()
+                    ws_m.append_row(df_m.columns.tolist())
+                    if not m_quedar.empty:
+                        ws_m.append_rows(m_quedar.values.tolist())
+                    st.write(f"✅ {len(m_mover)} Mensajes archivados con éxito.")
+
+            status.update(label="Mantenimiento Finalizado. Matriz Optimizada.", state="complete", expanded=False)
+            st.balloons()
+            st.cache_data.clear()
+            st.rerun()
+    st.markdown("---")
+    # --- FIN DEL SISTEMA DE MANTENIMIENTO ---
     st.subheader("⚖️ Buzón de Peticiones y Ejecución (Gestión de Base)")
     df_pet = leer_matriz_nube("PETICIONES")
     if not df_pet.empty and 'ESTADO' in df_pet.columns:
