@@ -834,62 +834,118 @@ if st.session_state.rol_sel in ["SUPERVISOR", "SUPERVISOR NOCTURNO", "JEFE DE OP
         # Solo ejecutamos mostrar_buzon. Esta función ya tiene recepción y emisión.
         mostrar_buzon(st.session_state.user_sel, st.session_state.rol_sel)
 
-# --- 7. MÓDULO MONITOREO ---
+# --- 7. MÓDULO MONITOREO: CENTRAL DE INTELIGENCIA OPERATIVA ---
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     
+    # ⚡ 7.1. TELEMETRÍA DE IMPACTO (Métricas en Tiempo Real desde SQL)
     m1, m2, m3 = st.columns(3)
-    df_alertas = leer_matriz_nube("ALERTAS")
-    sos_activos = len(df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_alertas.empty else 0
-    m1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    amarillas = len(df_msg[(df_msg['GRAVEDAD'] == 'AMARILLO') & (df_msg['ESTADO'] != 'LEÍDO')]) if not df_msg.empty else 0
-    m2.metric("⚠️ EN PROCESO", amarillas)
-    
-    df_p = leer_matriz_nube("LOG_PRESENCIA")
-    m3.metric("📲 FICHAJES (HOY)", len(df_p))
+    # Extracción de Alertas SOS
+    try:
+        res_sos = supabase.table('ALERTAS_MONITOREO').select('*').ilike('estado', '%PENDIENTE%').execute()
+        df_alertas = pd.DataFrame(res_sos.data) if res_sos.data else pd.DataFrame()
+        sos_activos = len(df_alertas)
+    except:
+        df_alertas = pd.DataFrame()
+        sos_activos = 0
 
-    t_radar, t_libro, t_chat = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN"])
+    # Extracción de Mensajes Críticos/Precaución
+    try:
+        res_msg = supabase.table('MENSAJERIA_TACTICA').select('*').eq('estado', 'PENDIENTE').in_('prioridad', ['AMARILLA', 'ROJA']).execute()
+        msg_alerta = len(res_msg.data) if res_msg.data else 0
+    except:
+        msg_alerta = 0
+
+    # Extracción de Fichajes de hoy
+    hoy_str = obtener_hora_argentina()[:10]
+    try:
+        res_qr = supabase.table('LOG_PRESENCIA').select('*').like('fecha_hora', f"{hoy_str}%").execute()
+        fichajes_hoy = len(res_qr.data) if res_qr.data else 0
+    except:
+        fichajes_hoy = 0
+
+    m1.metric("🚨 S.O.S ACTIVOS", sos_activos)
+    m2.metric("⚠️ NOVEDADES CRÍTICAS", msg_alerta)
+    m3.metric("📲 FICHAJES (HOY)", fichajes_hoy)
+
+    t_radar, t_libro, t_chat = st.tabs(["🚨 RADAR S.O.S", "📖 BITÁCORA TÁCTICA", "📡 COMUNICACIONES"])
     
+    # ⚡ 7.2. MOTOR DE RASTREO Y CIERRE DE CRISIS
     with t_radar:
-        # Recuperación del Mapa de Monitoreo
-        if not df_objetivos.empty:
-            m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
+        if sos_activos > 0:
+            # Protocolo de Fuego Real: El mapa se centra en el operador en peligro
+            datos_sos = df_alertas.iloc[-1] # Toma la alerta más reciente
+            lat_sos, lon_sos = float(datos_sos['lat']), float(datos_sos['lon'])
+            op_en_riesgo = datos_sos['operador']
+            
+            st.error(f"🚨 BRECHA DE SEGURIDAD DETECTADA: Operador {op_en_riesgo} en código S.O.S.")
+            
+            m_mon = folium.Map(location=[lat_sos, lon_sos], zoom_start=16, tiles="CartoDB dark_matter")
+            # Marcador de Alerta Roja
+            folium.Marker(
+                [lat_sos, lon_sos], 
+                popup=f"S.O.S: {op_en_riesgo}",
+                icon=folium.Icon(color="red", icon="warning", prefix="fa")
+            ).add_to(m_mon)
+            
+            # Traza el resto de los objetivos cercanos para referencia
+            if not df_objetivos.empty:
+                for _, r in df_objetivos.iterrows():
+                    folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=5, color="blue", fill=True).add_to(m_mon)
+            
             st_folium(m_mon, width="100%", height=400)
             st.markdown("---")
 
-        if sos_activos > 0:
-            datos_sos = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
-            op_en_riesgo = datos_sos['USUARIO']
-            st.error(f"🚨 ALERTA CRÍTICA: {op_en_riesgo}")
+            # Formulario de Neutralización
             with st.form("cierre_crisis"):
-                res_acta = st.text_area("Informe de Neutralización")
-                if st.form_submit_button("✅ CERRAR ALERTA"):
-                    fila_real = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
-                    actualizar_celda("ALERTAS", fila_real, "D", "RESUELTO")
-                    actualizar_celda("ALERTAS", fila_real, "F", f"OPE: {st.session_state.user_sel} | {res_acta}")
-                    st.success("Resuelto")
-                    st.cache_data.clear()
-                    st.rerun()
+                st.markdown("*PROTOCOLO DE NEUTRALIZACIÓN*")
+                res_acta = st.text_area("Informe Operativo de Cierre de Crisis")
+                if st.form_submit_button("✅ SELLAR Y NEUTRALIZAR ALERTA", type="primary"):
+                    if res_acta.strip() == "":
+                        st.warning("Debe justificar la neutralización del S.O.S.")
+                    else:
+                        id_alerta = datos_sos['id']
+                        payload_cierre = {
+                            "estado": "NEUTRALIZADO",
+                            "resolucion_txt": f"OPE BASE: {st.session_state.user_sel} | {res_acta}",
+                            "fecha_cierre": obtener_hora_argentina()
+                        }
+                        supabase.table('ALERTAS_MONITOREO').update(payload_cierre).eq('id', id_alerta).execute()
+                        st.success("ALERTA NEUTRALIZADA. Base de datos actualizada.")
+                        time.sleep(1)
+                        st.rerun()
         else:
-            st.success("Zona segura: Sin alertas pendientes.")
+            # Mapa de Patrullaje Normal
+            st.success("ZONA SEGURA: Sin S.O.S activos.")
+            if not df_objetivos.empty:
+                m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+                for _, r in df_objetivos.iterrows():
+                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_mon)
+                st_folium(m_mon, width="100%", height=400)
 
+    # ⚡ 7.3. BITÁCORA INMUTABLE DE MONITOREO
     with t_libro:
+        st.markdown("*LIBRO DE GUARDIA OFICIAL (BASE)*")
         with st.form("acta_base"):
-            nov = st.text_area("Novedades de Guardia")
-            if st.form_submit_button("SELLAR"):
-                escribir_registro_pro("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, "DARIO CECILIA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
-                st.success("Sellado.")
-                st.rerun()
+            nov = st.text_area("Novedades y Relevos de Guardia", height=150)
+            if st.form_submit_button("🔒 SELLAR BITÁCORA"):
+                if nov.strip():
+                    payload_bitacora = {
+                        "fecha_hora": obtener_hora_argentina(),
+                        "operador_base": st.session_state.user_sel,
+                        "novedad": nov
+                    }
+                    supabase.table('BITACORA_MONITOREO').insert(payload_bitacora).execute()
+                    st.success("Registro sellado en la matriz central.")
+                else:
+                    st.warning("El libro no puede estar en blanco.")
 
+    # ⚡ 7.4. COMUNICACIONES TÁCTICAS (SIN REDUNDANCIA)
     with t_chat:
-        mostrar_buzon(st.session_state.user_sel)
-        # Inserción de componente de escritura faltante
-        emitir_mensaje_pro(st.session_state.user_sel)
-
+        # Solo llamamos a la función matriz del Bloque 4 que ya gestiona Recepción, Emisión, Fotos y Malla Oscura.
+        # Eliminamos la línea vieja que generaba el error de duplicación.
+        mostrar_buzon(st.session_state.user_sel, st.session_state.rol_sel)
 # --- 8. MÓDULO EJECUTIVO: COMANDO ESTRATÉGICO Y AUDITORÍA ---
 elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE"]:
     st.header(f"👔 COMANDO ESTRATÉGICO: {st.session_state.user_sel}")
