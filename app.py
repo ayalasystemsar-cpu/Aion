@@ -947,9 +947,10 @@ elif st.session_state.rol_sel == "MONITOREO":
         # Eliminamos la línea vieja que generaba el error de duplicación.
         mostrar_buzon(st.session_state.user_sel, st.session_state.rol_sel)
 # --- 8. MÓDULO EJECUTIVO: COMANDO ESTRATÉGICO Y AUDITORÍA ---
-elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE"]:
+elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE", "ADMINISTRADOR"]:
     st.header(f"👔 COMANDO ESTRATÉGICO: {st.session_state.user_sel}")
     
+    # CSS para el HUD de la cúpula
     st.markdown("""
     <style>
     .card-alfa { padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 5px solid; background: rgba(255,255,255,0.02); }
@@ -957,25 +958,106 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE"]:
     </style>
     """, unsafe_allow_html=True)
 
-    t_crisis, t_gestion, t_auditoria = st.tabs(["🚨 CENTRO DE CRISIS", "📤 EJECUCIÓN", "📊 AUDITORÍA"])
+    t_crisis, t_gestion, t_auditoria, t_comms = st.tabs(["🚨 CENTRO DE CRISIS", "⚡ EJECUCIÓN DIRECTA", "📊 AUDITORÍA GLOBAL", "📡 COMUNICACIONES"])
     
+    # ⚡ 8.1. CENTRO DE CRISIS (Registro Histórico)
     with t_crisis:
-        df_a = leer_matriz_nube("ALERTAS")
-        if not df_a.empty:
-            resueltas = df_a[df_a['ESTADO'] == 'RESUELTO'].iloc[::-1]
-            for _, r in resueltas.head(10).iterrows():
-                color = "roja" if "911" in str(r['RESOLUCION']) else "verde"
-                st.markdown(f'<div class="card-alfa {color}"><b>{r["USUARIO"]}</b><br><small>{r["RESOLUCION"]}</small></div>', unsafe_allow_html=True)
+        st.subheader("HISTORIAL DE ALERTAS NEUTRALIZADAS")
+        try:
+            res_alertas = supabase.table('ALERTAS_MONITOREO').select('*').eq('estado', 'NEUTRALIZADO').order('id', desc=True).limit(15).execute()
+            if res_alertas.data:
+                for r in res_alertas.data:
+                    # Si la resolución incluye la palabra S.O.S, coacción o 911, marca rojo, si no verde
+                    color = "roja" if any(x in str(r.get('resolucion_txt', '')).upper() for x in ["S.O.S", "COACCIÓN", "911", "ARMADO"]) else "verde"
+                    st.markdown(f'''
+                        <div class="card-alfa {color}">
+                            <b>OPERADOR: {r.get("operador", "N/A")}</b> | Fecha: {r.get("fecha_hora", "")}<br>
+                            <small>📍 Lat: {r.get("lat", "")} | Lon: {r.get("lon", "")}</small><br>
+                            <small style="color:#00E5FF;"><b>RESOLUCIÓN:</b> {r.get("resolucion_txt", "Sin detalles")}</small>
+                        </div>
+                    ''', unsafe_allow_html=True)
+            else:
+                st.info("No hay historial de crisis en la matriz reciente.")
+        except:
+            st.error("Fallo de enlace con la tabla de Alertas.")
 
+    # ⚡ 8.2. EJECUCIÓN DIRECTA (Gestión SQL sin intermediarios)
     with t_gestion:
-        with st.form("directiva_alta"):
-            st.write("📩 PETICIÓN DE ALTA/BAJA A ADMINISTRACIÓN")
-            tipo_p = st.selectbox("Acción:", ["ALTA", "BAJA"])
-            cat_p = st.selectbox("Categoría:", ["OBJETIVO", "SUPERVISOR"])
-            det_p = st.text_input("Nombre / Detalle")
-            if st.form_submit_button("ELEVAR PETICIÓN"):
-                escribir_registro_pro("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, tipo_p, cat_p, det_p, "PENDIENTE"])
-                st.success("Petición enviada al Núcleo Maestro.")
+        st.subheader("ALTA TÁCTICA DE NUEVOS OBJETIVOS")
+        with st.form("directiva_alta_objetivo"):
+            st.write("La inyección impactará la matriz de toda la flota en tiempo real.")
+            col_o1, col_o2 = st.columns(2)
+            nuevo_obj = col_o1.text_input("Nombre del Objetivo Nuevo").upper()
+            dir_obj = col_o2.text_input("Dirección y Localidad").upper()
+            
+            # Extraer supervisores activos para asignación
+            lista_sup = ["SIN ASIGNAR"]
+            try:
+                res_sup = supabase.table('ESTRUCTURA_PERSONAL').select('nombre').in_('rol', ['SUPERVISOR', 'SUPERVISOR NOCTURNO']).eq('estado', 'ACTIVO').execute()
+                if res_sup.data:
+                    lista_sup = [s['nombre'] for s in res_sup.data]
+            except: pass
+            
+            sup_asignado = st.selectbox("Supervisor a Cargo", lista_sup)
+            
+            col_c1, col_c2 = st.columns(2)
+            lat_n = col_c1.number_input("Latitud Exacta", format="%.6f")
+            lon_n = col_c2.number_input("Longitud Exacta", format="%.6f")
+            
+            if st.form_submit_button("🚀 EJECUTAR INYECCIÓN EN MATRIZ", type="primary"):
+                if nuevo_obj and dir_obj and lat_n != 0.0:
+                    payload_obj = {
+                        "objetivo": nuevo_obj,
+                        "direccion": dir_obj,
+                        "supervisor": sup_asignado,
+                        "latitud": lat_n,
+                        "longitud": lon_n,
+                        "alarma": "INACTIVA",
+                        "policia": "911"
+                    }
+                    try:
+                        supabase.table('OBJETIVOS').insert(payload_obj).execute()
+                        st.success(f"OBJETIVO '{nuevo_obj}' INYECTADO. Geocerca activada.")
+                        st.cache_data.clear() # Limpia caché para que los supervisores vean el cambio al instante
+                    except:
+                        st.error("Error al escribir en la base de datos SQL.")
+                else:
+                    st.warning("Debe completar Nombre, Dirección y Coordenadas para armar la Geocerca.")
+
+    # ⚡ 8.3. AUDITORÍA GLOBAL (Extracción de Fichajes y Logística)
+    with t_auditoria:
+        st.subheader("OJO PANÓPTICO: AUDITORÍA DE TERRENO")
+        sub_tab1, sub_tab2 = st.tabs(["📱 FICHAJES QR / GEOCERCA", "🚚 LOGÍSTICA FLOTA"])
+        
+        with sub_tab1:
+            st.caption("Validación de Presencia y Fraude Espacial")
+            if st.button("🔄 EXTRAER MATRIZ DE FICHAJES"):
+                try:
+                    res_presencia = supabase.table('LOG_PRESENCIA').select('fecha_hora, operador, objetivo, accion, estado, distancia_metros').order('id', desc=True).limit(50).execute()
+                    if res_presencia.data:
+                        df_presencia = pd.DataFrame(res_presencia.data)
+                        st.dataframe(df_presencia, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin registros de fichaje.")
+                except:
+                    st.error("Enlace SQL interrumpido.")
+                    
+        with sub_tab2:
+            st.caption("Control de Odometría y Combustible")
+            if st.button("🔄 EXTRAER MATRIZ LOGÍSTICA"):
+                try:
+                    res_flota = supabase.table('CONTROL_FLOTA').select('fecha, supervisor, movil, km_inicial, km_final, combustible').order('id', desc=True).limit(50).execute()
+                    if res_flota.data:
+                        df_flota = pd.DataFrame(res_flota.data)
+                        st.dataframe(df_flota, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin registros de flota.")
+                except:
+                    st.error("Enlace SQL interrumpido.")
+
+    # ⚡ 8.4. COMUNICACIONES (Dark Mesh)
+    with t_comms:
+        mostrar_buzon(st.session_state.user_sel, st.session_state.rol_sel)
 
 # --- 9. ADMINISTRADOR: NÚCLEO MAESTRO (CANDADO DE TITANIO) ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
