@@ -738,7 +738,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 st.success("Acta derivada según protocolo de jerarquía.")
 
     with t3:
-        mostrar_buzon(st.session_state.user_sel)
+        mostrar_buzon(st.session_state.user_sel, st.session_state.rol_sel)
         # Inserción de componente de escritura faltante
         emitir_mensaje_pro(st.session_state.user_sel)
 
