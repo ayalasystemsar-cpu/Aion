@@ -247,98 +247,67 @@ def calcular_objetivo_cercano(lat, lon, df_obj):
     cercano = df_temp.loc[df_temp['distancia'].idxmin()]
     return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
 
-# --- 4. MÓDULO DE INTERFAZ TÁCTICA Y MENSAJERÍA "AION-CHAT" ---
+# --- 4. BLOQUE COMPLETO: MENSAJERÍA Y ENRUTAMIENTO INTELIGENTE ---
 
-# Estilo para Mensajería Fluida (Efecto WhatsApp)
-st.markdown("""
-    <style>
-    .chat-bubble { padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid rgba(0, 229, 255, 0.2); background: rgba(255,255,255,0.03); }
-    .msg-meta { font-size: 0.8em; color: #00E5FF; margin-top: 5px; display: flex; justify-content: space-between; }
-    .btn-delete { color: #FF4B4B; cursor: pointer; font-size: 0.8em; border: none; background: none; }
-    </style>
-""", unsafe_allow_html=True)
-
-# LÓGICA POR ROLES (SIN MEZCLAS)
-if st.session_state.rol_sel in ["GERENTE", "JEFE DE OPERACIONES", "SUPERVISOR", "MONITOREO"]:
+def mostrar_buzon(usuario_actual):
+    """
+    Visualización de mensajes filtrados por DESTINATARIO.
+    Respeta exactamente las columnas de tu matriz.
+    """
+    st.markdown("### 📥 BANDEJA DE INTELIGENCIA")
+    df_msg = leer_matriz_nube("MENSAJERIA")
     
-    # Título dinámico según jerarquía
-    st.title(f"🛡️ PANEL DE CONTROL | {st.session_state.rol_sel}")
-    
-    # Sistema de Pestañas de Alta Visibilidad
-    t_chat, t_gestion, t_biometria = st.tabs(["💬 MENSAJERÍA SELECTIVA", "📊 CONTROL OPERATIVO", "👤 BIOMETRÍA Y ACTAS"])
-
-    # --- PESTAÑA 1: WHATSAPP TÁCTICO (CON ELIMINACIÓN) ---
-    with t_chat:
-        col_list, col_write = st.columns([1, 2])
+    if not df_msg.empty:
+        # VALIDACIÓN CRÍTICA: Filtro por el nombre de columna exacto 'DESTINATARIO'
+        # Esto elimina el error KeyError que te apareció.
+        mis_mensajes = df_msg[
+            (df_msg['DESTINATARIO'].astype(str).str.contains(usuario_actual, na=False)) | 
+            (df_msg['DESTINATARIO'].astype(str).str.contains("TODOS", na=False)) |
+            (df_msg['DESTINATARIO'].astype(str).str.contains(st.session_state.rol_sel, na=False))
+        ]
         
-        with col_list:
-            st.write("👥 *DESTINATARIOS*")
-            # Selector de audiencia selectiva
-            opciones = ["TODOS", "GERENCIA", "SUPERVISORES", "MONITOREO", "LUIS BONGIORNO", "DARIO CECILIA", "AYALA BRIAN"]
-            destino_sel = st.multiselect("Enviar a:", opciones, default="TODOS")
-        
-        with col_write:
-            msg_input = st.text_area("Escribir mensaje...", placeholder="Escriba aquí su reporte o novedad...", key="chat_input")
-            c1, c2 = st.columns([1, 1])
-            if c1.button("🚀 ENVIAR MENSAJE", use_container_width=True):
-                if msg_input:
-                    # Usamos la función del Bloque 3 para registrar con destino específico
-                    datos = [obtener_hora_argentina(), st.session_state.user_sel, str(destino_sel), msg_input, "ACTIVO"]
-                    if escribir_registro_pro("MENSAJERIA", datos):
-                        st.success("Mensaje enviado")
-                        st.rerun()
-            
-        st.markdown("---")
-        st.write("📥 *BANDEJA DE INTELIGENCIA*")
-        
-        # Simulación de visualización fluida (Aquí se conecta tu 'mostrar_buzon')
-        # Se filtra para que solo veas lo que es para vos o para todos
-        df_mensajes = leer_matriz_nube("MENSAJERIA")
-        if not df_mensajes.empty:
-            for i, row in df_mensajes.iloc[::-1].iterrows():
-                # Lógica de visibilidad selectiva
-                if st.session_state.user_sel in row['DESTINO'] or "TODOS" in row['DESTINO'] or st.session_state.rol_sel in row['DESTINO']:
-                    with st.container():
-                        st.markdown(f"""
-                            <div class="chat-bubble">
-                                <b>{row['EMISOR']}</b> para <i>{row['DESTINO']}</i><br>{row['MENSAJE']}
-                                <div class="msg-meta">
-                                    <span>{row['FECHA']}</span>
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                        # Opción de eliminar si el mensaje es propio
-                        if row['EMISOR'] == st.session_state.user_sel:
-                            if st.button(f"🗑️ Eliminar mensaje", key=f"del_{i}"):
-                                # Aquí iría la lógica de marcar como "ELIMINADO" en la DB
-                                st.warning("Solicitando eliminación...")
-
-    # --- PESTAÑA 2: CONTROL DE ESTADÍA Y HORAS (SOLO JERARQUÍA) ---
-    with t_gestion:
-        if st.session_state.rol_sel in ["GERENTE", "JEFE DE OPERACIONES"]:
-            st.write("### 📈 Resumen de Gestión de Supervisores")
-            # Aquí se procesa el resumen de horas totales que pidió Luis y Darío
-            st.info("Visualizando tiempos de estadía y recorridos del personal de calle.")
-            # TABLA DE TIEMPOS (Se alimenta del Bloque 3)
-            st.dataframe(pd.DataFrame({
-                "Supervisor": ["Ayala Brian"],
-                "Servicio": ["Logarte"],
-                "Ingreso": ["22:00"],
-                "Salida": ["23:30"],
-                "Total Horas": ["1.5 hs"]
-            }), use_container_width=True)
+        if not mis_mensajes.empty:
+            for idx, row in mis_mensajes.iloc[::-1].iterrows():
+                # Estética basada en la Gravedad (Verde, Amarillo, Rojo)
+                color_borde = "#00FF00" if row['GRAVEDAD'] == "VERDE" else ("#FFCC00" if row['GRAVEDAD'] == "AMARILLO" else "#FF0000")
+                
+                with st.container():
+                    st.markdown(f"""
+                    <div style="border-left: 5px solid {color_borde}; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 5px; margin-bottom: 8px;">
+                        <small style="color: #00E5FF;">{row['FECHA']} | De: {row['REMITENTE']}</small><br>
+                        <b style="font-size: 15px;">{row['ASUNTO']}</b><br>
+                        <p style="font-size: 14px; margin-top: 4px;">{row['MENSAJE']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if row['ESTADO'] != "LEÍDO":
+                        if st.button(f"Confirmar Lectura", key=f"read_{idx}"):
+                            # Actualiza Columna F (ESTADO) en la fila real
+                            actualizar_celda("MENSAJERIA", idx + 2, "F", "LEÍDO")
+                            st.cache_data.clear()
+                            st.rerun()
         else:
-            st.warning("Acceso restringido a niveles de mando superior.")
+            st.info("No hay mensajes pendientes.")
+    else:
+        st.info("Sin registros en la matriz de mensajería.")
 
-    # --- PESTAÑA 3: BIOMETRÍA Y ACTAS (VIGILADORES/SUPERVISORES) ---
-    with t_biometria:
-        st.write("### 📸 Presentismo Facial y Acta Digital")
-        if st.button("🎤 INICIAR DICTADO DE ACTA POR VOZ"):
-            st.write("Escuchando... (Hable ahora)")
-            # Aquí se integra la función de Voz a Texto
-        
-        # Simulación de captura de Rostro
-        st.camera_input("Enrolamiento Biométrico (Fase Actual: 1 de 3)")
+# Función para enviar mensajes (7 columnas: Fecha, Remitente, Destinatario, Asunto, Mensaje, Estado, Gravedad)
+def emitir_mensaje_pro(remitente):
+    with st.expander("📤 REDACTAR COMUNICACIÓN"):
+        with st.form("envio_tactico"):
+            dest = st.selectbox("Para:", ["TODOS", "DARÍO CECILIA", "LUIS BONGIORNO", "MONITOREO"] + lista_sups)
+            asu = st.text_input("Asunto")
+            men = st.text_area("Mensaje")
+            grav = st.selectbox("Prioridad:", ["VERDE", "AMARILLO", "ROJO"])
+            
+            if st.form_submit_button("TRANSMITIR"):
+                if asu and men:
+                    datos = [obtener_hora_argentina(), remitente, dest, asu, men, "ENVIADO", grav]
+                    if escribir_registro_pro("MENSAJERIA", datos):
+                        st.success(f"Transmitido a {dest}")
+                        st.rerun()
+                else:
+                    st.error("Campos obligatorios vacíos.")
 
 # --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS ---
 
