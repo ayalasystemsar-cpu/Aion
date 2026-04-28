@@ -247,19 +247,13 @@ def calcular_objetivo_cercano(lat, lon, df_obj):
     cercano = df_temp.loc[df_temp['distancia'].idxmin()]
     return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
 
-# --- 4. BLOQUE COMPLETO: MENSAJERÍA Y ENRUTAMIENTO INTELIGENTE ---
-
+# --- 4. BANDEJA DE INTELIGENCIA Y MENSAJERÍA ---
 def mostrar_buzon(usuario_actual):
-    """
-    Visualización de mensajes filtrados por DESTINATARIO.
-    Respeta exactamente las columnas de tu matriz.
-    """
     st.markdown("### 📥 BANDEJA DE INTELIGENCIA")
     df_msg = leer_matriz_nube("MENSAJERIA")
     
     if not df_msg.empty:
-        # VALIDACIÓN CRÍTICA: Filtro por el nombre de columna exacto 'DESTINATARIO'
-        # Esto elimina el error KeyError que te apareció.
+        # Usamos 'DESTINATARIO' para que no de error
         mis_mensajes = df_msg[
             (df_msg['DESTINATARIO'].astype(str).str.contains(usuario_actual, na=False)) | 
             (df_msg['DESTINATARIO'].astype(str).str.contains("TODOS", na=False)) |
@@ -268,9 +262,7 @@ def mostrar_buzon(usuario_actual):
         
         if not mis_mensajes.empty:
             for idx, row in mis_mensajes.iloc[::-1].iterrows():
-                # Estética basada en la Gravedad (Verde, Amarillo, Rojo)
                 color_borde = "#00FF00" if row['GRAVEDAD'] == "VERDE" else ("#FFCC00" if row['GRAVEDAD'] == "AMARILLO" else "#FF0000")
-                
                 with st.container():
                     st.markdown(f"""
                     <div style="border-left: 5px solid {color_borde}; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 5px; margin-bottom: 8px;">
@@ -279,35 +271,26 @@ def mostrar_buzon(usuario_actual):
                         <p style="font-size: 14px; margin-top: 4px;">{row['MENSAJE']}</p>
                     </div>
                     """, unsafe_allow_html=True)
-                    
                     if row['ESTADO'] != "LEÍDO":
                         if st.button(f"Confirmar Lectura", key=f"read_{idx}"):
-                            # Actualiza Columna F (ESTADO) en la fila real
                             actualizar_celda("MENSAJERIA", idx + 2, "F", "LEÍDO")
                             st.cache_data.clear()
                             st.rerun()
         else:
-            st.info("No hay mensajes pendientes.")
+            st.info("Sin mensajes.")
     else:
-        st.info("Sin registros en la matriz de mensajería.")
+        st.info("Bandeja vacía.")
 
-# Función para enviar mensajes (7 columnas: Fecha, Remitente, Destinatario, Asunto, Mensaje, Estado, Gravedad)
 def emitir_mensaje_pro(remitente):
     with st.expander("📤 REDACTAR COMUNICACIÓN"):
         with st.form("envio_tactico"):
             dest = st.selectbox("Para:", ["TODOS", "DARÍO CECILIA", "LUIS BONGIORNO", "MONITOREO"] + lista_sups)
-            asu = st.text_input("Asunto")
-            men = st.text_area("Mensaje")
-            grav = st.selectbox("Prioridad:", ["VERDE", "AMARILLO", "ROJO"])
-            
+            asu = st.text_input("Asunto"); men = st.text_area("Mensaje"); grav = st.selectbox("Prioridad:", ["VERDE", "AMARILLO", "ROJO"])
             if st.form_submit_button("TRANSMITIR"):
                 if asu and men:
                     datos = [obtener_hora_argentina(), remitente, dest, asu, men, "ENVIADO", grav]
                     if escribir_registro_pro("MENSAJERIA", datos):
-                        st.success(f"Transmitido a {dest}")
-                        st.rerun()
-                else:
-                    st.error("Campos obligatorios vacíos.")
+                        st.success(f"Transmitido a {dest}"); st.rerun()
 
 # --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS ---
 
@@ -471,18 +454,15 @@ if st.session_state.rol_sel == "SUPERVISOR":
         st.write("📥 *BANDEJA DE INTELIGENCIA PERSONALIZADA*")
         # mostrar_buzon(st.session_state.user_sel)
 
-# --- 7. MÓDULO MONITOREO: RESPUESTA CRÍTICA Y RADAR DE INTELIGENCIA ---
+# --- 7. MÓDULO MONITOREO ---
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     
-    # Refresco Automático (Radar cada 10 segundos)
-    st_autorefresh(interval=10000, key="radar_monitoreo")
-    
-    # 7.1. Telemetría Frontal Neón
+    # Telemetría Frontal
     m1, m2, m3 = st.columns(3)
     df_alertas = leer_matriz_nube("ALERTAS")
     sos_activos = len(df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_alertas.empty else 0
-    m1.metric("🚨 S.O.S ACTIVOS", sos_activos, delta_color="inverse")
+    m1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     
     df_msg = leer_matriz_nube("MENSAJERIA")
     amarillas = len(df_msg[(df_msg['GRAVEDAD'] == 'AMARILLO') & (df_msg['ESTADO'] != 'LEÍDO')]) if not df_msg.empty else 0
@@ -495,32 +475,28 @@ elif st.session_state.rol_sel == "MONITOREO":
     
     with t_radar:
         if sos_activos > 0:
-            # Protocolo de Crisis Activo
             datos_sos = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             op_en_riesgo = datos_sos['USUARIO']
-            carga = datos_sos['CARGA_UTIL']
-            
-            # Alarma Visual y Sonora
-            st.markdown("""<audio autoplay loop><source src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3" type="audio/mpeg"></audio>""", unsafe_allow_html=True)
-            st.markdown(f'<div class="alerta-panico">🚨 CRÍTICO: {op_en_riesgo}<br><small>{carga}</small></div>', unsafe_allow_html=True)
-
+            st.error(f"🚨 ALERTA CRÍTICA: {op_en_riesgo}")
             with st.form("cierre_crisis"):
                 res_acta = st.text_area("Informe de Neutralización")
                 if st.form_submit_button("✅ CERRAR ALERTA"):
-                    # Lógica de cierre en matriz (Columna D=Estado, F=Resolución)
                     fila_real = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                     actualizar_celda("ALERTAS", fila_real, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_real, "F", f"OPE: {st.session_state.user_sel} | {res_acta}")
-                    st.success("Alerta resuelta.")
-                    st.rerun()
+                    st.success("Resuelto"); st.cache_data.clear(); st.rerun()
+        else:
+            st.success("Zona segura: Sin alertas pendientes.")
 
     with t_libro:
         with st.form("acta_base"):
-            nov = st.text_area("Novedades de Guardia / Relevos")
-            if st.form_submit_button("SELLAR LIBRO"):
+            nov = st.text_area("Novedades de Guardia")
+            if st.form_submit_button("SELLAR"):
                 escribir_registro_pro("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, "DARIO CECILIA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
-                st.success("Acta sellada.")
+                st.success("Selledo."); st.rerun()
 
+    with t_chat:
+        mostrar_buzon(st.session_state.user_sel)
 # --- 8. MÓDULO EJECUTIVO: COMANDO ESTRATÉGICO Y AUDITORÍA ---
 elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE"]:
     st.header(f"👔 COMANDO ESTRATÉGICO: {st.session_state.user_sel}")
