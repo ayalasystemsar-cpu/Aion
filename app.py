@@ -374,56 +374,228 @@ def borrar_fila_excel(pestana, fila_excel):
             return True
     except: 
         return False
-# --- 4. BANDEJA DE INTELIGENCIA Y MENSAJERÍA ---
+# --- 4. CENTRAL DE MANDO Y COMUNICACIONES TÁCTICAS (MENSAJERÍA) ---
 
-# Lista referencial para selectores
-lista_sups = ["SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR NOCTURNO"] 
+# ✅ 4.1. MOTOR DE PROCESAMIENTO ÓPTICO (BASE64)
+def encriptar_imagen_b64(imagen_buffer):
+    """Transforma la captura de la cámara en una cadena cifrada para transmisión segura."""
+    if imagen_buffer is not None:
+        return base64.b64encode(imagen_buffer.getvalue()).decode('utf-8')
+    return None
 
-def mostrar_buzon(usuario_actual):
-    st.markdown("### 📥 BANDEJA DE INTELIGENCIA")
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    
-    if not df_msg.empty:
-        mis_mensajes = df_msg[
-            (df_msg['DESTINATARIO'].astype(str).str.contains(usuario_actual, na=False)) | 
-            (df_msg['DESTINATARIO'].astype(str).str.contains("TODOS", na=False)) |
-            (df_msg['DESTINATARIO'].astype(str).str.contains(st.session_state.rol_sel, na=False))
-        ]
+# ✅ 4.2. MOTOR DE AUTO-ESCALADA PREDICTIVA (THREAT DETECTION)
+def analizar_amenaza_texto(texto):
+    """Escanea el léxico del operador. Fuerza prioridad ROJA si detecta palabras críticas."""
+    palabras_criticas = ["arma", "herido", "fuga", "intruso", "policía", "robo", "emergencia", "fuego", "apoyo"]
+    texto_min = texto.lower()
+    if any(palabra in texto_min for palabra in palabras_criticas):
+        return True
+    return False
+
+# ✅ 4.3. NÚCLEO DE TRANSMISIÓN DE MENSAJERÍA
+def transmitir_directiva(remitente, destinatario, prioridad, texto, imagen_b64=None, dark_mesh=False):
+    """Inyecta el mensaje en Supabase con encriptación y sellado de tiempo."""
+    try:
+        timestamp = obtener_hora_argentina()
+        # Si el motor detecta amenaza, escala la prioridad automáticamente
+        if analizar_amenaza_texto(texto):
+            prioridad = "ROJA"
+            
+        payload = {
+            "fecha_hora": timestamp,
+            "remitente": remitente,
+            "destinatario": destinatario,
+            "prioridad": prioridad,
+            "mensaje": texto,
+            "imagen_evidencia": imagen_b64,
+            "estado": "PENDIENTE",
+            "dark_mesh": dark_mesh
+        }
+        supabase.table('MENSAJERIA_TACTICA').insert(payload).execute()
+        return True, prioridad
+    except Exception as e:
+        return False, str(e)
+
+# ✅ 4.4. PROTOCOLO DE ACUSE DE RECIBO Y COACCIÓN (DURESS)
+def ejecutar_acuse_recibo(id_mensaje, pin_operador, lat, lon, usuario_actual):
+    """Firma el mensaje como leído, captura coordenadas y evalúa el PIN de pánico."""
+    try:
+        timestamp = obtener_hora_argentina()
         
-        if not mis_mensajes.empty:
-            for idx, row in mis_mensajes.iloc[::-1].iterrows():
-                color_borde = "#00FF00" if row['GRAVEDAD'] == "VERDE" else ("#FFCC00" if row['GRAVEDAD'] == "AMARILLO" else "#FF0000")
-                with st.container():
-                    st.markdown(f"""
-                    <div style="border-left: 5px solid {color_borde}; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 5px; margin-bottom: 8px;">
-                        <small style="color: #00E5FF;">{row['FECHA']} | De: {row['REMITENTE']}</small><br>
-                        <b style="font-size: 15px;">{row['ASUNTO']}</b><br>
-                        <p style="font-size: 14px; margin-top: 4px;">{row['MENSAJE']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    if row['ESTADO'] != "LEÍDO":
-                        if st.button(f"Confirmar Lectura", key=f"read_{idx}"):
-                            actualizar_celda("MENSAJERIA", idx + 2, "F", "LEÍDO")
-                            st.cache_data.clear()
-                            st.rerun()
+        # Evaluación de Coacción
+        if pin_operador == "911":
+            alerta_duress = {
+                "fecha_hora": timestamp,
+                "operador": usuario_actual,
+                "tipo_alerta": "COACCIÓN (MENSAJERÍA)",
+                "lat": lat,
+                "lon": lon,
+                "estado": "CRÍTICO"
+            }
+            supabase.table('ALERTAS_MONITOREO').insert(alerta_duress).execute()
+            # El mensaje se marca leído para engañar al agresor
+            estado_final = "LEÍDO (DURESS)"
         else:
-            st.info("Sin mensajes.")
-    else:
-        st.info("Bandeja vacía.")
+            estado_final = "LEÍDO"
 
-def emitir_mensaje_pro(remitente):
-    with st.expander("📤 REDACTAR COMUNICACIÓN"):
-        with st.form("envio_tactico"):
-            dest = st.selectbox("Para:", ["TODOS", "DARÍO CECILIA", "LUIS BONGIORNO", "MONITOREO"] + lista_sups)
-            asu = st.text_input("Asunto")
-            men = st.text_area("Mensaje")
-            grav = st.selectbox("Prioridad:", ["VERDE", "AMARILLO", "ROJO"])
-            if st.form_submit_button("TRANSMITIR"):
-                if asu and men:
-                    datos = [obtener_hora_argentina(), remitente, dest, asu, men, "ENVIADO", grav]
-                    if escribir_registro_pro("MENSAJERIA", datos):
-                        st.success(f"Transmitido a {dest}")
-                        st.rerun()
+        payload_update = {
+            "estado": estado_final,
+            "fecha_lectura": timestamp,
+            "lat_lectura": lat,
+            "lon_lectura": lon
+        }
+        supabase.table('MENSAJERIA_TACTICA').update(payload_update).eq('id', id_mensaje).execute()
+        return True
+    except:
+        return False
+
+# ✅ 4.5. PURGA TÁCTICA (HARD DELETE)
+def purgar_registro_comunicaciones(id_mensaje):
+    """Aniquilación definitiva del registro en la base de datos."""
+    try:
+        supabase.table('MENSAJERIA_TACTICA').delete().eq('id', id_mensaje).execute()
+        return True
+    except:
+        return False
+
+# ✅ 4.6. INTERFAZ DE COMUNICACIONES Y ENRUTAMIENTO (BUZÓN)
+def mostrar_buzon(usuario_auth, rol):
+    st.markdown("---")
+    st.subheader("📡 COMUNICACIONES TÁCTICAS")
+    
+    # Definición de la Cúpula de Mando (Con acceso a Dark Mesh y Purga)
+    cupula_mando = ["BRIAN AYALA", "LUIS BONGIORNO", "DARÍO CECILIA"]
+    es_cupula = usuario_auth in cupula_mando or rol in ["ADMINISTRADOR", "GERENCIA", "JEFE DE OPERACIONES"]
+
+    tab_recepcion, tab_emision = st.tabs(["📥 BANDEJA DE ENTRADA", "📤 TRANSMITIR DIRECTIVA"])
+
+    # ---------------------------------------------------------
+    # PESTAÑA 1: TRANSMISIÓN (ENRUTAMIENTO SELECTIVO)
+    # ---------------------------------------------------------
+    with tab_emision:
+        st.markdown("*NUEVA DIRECTIVA / NOVEDAD*")
+        
+        # Enrutamiento según jerarquía
+        opciones_destinatario = ["CENTRAL DE MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"]
+        
+        if es_cupula:
+            # La cúpula puede enviar a todos y usar canales grupales
+            opciones_destinatario = ["GRUPAL (TODA LA TROPA)"] + opciones_destinatario + ["SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
+        elif rol == "MONITOREO":
+            # Monitoreo puede enrutar a Jefatura, Gerencia o Supervisores en terreno
+            opciones_destinatario = ["JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
+
+        destinatario = st.selectbox("DESTINATARIO TÁCTICO", opciones_destinatario)
+        
+        # Selección de Prioridad (El motor predictivo puede sobreescribir esto)
+        prioridad = st.radio("NIVEL DE PRIORIDAD", ["VERDE (Informativo)", "AMARILLA (Precaución)", "ROJA (Crítico)"], horizontal=True)
+        nivel_pri = prioridad.split(" ")[0]
+
+        # Malla Oscura (Solo visible y seleccionable por la cúpula)
+        usar_dark_mesh = False
+        if es_cupula and destinatario in cupula_mando:
+            usar_dark_mesh = st.toggle("🛡️ ENRUTAR POR MALLA OSCURA (DARK MESH)", value=False)
+
+        texto_mensaje = st.text_area("CUERPO DEL REPORTE", height=100)
+        
+        # Telemetría Óptica
+        st.markdown("*EVIDENCIA ÓPTICA (OPCIONAL)*")
+        captura = st.camera_input("📷 CAPTURAR FOTOGRAFÍA IN SITU")
+        
+        if st.button("🚀 TRANSMITIR", use_container_width=True):
+            if texto_mensaje.strip() == "":
+                st.warning("El reporte no puede estar vacío.")
+            else:
+                img_b64 = encriptar_imagen_b64(captura) if captura else None
+                exito, pri_final = transmitir_directiva(usuario_auth, destinatario, nivel_pri, texto_mensaje, img_b64, usar_dark_mesh)
+                
+                if exito:
+                    if pri_final == "ROJA" and nivel_pri != "ROJA":
+                        st.error("🚨 MOTOR PREDICTIVO ACTIVADO: Amenaza detectada en el texto. Prioridad escalada a ROJA.")
+                    st.success("TRANSMISIÓN CONFIRMADA Y ENCRIPTADA.")
+                else:
+                    st.error("FALLA DE ENLACE CON SUPABASE.")
+
+    # ---------------------------------------------------------
+    # PESTAÑA 2: RECEPCIÓN Y DESENCRIPTACIÓN
+    # ---------------------------------------------------------
+    with tab_recepcion:
+        if st.button("🔄 SINCRONIZAR RED"):
+            st.rerun()
+            
+        try:
+            # Extracción de la base de datos SQL
+            res = supabase.table('MENSAJERIA_TACTICA').select('*').order('id', desc=True).limit(20).execute()
+            mensajes = res.data if res.data else []
+        except:
+            mensajes = []
+            st.error("Enlace SQL interrumpido.")
+
+        if not mensajes:
+            st.info("Sin tráfico en la red.")
+        else:
+            for m in mensajes:
+                # Filtrado de visibilidad
+                es_para_mi = m['destinatario'] == usuario_auth or m['destinatario'] == "GRUPAL (TODA LA TROPA)"
+                soy_monitoreo_y_es_para_mi = rol == "MONITOREO" and m['destinatario'] == "CENTRAL DE MONITOREO"
+                
+                if not (es_para_mi or soy_monitoreo_y_es_para_mi):
+                    continue
+                
+                # Bloqueo Dark Mesh para tropas
+                if m['dark_mesh'] and not es_cupula:
+                    continue
+
+                # UI de cada mensaje
+                color_borde = "#00E5FF" if m['prioridad'] == "VERDE" else "#FFD600" if m['prioridad'] == "AMARILLA" else "#FF1744"
+                icono_mesh = "🛡️ [DARK MESH] " if m['dark_mesh'] else ""
+                
+                with st.expander(f"{icono_mesh}[{m['fecha_hora']}] {m['prioridad']} - De: {m['remitente']} | Estado: {m['estado']}"):
+                    st.markdown(f"<div style='border-left: 4px solid {color_borde}; padding-left: 10px;'>", unsafe_allow_html=True)
+                    
+                    # Doble factor para mensajes ROJOS si el usuario no es la cúpula ni monitoreo (exige PIN en el terreno)
+                    mostrar_contenido = True
+                    if m['prioridad'] == "ROJA" and m['estado'] == "PENDIENTE" and rol not in ["MONITOREO", "ADMINISTRADOR"]:
+                        pin_acceso = st.text_input("🔑 INGRESE PIN / LEGAJO PARA DESENCRIPTAR", type="password", key=f"pin_in_{m['id']}")
+                        if pin_acceso == "":
+                            mostrar_contenido = False
+                        else:
+                            # Almacenar el PIN para el acuse de recibo de coacción
+                            st.session_state[f"pin_temp_{m['id']}"] = pin_acceso
+
+                    if mostrar_contenido:
+                        st.write(m['mensaje'])
+                        
+                        if m['imagen_evidencia']:
+                            st.markdown("*EVIDENCIA ADJUNTA:*")
+                            # Decodificación y muestra de la imagen
+                            try:
+                                img_bytes = base64.b64decode(m['imagen_evidencia'])
+                                st.image(img_bytes, use_container_width=True)
+                            except:
+                                st.error("Error al desencriptar imagen.")
+
+                        # Huella de lectura y Acuse
+                        if m['estado'] == "PENDIENTE":
+                            pin_final = st.session_state.get(f"pin_temp_{m['id']}", "0000")
+                            if st.button("✅ DAR ACUSE DE RECIBO (Sellar GPS)", key=f"btn_ack_{m['id']}"):
+                                if ejecutar_acuse_recibo(m['id'], pin_final, st.session_state.lat, st.session_state.lon, usuario_auth):
+                                    st.success("ACUSE REGISTRADO. COORDENADAS SELLADAS.")
+                                    st.rerun()
+
+                        # Botón de Purga (Solo Cúpula)
+                        if es_cupula:
+                            st.markdown("---")
+                            if st.button("☢️ PURGAR REGISTRO (HARD DELETE)", key=f"btn_del_{m['id']}", type="primary"):
+                                if purgar_registro_comunicaciones(m['id']):
+                                    st.error("REGISTRO DESTRUIDO.")
+                                    st.rerun()
+                                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+# Ejecución del módulo en la interfaz principal
+if 'usuario_auth' in locals() and 'rol_sel' in st.session_state:
+    mostrar_buzon(usuario_auth, st.session_state.rol_sel)
 
 # --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS ---
 
