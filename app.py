@@ -9,6 +9,17 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
 from streamlit_autorefresh import st_autorefresh
+from supabase import create_client, Client
+
+# Inicialización del motor SQL de Supabase
+@st.cache_resource
+def init_connection():
+    url = st.secrets["supabase"]["url"]
+    key = st.secrets["supabase"]["key"]
+    return create_client(url, key)
+
+# Objeto de conexión activo para operar la base de datos
+supabase: Client = init_connection()
     
 # --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA ---
 st.set_page_config(page_title="AION-YAROKU", layout="wide", initial_sidebar_state="expanded")
