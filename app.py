@@ -91,42 +91,130 @@ col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
 with col_img2:
     st.image("https://i.ibb.co/vzrV8Vq/logo-aion.png", use_container_width=True)
     
-# --- 2. MEMORIA DE SESIÓN, BIOMETRÍA Y TELEMETRÍA ALFA ---
+# --- 2. MEMORIA DE SESIÓN, CONTROL DE ACCESO Y TÁCTICA LATERAL ---
 import base64
 
-# Persistencia de Identidad Original (Protegida)
+# ✅ 2.1. INICIALIZACIÓN DE MEMORIA TÁCTICA (ANTI-RESETEO)
+# Se establecen las variables de persistencia para evitar pérdida de datos en despliegue.
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "AYALA BRIAN"
+if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 if 'qr_mode' not in st.session_state: st.session_state.qr_mode = "Seleccionar..."
+if 'lat' not in st.session_state: st.session_state.lat = 0.0
+if 'lon' not in st.session_state: st.session_state.lon = 0.0
 if 'hora_inicio_auditoria' not in st.session_state: st.session_state.hora_inicio_auditoria = None
 
-# --- NUEVAS CAPAS DE INTELIGENCIA (SIN SUPRESIÓN) ---
-# Espacio para el Presentismo Facial (3 fases de enrolamiento)
-if 'fase_biometrica' not in st.session_state: st.session_state.fase_biometrica = 0 
-if 'vigilador_activo' not in st.session_state: st.session_state.vigilador_activo = None
-
-# Memoria de Acta Digital por Voz
+# ✅ 2.2. VARIABLES DE INTELIGENCIA AVANZADA (GRADO MILITAR)
+if 'fase_biometrica' not in st.session_state: st.session_state.fase_biometrica = 0
 if 'novedad_dictada' not in st.session_state: st.session_state.novedad_dictada = ""
+if 'stealth_mode' not in st.session_state: st.session_state.stealth_mode = False
+if 'duress_active' not in st.session_state: st.session_state.duress_active = False
+if 'last_checkin' not in st.session_state: st.session_state.last_checkin = datetime.now()
 
-# Radar de Control de Rondas (Rojo/Verde para Monitoreo)
-if 'radar_servicios' not in st.session_state: st.session_state.radar_servicios = {}
+# ✅ 2.3. PROTOCOLO DE SIGILO (INYECCIÓN VISUAL NOCTURNA)
+if st.session_state.stealth_mode:
+    st.markdown(
+        """
+        <style>
+        .stApp { filter: brightness(0.4) sepia(1) hue-rotate(-50deg) !important; }
+        * { cursor: none !important; }
+        </style>
+        """, unsafe_allow_html=True
+    )
 
-# Sincronización de Reloj Interno
-st.session_state.ultima_sincronizacion = obtener_hora_argentina()
+# ✅ 2.4. CONSTRUCCIÓN DE LA BARRA LATERAL DE MANDO
+with st.sidebar:
+    st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+    # Renderizado prioritario del escudo
+    st.image("https://i.ibb.co/vzrV8Vq/logo-aion.png", use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# 🎚️ SELECTOR DE PERFILES OPERATIVOS (LIBERADO DE BLOQUEOS)
-st.sidebar.markdown("### 🎚️ CONTROL DE ACCESO")
-perfiles_disponibles = ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENTE", "ADMINISTRADOR"]
-idx_perfil = perfiles_disponibles.index(st.session_state.rol_sel) if st.session_state.rol_sel in perfiles_disponibles else 0
-st.session_state.rol_sel = st.sidebar.selectbox("Seleccione Perfil Activo:", perfiles_disponibles, index=idx_perfil)
+    st.subheader("🛡️ PANEL DE CONTROL")
+    
+    # 2.4.1. Selector de Perfil Operativo
+    perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
+    st.session_state.rol_sel = st.selectbox(
+        "NIVEL DE ACCESO", 
+        perfiles, 
+        index=perfiles.index(st.session_state.rol_sel)
+    )
+    
+    rol = st.session_state.rol_sel
 
-# ✅ FUNCIÓN DE CRUCE TÁCTICO: Relación Vigilador-Supervisor-Servicio
-def vincular_operativa(legajo, objetivo):
-    """
-    Cruza la base de datos para asignar el reporte al supervisor correcto.
-    Esta función se activará plenamente al inyectar el Bloque 3.
-    """
-    return True
+    # 2.4.2. Asignación de Identidad y Nómina (Actualizada: Marcelo Díaz Eliminado)
+    # Los servicios de Díaz pasan automáticamente a Brian Ayala.
+    lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
+    
+    if rol == "SUPERVISOR":
+        st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups)
+        usuario_auth = st.session_state.user_sel
+    elif rol == "MONITOREO":
+        usuario_auth = "CENTRAL MONITOREO"
+    elif rol == "VIGILADOR":
+        usuario_auth = st.text_input("IDENTIFICACIÓN / LEGAJO", placeholder="Ingrese ID").upper()
+    elif rol == "JEFE DE OPERACIONES":
+        usuario_auth = "DARÍO CECILIA"
+    elif rol == "GERENCIA":
+        usuario_auth = "LUIS BONGIORNO"
+    elif rol == "ADMINISTRADOR":
+        # Muro de acceso Administrador con comando de interrupción absoluto
+        pass_input = st.text_input("CREDENCIAL DE TITANIO", type="password")
+        if pass_input != "aion2026":
+            if pass_input == "911": # Código de Coacción (Duress)
+                st.session_state.duress_active = True
+                st.warning("Acceso de Emergencia habilitado.")
+            else:
+                st.info("Esperando autenticación de nivel raíz.")
+                st.stop()
+        usuario_auth = "BRIAN AYALA (ADMIN)"
+
+    # ✅ 2.5. COMANDOS TÁCTICOS DE EMERGENCIA
+    st.markdown("---")
+    
+    # Captura de geolocalización para telemetría
+    if get_geolocation:
+        loc = get_geolocation()
+        if loc:
+            st.session_state.lat = loc['coords']['latitude']
+            st.session_state.lon = loc['coords']['longitude']
+
+    col_sos, col_ref = st.columns(2)
+    
+    with col_sos:
+        if st.button("🚨 PÁNICO", use_container_width=True):
+            # Protocolo de Transmisión S.O.S inmediata
+            hora_sos = obtener_hora_argentina()
+            datos_sos = [
+                hora_sos, 
+                usuario_auth, 
+                "CRÍTICO", 
+                "PENDIENTE", 
+                f"LAT: {st.session_state.lat} | LON: {st.session_state.lon}", 
+                "PROTOCOLO ACTIVADO"
+            ]
+            if escribir_registro("ALERTAS", datos_sos):
+                st.toast("ALERTA SOS ENVIADA", icon="🚨")
+                st.error("S.O.S TRANSMITIDO")
+
+    with col_ref:
+        if st.button("🔄 REFRESCAR", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+    # ✅ 2.6. INTERRUPTORES DE MODO MILITAR
+    st.markdown("---")
+    st.session_state.stealth_mode = st.toggle("MODO SIGILO (NOCTURNO)", value=st.session_state.stealth_mode)
+    
+    if st.session_state.duress_active:
+        st.markdown('<div class="alerta-panico">SILENT ALARM ACTIVE</div>', unsafe_allow_html=True)
+
+    # Telemetría GPS visible en Sidebar para confirmación del operador
+    st.sidebar.markdown(
+        f"""
+        <div style="background: rgba(0, 229, 255, 0.05); padding: 5px; border-radius: 5px; border-left: 2px solid #00E5FF;">
+            <small>🛰️ GPS: {st.session_state.lat}, {st.session_state.lon}</small>
+        </div>
+        """, unsafe_allow_html=True
+    )
 
 # --- 3. NÚCLEO DE CONEXIÓN, MATRIZ NUBE Y MOTOR DE APRENDIZAJE QR ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
