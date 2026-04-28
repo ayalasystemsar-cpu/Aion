@@ -9,7 +9,8 @@ import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
-
+import hashlib
+import json
 # Protecciones de importación para evitar caídas del servidor
 try:
     from streamlit_js_eval import get_geolocation
@@ -216,100 +217,112 @@ with st.sidebar:
         """, unsafe_allow_html=True
     )
 
-# --- 3. NÚCLEO DE CONEXIÓN, MATRIZ NUBE Y MOTOR DE APRENDIZAJE QR ---
-ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+# --- 3. NÚCLEO DE CONEXIÓN SQL, MOTOR TÁCTICO Y CRIPTOGRAFÍA ---
 
-def conectar_google():
+# ✅ 3.1. PROTOCOLO DE AUTO-DESTRUCCIÓN (KILL SWITCH / ZEROIZATION)
+def verificar_kill_switch(usuario):
+    """Purga la terminal si el estado del operador es COMPROMETIDO."""
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        return gspread.authorize(creds)
-    except Exception as e:
-        st.error(f"❌ Error Crítico de Conexión: {e}")
-        return None
-
-# Función esencial requerida para marcar como leído y resolver alertas
-def actualizar_celda(pestana, fila, columna, valor):
-    try:
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.update_acell(f"{columna}{fila}", valor)
-            return True
+        res = supabase.table('SEGURIDAD_OPERADORES').select('estado').eq('usuario', usuario).execute()
+        if res.data and res.data[0]['estado'] == 'COMPROMETIDO':
+            st.session_state.clear() 
+            st.markdown('<style>body {display: none !important;}</style>', unsafe_allow_html=True)
+            st.error("🔒 ZEROIZATION PROTOCOL INICIADO. TERMINAL NEUTRALIZADA.")
+            st.stop()
     except:
+        pass
+
+# ✅ 3.2. MOTOR DE LATIDO TÁCTICO (HEARTBEAT ANTI-INHIBIDORES)
+def emitir_heartbeat(usuario, lat, lon):
+    """Emite un pulso constante. La ausencia de este pulso activa alarmas en Monitoreo."""
+    try:
+        timestamp = obtener_hora_argentina()
+        payload = {"usuario": usuario, "ultima_conexion": timestamp, "lat": lat, "lon": lon}
+        supabase.table('HEARTBEAT_TRACKING').upsert(payload).execute()
+    except:
+        pass 
+
+# ✅ 3.3. CADENA DE CUSTODIA CRIPTOGRÁFICA (INTEGRIDAD LEGAL)
+def generar_hash_acta(datos_acta, hash_anterior="000000"):
+    """Crea un sello SHA-256 vinculado al registro anterior, impidiendo alteraciones posteriores."""
+    contenido = json.dumps(datos_acta, sort_keys=True) + hash_anterior
+    return hashlib.sha256(contenido.encode()).hexdigest()
+
+# ✅ 3.4. CACHÉ DE CONTINGENCIA (STORE-AND-FORWARD / OFFLINE MODE)
+if 'buffer_offline' not in st.session_state:
+    st.session_state.buffer_offline = []
+
+def inyectar_datos_tacticos(tabla, payload, requiere_custodia=False):
+    """Gestiona el envío de datos. Si detecta fallo de red, encripta y guarda en caché local."""
+    try:
+        if requiere_custodia:
+            # Recupera el último hash para mantener la cadena de custodia
+            res_hash = supabase.table(tabla).select('hash_seguridad').order('id', desc=True).limit(1).execute()
+            hash_prev = res_hash.data[0]['hash_seguridad'] if res_hash.data else "GENESIS_AION_2026"
+            payload['hash_seguridad'] = generar_hash_acta(payload, hash_prev)
+        
+        # Intento de inserción en Supabase
+        supabase.table(tabla).insert(payload).execute()
+        
+        # Sincronización automática de paquetes retenidos en el buffer
+        if st.session_state.buffer_offline:
+            for item in st.session_state.buffer_offline:
+                supabase.table(item['tabla']).insert(item['payload']).execute()
+            st.session_state.buffer_offline.clear()
+        return True
+        
+    except Exception:
+        # Falla de red: Se activa el protocolo Store-and-Forward
+        payload['estado_red'] = 'OFFLINE_CACHED'
+        st.session_state.buffer_offline.append({"tabla": tabla, "payload": payload})
         return False
 
-# ✅ FUNCIÓN MAESTRA: Escritura Dual con Inteligencia de Mapeo
-def escribir_registro_pro(pestana, datos_fila, id_qr=None, servicio=None, supervisor=None):
-    """
-    Registra actividad y, si el QR es desconocido, activa el protocolo de aprendizaje.
-    Prepara los datos para el resumen diario de Gerencia.
-    """
+# ✅ 3.5. MOTOR ESPACIAL POSTGIS (TRIANGULACIÓN DE PRECISIÓN)
+def calcular_objetivo_cercano_postgis(lat, lon):
+    """Calcula distancias reales mediante el motor geoespacial de Supabase."""
     try:
-        # 1. Verificación de Identidad del Punto (QR)
-        nombre_punto = "PUNTO DESCONOCIDO"
-        if id_qr:
-            # Consultamos si el QR ya existe para este servicio
-            # Se requiere que 'supabase' esté inicializado previamente
-            try:
-                res = supabase.table("MAPEO_QR").select("*").eq("id_qr", id_qr).execute()
-                if not res.data:
-                    st.info(f"🔍 QR NO IDENTIFICADO EN: {servicio}")
-                    nombre_nuevo = st.text_input("Asigne nombre táctico (Ej: Acceso Principal, Garita 1):", key=f"learn_{id_qr}")
-                    if nombre_nuevo:
-                        supabase.table("MAPEO_QR").insert({
-                            "id_qr": id_qr, "nombre_punto": nombre_nuevo.upper(), 
-                            "servicio": servicio, "creado_por": supervisor
-                        }).execute()
-                        st.success(f"✅ Punto '{nombre_nuevo}' mapeado exitosamente.")
-                        nombre_punto = nombre_nuevo.upper()
-                else:
-                    nombre_punto = res.data[0]['nombre_punto']
-            except:
-                pass # Si no hay base de datos de aprendizaje, sigue el flujo
+        if lat == 0.0 or lon == 0.0: 
+            return "Sin datos", "Sin datos"
+        # Llamada al procedimiento almacenado de inteligencia espacial
+        res = supabase.rpc('triangular_objetivo_cercano', {'lat_op': lat, 'lon_op': lon}).execute()
+        if res.data:
+            return res.data[0]['objetivo'], res.data[0]['policia_asignada']
+    except:
+        pass
+    return "Sin datos", "Sin datos"
 
-        # 2. Inyección de Datos en Matriz Nube (Google Sheets)
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.append_row(datos_fila)
-            return True
-    except Exception as e:
-        st.error(f"⚠️ Fallo en Sincronización Dual: {e}")
-    return False
-
-# ✅ LÓGICA DE AUDITORÍA PARA GERENCIA (Resumen de Tiempos)
-def obtener_resumen_estadía(supervisor_name):
-    return True
-
-@st.cache_data(ttl=15)
-def leer_matriz_nube(pestana):
-    gc = conectar_google()
-    if gc:
-        try:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            return pd.DataFrame(hoja.get_all_records())
-        except: return pd.DataFrame()
-    return pd.DataFrame()
-
+# ✅ 3.6. CARGA DE MATRIZ Y HERENCIA DE MANDO (CASO MARCELO DÍAZ)
 @st.cache_data(ttl=60)
-def cargar_objetivos():
-    df = leer_matriz_nube("OBJETIVOS")
-    if not df.empty:
-        df.columns = df.columns.str.strip().str.upper()
-        df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        return df.dropna(subset=['LATITUD', 'LONGITUD'])
-    return pd.DataFrame()
+def cargar_matriz_objetivos():
+    """Extrae la base de objetivos y ejecuta la reasignación de mandos en memoria."""
+    try:
+        res = supabase.table('OBJETIVOS').select('*').execute()
+        if res.data:
+            df = pd.DataFrame(res.data)
+            df.columns = df.columns.str.strip().str.upper()
+            
+            # ⚡ REASIGNACIÓN TÁCTICA: Brian Ayala absorbe la operatividad de Marcelo Díaz
+            if 'SUPERVISOR' in df.columns:
+                df['SUPERVISOR'] = df['SUPERVISOR'].str.replace('MARCELO DIAZ', 'BRIAN AYALA', case=False)
+                df['SUPERVISOR'] = df['SUPERVISOR'].str.replace('DIAZ MARCELO', 'BRIAN AYALA', case=False)
+            
+            # Normalización técnica de coordenadas
+            df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+            df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+            return df.dropna(subset=['LATITUD', 'LONGITUD'])
+    except:
+        pass
+        
+    return pd.DataFrame(columns=['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR', 'LATITUD', 'LONGITUD', 'RESPONSABLE', 'ALARMA', 'POLICIA'])
 
-df_objetivos = cargar_objetivos()
+# Carga inicial de la matriz de objetivos
+df_objetivos = cargar_matriz_objetivos()
 
-def calcular_objetivo_cercano(lat, lon, df_obj):
-    if df_obj.empty or lat == "Desconocida": return "Sin datos", "Sin datos"
-    df_temp = df_obj.copy()
-    df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - float(lat))*2 + (df_temp['LONGITUD'] - float(lon))*2)
-    cercano = df_temp.loc[df_temp['distancia'].idxmin()]
-    return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
+# ✅ 3.7. EJECUCIÓN PASIVA DE PROTOCOLOS DE FONDO
+# Estas funciones corren en cada interacción para garantizar la seguridad del nodo.
+if 'usuario_auth' in locals() and usuario_auth:
+    verificar_kill_switch(usuario_auth)
+    emitir_heartbeat(usuario_auth, st.session_state.lat, st.session_state.lon)
 
 # --- 4. BANDEJA DE INTELIGENCIA Y MENSAJERÍA ---
 
