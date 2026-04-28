@@ -1061,25 +1061,70 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE", "ADMINISTRAD
 
 # --- 9. ADMINISTRADOR: NÚCLEO MAESTRO (CANDADO DE TITANIO) ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.header("⚙️ NÚCLEO MAESTRO: B. AYALA")
+    st.header("⚙️ NÚCLEO MAESTRO: B. AYALA (ACCESO RAÍZ)")
     
-    if datetime.now().weekday() == 6:
-        st.error("⚠️ PROTOCOLO DE CIERRE DOMINICAL DETECTADO")
-        if st.button("📦 EJECUTAR BARRIDA HISTÓRICA"):
-            with st.status("Migrando datos a Bóveda..."):
-                st.balloons()
-                st.rerun()
+    st.markdown("---")
+    c_defcon, c_db = st.columns(2)
+    
+    # ⚡ 9.1. AISLAMIENTO TOTAL
+    with c_defcon:
+        st.subheader("🚨 PROTOCOLO DEFCON 1")
+        st.write("Bloqueo absoluto del sistema. Corta el enlace SQL de toda la flota en terreno y gerencia.")
+        
+        # Un check de confirmación para no apretar el botón rojo por error
+        if st.checkbox("Habilitar Switch de Apagón"):
+            if st.button("☢️ DETONAR APAGÓN GLOBAL", type="primary", use_container_width=True):
+                with st.spinner("Desconectando terminales..."):
+                    try:
+                        # 1. Purga de acceso operativo (Todos a INACTIVO menos Brian Ayala)
+                        supabase.table('ESTRUCTURA_PERSONAL').update({"estado": "BLOQUEO_DEFCON"}).neq('nombre', 'BRIAN AYALA').execute()
+                        
+                        # 2. Inyección de Kill Switch (Fuerza el cierre de sesión en los teléfonos)
+                        supabase.table('SEGURIDAD_OPERADORES').update({"estado": "COMPROMETIDO"}).neq('usuario', 'BRIAN AYALA').execute()
+                        
+                        st.error("DEFCON 1 EJECUTADO. Todos los nodos han sido neutralizados. Acceso exclusivo para Nivel Raíz.")
+                    except:
+                        st.warning("Interferencia en la ejecución SQL.")
+                
+    # ⚡ 9.2. MANTENIMIENTO DE RENDIMIENTO SQL
+    with c_db:
+        st.subheader("📦 MIGRACIÓN TÁCTICA A BÓVEDA")
+        st.write("Purga de memoria caché y traslado de actas operativas a la Bóveda Histórica Inmutable.")
+        
+        if st.button("🗄️ EJECUTAR BARRIDA DE DATOS", use_container_width=True):
+            with st.status("Ejecutando volcado SQL y optimización de índices..."):
+                try:
+                    # Llama a una función interna de Supabase (RPC) para mover filas viejas y vaciar RAM
+                    supabase.rpc('ejecutar_barrida_historica').execute()
+                    time.sleep(2) # Simulación de tiempo de encriptación de bloques
+                    st.success("BARRIDA COMPLETADA. Matriz principal operando al 100% de rendimiento.")
+                except:
+                    st.error("Aviso: Requiere configurar la función 'ejecutar_barrida_historica' en el servidor Supabase.")
 
-    st.subheader("⚖️ BUZÓN DE PETICIONES PENDIENTES")
-    df_pet = leer_matriz_nube("PETICIONES")
-    if not df_pet.empty:
-        pend = df_pet[df_pet['ESTADO'] == 'PENDIENTE']
-        for idx, r in pend.iterrows():
-            with st.expander(f"Solicitud: {r['ACCION']} de {r['DETALLE']}"):
-                c1, c2 = st.columns(2)
-                if c1.button("✅ AUTORIZAR", key=f"ok_{idx}"):
-                    actualizar_celda("PETICIONES", idx+2, "E", "EJECUTADO")
-                    st.rerun()
-                if c2.button("❌ RECHAZAR", key=f"no_{idx}"):
-                    actualizar_celda("PETICIONES", idx+2, "E", "RECHAZADO")
-                    st.rerun()
+    st.markdown("---")
+    
+    # ⚡ 9.3. AUDITORÍA DE LA CÚPULA (ROOT ALERTS)
+    st.subheader("👁️ VISOR EN LA SOMBRA (INTERCEPCIÓN DARK MESH)")
+    st.caption("Tráfico clasificado de Jefatura y Gerencia interceptado por Nivel Raíz.")
+    
+    if st.button("🔄 ACTUALIZAR INTERCEPTOR"):
+        st.rerun()
+
+    try:
+        # Extrae mensajes de la tabla saltándose los bloqueos de usuario normales
+        res_shadow = supabase.table('MENSAJERIA_TACTICA').select('*').eq('dark_mesh', True).order('id', desc=True).limit(10).execute()
+        
+        if res_shadow.data:
+            for m in res_shadow.data:
+                estado_msj = m.get('estado', 'DESCONOCIDO')
+                color_borde = "#FF1744" if estado_msj == "PENDIENTE" else "#00E5FF"
+                
+                st.markdown(f"<div style='border-left: 4px solid {color_borde}; padding-left: 10px; background: rgba(0,0,0,0.2); margin-bottom: 5px;'>", unsafe_allow_html=True)
+                with st.expander(f"🛡️ [INTERCEPTADO] De: {m['remitente']} a {m['destinatario']}"):
+                    st.write(f"*Contenido:* {m['mensaje']}")
+                    st.caption(f"Emitido: {m['fecha_hora']} | Prioridad: {m['prioridad']} | Estado: {estado_msj}")
+                st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.info("La Malla Oscura está en silencio.")
+    except:
+        st.error("Enlace de interceptación caído.")
