@@ -8,6 +8,7 @@ from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+# Nota: Asegurarse de tener importado supabase si se va a utilizar
 from supabase import create_client, Client
 
 # Configuración de página de alto impacto
@@ -125,10 +126,7 @@ def obtener_hora_argentina():
 # ✅ Inserción de Escudo Central (Fascinante)
 st.markdown('<div class="escudo-alfa-container"><img src="https://i.ibb.co/vzrV8Vq/logo-aion.png" class="escudo-alfa"></div>', unsafe_allow_html=True)
     
-
-
 # --- 2. MEMORIA DE SESIÓN, BIOMETRÍA Y TELEMETRÍA ALFA ---
-# Mantenemos tus bases y expandimos la capacidad de procesamiento
 import base64
 
 # Persistencia de Identidad Original (Protegida)
@@ -148,6 +146,15 @@ if 'novedad_dictada' not in st.session_state: st.session_state.novedad_dictada =
 # Radar de Control de Rondas (Rojo/Verde para Monitoreo)
 if 'radar_servicios' not in st.session_state: st.session_state.radar_servicios = {}
 
+# Sincronización de Reloj Interno
+st.session_state.ultima_sincronizacion = obtener_hora_argentina()
+
+# 🎚️ SELECTOR DE PERFILES OPERATIVOS (LIBERADO DE BLOQUEOS)
+st.sidebar.markdown("### 🎚️ CONTROL DE ACCESO")
+perfiles_disponibles = ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENTE", "ADMINISTRADOR"]
+idx_perfil = perfiles_disponibles.index(st.session_state.rol_sel) if st.session_state.rol_sel in perfiles_disponibles else 0
+st.session_state.rol_sel = st.sidebar.selectbox("Seleccione Perfil Activo:", perfiles_disponibles, index=idx_perfil)
+
 # ✅ FUNCIÓN DE CRUCE TÁCTICO: Relación Vigilador-Supervisor-Servicio
 def vincular_operativa(legajo, objetivo):
     """
@@ -155,9 +162,6 @@ def vincular_operativa(legajo, objetivo):
     Esta función se activará plenamente al inyectar el Bloque 3.
     """
     return True
-
-# Sincronización de Reloj Interno
-st.session_state.ultima_sincronizacion = obtener_hora_argentina()
 
 # --- 3. NÚCLEO DE CONEXIÓN, MATRIZ NUBE Y MOTOR DE APRENDIZAJE QR ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
@@ -171,6 +175,17 @@ def conectar_google():
         st.error(f"❌ Error Crítico de Conexión: {e}")
         return None
 
+# Función esencial requerida para marcar como leído y resolver alertas
+def actualizar_celda(pestana, fila, columna, valor):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            hoja.update_acell(f"{columna}{fila}", valor)
+            return True
+    except:
+        return False
+
 # ✅ FUNCIÓN MAESTRA: Escritura Dual con Inteligencia de Mapeo
 def escribir_registro_pro(pestana, datos_fila, id_qr=None, servicio=None, supervisor=None):
     """
@@ -182,21 +197,23 @@ def escribir_registro_pro(pestana, datos_fila, id_qr=None, servicio=None, superv
         nombre_punto = "PUNTO DESCONOCIDO"
         if id_qr:
             # Consultamos si el QR ya existe para este servicio
-            res = supabase.table("MAPEO_QR").select("*").eq("id_qr", id_qr).execute()
-            
-            if not res.data:
-                # MODO APRENDIZAJE: Si es nuevo, el sistema pide identificarlo
-                st.info(f"🔍 QR NO IDENTIFICADO EN: {servicio}")
-                nombre_nuevo = st.text_input("Asigne nombre táctico (Ej: Acceso Principal, Garita 1):", key=f"learn_{id_qr}")
-                if nombre_nuevo:
-                    supabase.table("MAPEO_QR").insert({
-                        "id_qr": id_qr, "nombre_punto": nombre_nuevo.upper(), 
-                        "servicio": servicio, "creado_por": supervisor
-                    }).execute()
-                    st.success(f"✅ Punto '{nombre_nuevo}' mapeado exitosamente.")
-                    nombre_punto = nombre_nuevo.upper()
-            else:
-                nombre_punto = res.data[0]['nombre_punto']
+            # Se requiere que 'supabase' esté inicializado previamente
+            try:
+                res = supabase.table("MAPEO_QR").select("*").eq("id_qr", id_qr).execute()
+                if not res.data:
+                    st.info(f"🔍 QR NO IDENTIFICADO EN: {servicio}")
+                    nombre_nuevo = st.text_input("Asigne nombre táctico (Ej: Acceso Principal, Garita 1):", key=f"learn_{id_qr}")
+                    if nombre_nuevo:
+                        supabase.table("MAPEO_QR").insert({
+                            "id_qr": id_qr, "nombre_punto": nombre_nuevo.upper(), 
+                            "servicio": servicio, "creado_por": supervisor
+                        }).execute()
+                        st.success(f"✅ Punto '{nombre_nuevo}' mapeado exitosamente.")
+                        nombre_punto = nombre_nuevo.upper()
+                else:
+                    nombre_punto = res.data[0]['nombre_punto']
+            except:
+                pass # Si no hay base de datos de aprendizaje, sigue el flujo
 
         # 2. Inyección de Datos en Matriz Nube (Google Sheets)
         gc = conectar_google()
@@ -210,11 +227,6 @@ def escribir_registro_pro(pestana, datos_fila, id_qr=None, servicio=None, superv
 
 # ✅ LÓGICA DE AUDITORÍA PARA GERENCIA (Resumen de Tiempos)
 def obtener_resumen_estadía(supervisor_name):
-    """
-    Cruza los ingresos y salidas para calcular el total de horas del día.
-    Esta función alimentará la pestaña exclusiva del Gerente.
-    """
-    # Lógica de agregación para el reporte final (Se activa en Bloque 4)
     return True
 
 @st.cache_data(ttl=15)
@@ -242,18 +254,20 @@ df_objetivos = cargar_objetivos()
 def calcular_objetivo_cercano(lat, lon, df_obj):
     if df_obj.empty or lat == "Desconocida": return "Sin datos", "Sin datos"
     df_temp = df_obj.copy()
-    # Algoritmo de proximidad para validación de presencia real
     df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - float(lat))*2 + (df_temp['LONGITUD'] - float(lon))*2)
     cercano = df_temp.loc[df_temp['distancia'].idxmin()]
     return cercano['OBJETIVO'], cercano.get('POLICIA', 'No registrada')
 
 # --- 4. BANDEJA DE INTELIGENCIA Y MENSAJERÍA ---
+
+# Lista referencial para selectores
+lista_sups = ["SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR NOCTURNO"] 
+
 def mostrar_buzon(usuario_actual):
     st.markdown("### 📥 BANDEJA DE INTELIGENCIA")
     df_msg = leer_matriz_nube("MENSAJERIA")
     
     if not df_msg.empty:
-        # Usamos 'DESTINATARIO' para que no de error
         mis_mensajes = df_msg[
             (df_msg['DESTINATARIO'].astype(str).str.contains(usuario_actual, na=False)) | 
             (df_msg['DESTINATARIO'].astype(str).str.contains("TODOS", na=False)) |
@@ -285,12 +299,15 @@ def emitir_mensaje_pro(remitente):
     with st.expander("📤 REDACTAR COMUNICACIÓN"):
         with st.form("envio_tactico"):
             dest = st.selectbox("Para:", ["TODOS", "DARÍO CECILIA", "LUIS BONGIORNO", "MONITOREO"] + lista_sups)
-            asu = st.text_input("Asunto"); men = st.text_area("Mensaje"); grav = st.selectbox("Prioridad:", ["VERDE", "AMARILLO", "ROJO"])
+            asu = st.text_input("Asunto")
+            men = st.text_area("Mensaje")
+            grav = st.selectbox("Prioridad:", ["VERDE", "AMARILLO", "ROJO"])
             if st.form_submit_button("TRANSMITIR"):
                 if asu and men:
                     datos = [obtener_hora_argentina(), remitente, dest, asu, men, "ENVIADO", grav]
                     if escribir_registro_pro("MENSAJERIA", datos):
-                        st.success(f"Transmitido a {dest}"); st.rerun()
+                        st.success(f"Transmitido a {dest}")
+                        st.rerun()
 
 # --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS ---
 
@@ -329,7 +346,6 @@ if st.session_state.rol_sel == "SUPERVISOR":
     col_panico, col_refresco = st.columns(2)
     
     with col_panico:
-        # BOTÓN DE PÁNICO TÁCTICO
         if st.button("🚨 ACTIVAR PÁNICO / SOS", use_container_width=True):
             lat, lon = st.session_state.get('lat', 'Desconocida'), st.session_state.get('lon', 'Desconocida')
             datos_sos = [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", lat, lon, "CRÍTICO PENDIENTE"]
@@ -338,22 +354,16 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 st.toast("Protocolo de emergencia activado.")
 
     with col_refresco:
-        # BOTÓN DE REFRESCO FORZADO
         if st.button("🔄 REFRESCAR SISTEMA", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
-    # Visualización de Telemetría GPS en tiempo real
     st.markdown(f"""
         <div style="background: rgba(0, 229, 255, 0.05); padding: 10px; border-radius: 5px; border-left: 3px solid #00E5FF;">
             <small>🛰️ <b>TELEMETRÍA GPS:</b> Lat: {st.session_state.get('lat', '0.0')} | Lon: {st.session_state.get('lon', '0.0')}</small>
         </div>
     """, unsafe_allow_html=True)
 
-# ✅ 5.4. ROL CENTRAL DE MONITOREO
-if st.session_state.rol_sel == "MONITOREO":
-    st.markdown("### 🖥️ CENTRAL DE MONITOREO TÁCTICO")
-    # Integración del radar de objetivos
 # --- 6. MÓDULO SUPERVISOR: ESTACIÓN TÁCTICA Y TELEMETRÍA ALFA ---
 if st.session_state.rol_sel == "SUPERVISOR":
     st.markdown(f"### ⚡ ESTACIÓN TÁCTICA: {st.session_state.user_sel}")
@@ -368,16 +378,13 @@ if st.session_state.rol_sel == "SUPERVISOR":
         
         if st.button("📌 SELLAR ODOMETRÍA Y LOGÍSTICA", use_container_width=True):
             if km_out >= km_in:
-                # Escribe 6 columnas exactas a CONTROL_FLOTA
                 datos_f = [obtener_hora_argentina()[:10], st.session_state.user_sel, movil_flota, km_in, km_out, comb_cargado]
                 if escribir_registro_pro("CONTROL_FLOTA", datos_f):
                     st.success("Logística sellada en la matriz maestra.")
             else: st.warning("Revisar kilometraje: El final es menor al inicial.")
 
-    # --- 6.2. NAVEGACIÓN POR PESTAÑAS TÁCTICAS ---
     t1, t2, t3 = st.tabs(["📍 RADAR & QR", "📤 CARGA TÁCTICA", "💬 COMUNICACIÓN"])
     
-    # Filtrado Inteligente de Zona (48hs / Apellido)
     apellido = st.session_state.user_sel.split()[-1].upper()
     df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
 
@@ -386,7 +393,6 @@ if st.session_state.rol_sel == "SUPERVISOR":
         
         with c_map:
             if not df_zona.empty:
-                # Mapa Dark Matter con marcadores de estado
                 m_s = folium.Map(location=[df_zona['LATITUD'].mean(), df_zona['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
                 for _, row in df_zona.iterrows():
                     folium.Marker(
@@ -402,7 +408,6 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 t_obj = df_zona[df_zona['OBJETIVO'] == dest].iloc[0]
                 lat_dest, lon_dest = t_obj["LATITUD"], t_obj["LONGITUD"]
                 
-                # Ruteo Inteligente
                 url_waze = f"https://waze.com/ul?ll={lat_dest},{lon_dest}&navigate=yes"
                 url_maps = f"https://www.google.com/maps/dir/?api=1&destination={lat_dest},{lon_dest}"
                 
@@ -410,14 +415,12 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%; padding:10px; background:#4285F4; color:white; border-radius:5px; font-weight:bold; border:none;">🗺️ GOOGLE MAPS</button></a>', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                # CONTROL QR CON MOTOR DE APRENDIZAJE
                 st.session_state.qr_mode = st.radio("ACCIÓN:", ["Seleccionar...", "🟢 INGRESO", "🔴 SALIDA"], horizontal=True)
                 
                 if st.session_state.qr_mode != "Seleccionar...":
                     if st.checkbox("🔓 ACTIVAR ESCÁNER TÁCTICO"):
                         f_cam = st.camera_input("Enfoque el QR del Servicio")
                         if f_cam:
-                            # Lógica de Tiempos y Escritura Inteligente (Doble Escritura)
                             tipo = "ENTRADA" if "INGRESO" in st.session_state.qr_mode else "SALIDA"
                             delta_t = "0 min"
                             if tipo == "ENTRADA": st.session_state.hora_inicio_auditoria = datetime.now()
@@ -426,8 +429,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
                                 delta_t = f"{int(mins)} min"
                                 st.session_state.hora_inicio_auditoria = None
 
-                            # Ejecutamos el motor de aprendizaje (Bloque 3)
-                            if escribir_registro_inteligente("LOG_PRESENCIA", [obtener_hora_argent_s(), st.session_state.user_sel, dest, tipo, "VALIDADO", delta_t], id_qr=f"QR_{dest}", servicio=dest):
+                            if escribir_registro_pro("LOG_PRESENCIA", [obtener_hora_argentina(), st.session_state.user_sel, dest, tipo, "VALIDADO", delta_t], id_qr=f"QR_{dest}", servicio=dest):
                                 st.success(f"OPERACIÓN {tipo} SELLADA.")
                                 st.rerun()
 
@@ -440,25 +442,22 @@ if st.session_state.rol_sel == "SUPERVISOR":
             gravedad = st.select_slider("GRAVEDAD:", options=["VERDE", "AMARILLO", "ROJO"])
             
             if st.form_submit_button("🚀 TRANSMITIR ACTA"):
-                # Escritura a ACTAS_FLOTAS (10 columnas)
                 datos_acta = [obtener_hora_argentina(), st.session_state.user_sel, movil_flota, "", km_in, "", f_vig, f_dest, f_nov, gravedad]
                 escribir_registro_pro("ACTAS_FLOTAS", datos_acta)
                 
-                # Enrutamiento WhatsApp Táctico
                 dest_msg = "TODOS" if gravedad == "ROJO" else ("CENTRAL MONITOREO" if gravedad == "AMARILLO" else "DARIO CECILIA")
                 escribir_registro_pro("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, dest_msg, f"ALERTA {f_dest}", f_nov, "ENVIADO", gravedad])
                 st.success("Acta derivada según protocolo de jerarquía.")
 
     with t3:
-        # Aquí se llama a tu función original de buzón pero con la estética nueva
-        st.write("📥 *BANDEJA DE INTELIGENCIA PERSONALIZADA*")
-        # mostrar_buzon(st.session_state.user_sel)
+        mostrar_buzon(st.session_state.user_sel)
+        # Inserción de componente de escritura faltante
+        emitir_mensaje_pro(st.session_state.user_sel)
 
 # --- 7. MÓDULO MONITOREO ---
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     
-    # Telemetría Frontal
     m1, m2, m3 = st.columns(3)
     df_alertas = leer_matriz_nube("ALERTAS")
     sos_activos = len(df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_alertas.empty else 0
@@ -474,6 +473,14 @@ elif st.session_state.rol_sel == "MONITOREO":
     t_radar, t_libro, t_chat = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN"])
     
     with t_radar:
+        # Recuperación del Mapa de Monitoreo
+        if not df_objetivos.empty:
+            m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            for _, r in df_objetivos.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
+            st_folium(m_mon, width="100%", height=400)
+            st.markdown("---")
+
         if sos_activos > 0:
             datos_sos = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             op_en_riesgo = datos_sos['USUARIO']
@@ -484,7 +491,9 @@ elif st.session_state.rol_sel == "MONITOREO":
                     fila_real = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                     actualizar_celda("ALERTAS", fila_real, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_real, "F", f"OPE: {st.session_state.user_sel} | {res_acta}")
-                    st.success("Resuelto"); st.cache_data.clear(); st.rerun()
+                    st.success("Resuelto")
+                    st.cache_data.clear()
+                    st.rerun()
         else:
             st.success("Zona segura: Sin alertas pendientes.")
 
@@ -493,15 +502,18 @@ elif st.session_state.rol_sel == "MONITOREO":
             nov = st.text_area("Novedades de Guardia")
             if st.form_submit_button("SELLAR"):
                 escribir_registro_pro("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, "DARIO CECILIA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
-                st.success("Selledo."); st.rerun()
+                st.success("Sellado.")
+                st.rerun()
 
     with t_chat:
         mostrar_buzon(st.session_state.user_sel)
+        # Inserción de componente de escritura faltante
+        emitir_mensaje_pro(st.session_state.user_sel)
+
 # --- 8. MÓDULO EJECUTIVO: COMANDO ESTRATÉGICO Y AUDITORÍA ---
 elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE"]:
     st.header(f"👔 COMANDO ESTRATÉGICO: {st.session_state.user_sel}")
     
-    # CSS de Tarjetas Semáforo Elevado
     st.markdown("""
     <style>
     .card-alfa { padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 5px solid; background: rgba(255,255,255,0.02); }
@@ -533,16 +545,13 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE"]:
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO: B. AYALA")
     
-    # 9.1. Protocolo de Archivado Dominical
-    if datetime.now().weekday() == 6: # Domingo
+    if datetime.now().weekday() == 6:
         st.error("⚠️ PROTOCOLO DE CIERRE DOMINICAL DETECTADO")
         if st.button("📦 EJECUTAR BARRIDA HISTÓRICA"):
             with st.status("Migrando datos a Bóveda..."):
-                # Aquí corre tu lógica de archivado quirúrgico
                 st.balloons()
                 st.rerun()
 
-    # 9.2. Buzón de Ejecución (Altas y Bajas)
     st.subheader("⚖️ BUZÓN DE PETICIONES PENDIENTES")
     df_pet = leer_matriz_nube("PETICIONES")
     if not df_pet.empty:
@@ -556,5 +565,3 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 if c2.button("❌ RECHAZAR", key=f"no_{idx}"):
                     actualizar_celda("PETICIONES", idx+2, "E", "RECHAZADO")
                     st.rerun()
-
-       
