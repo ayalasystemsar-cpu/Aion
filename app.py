@@ -323,7 +323,57 @@ df_objetivos = cargar_matriz_objetivos()
 if 'usuario_auth' in locals() and usuario_auth:
     verificar_kill_switch(usuario_auth)
     emitir_heartbeat(usuario_auth, st.session_state.lat, st.session_state.lon)
+# ✅ 3.8. MÓDULO DE RETROCOMPATIBILIDAD TEMPORAL (ENLACE A GOOGLE SHEETS)
+# Mantiene la operatividad de los Bloques 4 al 9 hasta su migración definitiva a Supabase.
+ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
+def conectar_google():
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+        return gspread.authorize(creds)
+    except: 
+        return None
+
+@st.cache_data(ttl=5)
+def leer_matriz_nube(pestana):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            return pd.DataFrame(hoja.get_all_records())
+    except: 
+        return pd.DataFrame()
+
+def escribir_registro(pestana, datos_fila):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            hoja.append_row(datos_fila)
+            return True
+    except: 
+        return False
+
+def actualizar_celda(pestana, fila_excel, col_letra, nuevo_valor):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            hoja.update_acell(f"{col_letra}{fila_excel}", nuevo_valor)
+            return True
+    except: 
+        return False
+
+def borrar_fila_excel(pestana, fila_excel):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            hoja.delete_rows(fila_excel)
+            return True
+    except: 
+        return False
 # --- 4. BANDEJA DE INTELIGENCIA Y MENSAJERÍA ---
 
 # Lista referencial para selectores
