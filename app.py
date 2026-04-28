@@ -634,3 +634,18 @@ elif rol == "ADMINISTRADOR":
     if not df_p.empty: 
         st.dataframe(df_p.tail(30).iloc[::-1], use_container_width=True)
 
+        st.divider()
+st.subheader("📡 Sistema de Transmisión Supabase")
+
+if st.button("Enviar Reporte de Prueba"):
+    try:
+        # Estructura del dato a inyectar
+        datos = {"mensaje": "Aion Yaroku: Primer enlace exitoso desde la central."}
+        
+        # Orden de escritura en la tabla
+        respuesta = supabase.table("reportes_prueba").insert(datos).execute()
+        
+        st.success("Transmisión confirmada. El dato fue inyectado en la base de datos.")
+    except Exception as e:
+        st.error(f"Falla en el enlace: {e}")
+
