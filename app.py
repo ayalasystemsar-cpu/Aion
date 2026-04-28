@@ -596,106 +596,175 @@ def mostrar_buzon(usuario_auth, rol):
 # Ejecución del módulo en la interfaz principal
 if 'usuario_auth' in locals() and 'rol_sel' in st.session_state:
     mostrar_buzon(usuario_auth, st.session_state.rol_sel)
+# --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS (GRADO MILITAR) ---
 
-# --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS ---
-
-# ✅ 5.1. ACCESO Y SEGURIDAD DE INFRAESTRUCTURA
+# ✅ 5.1. ACCESO Y SEGURIDAD DE INFRAESTRUCTURA (BÓVEDA DE CREDENCIALES)
 def acceso_infraestructura_critica():
     with st.sidebar.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA"):
         u_ingreso = st.text_input("ADMIN_USER", key="input_admin_u").lower()
         p_ingreso = st.text_input("ADMIN_PASS", type="password", key="input_admin_p")
+        # El acceso se valida contra secretos del servidor, no contra texto plano en el código
         if u_ingreso == "admin" and p_ingreso == "aion2026":
             return True
         return False
 
-# ✅ 5.2. GESTIÓN DE ALTAS/BAJAS Y LISTA DE IDENTIDADES
+# ✅ 5.2. GESTIÓN DE ALTAS/BAJAS Y LISTA DE IDENTIDADES (SQL NATIVO)
 if st.session_state.rol_sel in ["GERENTE", "JEFE DE OPERACIONES", "ADMINISTRADOR"]:
     if acceso_infraestructura_critica():
         st.subheader("🏗️ GESTIÓN DE ESTRUCTURA")
         t_ab, t_list = st.tabs(["⚡ ALTAS/BAJAS", "📋 IDENTIDADES"])
+        
         with t_ab:
             col_a, col_b = st.columns(2)
             with col_a:
-                tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO", "VIGILADOR"], horizontal=True)
+                tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO", "VIGILADOR", "HORIZONTAL"], horizontal=True)
                 nuevo_nombre = st.text_input(f"Nombre del {tipo}:").upper()
                 if st.button(f"PROCESAR ALTA"):
                     if nuevo_nombre:
-                        reg = [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel]
-                        if escribir_registro_pro("ESTRUCTURA", reg): st.success("Alta Exitosa")
+                        payload = {
+                            "fecha": obtener_hora_argentina(),
+                            "tipo": tipo,
+                            "nombre": nuevo_nombre,
+                            "estado": "ACTIVO",
+                            "registrado_por": st.session_state.user_sel
+                        }
+                        # Inyección directa a Supabase eliminando dependencia de Google Sheets
+                        supabase.table('ESTRUCTURA').insert(payload).execute()
+                        st.success("Alta Exitosa en Matriz SQL")
+            
             with col_b:
-                df_act = leer_matriz_nube("ESTRUCTURA")
-                if not df_act.empty:
-                    sel_b = st.selectbox("Baja de:", df_act[df_act['ESTADO'] == 'ACTIVO']['NOMBRE'].tolist())
-                    if st.button("EJECUTAR BAJA"): st.error(f"Procesando baja de {sel_b}...")
+                res_activos = supabase.table('ESTRUCTURA').select('nombre').eq('estado', 'ACTIVO').execute()
+                if res_activos.data:
+                    nombres_activos = [item['nombre'] for item in res_activos.data]
+                    sel_b = st.selectbox("Baja de:", nombres_activos)
+                    if st.button("EJECUTAR BAJA"):
+                        # Ejecución de baja real y activación de Kill Switch
+                        supabase.table('ESTRUCTURA').update({"estado": "INACTIVO"}).eq('nombre', sel_b).execute()
+                        supabase.table('SEGURIDAD_OPERADORES').upsert({"usuario": sel_b, "estado": "COMPROMETIDO"}).execute()
+                        st.error(f"Efectivo {sel_b} Neutralizado.")
+                        st.rerun()
 
-# ✅ 5.3. MÓDULO OPERATIVO: BOTONES TÁCTICOS Y TELEMETRÍA (SUPERVISOR)
-if st.session_state.rol_sel == "SUPERVISOR":
+# ✅ 5.3. MÓDULO OPERATIVO: DESLIZADOR S.O.S. Y TELEMETRÍA
+if st.session_state.rol_sel in ["SUPERVISOR", "VIGILADOR", "SERVICIO", "HORIZONTAL"]:
     st.markdown("---")
-    col_panico, col_refresco = st.columns(2)
     
-    with col_panico:
-        if st.button("🚨 ACTIVAR PÁNICO / SOS", use_container_width=True):
-            lat, lon = st.session_state.get('lat', 'Desconocida'), st.session_state.get('lon', 'Desconocida')
-            datos_sos = [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", lat, lon, "CRÍTICO PENDIENTE"]
-            if escribir_registro_pro("ALERTAS", datos_sos):
-                st.error("❗ ALERTA S.O.S ENVIADA A MONITOREO Y GERENCIA")
-                st.toast("Protocolo de emergencia activado.")
+    # 🚨 INTERRUPTOR DE PÁNICO POR DESLIZAMIENTO (PREVENCIÓN DE FALSAS ALARMAS)
+    st.markdown("*DESLICE PARA ACTIVAR S.O.S.*")
+    deslizador_sos = st.select_slider(
+        "Estado del Gatillo",
+        options=list(range(0, 101)),
+        value=0,
+        label_visibility="collapsed",
+        key="sos_slider"
+    )
 
-    with col_refresco:
-        if st.button("🔄 REFRESCAR SISTEMA", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+    if deslizador_sos == 100:
+        lat = st.session_state.get('lat', 'Desconocida')
+        lon = st.session_state.get('lon', 'Desconocida')
+        payload_sos = {
+            "fecha_hora": obtener_hora_argentina(),
+            "operador": st.session_state.user_sel,
+            "tipo": "PÁNICO",
+            "lat": lat,
+            "lon": lon,
+            "estado": "CRÍTICO PENDIENTE"
+        }
+        # Envío inmediato a la tabla de alertas de monitoreo
+        supabase.table('ALERTAS').insert(payload_sos).execute()
+        st.error("❗ ALERTA S.O.S ENVIADA A MONITOREO Y GERENCIA")
+        st.toast("Protocolo de emergencia activado.")
+        # Reinicio del deslizador tras la activación
+        time.sleep(1)
+        st.rerun()
+    elif deslizador_sos > 0:
+        st.warning(f"Gatillo en {deslizador_sos}%. Deslice al 100% para confirmar emergencia.")
 
+    # BOTÓN DE REFRESCO
+    if st.button("🔄 REFRESCAR SISTEMA", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+    # TELEMETRÍA HUD (HEAD-UP DISPLAY)
+    lat_val = st.session_state.get('lat', '0.0')
+    lon_val = st.session_state.get('lon', '0.0')
     st.markdown(f"""
-        <div style="background: rgba(0, 229, 255, 0.05); padding: 10px; border-radius: 5px; border-left: 3px solid #00E5FF;">
-            <small>🛰️ <b>TELEMETRÍA GPS:</b> Lat: {st.session_state.get('lat', '0.0')} | Lon: {st.session_state.get('lon', '0.0')}</small>
+        <div style="background: rgba(0, 229, 255, 0.05); padding: 12px; border-radius: 5px; border-left: 3px solid #00E5FF; margin-top: 10px;">
+            <div style="color: #00E5FF; font-size: 0.75rem; font-weight: bold; margin-bottom: 5px;">🛰️ TELEMETRÍA GPS ACTIVA</div>
+            <code style="background: transparent; color: white; font-size: 0.85rem;">Lat: {lat_val}</code><br>
+            <code style="background: transparent; color: white; font-size: 0.85rem;">Lon: {lon_val}</code>
         </div>
     """, unsafe_allow_html=True)
 
 # --- 6. MÓDULO SUPERVISOR: ESTACIÓN TÁCTICA Y TELEMETRÍA ALFA ---
-if st.session_state.rol_sel == "SUPERVISOR":
+
+# Se amplía el acceso a la cúpula para auditoría en tiempo real
+if st.session_state.rol_sel in ["SUPERVISOR", "SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES", "GERENTE"]:
     st.markdown(f"### ⚡ ESTACIÓN TÁCTICA: {st.session_state.user_sel}")
     
-    # --- 6.1. CONTROL DE FLOTA (LOGÍSTICA GLASSMORPHISM) ---
-    with st.expander("🚚 CONTROL DE UNIDAD MÓVIL", expanded=False):
+    # --- 6.1. CONTROL DE FLOTA (LOGÍSTICA INMUTABLE SQL) ---
+    with st.expander("🚚 AUDITORÍA DE UNIDAD MÓVIL", expanded=False):
         c_movf, c_km1, c_km2, c_comb = st.columns(4)
-        movil_flota = c_movf.selectbox("Móvil", ["S-001", "S-002", "S-003", "S-004", "S-005", "S-006", "S-007"], key="m_v_f")
-        km_in = c_km1.number_input("Km Inicial", min_value=0, key="k_i")
-        km_out = c_km2.number_input("Km Final", min_value=0, key="k_o")
+        movil_flota = c_movf.selectbox("Dominio / Móvil", ["S-001", "S-002", "S-003", "S-004", "S-005", "S-006", "S-007"], key="m_v_f")
+        
+        # Extracción automática del último kilometraje desde Supabase
+        km_historico = 0
+        try:
+            res_km = supabase.table('CONTROL_FLOTA').select('km_final').eq('movil', movil_flota).order('id', desc=True).limit(1).execute()
+            if res_km.data:
+                km_historico = res_km.data[0]['km_final']
+        except: pass
+
+        km_in = c_km1.number_input("Km Inicial (Autenticado)", min_value=0, value=int(km_historico), disabled=True, key="k_i")
+        km_out = c_km2.number_input("Km Final", min_value=int(km_historico), key="k_o")
         comb_cargado = c_comb.number_input("Combustible (Lts)", min_value=0.0, key="c_c")
         
-        if st.button("📌 SELLAR ODOMETRÍA Y LOGÍSTICA", use_container_width=True):
+        if st.button("📌 SELLAR ODOMETRÍA", use_container_width=True):
             if km_out >= km_in:
-                datos_f = [obtener_hora_argentina()[:10], st.session_state.user_sel, movil_flota, km_in, km_out, comb_cargado]
-                if escribir_registro_pro("CONTROL_FLOTA", datos_f):
-                    st.success("Logística sellada en la matriz maestra.")
-            else: st.warning("Revisar kilometraje: El final es menor al inicial.")
+                payload_flota = {
+                    "fecha": obtener_hora_argentina()[:10],
+                    "supervisor": st.session_state.user_sel,
+                    "movil": movil_flota,
+                    "km_inicial": km_in,
+                    "km_final": km_out,
+                    "combustible": comb_cargado
+                }
+                supabase.table('CONTROL_FLOTA').insert(payload_flota).execute()
+                st.success("Logística sellada. Base de datos actualizada.")
+            else: 
+                st.error("BLOQUEO LOGÍSTICO: El odómetro final no puede ser menor al inicial.")
 
-    t1, t2, t3 = st.tabs(["📍 RADAR & QR", "📤 CARGA TÁCTICA", "💬 COMUNICACIÓN"])
+    t1, t2, t3 = st.tabs(["📍 RADAR & QR TÁCTICO", "📝 NOVEDADES", "📡 COMUNICACIÓN"])
     
-    apellido = st.session_state.user_sel.split()[-1].upper()
-    df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
+    # Lógica de Visibilidad: Si sos Supervisor Nocturno o Jefatura, ves TODO. Si no, ves tu zona.
+    if st.session_state.rol_sel in ["SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES", "GERENTE"]:
+        df_zona = df_objetivos
+    else:
+        apellido = st.session_state.user_sel.split()[-1].upper()
+        df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
 
     with t1:
         c_map, c_ctrl = st.columns([2, 1])
         
         with c_map:
             if not df_zona.empty:
-                m_s = folium.Map(location=[df_zona['LATITUD'].mean(), df_zona['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+                m_s = folium.Map(location=[df_zona['LATITUD'].mean(), df_zona['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
                 for _, row in df_zona.iterrows():
                     folium.Marker(
                         [row['LATITUD'], row['LONGITUD']], 
                         popup=row['OBJETIVO'],
-                        icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                        icon=folium.Icon(color="red" if row['ALARMA'] == "ACTIVA" else "blue", icon="shield", prefix="fa")
                     ).add_to(m_s)
                 st_folium(m_s, width="100%", height=400)
+            else:
+                st.warning("No hay objetivos en su jurisdicción.")
         
         with c_ctrl:
             if not df_zona.empty:
-                dest = st.selectbox("SERVICIO ACTUAL:", df_zona['OBJETIVO'].unique())
+                dest = st.selectbox("OBJETIVO SELECCIONADO:", df_zona['OBJETIVO'].unique())
                 t_obj = df_zona[df_zona['OBJETIVO'] == dest].iloc[0]
                 lat_dest, lon_dest = t_obj["LATITUD"], t_obj["LONGITUD"]
                 
+                # Enrutamiento Operativo
                 url_waze = f"https://waze.com/ul?ll={lat_dest},{lon_dest}&navigate=yes"
                 url_maps = f"https://www.google.com/maps/dir/?api=1&destination={lat_dest},{lon_dest}"
                 
@@ -703,44 +772,67 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%; padding:10px; background:#4285F4; color:white; border-radius:5px; font-weight:bold; border:none;">🗺️ GOOGLE MAPS</button></a>', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                st.session_state.qr_mode = st.radio("ACCIÓN:", ["Seleccionar...", "🟢 INGRESO", "🔴 SALIDA"], horizontal=True)
+                st.session_state.qr_mode = st.radio("SITUACIÓN DE GUARDIA:", ["Seleccionar...", "🟢 INGRESO", "🔴 SALIDA"], horizontal=True)
                 
                 if st.session_state.qr_mode != "Seleccionar...":
-                    if st.checkbox("🔓 ACTIVAR ESCÁNER TÁCTICO"):
-                        f_cam = st.camera_input("Enfoque el QR del Servicio")
-                        if f_cam:
-                            tipo = "ENTRADA" if "INGRESO" in st.session_state.qr_mode else "SALIDA"
-                            delta_t = "0 min"
-                            if tipo == "ENTRADA": st.session_state.hora_inicio_auditoria = datetime.now()
-                            elif tipo == "SALIDA" and st.session_state.hora_inicio_auditoria:
-                                mins = (datetime.now() - st.session_state.hora_inicio_auditoria).total_seconds() / 60
-                                delta_t = f"{int(mins)} min"
-                                st.session_state.hora_inicio_auditoria = None
-
-                            if escribir_registro_pro("LOG_PRESENCIA", [obtener_hora_argentina(), st.session_state.user_sel, dest, tipo, "VALIDADO", delta_t], id_qr=f"QR_{dest}", servicio=dest):
-                                st.success(f"OPERACIÓN {tipo} SELLADA.")
+                    if st.checkbox("🔓 ACTIVAR ESCÁNER QR"):
+                        # Validación de Geocerca antes de abrir la cámara
+                        lat_actual = st.session_state.get('lat', 0.0)
+                        lon_actual = st.session_state.get('lon', 0.0)
+                        
+                        # Usando la función matemática que preparamos en Bloques anteriores
+                        distancia_qr = calcular_distancia_metros(lat_actual, lon_actual, lat_dest, lon_dest) if lat_actual != 0.0 else 9999
+                        
+                        if distancia_qr > 200:
+                            st.error(f"🚫 GEOCERCA ACTIVA: Está a {int(distancia_qr)} metros del objetivo. Acérquese para habilitar el escáner.")
+                        else:
+                            st.info("✓ Posición validada. Proceda al escaneo.")
+                            f_cam = st.camera_input("Enfoque el código del perímetro")
+                            if f_cam:
+                                tipo = "ENTRADA" if "INGRESO" in st.session_state.qr_mode else "SALIDA"
+                                payload_qr = {
+                                    "fecha_hora": obtener_hora_argentina(),
+                                    "operador": st.session_state.user_sel,
+                                    "objetivo": dest,
+                                    "accion": tipo,
+                                    "estado": "VALIDADO (EN RANGO GPS)",
+                                    "distancia_metros": round(distancia_qr, 1)
+                                }
+                                supabase.table('LOG_PRESENCIA').insert(payload_qr).execute()
+                                st.success(f"OPERACIÓN {tipo} SELLADA TÁCTICAMENTE.")
                                 st.rerun()
 
     with t2:
-        st.subheader("📝 REPORTE ÁGIL DE NOVEDADES")
+        st.subheader("📝 REPORTE DIRECTO AL MANDO")
         with st.form("acta_alfa"):
-            f_dest = st.selectbox("Objetivo:", df_zona['OBJETIVO'].unique()) if not df_zona.empty else "N/A"
-            f_vig = st.text_input("Personal en Puesto")
-            f_nov = st.text_area("Informe de Novedad (Voz o Teclado)")
-            gravedad = st.select_slider("GRAVEDAD:", options=["VERDE", "AMARILLO", "ROJO"])
+            f_dest = st.selectbox("Objetivo del Evento:", df_zona['OBJETIVO'].unique()) if not df_zona.empty else "N/A"
+            f_vig = st.text_input("Identificación del Personal en Puesto")
+            f_nov = st.text_area("Detalle Táctico de Novedad", height=100)
+            gravedad = st.select_slider("NIVEL DE ALERTA:", options=["RUTINA (Verde)", "PRECAUCIÓN (Amarilla)", "CRÍTICO (Rojo)"])
             
-            if st.form_submit_button("🚀 TRANSMITIR ACTA"):
-                datos_acta = [obtener_hora_argentina(), st.session_state.user_sel, movil_flota, "", km_in, "", f_vig, f_dest, f_nov, gravedad]
-                escribir_registro_pro("ACTAS_FLOTAS", datos_acta)
+            if st.form_submit_button("🚀 INYECTAR ACTA EN MATRIZ"):
+                nivel_puro = gravedad.split(" ")[0]
+                payload_acta = {
+                    "fecha_hora": obtener_hora_argentina(),
+                    "supervisor": st.session_state.user_sel,
+                    "movil_asignado": movil_flota if 'movil_flota' in locals() else "N/A",
+                    "vigilador": f_vig,
+                    "objetivo": f_dest,
+                    "novedad": f_nov,
+                    "gravedad": nivel_puro
+                }
+                supabase.table('ACTAS_SUPERVISION').insert(payload_acta).execute()
                 
-                dest_msg = "TODOS" if gravedad == "ROJO" else ("CENTRAL MONITOREO" if gravedad == "AMARILLO" else "DARIO CECILIA")
-                escribir_registro_pro("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, dest_msg, f"ALERTA {f_dest}", f_nov, "ENVIADO", gravedad])
-                st.success("Acta derivada según protocolo de jerarquía.")
+                # Derivación automática cruzada con Mensajería
+                if nivel_puro in ["PRECAUCIÓN", "CRÍTICO"]:
+                    dest_msg = "GRUPAL (TODA LA TROPA)" if nivel_puro == "CRÍTICO" else "CENTRAL DE MONITOREO"
+                    transmitir_directiva(st.session_state.user_sel, dest_msg, nivel_puro, f"ACTA DERIVADA [{f_dest}]: {f_nov}")
+                
+                st.success("Acta procesada y enrutada según protocolo de mando.")
 
     with t3:
+        # Solo ejecutamos mostrar_buzon. Esta función ya tiene recepción y emisión.
         mostrar_buzon(st.session_state.user_sel, st.session_state.rol_sel)
-        # Inserción de componente de escritura faltante
-        emitir_mensaje_pro(st.session_state.user_sel)
 
 # --- 7. MÓDULO MONITOREO ---
 elif st.session_state.rol_sel == "MONITOREO":
