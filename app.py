@@ -1,15 +1,38 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (VERSIÓN ALFA) ---
+# --- 1. CONFIGURACIÓN MAESTRA E IDENTIDAD VISUAL CORPORATIVA ---
 import streamlit as st
 import pandas as pd
 import numpy as np
 import folium
 from streamlit_folium import st_folium
-from datetime import datetime
-import pytz
+from datetime import datetime, timedelta, timezone
+import pytz  
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-# Nota: Asegurarse de tener importado supabase si se va a utilizar
 from supabase import create_client, Client
+
+# Protecciones de importación para evitar caídas del servidor
+try:
+    from streamlit_js_eval import get_geolocation
+except ImportError:
+    get_geolocation = None
+
+try:
+    from streamlit_autorefresh import st_autorefresh
+except ImportError:
+    st_autorefresh = None
+
+# Inicialización del motor SQL de Supabase (Motor de Aprendizaje)
+@st.cache_resource
+def init_connection():
+    try:
+        url = st.secrets["supabase"]["url"]
+        key = st.secrets["supabase"]["key"]
+        return create_client(url, key)
+    except Exception:
+        return None
+
+# Objeto de conexión activo
+supabase = init_connection()
 
 # Configuración de página de alto impacto
 st.set_page_config(
@@ -19,112 +42,54 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ✅ Función Maestra de Identidad y Estética Fascinante
-def aplicar_identidad_alfa():
-    st.markdown(
-        """
-        <style>
-        /* Importación de tipografía de alta tecnología */
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-
-        /* Fondo de profundidad abisal */
-        .stApp { 
-            background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%);
-            color: #E0E0E0;
-            font-family: 'Rajdhani', sans-serif;
-        }
-        
-        /* Sidebar Estilo Fibra de Carbono */
-        [data-testid="stSidebar"] { 
-            background-color: #050507;
-            border-right: 1px solid rgba(0, 229, 255, 0.3);
-            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
-        }
-        [data-testid="stSidebar"]::before { 
-            content: "SISTEMA DE GESTIÓN TÁCTICA";
-            display: block;
-            text-align: center;
-            color: #00E5FF;
-            font-size: 10px;
-            letter-spacing: 5px;
-            padding: 20px 0;
-            font-family: 'Orbitron', sans-serif;
-            opacity: 0.6;
-        }
-
-        /* Títulos Dinámicos con Brillo Neón */
-        h1, h2, h3 { 
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important;
-            text-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
-            letter-spacing: 3px !important;
-            text-transform: uppercase;
-        }
-        
-        /* Botones de Comando con Respuesta Háptica Visual */
-        .stButton>button { 
-            background: rgba(0, 229, 255, 0.05);
-            color: #00E5FF;
-            border: 1px solid rgba(0, 229, 255, 0.4);
-            border-radius: 2px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 12px;
-            letter-spacing: 2px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            height: 45px;
-        }
-        .stButton>button:hover { 
-            background: #00E5FF;
-            color: #000000;
-            box-shadow: 0 0 30px rgba(0, 229, 255, 0.8);
-            transform: scale(1.02);
-        }
-        
-        /* CONTENEDOR DEL ESCUDO "FÉ落实X" - FASCINANTE Y ESPECTACULAR */
-        .escudo-alfa-container {
-            display: flex;
-            justify-content: center;
-            padding: 30px 0;
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.3));
-        }
-        .escudo-alfa {
-            width: 320px;
-            animation: pulseAion 6s infinite ease-in-out;
-            transition: all 0.5s;
-        }
-        @keyframes pulseAion {
-            0%, 100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 20px rgba(0, 229, 255, 0.4)); }
-            50% { transform: scale(1.05); filter: brightness(1.3) drop-shadow(0 0 40px rgba(0, 229, 255, 0.7)); }
-        }
-
-        /* Tabs y Estructura Glassmorphism */
-        .stTabs [data-baseweb="tab-list"] { gap: 15px; }
-        .stTabs [data-baseweb="tab"] { 
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #888;
-            padding: 10px 25px;
-            font-family: 'Orbitron', sans-serif;
-        }
-        .stTabs [aria-selected="true"] { 
-            background: rgba(0, 229, 255, 0.15) !important;
-            color: #00E5FF !important;
-            border: 1px solid #00E5FF !important;
-        }
-        </style>
-        """, unsafe_allow_html=True
-    )
-
-# Ejecución de la capa visual superior
-aplicar_identidad_alfa()
-
-# ✅ Función para hora Argentina (Sin distorsión de la lógica original)
+# Función para la sincronización temporal exacta
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# ✅ Inserción de Escudo Central (Fascinante)
-st.markdown('<div class="escudo-alfa-container"><img src="https://i.ibb.co/vzrV8Vq/logo-aion.png" class="escudo-alfa"></div>', unsafe_allow_html=True)
+# Función Maestra de Identidad y Estética (Glassmorphism y Semáforos)
+def aplicar_identidad_alfa():
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+
+        .stApp { background-color: #0A0A0A; color: #FFFFFF; font-family: 'Rajdhani', sans-serif; }
+        [data-testid="stSidebar"] { background-color: #050507; border-right: 1px solid rgba(0, 229, 255, 0.3); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        [data-testid="stSidebar"]::before { 
+            content: "SISTEMA DE GESTIÓN TÁCTICA"; display: block; text-align: center; color: #00E5FF;
+            font-size: 10px; letter-spacing: 5px; padding: 20px 0; font-family: 'Orbitron', sans-serif; opacity: 0.6;
+        }
+        
+        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; text-shadow: 0 0 20px rgba(0, 229, 255, 0.5); letter-spacing: 2px !important; text-transform: uppercase; font-weight: bold;}
+        
+        .stButton>button { background: rgba(0, 229, 255, 0.05); color: #00E5FF; border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 4px; font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 2px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); height: 45px; width: 100%; font-weight: bold;}
+        .stButton>button:hover { background: #00E5FF; color: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.8); transform: scale(1.02); }
+        
+        /* Contenedores y Alarmas de Seguridad */
+        .logo-container { background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 15px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05); }
+        .alerta-panico { background-color: #FF0000 !important; color: white !important; font-size: 28px; text-align: center; padding: 25px; border-radius: 12px; font-weight: bold; animation: blink 0.5s infinite; border: 2px solid #FFF;}
+        .novedad-roja { border-left: 5px solid #FF0000; padding-left: 10px; background-color: rgba(255,0,0,0.1); padding: 10px; border-radius: 5px; margin-bottom: 8px;}
+        .novedad-amarilla { border-left: 5px solid #FFCC00; padding-left: 10px; background-color: rgba(255,204,0,0.1); padding: 10px; border-radius: 5px; margin-bottom: 8px;}
+        .novedad-verde { border-left: 5px solid #00FF00; padding-left: 10px; background-color: rgba(0,255,0,0.1); padding: 10px; border-radius: 5px; margin-bottom: 8px;}
+        
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+        
+        /* Estructura Glassmorphism para Tabs */
+        .stTabs [data-baseweb="tab-list"] { gap: 15px; }
+        .stTabs [data-baseweb="tab"] { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 10px 25px; font-family: 'Orbitron', sans-serif; }
+        .stTabs [aria-selected="true"] { background: rgba(0, 229, 255, 0.15) !important; color: #00E5FF !important; border: 1px solid #00E5FF !important; }
+        </style>
+        """, unsafe_allow_html=True
+    )
+
+# Ejecución de la capa visual
+aplicar_identidad_alfa()
+
+# Inserción de Escudo Central mediante renderizado nativo
+col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+with col_img2:
+    st.image("https://i.ibb.co/vzrV8Vq/logo-aion.png", use_container_width=True)
     
 # --- 2. MEMORIA DE SESIÓN, BIOMETRÍA Y TELEMETRÍA ALFA ---
 import base64
