@@ -87,11 +87,20 @@ def aplicar_identidad_alfa():
 # Ejecución de la capa visual
 aplicar_identidad_alfa()
 
-# Inserción de Escudo Central mediante renderizado nativo
-col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
-with col_img2:
-    st.image("https://i.ibb.co/vzrV8Vq/logo-aion.png", use_container_width=True)
-    
+# ✅ LOGO CENTRADO Y EQUILIBRADO (SIN OPACAR PESTAÑAS)
+st.markdown(
+    """
+    <div style="display: flex; justify-content: center; width: 100%; margin-top: -30px; margin-bottom: 0px;">
+        <img src="https://i.ibb.co/kMz5rP0/AION-YAROKU-LOGO.png" 
+             style="width: 50%; 
+                    max-height: 250px; 
+                    object-fit: contain; 
+                    mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%);
+                    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%);">
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
 # --- 2. MEMORIA DE SESIÓN, CONTROL DE ACCESO Y TÁCTICA LATERAL ---
 import base64
 
@@ -125,8 +134,8 @@ if st.session_state.stealth_mode:
 # ✅ 2.4. CONSTRUCCIÓN DE LA BARRA LATERAL DE MANDO
 with st.sidebar:
     st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-    # Renderizado prioritario del escudo
-    st.image("https://i.ibb.co/vzrV8Vq/logo-aion.png", use_container_width=True)
+    # Link actualizado para el escudo de AION-YAROKU
+    st.image("https://i.ibb.co/kMz5rP0/AION-YAROKU-LOGO.png", use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.subheader("🛡️ PANEL DE CONTROL")
@@ -457,8 +466,7 @@ def purgar_registro_comunicaciones(id_mensaje):
         return True
     except:
         return False
-
-# ✅ 4.6. INTERFAZ DE COMUNICACIONES Y ENRUTAMIENTO (BUZÓN)
+# ✅ 4.6. INTERFAZ DE COMUNICACIONES Y ENRUTAMIENTO (BUZÓN) 
 def mostrar_buzon(usuario_auth, rol):
     st.markdown("---")
     st.subheader("📡 COMUNICACIONES TÁCTICAS")
@@ -485,24 +493,38 @@ def mostrar_buzon(usuario_auth, rol):
             # Monitoreo puede enrutar a Jefatura, Gerencia o Supervisores en terreno
             opciones_destinatario = ["JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
 
-        destinatario = st.selectbox("DESTINATARIO TÁCTICO", opciones_destinatario)
+        # --- CORRECCIÓN FINAL: KEY EN SELECTBOX ---
+        destinatario = st.selectbox(
+            "DESTINATARIO TÁCTICO", 
+            opciones_destinatario,
+            key=f"dest_tactico_{rol}_{usuario_auth.replace(' ', '_')}"
+        )
         
-        # Selección de Prioridad (El motor predictivo puede sobreescribir esto)
-        prioridad = st.radio("NIVEL DE PRIORIDAD", ["VERDE (Informativo)", "AMARILLA (Precaución)", "ROJA (Crítico)"], horizontal=True)
+        # --- KEY EN RADIO ---
+        prioridad = st.radio(
+            "NIVEL DE PRIORIDAD", 
+            ["VERDE (Informativo)", "AMARILLA (Precaución)", "ROJA (Crítico)"], 
+            horizontal=True,
+            key=f"radio_prioridad_{rol}_{usuario_auth.replace(' ', '_')}"
+        )
         nivel_pri = prioridad.split(" ")[0]
 
-        # Malla Oscura (Solo visible y seleccionable por la cúpula)
+        # --- KEY EN TOGGLE ---
         usar_dark_mesh = False
         if es_cupula and destinatario in cupula_mando:
-            usar_dark_mesh = st.toggle("🛡️ ENRUTAR POR MALLA OSCURA (DARK MESH)", value=False)
+            usar_dark_mesh = st.toggle(
+                "🛡️ ENRUTAR POR MALLA OSCURA (DARK MESH)", 
+                value=False,
+                key=f"mesh_toggle_{rol}_{usuario_auth.replace(' ', '_')}"
+            )
 
-        texto_mensaje = st.text_area("CUERPO DEL REPORTE", height=100)
+        texto_mensaje = st.text_area("CUERPO DEL REPORTE", height=100, key=f"text_area_{rol}")
         
         # Telemetría Óptica
         st.markdown("*EVIDENCIA ÓPTICA (OPCIONAL)*")
-        captura = st.camera_input("📷 CAPTURAR FOTOGRAFÍA IN SITU")
+        captura = st.camera_input("📷 CAPTURAR FOTOGRAFÍA IN SITU", key=f"cam_input_{rol}")
         
-        if st.button("🚀 TRANSMITIR", use_container_width=True):
+        if st.button("🚀 TRANSMITIR", use_container_width=True, key=f"btn_transmitir_{rol}"):
             if texto_mensaje.strip() == "":
                 st.warning("El reporte no puede estar vacío.")
             else:
@@ -520,11 +542,10 @@ def mostrar_buzon(usuario_auth, rol):
     # PESTAÑA 2: RECEPCIÓN Y DESENCRIPTACIÓN
     # ---------------------------------------------------------
     with tab_recepcion:
-        if st.button("🔄 SINCRONIZAR RED"):
+        if st.button("🔄 SINCRONIZAR RED", key=f"btn_sincronizar_{rol}"):
             st.rerun()
             
         try:
-            # Extracción de la base de datos SQL
             res = supabase.table('MENSAJERIA_TACTICA').select('*').order('id', desc=True).limit(20).execute()
             mensajes = res.data if res.data else []
         except:
@@ -535,32 +556,27 @@ def mostrar_buzon(usuario_auth, rol):
             st.info("Sin tráfico en la red.")
         else:
             for m in mensajes:
-                # Filtrado de visibilidad
                 es_para_mi = m['destinatario'] == usuario_auth or m['destinatario'] == "GRUPAL (TODA LA TROPA)"
                 soy_monitoreo_y_es_para_mi = rol == "MONITOREO" and m['destinatario'] == "CENTRAL DE MONITOREO"
                 
                 if not (es_para_mi or soy_monitoreo_y_es_para_mi):
                     continue
                 
-                # Bloqueo Dark Mesh para tropas
                 if m['dark_mesh'] and not es_cupula:
                     continue
 
-                # UI de cada mensaje
                 color_borde = "#00E5FF" if m['prioridad'] == "VERDE" else "#FFD600" if m['prioridad'] == "AMARILLA" else "#FF1744"
                 icono_mesh = "🛡️ [DARK MESH] " if m['dark_mesh'] else ""
                 
                 with st.expander(f"{icono_mesh}[{m['fecha_hora']}] {m['prioridad']} - De: {m['remitente']} | Estado: {m['estado']}"):
                     st.markdown(f"<div style='border-left: 4px solid {color_borde}; padding-left: 10px;'>", unsafe_allow_html=True)
                     
-                    # Doble factor para mensajes ROJOS si el usuario no es la cúpula ni monitoreo (exige PIN en el terreno)
                     mostrar_contenido = True
                     if m['prioridad'] == "ROJA" and m['estado'] == "PENDIENTE" and rol not in ["MONITOREO", "ADMINISTRADOR"]:
-                        pin_acceso = st.text_input("🔑 INGRESE PIN / LEGAJO PARA DESENCRIPTAR", type="password", key=f"pin_in_{m['id']}")
+                        pin_acceso = st.text_input("🔑 PIN PARA DESENCRIPTAR", type="password", key=f"pin_in_{m['id']}_{rol}")
                         if pin_acceso == "":
                             mostrar_contenido = False
                         else:
-                            # Almacenar el PIN para el acuse de recibo de coacción
                             st.session_state[f"pin_temp_{m['id']}"] = pin_acceso
 
                     if mostrar_contenido:
@@ -568,34 +584,29 @@ def mostrar_buzon(usuario_auth, rol):
                         
                         if m['imagen_evidencia']:
                             st.markdown("*EVIDENCIA ADJUNTA:*")
-                            # Decodificación y muestra de la imagen
                             try:
                                 img_bytes = base64.b64decode(m['imagen_evidencia'])
                                 st.image(img_bytes, use_container_width=True)
                             except:
                                 st.error("Error al desencriptar imagen.")
 
-                        # Huella de lectura y Acuse
                         if m['estado'] == "PENDIENTE":
                             pin_final = st.session_state.get(f"pin_temp_{m['id']}", "0000")
-                            if st.button("✅ DAR ACUSE DE RECIBO (Sellar GPS)", key=f"btn_ack_{m['id']}"):
+                            if st.button("✅ DAR ACUSE DE RECIBO", key=f"btn_ack_{m['id']}_{rol}"):
                                 if ejecutar_acuse_recibo(m['id'], pin_final, st.session_state.lat, st.session_state.lon, usuario_auth):
-                                    st.success("ACUSE REGISTRADO. COORDENADAS SELLADAS.")
+                                    st.success("ACUSE REGISTRADO.")
                                     st.rerun()
 
-                        # Botón de Purga (Solo Cúpula)
                         if es_cupula:
                             st.markdown("---")
-                            if st.button("☢️ PURGAR REGISTRO (HARD DELETE)", key=f"btn_del_{m['id']}", type="primary"):
+                            if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"):
                                 if purgar_registro_comunicaciones(m['id']):
                                     st.error("REGISTRO DESTRUIDO.")
                                     st.rerun()
-                                    
-                    st.markdown("</div>", unsafe_allow_html=True)
+               st.markdown("</div>", unsafe_allow_html=True)
 
-# Ejecución del módulo en la interfaz principal
-if 'usuario_auth' in locals() and 'rol_sel' in st.session_state:
-    mostrar_buzon(usuario_auth, st.session_state.rol_sel)
+             
+               
 # --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS (GRADO MILITAR) ---
 
 # ✅ 5.1. ACCESO Y SEGURIDAD DE INFRAESTRUCTURA (BÓVEDA DE CREDENCIALES)
@@ -617,20 +628,25 @@ if st.session_state.rol_sel in ["GERENTE", "JEFE DE OPERACIONES", "ADMINISTRADOR
         with t_ab:
             col_a, col_b = st.columns(2)
             with col_a:
-                tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO", "VIGILADOR", "HORIZONTAL"], horizontal=True)
+                tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO", "VIGILADOR", "HORIZONTAL"], horizontal=True, key="radio_alta_tipo")
                 nuevo_nombre = st.text_input(f"Nombre del {tipo}:").upper()
+                
+                # --- AQUÍ SE AGREGA EL PIN (LO QUE PIDIÓ TU SOCIO) ---
+                pin_seguridad = st.text_input("Asignar PIN de Acceso (4 dígitos):", value="1234", key=f"pin_alta_{tipo}")
+                
                 if st.button(f"PROCESAR ALTA"):
                     if nuevo_nombre:
                         payload = {
                             "fecha": obtener_hora_argentina(),
                             "tipo": tipo,
                             "nombre": nuevo_nombre,
+                            "pin": pin_seguridad,  # <-- PIN AGREGADO AL REGISTRO
                             "estado": "ACTIVO",
                             "registrado_por": st.session_state.user_sel
                         }
-                        # Inyección directa a Supabase eliminando dependencia de Google Sheets
+                        # Inyección directa a Supabase
                         supabase.table('ESTRUCTURA').insert(payload).execute()
-                        st.success("Alta Exitosa en Matriz SQL")
+                        st.success(f"Alta Exitosa de {nuevo_nombre} con PIN: {pin_seguridad}")
             
             with col_b:
                 res_activos = supabase.table('ESTRUCTURA').select('nombre').eq('estado', 'ACTIVO').execute()
@@ -648,7 +664,7 @@ if st.session_state.rol_sel in ["GERENTE", "JEFE DE OPERACIONES", "ADMINISTRADOR
 if st.session_state.rol_sel in ["SUPERVISOR", "VIGILADOR", "SERVICIO", "HORIZONTAL"]:
     st.markdown("---")
     
-    # 🚨 INTERRUPTOR DE PÁNICO POR DESLIZAMIENTO (PREVENCIÓN DE FALSAS ALARMAS)
+    # 🚨 INTERRUPTOR DE PÁNICO POR DESLIZAMIENTO
     st.markdown("*DESLICE PARA ACTIVAR S.O.S.*")
     deslizador_sos = st.select_slider(
         "Estado del Gatillo",
@@ -669,22 +685,18 @@ if st.session_state.rol_sel in ["SUPERVISOR", "VIGILADOR", "SERVICIO", "HORIZONT
             "lon": lon,
             "estado": "CRÍTICO PENDIENTE"
         }
-        # Envío inmediato a la tabla de alertas de monitoreo
         supabase.table('ALERTAS').insert(payload_sos).execute()
         st.error("❗ ALERTA S.O.S ENVIADA A MONITOREO Y GERENCIA")
         st.toast("Protocolo de emergencia activado.")
-        # Reinicio del deslizador tras la activación
         time.sleep(1)
         st.rerun()
     elif deslizador_sos > 0:
         st.warning(f"Gatillo en {deslizador_sos}%. Deslice al 100% para confirmar emergencia.")
 
-    # BOTÓN DE REFRESCO
     if st.button("🔄 REFRESCAR SISTEMA", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
-    # TELEMETRÍA HUD (HEAD-UP DISPLAY)
     lat_val = st.session_state.get('lat', '0.0')
     lon_val = st.session_state.get('lon', '0.0')
     st.markdown(f"""
