@@ -205,17 +205,24 @@ elif st.session_state.rol_sel == "MONITOREO":
 
     with t_radar:
         if sos_activos > 0:
+            # Filtramos las que dicen 'PENDIENTE' en la columna ESTADO[cite: 1]
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
-            op_en_riesgo = datos_sos['OPERADOR']
+            
+            # 🚨 CAMBIO CLAVE: Usamos 'USUARIO' porque así está en tu GSheet[cite: 1]
+            op_en_riesgo = datos_sos['USUARIO'] 
             st.error(f"🚨 ALERTA CRÍTICA: {op_en_riesgo}")
             
             with st.form("cierre_crisis"):
                 res_acta = st.text_area("Informe de Neutralización")
                 if st.form_submit_button("✅ CERRAR ALERTA"):
+                    # Buscamos la fila (index + 2)[cite: 1]
                     fila_real = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
+                    # 'D' es la columna ESTADO en tu archivo[cite: 1]
                     if actualizar_celda("ALERTAS", fila_real, "D", "RESUELTO"):
                         actualizar_celda("ALERTAS", fila_real, "E", res_acta)
-                        st.success("Resuelto"); st.cache_data.clear(); st.rerun()
+                        st.success("Emergencia Resuelta")
+                        st.cache_data.clear()
+                        st.rerun()
         else:
             st.success("✅ Sistema en Vigilancia Pasiva")
 
