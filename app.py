@@ -10,6 +10,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
 
+# Configuración de página
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -17,6 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Inicialización Supabase
 @st.cache_resource
 def init_connection():
     try:
@@ -29,23 +31,24 @@ def init_connection():
 supabase = init_connection()
 
 def aplicar_identidad_alfa():
+    # ELIMINAMOS TODOS LOS MARCOS DE MANERA GLOBAL
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* 1. Fondo Global */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%);
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 2. Sidebar con Logo[cite: 1, 2] */
+        /* SIDEBAR SIN MARCOS */
         [data-testid="stSidebar"] { 
             background-color: #050507;
             border-right: 1px solid rgba(0, 229, 255, 0.3);
         }
+
         [data-testid="stSidebar"]::before { 
             content: "";
             display: block;
@@ -58,21 +61,25 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 3. ELIMINACIÓN AGRESIVA DE CUADROS */
-        /* Esta regla mata CUALQUIER fondo o borde de los contenedores de Streamlit */
-        [data-testid="stVerticalBlock"] > div {
+        /* ✅ ESTO MATA CUALQUIER CUADRO OSCURO EN EL CENTRO */
+        div[data-testid="stVerticalBlock"] > div {
             background-color: transparent !important;
             border: none !important;
             box-shadow: none !important;
         }
 
-        .escudo-limpio {
+        .img-flotante {
             display: block;
-            margin-left: auto;
-            margin-right: auto;
+            margin: 0 auto;
             width: 450px;
             background: transparent !important;
             border: none !important;
+            box-shadow: none !important;
+        }
+
+        h1, h2, h3 { 
+            font-family: 'Orbitron', sans-serif;
+            color: #00E5FF !important;
         }
         </style>
         """, unsafe_allow_html=True
@@ -80,16 +87,15 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# ✅ RENDERIZADO SIN DIVS EXTRAS PARA EVITAR MARCOS[cite: 1, 2]
+# ✅ RENDERIZADO MÁS SIMPLE POSIBLE (Sin DIVS extras)
 st.markdown(
-    f'<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-limpio">', 
+    f'<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="img-flotante">', 
     unsafe_allow_html=True
 )
 
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
 
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
