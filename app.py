@@ -102,20 +102,24 @@ def aplicar_identidad_alfa():
 
         
         
-       /* ✅ TRUCO FINAL PARA ALINEAR A LA DERECHA */
+      /* ✅ CONTROL TOTAL DEL BOTÓN EN SIDEBAR */
+        /* Forzamos el contenedor para que alinee todo a la derecha */
+        [data-testid="stSidebarNavItems"] + div, 
         .panico-container {
-            width: 100% !important;
             display: flex !important;
-            flex-direction: row !important;
-            justify-content: flex-end !important; /* Empuja todo a la derecha */
-            padding-right: 30px !important;
+            flex-direction: column !important;
+            align-items: flex-end !important; /* Empuja el contenido al borde derecho */
+            width: 100% !important;
+            padding-right: 35px !important; /* Espacio desde el borde derecho */
             margin-top: 20px !important;
         }
 
-        /* Selector específico para el div que envuelve al botón de Streamlit */
+        /* Aseguramos que el div interno de Streamlit no bloquee el movimiento */
         div[data-testid="stButton"] {
-            margin-left: auto !important;
-            width: fit-content !important;
+            text-align: right !important;
+            width: 100% !important;
+            display: flex !important;
+            justify-content: flex-end !important;
         }
         
         .stButton > button[kind="primary"] {
