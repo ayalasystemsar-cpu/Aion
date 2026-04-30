@@ -10,6 +10,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
 
+# Configuración de página
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -17,6 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Inicialización Supabase
 @st.cache_resource
 def init_connection():
     try:
@@ -42,7 +44,7 @@ def aplicar_identidad_alfa():
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* Sidebar con Logo[cite: 1, 2] */
+        /* Sidebar con Logo */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -80,7 +82,10 @@ def aplicar_identidad_alfa():
             line-height: 0;
         }
 
-        h1, h2, h3 { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; }
+        h1, h2, h3 { 
+            font-family: 'Orbitron', sans-serif; 
+            color: #00E5FF !important; 
+        }
         </style>
         """, unsafe_allow_html=True
     )
