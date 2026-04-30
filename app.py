@@ -102,41 +102,43 @@ def aplicar_identidad_alfa():
 
         
         
-  /* ✅ CENTRADO EXACTO PARA MÓVIL Y WEB (PUNTO MEDIO) */
+     /* ✅ CORRECCIÓN FINAL: CENTRADO ABSOLUTO (PUNTO MEDIO) */
         .panico-container {
             display: flex !important;
-            justify-content: center !important; 
+            justify-content: center !important; /* Punto medio horizontal */
             align-items: center !important;
             width: 100% !important;
-            margin-top: 50px !important; /* Altura ajustada según tu foto */
-            margin-bottom: 20px !important;
+            margin: 20px 0 !important;
             padding: 0 !important;
-            left: 0 !important;
         }
 
-        /* Quitamos cualquier alineación heredada de Streamlit */
+        /* Forzamos el centrado en el contenedor de bloque de Streamlit */
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+        }
+
         div[data-testid="stButton"] {
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
-            margin: 0 auto !important;
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 120px !important; /* Un poco más grande como en la imagen */
-            height: 120px !important;
+            width: 105px !important;
+            height: 105px !important;
             border: 3px solid #333 !important;
-            box-shadow: 0 0 30px rgba(255, 0, 0, 0.6) !important;
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 12px !important;
+            font-size: 11px !important;
             font-weight: bold;
             line-height: 1.1;
             text-transform: uppercase;
-            display: block !important;
-            margin: 0 auto !important;
+            margin: 0 auto !important; /* Centrado por margen automático */
         }
 
         /* Contenedor Radar */
