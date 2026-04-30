@@ -46,45 +46,38 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
+        /* 1. Fondo General */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
+        /* 2. Sidebar */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
         }
 
-        /* 🛡️ LOGO CENTRAL CON LUCES */
+        /* 3. LOGO CENTRAL CON MARCO Y LUCES (COMO LA SEGUNDA IMAGEN) */
         .contenedor-logo-central {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin-top: -10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
         }
 
         .logo-tactico {
-            width: 580px; 
-            border: 2px solid #00e5ff; 
-            box-shadow: 0 0 40px rgba(0, 229, 255, 0.5); 
+            width: 550px; /* Tamaño controlado para que no se expanda */
+            border: 2px solid #00e5ff; /* El marco azul de la foto */
+            box-shadow: 0 0 35px rgba(0, 229, 255, 0.4); /* El resplandor azul */
             border-radius: 4px;
             background-color: #000;
         }
 
-        .titulo-estacion {
-            text-align: center;
-            font-family: 'Orbitron', sans-serif;
-            color: #00e5ff;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
-            letter-spacing: 2px;
-            margin-top: 10px;
-            text-transform: uppercase;
-        }
-
-        /* ✅ BOTÓN DE PÁNICO: REDUCIDO Y A LA DERECHA */
+        /* 4. Botón de Pánico (Se queda como está: chico y a la derecha) */
         .panico-container {
             display: flex;
             justify-content: flex-end; 
@@ -108,19 +101,13 @@ def aplicar_identidad_alfa():
             text-transform: uppercase;
         }
 
-        /* 7. Contenedor Radar */
-        .radar-box {
-            border: 1px solid #1A1A1B;
-            border-radius: 12px;
-            padding: 20px;
-            background: rgba(10, 10, 11, 0.8);
-            box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
-        }
-
-        h1, h2, h3, .stSubheader { 
-            font-family: 'Orbitron', sans-serif; 
-            color: #00E5FF !important; 
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
+        .titulo-estacion {
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            color: #00e5ff;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
         </style>
         """, 
