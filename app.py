@@ -164,13 +164,17 @@ with st.sidebar:
     
     st.markdown("---")
 
-   with st.sidebar:
-    st.markdown("---")
-    # ✅ CONTENEDOR PARA ALINEACIÓN A LA DERECHA
-    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
-    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_sidebar"):
-        st.error("❗ SOS TRANSMITIDO")
-    st.markdown('</div>', unsafe_allow_html=True)
+   # ✅ RENDERIZADO CORREGIDO CON UNICODE PARA EVITAR SYNTAXERROR
+st.markdown(
+    f"""
+    <div class="contenedor-logo-central">
+        <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
+             class="logo-tactico">
+    </div>
+    <h2 class="titulo-estacion">\\u26A1 ESTACIÓN TÁCTICA: {st.session_state.user_sel}</h2>
+    """, 
+    unsafe_allow_html=True
+)
 # --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
 
