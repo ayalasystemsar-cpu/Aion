@@ -102,24 +102,23 @@ def aplicar_identidad_alfa():
 
         
         
-      /* ✅ CONTROL TOTAL DEL BOTÓN EN SIDEBAR */
-        /* Forzamos el contenedor para que alinee todo a la derecha */
-        [data-testid="stSidebarNavItems"] + div, 
-        .panico-container {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-end !important; /* Empuja el contenido al borde derecho */
-            width: 100% !important;
-            padding-right: 35px !important; /* Espacio desde el borde derecho */
-            margin-top: 20px !important;
-        }
-
-        /* Aseguramos que el div interno de Streamlit no bloquee el movimiento */
-        div[data-testid="stButton"] {
-            text-align: right !important;
-            width: 100% !important;
+     /* 🚨 CONTROL ABSOLUTO PARA MOVER EL BOTÓN A LA DERECHA */
+        /* Primero: quitamos el centrado que Streamlit pone por defecto */
+        [data-testid="stSidebarNavItems"] + div,
+        .panico-container,
+        div[data-testid="stVerticalBlock"] > div:has(button[kind="primary"]) {
             display: flex !important;
             justify-content: flex-end !important;
+            width: 100% !important;
+            flex-direction: row !important;
+        }
+
+        /* Segundo: Forzamos al contenedor del botón a alinearse a la derecha */
+        div[data-testid="stButton"] {
+            display: flex !important;
+            justify-content: flex-end !important;
+            width: 100% !important;
+            padding-right: 30px !important; /* Ajuste para alinear con los selectores */
         }
         
         .stButton > button[kind="primary"] {
@@ -135,6 +134,7 @@ def aplicar_identidad_alfa():
             font-weight: bold;
             line-height: 1.1;
             text-transform: uppercase;
+            margin: 0 !important; /* Quitamos márgenes automáticos que lo centran */
         }
 
         /* Contenedor Radar */
