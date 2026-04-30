@@ -137,7 +137,7 @@ df_objetivos = cargar_objetivos()
 
 # --- A. ROL: SUPERVISOR ---
 if st.session_state.rol_sel == "SUPERVISOR":
-    st.subheader(f"📱 Estación: {st.session_state.user_sel}")
+    st.subheader(f"📱 EstACIÓN: {st.session_state.user_sel}")
     apellido = st.session_state.user_sel.split()[-1].upper()
     df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
     if df_zona.empty: df_zona = df_objetivos
@@ -205,10 +205,16 @@ elif st.session_state.rol_sel == "MONITOREO":
     with t_chat:
         st.subheader("📨 CENTRO DE MENSAJERÍA SINCRONIZADO")
         df_m = leer_matriz_nube("MENSAJERIA")
+        
         if not df_m.empty:
+            # Mostramos los últimos mensajes
             for _, msg in df_m.tail(10).iloc[::-1].iterrows():
+                # Intentamos leer 'EMISOR' o 'Emisor' para evitar que la app se caiga
+                emisor = msg.get('EMISOR', msg.get('Emisor', 'Desconocido'))
+                contenido = msg.get('CONTENIDO', msg.get('Contenido', 'Sin mensaje'))
+                
                 with st.chat_message("user"):
-                    st.write(f"**{msg['EMISOR']}**: {msg['CONTENIDO']}")
+                    st.write(f"**{emisor}**: {contenido}")
         else:
             st.info("No hay mensajes registrados.")
 
@@ -242,7 +248,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         df_est = leer_matriz_nube("ESTRUCTURA")
         if not df_est.empty: st.dataframe(df_est, use_container_width=True)
 
-# --- E. ROL: ADMINISTRADOR (NÚCLEO MAESTRO AL FINAL) ---
+# --- E. ROL: ADMINISTRADOR ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
     with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA"):
