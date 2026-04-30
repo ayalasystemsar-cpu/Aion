@@ -46,43 +46,18 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Negro OLED con Degradado Táctico */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 🛡️ SIDEBAR: Estética Táctica y Borde */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
         }
 
-        [data-testid="stSidebar"]::before { 
-            content: "";
-            display: block;
-            width: 120px;
-            height: 120px;
-            margin: 10px auto;
-            background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-        }
-
-        /* 🛡️ LIMPIEZA DE CONTENEDORES */
-        [data-testid="stVerticalBlock"], 
-        [data-testid="stVerticalBlock"] > div,
-        [data-testid="stMarkdownContainer"],
-        .element-container,
-        .stMarkdown {
-            background-color: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-
-        /* 🛡️ LOGO CENTRAL CON LUCES (ESTILO CAPTURA 522) */
+        /* 🛡️ LOGO CENTRAL CON LUCES */
         .contenedor-logo-central {
             display: flex;
             justify-content: center;
@@ -132,12 +107,8 @@ def aplicar_identidad_alfa():
             line-height: 1.1;
             text-transform: uppercase;
         }
-        </style>
-        """, 
-        unsafe_allow_html=True
-    )
 
-        /* Contenedor Radar[cite: 1] */
+        /* 7. Contenedor Radar */
         .radar-box {
             border: 1px solid #1A1A1B;
             border-radius: 12px;
@@ -152,7 +123,8 @@ def aplicar_identidad_alfa():
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
         }
         </style>
-        """, unsafe_allow_html=True
+        """, 
+        unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
@@ -160,7 +132,6 @@ aplicar_identidad_alfa()
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
 # ✅ RENDERIZADO DEL LOGO CENTRAL: UNA SOLA VEZ[cite: 2]
 st.markdown(
     """
