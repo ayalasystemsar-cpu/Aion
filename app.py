@@ -528,25 +528,30 @@ if st.session_state.rol_sel in ["SUPERVISOR", "VIGILADOR", "SERVICIO", "HORIZONT
         </div>
     """, unsafe_allow_html=True)
 
---- # 6. MÓDULO SUPERVISOR: ESTACIÓN TÁCTICA Y TELEMETRÍA ALFA ---
+# ✅ 6. MÓDULO SUPERVISOR: ESTACIÓN TÁCTICA Y TELEMETRÍA ALFA
+# Se eliminaron los guiones iniciales para corregir el SyntaxError
 
-# Verificamos los roles autorizados
 if st.session_state.rol_sel in ["SUPERVISOR", "SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES", "GERENTE"]:
     st.markdown(f"### ⚡ ESTACIÓN TÁCTICA: {st.session_state.user_sel}")
     
-    # ✅ SOLUCIÓN AL NameError: Definir apellido antes de filtrar
+    # Definición de apellido para evitar NameError
     nombre_completo = st.session_state.get('user_sel', "BRIAN AYALA")
     apellido = nombre_completo.split()[-1].upper() 
 
-    # ✅ CORRECCIÓN DE INDENTACIÓN PARA EL FILTRADO
+    # Lógica de filtrado con indentación corregida
     if st.session_state.rol_sel in ["SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES", "GERENTE"]:
         df_zona = df_objetivos
     else:
-        # Esta línea debe estar alineada con el 'if' de arriba
         if not df_objetivos.empty:
+            # Filtra objetivos que contienen el apellido del supervisor
             df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)]
         else:
             df_zona = pd.DataFrame()
+
+    # --- 6.1. INTERFAZ DE CONTROL DE FLOTA ---
+    with st.expander("🚚 AUDITORÍA DE UNIDAD MÓVIL", expanded=False):
+        st.write("Registro de telemetría y estado de unidad.")
+        # Aquí continúa tu lógica de columnas y formularios
     # --- 6.1. CONTROL DE FLOTA (LOGÍSTICA INMUTABLE SQL) ---
     with st.expander("🚚 AUDITORÍA DE UNIDAD MÓVIL", expanded=False):
         c_movf, c_km1, c_km2, c_comb = st.columns(4)
