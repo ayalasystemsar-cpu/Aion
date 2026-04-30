@@ -605,9 +605,6 @@ def mostrar_buzon(usuario_auth, rol):
                                     st.error("REGISTRO DESTRUIDO.")
                                     st.rerun()
                st.markdown("</div>", unsafe_allow_html=True)
-
-             
-               
 # --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS (GRADO MILITAR) ---
 
 # ✅ 5.1. ACCESO Y SEGURIDAD DE INFRAESTRUCTURA (BÓVEDA DE CREDENCIALES)
