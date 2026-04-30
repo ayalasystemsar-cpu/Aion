@@ -1,4 +1,4 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (VERSIÓN INTEGRAL AION-YAROKU) ---
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (VERSIÓN FINAL AION-YAROKU) ---
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -14,13 +14,13 @@ import json
 import base64
 import time
 
-# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Evita caídas de interfaz
+# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Evita caídas de interfaz[cite: 2]
 try:
     from streamlit_js_eval import get_geolocation
 except ImportError:
     get_geolocation = None
 
-# Configuración de página OLED
+# Configuración de página OLED[cite: 2]
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -62,9 +62,9 @@ def aplicar_identidad_alfa():
         [data-testid="stSidebar"]::before { 
             content: "";
             display: block;
-            width: 140px;
-            height: 140px;
-            margin: 20px auto 10px auto;
+            width: 120px;
+            height: 120px;
+            margin: 10px auto;
             background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
             background-size: contain;
             background-repeat: no-repeat;
@@ -96,30 +96,30 @@ def aplicar_identidad_alfa():
             mix-blend-mode: screen; 
         }
 
-        /* ✅ BOTÓN DE PÁNICO CIRCULAR Y CENTRADO */
+        /* ✅ BOTÓN DE PÁNICO: REDUCIDO Y DESPLAZADO A LA DERECHA[cite: 1, 2] */
         .panico-container {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            justify-content: flex-end; /* Mueve a la derecha[cite: 2] */
+            padding-right: 20px; /* Margen derecho[cite: 2] */
+            margin-top: 30px;
             width: 100%;
-            padding: 25px 0;
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 130px !important;
-            height: 130px !important;
-            border: 4px solid #333 !important;
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.6) !important;
+            width: 100px !important; /* Tamaño reducido[cite: 2] */
+            height: 100px !important; /* Tamaño reducido[cite: 2] */
+            border: 3px solid #333 !important;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 14px !important;
+            font-size: 11px !important; /* Texto proporcional[cite: 2] */
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.1;
         }
 
-        /* Contenedor Radar */
+        /* Contenedor Radar[cite: 1] */
         .radar-box {
             border: 1px solid #1A1A1B;
             border-radius: 12px;
@@ -142,17 +142,8 @@ aplicar_identidad_alfa()
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-# 📍 AQUÍ VA EL BLOQUE: Justo después de las funciones y antes de la Sección 2
-st.markdown(
-    """
-    <div class="contenedor-logo-central">
-        <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
-             class="logo-phoenix">
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
-# ✅ RENDERIZADO DEL LOGO CENTRAL[cite: 2]
+
+# ✅ RENDERIZADO DEL LOGO CENTRAL: UNA SOLA VEZ[cite: 2]
 st.markdown(
     """
     <div class="contenedor-logo-central">
@@ -170,38 +161,30 @@ if 'lat' not in st.session_state: st.session_state.lat = 0.0
 if 'lon' not in st.session_state: st.session_state.lon = 0.0
 
 with st.sidebar:
-    # Espacio para el logo lateral inyectado[cite: 2]
+    # Espacio para logo lateral[cite: 2]
     st.markdown('<div style="margin-top: 140px;"></div>', unsafe_allow_html=True) 
     st.subheader("🛡️ PANEL DE CONTROL")
     
-    # Selector de Perfil[cite: 2]
     perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
     st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles, key="selector_acceso_sidebar")
     rol = st.session_state.rol_sel
 
-    # Selector de Identidad[cite: 2]
     lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
     if rol == "SUPERVISOR":
         st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, key="id_ope_sidebar")
     
     usuario_auth = st.session_state.user_sel
-
     st.markdown("---")
-# ✅ BOTÓN DE PÁNICO CENTRADO (ESTILO IMAGEN)
-    # Agregamos un divisor invisible para empujarlo hacia abajo si es necesario
-    st.markdown("<br>", unsafe_allow_html=True) 
 
+    # ✅ BOTÓN DE PÁNICO REDUCIDO Y DESPLAZADO A LA DERECHA[cite: 1, 2]
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_tactico"):
-        # Lógica de transmisión SOS
-        hora_sos = obtener_hora_argentina()[cite: 2]
-        st.error(f"❗ SOS TRANSMITIDO A LAS {hora_sos}")[cite: 2]
+        st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div style="margin-bottom: 50px;"></div>', unsafe_allow_html=True)
 
-    # Espacio extra para que en el celular no se tape con la barra de navegación
-    st.markdown('<div style="margin-bottom: 60px;"></div>', unsafe_allow_html=True)
-
-# --- 3. ESTACIÓN DE CONTROL: RADAR Y NAVEGACIÓN ---
+# --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
 
 st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -210,13 +193,11 @@ st.markdown("📍 **Mi Radar de Servicios y GPS**")
 c_map, c_nav = st.columns([2, 1])
 
 with c_map:
-    # Radar GPS Estilo Dark[cite: 2]
     m_s = folium.Map(location=[-34.577, -58.464], zoom_start=14, tiles="CartoDB dark_matter")
     folium.CircleMarker([-34.577, -58.464], radius=10, color="#00E5FF", fill=True).add_to(m_s)
     st_folium(m_s, width="100%", height=350)
 
 with c_nav:
-    # Navegación Táctica
     st.markdown('<div style="background: #121214; padding: 20px; border-radius: 10px; border: 1px solid #1A1A1B;">', unsafe_allow_html=True)
     st.selectbox("Ir al Servicio:", ["CENTRAL", "ZONA NORTE", "ZONA SUR"], key="nav_tactica")
     if st.button("🗺️ INICIAR NAVEGACIÓN TÁCTICA", use_container_width=True):
@@ -228,7 +209,6 @@ with c_nav:
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
-
 # --- 4. CONTINUACIÓN DE FUNCIONES OPERATIVAS (Buzón, Actas, etc.) ---
 # ✅ 4.1. MOTOR DE PROCESAMIENTO ÓPTICO (BASE64)
 def encriptar_imagen_b64(imagen_buffer):
