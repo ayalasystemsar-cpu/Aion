@@ -29,20 +29,18 @@ def init_connection():
 supabase = init_connection()
 
 def aplicar_identidad_alfa():
-    # 🚨 RESETEO TOTAL: ESTO MATA CUALQUIER FONDO QUE NO SEA EL DE LA APP
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Global */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important;
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* Sidebar con Logo[cite: 1, 2] */
+        /* BARRA LATERAL[cite: 1] */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -59,37 +57,51 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 🛡️ ATAQUE DIRECTO AL CUADRO OSCURO */
-        /* Eliminamos fondos de CUALQUIER div dentro del cuerpo principal */
-        div[data-testid="stVerticalBlock"] > div, 
-        [data-testid="stMarkdownContainer"], 
-        .element-container, 
-        .stMarkdown {
+        /* ELIMINAR FONDOS DE BLOQUES PARA RESALTAR EL MARCO */
+        [data-testid="stVerticalBlock"] > div {
             background-color: transparent !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
         }
 
-        .img-logo-limpio {
-            display: block;
-            margin: 0 auto;
+        /* DISEÑO DEL MARCO TÁCTICO (Captura 511) */
+        .pantalla-tactica {
+            display: flex;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        .marco-cian {
+            border: 2px solid #00E5FF;
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.4), inset 0 0 20px rgba(0, 229, 255, 0.2);
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.6); /* Fondo oscuro interno para el logo */
+            line-height: 0;
+        }
+
+        .escudo-alfa {
             width: 450px;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
+            filter: brightness(1.1);
         }
 
-        h1, h2, h3 { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; }
+        h1, h2, h3 { 
+            font-family: 'Orbitron', sans-serif;
+            color: #00E5FF !important;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+        }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
 
-# ✅ RENDERIZADO MÁS SIMPLE POSIBLE[cite: 1, 2]
+# ✅ RENDERIZADO DEL LOGO CON EL MARCO ILUMINADO[cite: 1]
 st.markdown(
-    f'<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="img-logo-limpio">', 
+    """
+    <div class="pantalla-tactica">
+        <div class="marco-cian">
+            <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa">
+        </div>
+    </div>
+    """, 
     unsafe_allow_html=True
 )
 
