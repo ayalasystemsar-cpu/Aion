@@ -1,19 +1,19 @@
-
 # --- 1. CONFIGURACIÓN MAESTRA E IDENTIDAD VISUAL CORPORATIVA ---
 import streamlit as st
 import pandas as pd
 import numpy as np
-import folium
-from streamlit_folium import st_folium
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 import pytz  
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
-import hashlib
-import json
 import base64
-import time
+
+# Configuración de página de alto impacto
+st.set_page_config(
+    page_title="AION-YAROKU | CORE",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Inicialización del motor SQL de Supabase
 @st.cache_resource
@@ -27,44 +27,46 @@ def init_connection():
 
 supabase = init_connection()
 
-# Configuración de página de alto impacto
-st.set_page_config(
-    page_title="AION-YAROKU | CORE",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 def aplicar_identidad_alfa():
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
 
-        /* Fondo y Texto General */
+        /* Fondo General de la App */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #FFFFFF; 
             font-family: 'Rajdhani', sans-serif; 
         }
 
-        /* Sidebar Limpio[cite: 1] */
+        /* 🛡️ LOGO DEL COSTADO (SIDEBAR) */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important; 
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important; 
         }
 
-        /* Títulos Estilo Táctico[cite: 1] */
-        h1, h2, h3, .stSubheader { 
-            font-family: 'Orbitron', sans-serif; 
-            color: #00E5FF !important; 
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
-            text-transform: uppercase;
+        [data-testid="stSidebar"]::before { 
+            content: "";
+            display: block;
+            width: 140px;
+            height: 140px;
+            margin: 20px auto 10px auto;
+            background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
         }
 
-        /* 🛡️ ELIMINACIÓN RADICAL DE MARCOS PARA EL LOGO */
-        div[data-testid="stVerticalBlock"] > div {
+        /* 🛡️ ELIMINACIÓN RADICAL DEL RECUADRO DEL MEDIO */
+        /* Forzamos a todos los contenedores posibles a ser transparentes */
+        [data-testid="stVerticalBlock"], 
+        [data-testid="stVerticalBlock"] > div,
+        [data-testid="stMarkdownContainer"],
+        .stMarkdown,
+        .element-container {
             background-color: transparent !important;
+            background: transparent !important;
             border: none !important;
             box-shadow: none !important;
         }
@@ -74,14 +76,20 @@ def aplicar_identidad_alfa():
             justify-content: center;
             align-items: center;
             width: 100%;
-            padding: 20px 0;
-            background: transparent !important;
+            padding: 0;
+            margin-top: -50px; /* Ajuste para subir el logo si es necesario */
         }
 
         .logo-phoenix {
-            width: 500px; /* Tamaño optimizado según imagen */
-            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
-            background: transparent !important;
+            width: 500px; 
+            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
+            mix-blend-mode: screen; /* Ayuda a mezclar el negro con el fondo */
+        }
+
+        h1, h2, h3, .stSubheader { 
+            font-family: 'Orbitron', sans-serif; 
+            color: #00E5FF !important; 
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
         }
         </style>
         """, unsafe_allow_html=True
@@ -89,7 +97,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# ✅ RENDERIZADO DEL LOGO CENTRAL LIMPIO[cite: 1]
+# ✅ RENDERIZADO DEL LOGO CENTRAL SIN RECUADROS
 st.markdown(
     """
     <div class="contenedor-logo-central">
