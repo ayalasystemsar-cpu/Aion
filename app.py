@@ -143,12 +143,21 @@ if st.session_state.stealth_mode:
 
 # ✅ 2.4. CONSTRUCCIÓN DE LA BARRA LATERAL DE MANDO
 with st.sidebar:
-    st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-    # Link actualizado para el escudo de AION-YAROKU
-    st.image("https://i.ibb.co/kMz5rP0/AION-YAROKU-LOGO.png", use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Eliminamos el st.image viejo para que no aparezca el error celeste
+    st.markdown('<div style="margin-top: 120px;"></div>', unsafe_allow_html=True) # Espacio para el logo inyectado por CSS
 
     st.subheader("🛡️ PANEL DE CONTROL")
+    
+    # 2.4.1. Selector de Perfil Operativo
+    perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
+    st.session_state.rol_sel = st.selectbox(
+        "NIVEL DE ACCESO", 
+        perfiles, 
+        index=perfiles.index(st.session_state.rol_sel),
+        key="selector_nivel_acceso"
+    )
+    
+    rol = st.session_state.rol_sel
     
     # 2.4.1. Selector de Perfil Operativo
     perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
