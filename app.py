@@ -137,7 +137,7 @@ df_objetivos = cargar_objetivos()
 
 # --- A. ROL: SUPERVISOR ---
 if st.session_state.rol_sel == "SUPERVISOR":
-    st.subheader(f"📱 EstACIÓN: {st.session_state.user_sel}")
+    st.subheader(f"📱 Estación: {st.session_state.user_sel}")
     apellido = st.session_state.user_sel.split()[-1].upper()
     df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
     if df_zona.empty: df_zona = df_objetivos
@@ -205,35 +205,51 @@ elif st.session_state.rol_sel == "MONITOREO":
     with t_chat:
         st.subheader("📨 CENTRO DE MENSAJERÍA SINCRONIZADO")
         df_m = leer_matriz_nube("MENSAJERIA")
-        
         if not df_m.empty:
-            # Mostramos los últimos mensajes
             for _, msg in df_m.tail(10).iloc[::-1].iterrows():
-                # Intentamos leer 'EMISOR' o 'Emisor' para evitar que la app se caiga
                 emisor = msg.get('EMISOR', msg.get('Emisor', 'Desconocido'))
                 contenido = msg.get('CONTENIDO', msg.get('Contenido', 'Sin mensaje'))
-                
                 with st.chat_message("user"):
                     st.write(f"**{emisor}**: {contenido}")
         else:
             st.info("No hay mensajes registrados.")
 
-# --- C. ROL: JEFE DE OPERACIONES ---
+# --- C. ROL: JEFE DE OPERACIONES (CORREGIDO) ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
+    
     c1, c2, c3 = st.columns(3)
     c1.metric("REPORTES", len(df_actas) if not df_actas.empty else 0)
     c2.metric("OBJETIVOS", len(df_objetivos))
     c3.metric("ESTADO", "SINCRO OK")
+    
     t_inf, t_mapa = st.tabs(["📄 INFORMES", "🌍 MAPA"])
+    
     with t_inf:
-        if not df_actas.empty: st.dataframe(df_actas.tail(15), use_container_width=True)
+        if not df_actas.empty: 
+            st.dataframe(df_actas.tail(15), use_container_width=True)
+            
     with t_mapa:
-        m_ops = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
-        for _, r in df_objetivos.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO']).add_to(m_ops)
-        st_folium(m_ops, width="100%", height=400)
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        if not df_objetivos.empty:
+            m_ops = folium.Map(
+                location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], 
+                zoom_start=11, 
+                tiles="CartoDB dark_matter"
+            )
+            
+            for _, r in df_objetivos.iterrows():
+                folium.Marker(
+                    location=[r['LATITUD'], r['LONGITUD']], 
+                    popup=f"OBJETIVO: {r['OBJETIVO']}",
+                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                ).add_to(m_ops)
+            
+            st_folium(m_ops, width="100%", height=400, key="mapa_jefe_ops")
+        else:
+            st.warning("No hay datos de objetivos con coordenadas válidas para mostrar.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- D. ROL: GERENCIA ---
 elif st.session_state.rol_sel == "GERENCIA":
