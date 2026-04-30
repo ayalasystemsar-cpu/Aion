@@ -46,14 +46,14 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Negro OLED con Degradado Táctico[cite: 2] */
+        /* Fondo Negro OLED con Degradado Táctico */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 🛡️ SIDEBAR: Logo del Costado y Bordes[cite: 2] */
+        /* 🛡️ SIDEBAR: Logo del Costado y Bordes */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -71,7 +71,7 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 🛡️ LOGO CENTRAL FLOTANTE (SIN RECUADROS GRISES)[cite: 2] */
+        /* 🛡️ LIMPIEZA DE CONTENEDORES */
         [data-testid="stVerticalBlock"], 
         [data-testid="stVerticalBlock"] > div,
         [data-testid="stMarkdownContainer"],
@@ -82,27 +82,31 @@ def aplicar_identidad_alfa():
             box-shadow: none !important;
         }
 
+        /* 🛡️ LOGO CENTRAL CON MARCO CIAN Y LUCES (MODIFICADO) */
         .contenedor-logo-central {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin-top: -30px;
+            margin-top: -10px;
+            margin-bottom: 20px;
         }
 
         .logo-phoenix {
-            width: 500px; 
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
-            mix-blend-mode: screen; 
+            width: 520px !important; 
+            border: 2px solid #00e5ff !important; /* Borde cian sólido */
+            box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; /* Resplandor Glow */
+            border-radius: 4px !important;
+            background-color: #000 !important;
         }
 
-        /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
+        /* ✅ BOTÓN DE PÁNICO: A LA DERECHA Y CENTRADO (MODIFICADO) */
         .panico-container {
             display: flex;
-            justify-content: center; /* Centrado horizontal */
+            justify-content: flex-end; /* Alineado a la derecha */
             align-items: center;
             width: 100%;
-            padding: 20px 0;
+            padding-right: 20px; /* Margen desde el borde derecho */
             margin-top: 10px;
         }
         
@@ -110,16 +114,18 @@ def aplicar_identidad_alfa():
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 110px !important; 
-            height: 110px !important;
+            width: 90px !important; /* Tamaño táctico */
+            height: 90px !important;
             border: 3px solid #333 !important;
             box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 12px !important;
+            font-size: 10px !important;
             font-weight: bold;
+            line-height: 1.2;
+            text-transform: uppercase;
         }
 
-        /* Contenedor Radar[cite: 1] */
+        /* Contenedor Radar */
         .radar-box {
             border: 1px solid #1A1A1B;
             border-radius: 12px;
@@ -143,7 +149,7 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# ✅ RENDERIZADO DEL LOGO CENTRAL: UNA SOLA VEZ[cite: 2]
+# ✅ RENDERIZADO DEL LOGO CENTRAL CON LAS LUCES APLICADAS
 st.markdown(
     """
     <div class="contenedor-logo-central">
