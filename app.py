@@ -205,10 +205,19 @@ elif st.session_state.rol_sel == "MONITOREO":
                 escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), op_nombre, "SISTEMA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
                 st.rerun()
     with t_chat:
+        st.subheader("📨 CENTRO DE MENSAJERÍA SINCRONIZADO")
         df_m = leer_matriz_nube("MENSAJERIA")
         if not df_m.empty:
-            for _, msg in df_m.tail(10).iloc[::-1].iterrows():
-                with st.chat_message("user"): st.write(f"**{msg['EMISOR']}**: {msg['CONTENIDO']}")
+            df_m.columns = df_m.columns.str.strip().str.upper()
+            if 'EMISOR' in df_m.columns and 'CONTENIDO' in df_m.columns:
+                for _, msg in df_m.tail(10).iloc[::-1].iterrows():
+                    tipo_avatar = "user" if msg['EMISOR'] == st.session_state.user_sel else "assistant"
+                    with st.chat_message(tipo_avatar):
+                        st.write(f"**{msg['EMISOR']}**: {msg['CONTENIDO']}")
+            else:
+                st.warning("⚠️ Columnas requeridas: EMISOR y CONTENIDO")
+        else:
+            st.info("No hay mensajes registrados.")
 
 # --- C. ROL: JEFE DE OPERACIONES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
@@ -240,7 +249,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         df_est = leer_matriz_nube("ESTRUCTURA")
         if not df_est.empty: st.dataframe(df_est, use_container_width=True)
 
-# --- E. ROL: ADMINISTRADOR (NÚCLEO MAESTRO AL FINAL) ---
+# --- E. ROL: ADMINISTRADOR ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
     with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA"):
