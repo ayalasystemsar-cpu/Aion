@@ -104,38 +104,31 @@ def aplicar_identidad_alfa():
             text-transform: uppercase;
         }
 
-       /* ✅ CSS PARA BOTÓN DE PÁNICO REDUCIDO Y DESPLAZADO */
+     /* ✅ BOTÓN DE PÁNICO: REDUCIDO Y A LA DERECHA */
         .panico-container {
             display: flex;
-            justify-content: flex-end; /* Alinea al final (derecha) del contenedor */
+            justify-content: flex-end; /* Lo empuja a la derecha */
             width: 100%;
-            padding-right: 15px; /* Espacio desde el borde derecho */
-            margin-top: 10px;
+            padding-right: 20px; /* Margen desde el borde derecho */
+            margin-top: 20px;
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 90px !important;  /* Tamaño reducido de 110px a 90px */
-            height: 90px !important; /* Tamaño reducido de 110px a 90px */
+            width: 85px !important;  /* Tamaño más pequeño */
+            height: 85px !important; /* Tamaño más pequeño */
             border: 2px solid #333 !important;
             box-shadow: 0 0 15px rgba(255, 0, 0, 0.4) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 10px !important; /* Fuente un poco más pequeña */
+            font-size: 9px !important; /* Texto ajustado al tamaño */
             font-weight: bold;
-            line-height: 1.2;
-            transition: transform 0.2s;
+            line-height: 1.1;
+            text-transform: uppercase;
         }
 
-# Ejecutar Identidad Alfa
-aplicar_identidad_alfa()
-
-def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
-# ✅ RENDERIZADO DEL LOGO CENTRAL (SEGÚN CAPTURA 511)
+# ✅ RENDERIZADO DEL LOGO CENTRAL 
 st.markdown(
     """
     <div class="contenedor-logo-central">
@@ -162,19 +155,14 @@ with st.sidebar:
     if st.session_state.rol_sel == "SUPERVISOR":
         st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, key="sel_user")
     
+  with st.sidebar:
     st.markdown("---")
-
-   # ✅ RENDERIZADO CORREGIDO CON UNICODE PARA EVITAR SYNTAXERROR
-st.markdown(
-    f"""
-    <div class="contenedor-logo-central">
-        <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
-             class="logo-tactico">
-    </div>
-    <h2 class="titulo-estacion">\\u26A1 ESTACIÓN TÁCTICA: {st.session_state.user_sel}</h2>
-    """, 
-    unsafe_allow_html=True
-)
+    # ✅ CONTENEDOR PARA ALINEACIÓN DERECHA
+    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
+    if st.button("ACTIVAR\\nPÁNICO", type="primary", key="btn_sos_sidebar"):
+        st.error("❗ SOS TRANSMITIDO")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
 # --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
 
