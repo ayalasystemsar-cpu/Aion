@@ -10,7 +10,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
 
-# Configuración de página de alto impacto[cite: 1]
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -18,7 +17,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ✅ INICIALIZACIÓN MOTOR SQL SUPABASE[cite: 2]
 @st.cache_resource
 def init_connection():
     try:
@@ -42,71 +40,60 @@ def aplicar_identidad_alfa():
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* DISEÑO DE BARRA LATERAL (SIDEBAR)[cite: 2] */
+        /* LOGO EN SIDEBAR */
         [data-testid="stSidebar"] { 
             background-color: #050507;
             border-right: 1px solid rgba(0, 229, 255, 0.3);
-            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
         }
 
-        /* ✅ LOGO EN EL SIDEBAR (Carga desde tu GitHub) */
         [data-testid="stSidebar"]::before { 
             content: "";
             display: block;
-            width: 160px;
-            height: 160px;
-            margin: 20px auto 10px auto;
+            width: 150px;
+            height: 150px;
+            margin: 30px auto 10px auto;
             background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
         }
 
-        h1, h2, h3 { 
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important;
-            text-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
-            letter-spacing: 3px !important;
-            text-transform: uppercase;
-        }
-
-        .stButton>button { 
-            background: rgba(0, 229, 255, 0.05);
-            color: #00E5FF;
-            border: 1px solid rgba(0, 229, 255, 0.4);
-            border-radius: 2px;
-            font-family: 'Orbitron', sans-serif;
-        }
-
+        /* ESTILO DEL LOGO CENTRAL (LIMPIO) */
         .escudo-alfa-container {
             display: flex;
             justify-content: center;
-            padding: 30px 0;
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.3));
+            padding: 40px 0;
+            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
         }
 
         .escudo-alfa {
-            width: 480px; /* Tamaño central para mayor impacto visual[cite: 1] */
+            width: 420px; /* Ajustado para coincidir con la proporción de la imagen[cite: 1] */
             animation: pulseAion 6s infinite ease-in-out;
-            transition: all 0.5s;
         }
 
         @keyframes pulseAion {
-            0%, 100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 20px rgba(0, 229, 255, 0.4)); }
-            50% { transform: scale(1.05); filter: brightness(1.2) drop-shadow(0 0 40px rgba(0, 229, 255, 0.6)); }
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.03); filter: brightness(1.15); }
         }
 
-        .stTabs [data-baseweb="tab-list"] { gap: 15px; }
-        .stTabs [data-baseweb="tab"] { 
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.1);
+        h1, h2, h3 { 
             font-family: 'Orbitron', sans-serif;
+            color: #00E5FF !important;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
         }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
+
+# ✅ LOGO CENTRAL LIMPIO
+st.markdown(
+    '<div class="escudo-alfa-container">'
+    '<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa">'
+    '</div>', 
+    unsafe_allow_html=True
+)
 
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
