@@ -8,8 +8,10 @@ from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+# ✅ INYECCIÓN SUPABASE
 from supabase import create_client, Client
 
+# Configuración de página de alto impacto
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -17,6 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ✅ INICIALIZACIÓN MOTOR SQL SUPABASE
 @st.cache_resource
 def init_connection():
     try:
@@ -26,6 +29,7 @@ def init_connection():
     except Exception:
         return None
 
+# Objeto de conexión activo
 supabase = init_connection()
 
 def aplicar_identidad_alfa():
@@ -40,17 +44,18 @@ def aplicar_identidad_alfa():
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* SIDEBAR SIN MARCOS */
+        /* ✅ SIDEBAR PERSONALIZADO (Carga desde GitHub)[cite: 1, 2] */
         [data-testid="stSidebar"] { 
             background-color: #050507;
             border-right: 1px solid rgba(0, 229, 255, 0.3);
+            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
         }
 
         [data-testid="stSidebar"]::before { 
             content: "";
             display: block;
-            width: 140px;
-            height: 140px;
+            width: 150px;
+            height: 150px;
             margin: 30px auto 10px auto;
             background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
             background-size: contain;
@@ -58,8 +63,10 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* ELIMINACIÓN TOTAL DE MARCOS AUTOMÁTICOS */
-        div[data-testid="stVerticalBlock"] > div:has(img.escudo-alfa) {
+        /* ✅ ELIMINACIÓN TOTAL DE MARCOS Y CONTENEDORES OSCUROS */
+        /* Esta regla "mata" el fondo gris/negro que Streamlit pone a los bloques de Markdown */
+        div[data-testid="stVerticalBlock"] > div:has(.escudo-alfa-container) {
+            background-color: transparent !important;
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
@@ -68,8 +75,8 @@ def aplicar_identidad_alfa():
         .escudo-alfa-container {
             display: flex;
             justify-content: center;
-            padding: 20px 0;
-            background-color: transparent !important;
+            padding: 40px 0;
+            background: transparent !important;
         }
 
         .escudo-alfa {
@@ -77,11 +84,22 @@ def aplicar_identidad_alfa():
             border: none !important;
             box-shadow: none !important;
             background: transparent !important;
+            display: block;
         }
 
         h1, h2, h3 { 
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+            letter-spacing: 3px !important;
+            text-transform: uppercase;
+        }
+
+        .stButton>button { 
+            background: rgba(0, 229, 255, 0.05);
+            color: #00E5FF;
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            font-family: 'Orbitron', sans-serif;
         }
         </style>
         """, unsafe_allow_html=True
@@ -89,15 +107,19 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# ✅ RENDERIZADO DIRECTO
-st.markdown(
-    '<div class="escudo-alfa-container"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa"></div>', 
-    unsafe_allow_html=True
-)
-
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
+# ✅ RENDERIZADO DEL LOGO CENTRAL LIMPIO[cite: 1, 2]
+st.markdown(
+    '<div class="escudo-alfa-container">'
+    '<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa">'
+    '</div>', 
+    unsafe_allow_html=True
+)
+
+# --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
 
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
 # (AQUÍ CONTINÚA TU CÓDIGO DE LÓGICA DE ROLES)
