@@ -600,11 +600,11 @@ def mostrar_buzon(usuario_auth, rol):
 
                         if es_cupula:
                             st.markdown("---")
-                            if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"):
-                               if purgar_registro_comunicaciones(m['id']):
-st.error("REGISTRO DESTRUIDO.")
-st.rerun()
-st.markdown("</div>", unsafe_allow_html=True)
+if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"): # Línea 603
+    if purgar_registro_comunicaciones(m['id']):                        # Línea 604
+        st.error("REGISTRO DESTRUIDO.")                                # Línea 605 (CON SANGRE)
+        st.rerun()                                                     # Línea 606 (ALINEADA CON 605)
+st.markdown("</div>", unsafe_allow_html=True)                          # Línea 607 (VUELVE ATRÁS)
 # --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS (GRADO MILITAR) ---
 
 # ✅ 5.1. ACCESO Y SEGURIDAD DE INFRAESTRUCTURA (BÓVEDA DE CREDENCIALES)
