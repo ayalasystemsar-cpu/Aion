@@ -295,7 +295,6 @@ def purgar_registro_comunicaciones(id_mensaje):
         return True
     except:
         return False
-
 # ✅ 4.6. INTERFAZ DE COMUNICACIONES Y ENRUTAMIENTO (BUZÓN) 
 def mostrar_buzon(usuario_auth, rol):
     st.markdown("---")
@@ -317,20 +316,16 @@ def mostrar_buzon(usuario_auth, rol):
         opciones_destinatario = ["CENTRAL DE MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"]
         
         if es_cupula:
-            # La cúpula puede enviar a todos y usar canales grupales
             opciones_destinatario = ["GRUPAL (TODA LA TROPA)"] + opciones_destinatario + ["SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
         elif rol == "MONITOREO":
-            # Monitoreo puede enrutar a Jefatura, Gerencia o Supervisores en terreno
             opciones_destinatario = ["JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
 
-        # --- CORRECCIÓN FINAL: KEY EN SELECTBOX ---
         destinatario = st.selectbox(
             "DESTINATARIO TÁCTICO", 
             opciones_destinatario,
             key=f"dest_tactico_{rol}_{usuario_auth.replace(' ', '_')}"
         )
         
-        # --- KEY EN RADIO ---
         prioridad = st.radio(
             "NIVEL DE PRIORIDAD", 
             ["VERDE (Informativo)", "AMARILLA (Precaución)", "ROJA (Crítico)"], 
@@ -339,7 +334,6 @@ def mostrar_buzon(usuario_auth, rol):
         )
         nivel_pri = prioridad.split(" ")[0]
 
-        # --- KEY EN TOGGLE ---
         usar_dark_mesh = False
         if es_cupula and destinatario in cupula_mando:
             usar_dark_mesh = st.toggle(
@@ -349,8 +343,6 @@ def mostrar_buzon(usuario_auth, rol):
             )
 
         texto_mensaje = st.text_area("CUERPO DEL REPORTE", height=100, key=f"text_area_{rol}")
-        
-        # Telemetría Óptica
         st.markdown("*EVIDENCIA ÓPTICA (OPCIONAL)*")
         captura = st.camera_input("📷 CAPTURAR FOTOGRAFÍA IN SITU", key=f"cam_input_{rol}")
         
@@ -365,6 +357,7 @@ def mostrar_buzon(usuario_auth, rol):
                     if pri_final == "ROJA" and nivel_pri != "ROJA":
                         st.error("🚨 MOTOR PREDICTIVO ACTIVADO: Amenaza detectada en el texto. Prioridad escalada a ROJA.")
                     st.success("TRANSMISIÓN CONFIRMADA Y ENCRIPTADA.")
+                    st.rerun()
                 else:
                     st.error("FALLA DE ENLACE CON SUPABASE.")
 
@@ -398,7 +391,7 @@ def mostrar_buzon(usuario_auth, rol):
                 color_borde = "#00E5FF" if m['prioridad'] == "VERDE" else "#FFD600" if m['prioridad'] == "AMARILLA" else "#FF1744"
                 icono_mesh = "🛡️ [DARK MESH] " if m['dark_mesh'] else ""
                 
-                with st.expander(f"{icono_mesh}[{m['fecha_hora']}] {m['prioridad']} - De: {m['remitente']} | Estado: {m['estado']}"):
+                with st.expander(f"{icono_mesh}[{m['fecha_hora']}] {m['prioridad']} - De: {m['remitente']}"):
                     st.markdown(f"<div style='border-left: 4px solid {color_borde}; padding-left: 10px;'>", unsafe_allow_html=True)
                     
                     mostrar_contenido = True
@@ -411,7 +404,6 @@ def mostrar_buzon(usuario_auth, rol):
 
                     if mostrar_contenido:
                         st.write(m['mensaje'])
-                        
                         if m['imagen_evidencia']:
                             st.markdown("*EVIDENCIA ADJUNTA:*")
                             try:
@@ -433,7 +425,8 @@ def mostrar_buzon(usuario_auth, rol):
                                 if purgar_registro_comunicaciones(m['id']):
                                     st.error("REGISTRO DESTRUIDO.")
                                     st.rerun()
-               st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
 
              
                
