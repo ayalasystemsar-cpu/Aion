@@ -100,44 +100,32 @@ def aplicar_identidad_alfa():
             background-color: #000 !important;
         }
 
-        /* ✅ MODIFICACIÓN: BOTÓN MÁS A LA DERECHA Y CENTRADO VERTICALMENTE */
+        
+        
+       /* ✅ CORRECCIÓN DEFINITIVA: BOTÓN A LA DERECHA */
         .panico-container {
-            display: flex;
-            justify-content: flex-end; /* Lo empuja totalmente a la derecha */
-            align-items: center;       /* Lo centra verticalmente en su espacio */
-            width: 100%;
-            padding-right: 25px;       /* Aumentamos el margen derecho para que no toque el borde */
-            margin-top: 20px;          /* Espacio superior para separarlo de los selectores */
+            display: flex !important;
+            justify-content: flex-end !important; /* Fuerza el contenido a la derecha */
+            align-items: center !important;      /* Centrado vertical */
+            width: 100% !important;
+            padding-right: 30px !important;      /* Espacio exacto desde el borde derecho */
+            margin-top: 30px !important;
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 95px !important;    /* Tamaño ajustado para que se vea circular y claro */
+            width: 95px !important;
             height: 95px !important;
             border: 3px solid #333 !important;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.6) !important;
             font-family: 'Orbitron', sans-serif;
             font-size: 10px !important;
             font-weight: bold;
             line-height: 1.1;
             text-transform: uppercase;
-        }
-        
-        .stButton > button[kind="primary"] {
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important;
-            border-radius: 50% !important;
-            width: 90px !important; /* Tamaño táctico */
-            height: 90px !important;
-            border: 3px solid #333 !important;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 10px !important;
-            font-weight: bold;
-            line-height: 1.2;
-            text-transform: uppercase;
+            margin-left: auto !important;        /* Empuja el botón contra el padding derecho */
         }
 
         /* Contenedor Radar */
