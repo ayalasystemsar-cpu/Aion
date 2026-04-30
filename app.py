@@ -1,4 +1,4 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (ESTILO ESTACIÓN DE CONTROL) ---
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (VERSIÓN INTEGRAL AION-YAROKU) ---
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -14,7 +14,7 @@ import json
 import base64
 import time
 
-# ✅ CORRECCIÓN FINAL: GEOLOCALIZACIÓN
+# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Evita caídas de interfaz
 try:
     from streamlit_js_eval import get_geolocation
 except ImportError:
@@ -28,7 +28,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inicialización Supabase
+# Inicialización Supabase[cite: 2]
 @st.cache_resource
 def init_connection():
     try:
@@ -46,28 +46,32 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Negro OLED Profundo */
+        /* Fondo Negro OLED con Degradado Táctico[cite: 2] */
         .stApp { 
-            background-color: #050505 !important; 
+            background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* Sidebar Oscuro */
+        /* 🛡️ SIDEBAR: Logo del Costado y Bordes[cite: 2] */
         [data-testid="stSidebar"] { 
-            background-color: #0A0A0B !important;
-            border-right: 1px solid #1A1A1B !important;
+            background-color: #050507 !important;
+            border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
         }
 
-        /* Títulos en Cian Táctico */
-        h1, h2, h3, .stSubheader { 
-            font-family: 'Orbitron', sans-serif; 
-            color: #00E5FF !important; 
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
-            text-transform: uppercase;
+        [data-testid="stSidebar"]::before { 
+            content: "";
+            display: block;
+            width: 140px;
+            height: 140px;
+            margin: 20px auto 10px auto;
+            background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
         }
 
-        /* 🛡️ ELIMINACIÓN DE RECUADROS GRISES */
+        /* 🛡️ LOGO CENTRAL FLOTANTE (SIN RECUADROS GRISES)[cite: 2] */
         [data-testid="stVerticalBlock"], 
         [data-testid="stVerticalBlock"] > div,
         [data-testid="stMarkdownContainer"],
@@ -78,11 +82,27 @@ def aplicar_identidad_alfa():
             box-shadow: none !important;
         }
 
-        /* Botón de Pánico Circular (Rojo Pulsante) */
+        .contenedor-logo-central {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin-top: -30px;
+        }
+
+        .logo-phoenix {
+            width: 500px; 
+            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
+            mix-blend-mode: screen; 
+        }
+
+        /* ✅ BOTÓN DE PÁNICO CIRCULAR Y CENTRADO */
         .panico-container {
             display: flex;
             justify-content: center;
-            padding: 30px 0;
+            align-items: center;
+            width: 100%;
+            padding: 25px 0;
         }
         
         .stButton > button[kind="primary"] {
@@ -95,21 +115,23 @@ def aplicar_identidad_alfa():
             box-shadow: 0 0 25px rgba(255, 0, 0, 0.6) !important;
             font-family: 'Orbitron', sans-serif;
             font-size: 14px !important;
-            transition: all 0.3s ease;
-        }
-        
-        .stButton > button[kind="primary"]:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 40px rgba(255, 0, 0, 0.8) !important;
+            font-weight: bold;
+            line-height: 1.2;
         }
 
-        /* Contenedor del Radar de Servicios */
+        /* Contenedor Radar */
         .radar-box {
             border: 1px solid #1A1A1B;
             border-radius: 12px;
             padding: 20px;
-            background: #0A0A0B;
+            background: rgba(10, 10, 11, 0.8);
             box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
+        }
+
+        h1, h2, h3, .stSubheader { 
+            font-family: 'Orbitron', sans-serif; 
+            color: #00E5FF !important; 
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
         }
         </style>
         """, unsafe_allow_html=True
@@ -121,60 +143,77 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# --- 2. MEMORIA DE SESIÓN Y SIDEBAR TÁCTICO ---
+# ✅ RENDERIZADO DEL LOGO CENTRAL[cite: 2]
+st.markdown(
+    """
+    <div class="contenedor-logo-central">
+        <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
+             class="logo-phoenix">
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
+
+# --- 2. MEMORIA DE SESIÓN Y CONTROL DE ACCESO (SIDEBAR) ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 if 'lat' not in st.session_state: st.session_state.lat = 0.0
 if 'lon' not in st.session_state: st.session_state.lon = 0.0
 
 with st.sidebar:
-    st.markdown("### 🛡️ AION YORAKU")
+    # Espacio para el logo lateral inyectado[cite: 2]
+    st.markdown('<div style="margin-top: 140px;"></div>', unsafe_allow_html=True) 
+    st.subheader("🛡️ PANEL DE CONTROL")
     
-    # Perfiles de Acceso Estilo Imagen
-    perfiles = ["SUPERVISOR", "MONITOREO", "GERENCIA", "ADMINISTRADOR"]
-    st.session_state.rol_sel = st.selectbox("PERFIL DE ACCESO", perfiles, key="sel_rol")
-    
-    # Identificación
-    identidades = ["AYALA BRIAN", "CECILIA DARIO", "CALDO DOLVIR", "KALEN ANDRES"]
-    st.session_state.user_sel = st.selectbox("IDENTIFÍQUESE", identidades, key="sel_user")
+    # Selector de Perfil[cite: 2]
+    perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles, key="selector_acceso_sidebar")
+    rol = st.session_state.rol_sel
 
-    # Botón de Pánico Circular al Final
+    # Selector de Identidad[cite: 2]
+    lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
+    if rol == "SUPERVISOR":
+        st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, key="id_ope_sidebar")
+    
+    usuario_auth = st.session_state.user_sel
+
+    st.markdown("---")
+
+    # ✅ BOTÓN DE PÁNICO CENTRADO (ESTILO IMAGEN)[cite: 1, 2]
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
-    if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        # Lógica de SOS...
+    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_tactico"):
         st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
+# --- 3. ESTACIÓN DE CONTROL: RADAR Y NAVEGACIÓN ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
 
-# Contenedor Radar (Estilo Tablero Táctico)
 st.markdown('<div class="radar-box">', unsafe_allow_html=True)
 st.markdown("📍 **Mi Radar de Servicios y GPS**")
 
 c_map, c_nav = st.columns([2, 1])
 
 with c_map:
-    # Simulación de Radar GPS
+    # Radar GPS Estilo Dark[cite: 2]
     m_s = folium.Map(location=[-34.577, -58.464], zoom_start=14, tiles="CartoDB dark_matter")
     folium.CircleMarker([-34.577, -58.464], radius=10, color="#00E5FF", fill=True).add_to(m_s)
     st_folium(m_s, width="100%", height=350)
 
 with c_nav:
+    # Navegación Táctica
     st.markdown('<div style="background: #121214; padding: 20px; border-radius: 10px; border: 1px solid #1A1A1B;">', unsafe_allow_html=True)
-    st.selectbox("Ir al Servicio:", ["CENTRAL", "ZONA NORTE", "ZONA SUR"], key="nav_serv")
+    st.selectbox("Ir al Servicio:", ["CENTRAL", "ZONA NORTE", "ZONA SUR"], key="nav_tactica")
     if st.button("🗺️ INICIAR NAVEGACIÓN TÁCTICA", use_container_width=True):
         st.success("Enlace GPS Establecido")
     
     st.markdown("---")
-    st.markdown("**ESTADO DE RED:** ✅ ACTIVA")
-    st.markdown(f"**LAT:** `{st.session_state.lat}`")
-    st.markdown(f"**LON:** `{st.session_state.lon}`")
+    st.markdown(f"**LAT:** `{-34.577427}`")
+    st.markdown(f"**LON:** `{-58.464084}`")
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 4. SECCIONES DE MENSAJERÍA Y GESTIÓN (REUTILIZADAS) ---
+# --- 4. CONTINUACIÓN DE FUNCIONES OPERATIVAS (Buzón, Actas, etc.) ---
 # ✅ 4.1. MOTOR DE PROCESAMIENTO ÓPTICO (BASE64)
 def encriptar_imagen_b64(imagen_buffer):
     """Transforma la captura de la cámara en una cadena cifrada para transmisión segura."""
@@ -257,48 +296,83 @@ def purgar_registro_comunicaciones(id_mensaje):
     except:
         return False
 
-# --- 4.6. INTERFAZ DE COMUNICACIONES Y ENRUTAMIENTO (BUZÓN) ---
+# ✅ 4.6. INTERFAZ DE COMUNICACIONES Y ENRUTAMIENTO (BUZÓN) 
 def mostrar_buzon(usuario_auth, rol):
     st.markdown("---")
     st.subheader("📡 COMUNICACIONES TÁCTICAS")
     
-    # ✅ DEFINICIÓN DE LA CÚPULA (Protección de acceso)
+    # Definición de la Cúpula de Mando (Con acceso a Dark Mesh y Purga)
     cupula_mando = ["BRIAN AYALA", "LUIS BONGIORNO", "DARÍO CECILIA"]
     es_cupula = usuario_auth in cupula_mando or rol in ["ADMINISTRADOR", "GERENCIA", "JEFE DE OPERACIONES"]
 
     tab_recepcion, tab_emision = st.tabs(["📥 BANDEJA DE ENTRADA", "📤 TRANSMITIR DIRECTIVA"])
 
     # ---------------------------------------------------------
-    # PESTAÑA 1: TRANSMISIÓN
+    # PESTAÑA 1: TRANSMISIÓN (ENRUTAMIENTO SELECTIVO)
     # ---------------------------------------------------------
     with tab_emision:
         st.markdown("*NUEVA DIRECTIVA / NOVEDAD*")
+        
+        # Enrutamiento según jerarquía
         opciones_destinatario = ["CENTRAL DE MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"]
         
         if es_cupula:
+            # La cúpula puede enviar a todos y usar canales grupales
             opciones_destinatario = ["GRUPAL (TODA LA TROPA)"] + opciones_destinatario + ["SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
         elif rol == "MONITOREO":
+            # Monitoreo puede enrutar a Jefatura, Gerencia o Supervisores en terreno
             opciones_destinatario = ["JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
 
-        destinatario = st.selectbox("DESTINATARIO TÁCTICO", opciones_destinatario, key=f"dest_{rol}_{usuario_auth.replace(' ', '_')}")
-        prioridad = st.radio("NIVEL DE PRIORIDAD", ["VERDE (Informativo)", "AMARILLA (Precaución)", "ROJA (Crítico)"], horizontal=True, key=f"pri_{rol}")
+        # --- CORRECCIÓN FINAL: KEY EN SELECTBOX ---
+        destinatario = st.selectbox(
+            "DESTINATARIO TÁCTICO", 
+            opciones_destinatario,
+            key=f"dest_tactico_{rol}_{usuario_auth.replace(' ', '_')}"
+        )
+        
+        # --- KEY EN RADIO ---
+        prioridad = st.radio(
+            "NIVEL DE PRIORIDAD", 
+            ["VERDE (Informativo)", "AMARILLA (Precaución)", "ROJA (Crítico)"], 
+            horizontal=True,
+            key=f"radio_prioridad_{rol}_{usuario_auth.replace(' ', '_')}"
+        )
         nivel_pri = prioridad.split(" ")[0]
 
-        texto_mensaje = st.text_area("CUERPO DEL REPORTE", height=100, key=f"txt_{rol}")
-        captura = st.camera_input("📷 CAPTURAR FOTOGRAFÍA", key=f"cam_{rol}")
+        # --- KEY EN TOGGLE ---
+        usar_dark_mesh = False
+        if es_cupula and destinatario in cupula_mando:
+            usar_dark_mesh = st.toggle(
+                "🛡️ ENRUTAR POR MALLA OSCURA (DARK MESH)", 
+                value=False,
+                key=f"mesh_toggle_{rol}_{usuario_auth.replace(' ', '_')}"
+            )
+
+        texto_mensaje = st.text_area("CUERPO DEL REPORTE", height=100, key=f"text_area_{rol}")
         
-        if st.button("🚀 TRANSMITIR", use_container_width=True, key=f"btn_send_{rol}"):
-            if texto_mensaje.strip() != "":
+        # Telemetría Óptica
+        st.markdown("*EVIDENCIA ÓPTICA (OPCIONAL)*")
+        captura = st.camera_input("📷 CAPTURAR FOTOGRAFÍA IN SITU", key=f"cam_input_{rol}")
+        
+        if st.button("🚀 TRANSMITIR", use_container_width=True, key=f"btn_transmitir_{rol}"):
+            if texto_mensaje.strip() == "":
+                st.warning("El reporte no puede estar vacío.")
+            else:
                 img_b64 = encriptar_imagen_b64(captura) if captura else None
-                transmitir_directiva(usuario_auth, destinatario, nivel_pri, texto_mensaje, img_b64)
-                st.success("TRANSMISIÓN ENVIADA.")
-                st.rerun()
+                exito, pri_final = transmitir_directiva(usuario_auth, destinatario, nivel_pri, texto_mensaje, img_b64, usar_dark_mesh)
+                
+                if exito:
+                    if pri_final == "ROJA" and nivel_pri != "ROJA":
+                        st.error("🚨 MOTOR PREDICTIVO ACTIVADO: Amenaza detectada en el texto. Prioridad escalada a ROJA.")
+                    st.success("TRANSMISIÓN CONFIRMADA Y ENCRIPTADA.")
+                else:
+                    st.error("FALLA DE ENLACE CON SUPABASE.")
 
     # ---------------------------------------------------------
-    # PESTAÑA 2: RECEPCIÓN (Aquí es donde estaba el error)
+    # PESTAÑA 2: RECEPCIÓN Y DESENCRIPTACIÓN
     # ---------------------------------------------------------
     with tab_recepcion:
-        if st.button("🔄 SINCRONIZAR RED", key=f"sync_{rol}"):
+        if st.button("🔄 SINCRONIZAR RED", key=f"btn_sincronizar_{rol}"):
             st.rerun()
             
         try:
@@ -306,43 +380,64 @@ def mostrar_buzon(usuario_auth, rol):
             mensajes = res.data if res.data else []
         except:
             mensajes = []
+            st.error("Enlace SQL interrumpido.")
 
         if not mensajes:
             st.info("Sin tráfico en la red.")
         else:
             for m in mensajes:
-                # Filtros de visibilidad
                 es_para_mi = m['destinatario'] == usuario_auth or m['destinatario'] == "GRUPAL (TODA LA TROPA)"
-                soy_monitoreo = rol == "MONITOREO" and m['destinatario'] == "CENTRAL DE MONITOREO"
+                soy_monitoreo_y_es_para_mi = rol == "MONITOREO" and m['destinatario'] == "CENTRAL DE MONITOREO"
                 
-                if not (es_para_mi or soy_monitoreo): continue
-                if m['dark_mesh'] and not es_cupula: continue
-
-                color_b = "#00E5FF" if m['prioridad'] == "VERDE" else "#FFD600" if m['prioridad'] == "AMARILLA" else "#FF1744"
+                if not (es_para_mi or soy_monitoreo_y_es_para_mi):
+                    continue
                 
-                with st.expander(f"De: {m['remitente']} | {m['fecha_hora']}"):
-                    st.markdown(f"<div style='border-left: 4px solid {color_b}; padding-left: 10px;'>", unsafe_allow_html=True)
-                    st.write(m['mensaje'])
-                    
-                    if m['imagen_evidencia']:
-                        img_bytes = base64.b64decode(m['imagen_evidencia'])
-                        st.image(img_bytes, use_container_width=True)
+                if m['dark_mesh'] and not es_cupula:
+                    continue
 
-                    # ✅ BOTÓN DE ACUSE PARA TODOS
-                    if m['estado'] == "PENDIENTE":
-                        if st.button("✅ RECIBIDO", key=f"ack_{m['id']}"):
-                            ejecutar_acuse_recibo(m['id'], "0000", st.session_state.lat, st.session_state.lon, usuario_auth)
-                            st.rerun()
-
-                    # ✅ BOTÓN DE PURGA SÓLO PARA LA CÚPULA (Bien alineado)
-                    if es_cupula:
-                        st.markdown("---")
-                        if st.button("☢️ PURGAR REGISTRO", key=f"del_{m['id']}", type="primary"):
-                            if purgar_registro_comunicaciones(m['id']):
-                                st.error("DESTRUIDO.")
-                                st.rerun()
+                color_borde = "#00E5FF" if m['prioridad'] == "VERDE" else "#FFD600" if m['prioridad'] == "AMARILLA" else "#FF1744"
+                icono_mesh = "🛡️ [DARK MESH] " if m['dark_mesh'] else ""
+                
+                with st.expander(f"{icono_mesh}[{m['fecha_hora']}] {m['prioridad']} - De: {m['remitente']} | Estado: {m['estado']}"):
+                    st.markdown(f"<div style='border-left: 4px solid {color_borde}; padding-left: 10px;'>", unsafe_allow_html=True)
                     
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    mostrar_contenido = True
+                    if m['prioridad'] == "ROJA" and m['estado'] == "PENDIENTE" and rol not in ["MONITOREO", "ADMINISTRADOR"]:
+                        pin_acceso = st.text_input("🔑 PIN PARA DESENCRIPTAR", type="password", key=f"pin_in_{m['id']}_{rol}")
+                        if pin_acceso == "":
+                            mostrar_contenido = False
+                        else:
+                            st.session_state[f"pin_temp_{m['id']}"] = pin_acceso
+
+                    if mostrar_contenido:
+                        st.write(m['mensaje'])
+                        
+                        if m['imagen_evidencia']:
+                            st.markdown("*EVIDENCIA ADJUNTA:*")
+                            try:
+                                img_bytes = base64.b64decode(m['imagen_evidencia'])
+                                st.image(img_bytes, use_container_width=True)
+                            except:
+                                st.error("Error al desencriptar imagen.")
+
+                        if m['estado'] == "PENDIENTE":
+                            pin_final = st.session_state.get(f"pin_temp_{m['id']}", "0000")
+                            if st.button("✅ DAR ACUSE DE RECIBO", key=f"btn_ack_{m['id']}_{rol}"):
+                                if ejecutar_acuse_recibo(m['id'], pin_final, st.session_state.lat, st.session_state.lon, usuario_auth):
+                                    st.success("ACUSE REGISTRADO.")
+                                    st.rerun()
+
+                        if es_cupula:
+                            st.markdown("---")
+                            if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"):
+                                if purgar_registro_comunicaciones(m['id']):
+                                    st.error("REGISTRO DESTRUIDO.")
+                                    st.rerun()
+               st.markdown("</div>", unsafe_allow_html=True)
+
+             
+               
+# --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS (GRADO MILITAR) ---
 
 # ✅ 5.1. ACCESO Y SEGURIDAD DE INFRAESTRUCTURA (BÓVEDA DE CREDENCIALES)
 def acceso_infraestructura_critica():
@@ -587,291 +682,3 @@ elif st.session_state.rol_sel == "MONITOREO":
     
     # ⚡ 7.1. TELEMETRÍA DE IMPACTO (Métricas en Tiempo Real desde SQL)
     m1, m2, m3 = st.columns(3)
-    
-    # Extracción de Alertas SOS
-    try:
-        res_sos = supabase.table('ALERTAS_MONITOREO').select('*').ilike('estado', '%PENDIENTE%').execute()
-        df_alertas = pd.DataFrame(res_sos.data) if res_sos.data else pd.DataFrame()
-        sos_activos = len(df_alertas)
-    except:
-        df_alertas = pd.DataFrame()
-        sos_activos = 0
-
-    # Extracción de Mensajes Críticos/Precaución
-    try:
-        res_msg = supabase.table('MENSAJERIA_TACTICA').select('*').eq('estado', 'PENDIENTE').in_('prioridad', ['AMARILLA', 'ROJA']).execute()
-        msg_alerta = len(res_msg.data) if res_msg.data else 0
-    except:
-        msg_alerta = 0
-
-    # Extracción de Fichajes de hoy
-    hoy_str = obtener_hora_argentina()[:10]
-    try:
-        res_qr = supabase.table('LOG_PRESENCIA').select('*').like('fecha_hora', f"{hoy_str}%").execute()
-        fichajes_hoy = len(res_qr.data) if res_qr.data else 0
-    except:
-        fichajes_hoy = 0
-
-    m1.metric("🚨 S.O.S ACTIVOS", sos_activos)
-    m2.metric("⚠️ NOVEDADES CRÍTICAS", msg_alerta)
-    m3.metric("📲 FICHAJES (HOY)", fichajes_hoy)
-
-    t_radar, t_libro, t_chat = st.tabs(["🚨 RADAR S.O.S", "📖 BITÁCORA TÁCTICA", "📡 COMUNICACIONES"])
-    
-    # ⚡ 7.2. MOTOR DE RASTREO Y CIERRE DE CRISIS
-    with t_radar:
-        if sos_activos > 0:
-            # Protocolo de Fuego Real: El mapa se centra en el operador en peligro
-            datos_sos = df_alertas.iloc[-1] # Toma la alerta más reciente
-            lat_sos, lon_sos = float(datos_sos['lat']), float(datos_sos['lon'])
-            op_en_riesgo = datos_sos['operador']
-            
-            st.error(f"🚨 BRECHA DE SEGURIDAD DETECTADA: Operador {op_en_riesgo} en código S.O.S.")
-            
-            m_mon = folium.Map(location=[lat_sos, lon_sos], zoom_start=16, tiles="CartoDB dark_matter")
-            # Marcador de Alerta Roja
-            folium.Marker(
-                [lat_sos, lon_sos], 
-                popup=f"S.O.S: {op_en_riesgo}",
-                icon=folium.Icon(color="red", icon="warning", prefix="fa")
-            ).add_to(m_mon)
-            
-            # Traza el resto de los objetivos cercanos para referencia
-            if not df_objetivos.empty:
-                for _, r in df_objetivos.iterrows():
-                    folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=5, color="blue", fill=True).add_to(m_mon)
-            
-            st_folium(m_mon, width="100%", height=400)
-            st.markdown("---")
-
-            # Formulario de Neutralización
-            with st.form("cierre_crisis"):
-                st.markdown("*PROTOCOLO DE NEUTRALIZACIÓN*")
-                res_acta = st.text_area("Informe Operativo de Cierre de Crisis")
-                if st.form_submit_button("✅ SELLAR Y NEUTRALIZAR ALERTA", type="primary"):
-                    if res_acta.strip() == "":
-                        st.warning("Debe justificar la neutralización del S.O.S.")
-                    else:
-                        id_alerta = datos_sos['id']
-                        payload_cierre = {
-                            "estado": "NEUTRALIZADO",
-                            "resolucion_txt": f"OPE BASE: {st.session_state.user_sel} | {res_acta}",
-                            "fecha_cierre": obtener_hora_argentina()
-                        }
-                        supabase.table('ALERTAS_MONITOREO').update(payload_cierre).eq('id', id_alerta).execute()
-                        st.success("ALERTA NEUTRALIZADA. Base de datos actualizada.")
-                        time.sleep(1)
-                        st.rerun()
-        else:
-            # Mapa de Patrullaje Normal
-            st.success("ZONA SEGURA: Sin S.O.S activos.")
-            if not df_objetivos.empty:
-                m_mon = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-                for _, r in df_objetivos.iterrows():
-                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_mon)
-                st_folium(m_mon, width="100%", height=400)
-
-    # ⚡ 7.3. BITÁCORA INMUTABLE DE MONITOREO
-    with t_libro:
-        st.markdown("*LIBRO DE GUARDIA OFICIAL (BASE)*")
-        with st.form("acta_base"):
-            nov = st.text_area("Novedades y Relevos de Guardia", height=150)
-            if st.form_submit_button("🔒 SELLAR BITÁCORA"):
-                if nov.strip():
-                    payload_bitacora = {
-                        "fecha_hora": obtener_hora_argentina(),
-                        "operador_base": st.session_state.user_sel,
-                        "novedad": nov
-                    }
-                    supabase.table('BITACORA_MONITOREO').insert(payload_bitacora).execute()
-                    st.success("Registro sellado en la matriz central.")
-                else:
-                    st.warning("El libro no puede estar en blanco.")
-
-    # ⚡ 7.4. COMUNICACIONES TÁCTICAS (SIN REDUNDANCIA)
-    with t_chat:
-        # Solo llamamos a la función matriz del Bloque 4 que ya gestiona Recepción, Emisión, Fotos y Malla Oscura.
-        # Eliminamos la línea vieja que generaba el error de duplicación.
-        mostrar_buzon(st.session_state.user_sel, st.session_state.rol_sel)
-# --- 8. MÓDULO EJECUTIVO: COMANDO ESTRATÉGICO Y AUDITORÍA ---
-elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENTE", "ADMINISTRADOR"]:
-    st.header(f"👔 COMANDO ESTRATÉGICO: {st.session_state.user_sel}")
-    
-    # CSS para el HUD de la cúpula
-    st.markdown("""
-    <style>
-    .card-alfa { padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 5px solid; background: rgba(255,255,255,0.02); }
-    .roja { border-color: #FF4B4B; } .amarilla { border-color: #FFCC00; } .verde { border-color: #00FF00; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    t_crisis, t_gestion, t_auditoria, t_comms = st.tabs(["🚨 CENTRO DE CRISIS", "⚡ EJECUCIÓN DIRECTA", "📊 AUDITORÍA GLOBAL", "📡 COMUNICACIONES"])
-    
-    # ⚡ 8.1. CENTRO DE CRISIS (Registro Histórico)
-    with t_crisis:
-        st.subheader("HISTORIAL DE ALERTAS NEUTRALIZADAS")
-        try:
-            res_alertas = supabase.table('ALERTAS_MONITOREO').select('*').eq('estado', 'NEUTRALIZADO').order('id', desc=True).limit(15).execute()
-            if res_alertas.data:
-                for r in res_alertas.data:
-                    # Si la resolución incluye la palabra S.O.S, coacción o 911, marca rojo, si no verde
-                    color = "roja" if any(x in str(r.get('resolucion_txt', '')).upper() for x in ["S.O.S", "COACCIÓN", "911", "ARMADO"]) else "verde"
-                    st.markdown(f'''
-                        <div class="card-alfa {color}">
-                            <b>OPERADOR: {r.get("operador", "N/A")}</b> | Fecha: {r.get("fecha_hora", "")}<br>
-                            <small>📍 Lat: {r.get("lat", "")} | Lon: {r.get("lon", "")}</small><br>
-                            <small style="color:#00E5FF;"><b>RESOLUCIÓN:</b> {r.get("resolucion_txt", "Sin detalles")}</small>
-                        </div>
-                    ''', unsafe_allow_html=True)
-            else:
-                st.info("No hay historial de crisis en la matriz reciente.")
-        except:
-            st.error("Fallo de enlace con la tabla de Alertas.")
-
-    # ⚡ 8.2. EJECUCIÓN DIRECTA (Gestión SQL sin intermediarios)
-    with t_gestion:
-        st.subheader("ALTA TÁCTICA DE NUEVOS OBJETIVOS")
-        with st.form("directiva_alta_objetivo"):
-            st.write("La inyección impactará la matriz de toda la flota en tiempo real.")
-            col_o1, col_o2 = st.columns(2)
-            nuevo_obj = col_o1.text_input("Nombre del Objetivo Nuevo").upper()
-            dir_obj = col_o2.text_input("Dirección y Localidad").upper()
-            
-            # Extraer supervisores activos para asignación
-            lista_sup = ["SIN ASIGNAR"]
-            try:
-                res_sup = supabase.table('ESTRUCTURA_PERSONAL').select('nombre').in_('rol', ['SUPERVISOR', 'SUPERVISOR NOCTURNO']).eq('estado', 'ACTIVO').execute()
-                if res_sup.data:
-                    lista_sup = [s['nombre'] for s in res_sup.data]
-            except: pass
-            
-            sup_asignado = st.selectbox("Supervisor a Cargo", lista_sup)
-            
-            col_c1, col_c2 = st.columns(2)
-            lat_n = col_c1.number_input("Latitud Exacta", format="%.6f")
-            lon_n = col_c2.number_input("Longitud Exacta", format="%.6f")
-            
-            if st.form_submit_button("🚀 EJECUTAR INYECCIÓN EN MATRIZ", type="primary"):
-                if nuevo_obj and dir_obj and lat_n != 0.0:
-                    payload_obj = {
-                        "objetivo": nuevo_obj,
-                        "direccion": dir_obj,
-                        "supervisor": sup_asignado,
-                        "latitud": lat_n,
-                        "longitud": lon_n,
-                        "alarma": "INACTIVA",
-                        "policia": "911"
-                    }
-                    try:
-                        supabase.table('OBJETIVOS').insert(payload_obj).execute()
-                        st.success(f"OBJETIVO '{nuevo_obj}' INYECTADO. Geocerca activada.")
-                        st.cache_data.clear() # Limpia caché para que los supervisores vean el cambio al instante
-                    except:
-                        st.error("Error al escribir en la base de datos SQL.")
-                else:
-                    st.warning("Debe completar Nombre, Dirección y Coordenadas para armar la Geocerca.")
-
-    # ⚡ 8.3. AUDITORÍA GLOBAL (Extracción de Fichajes y Logística)
-    with t_auditoria:
-        st.subheader("OJO PANÓPTICO: AUDITORÍA DE TERRENO")
-        sub_tab1, sub_tab2 = st.tabs(["📱 FICHAJES QR / GEOCERCA", "🚚 LOGÍSTICA FLOTA"])
-        
-        with sub_tab1:
-            st.caption("Validación de Presencia y Fraude Espacial")
-            if st.button("🔄 EXTRAER MATRIZ DE FICHAJES"):
-                try:
-                    res_presencia = supabase.table('LOG_PRESENCIA').select('fecha_hora, operador, objetivo, accion, estado, distancia_metros').order('id', desc=True).limit(50).execute()
-                    if res_presencia.data:
-                        df_presencia = pd.DataFrame(res_presencia.data)
-                        st.dataframe(df_presencia, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("Sin registros de fichaje.")
-                except:
-                    st.error("Enlace SQL interrumpido.")
-                    
-        with sub_tab2:
-            st.caption("Control de Odometría y Combustible")
-            if st.button("🔄 EXTRAER MATRIZ LOGÍSTICA"):
-                try:
-                    res_flota = supabase.table('CONTROL_FLOTA').select('fecha, supervisor, movil, km_inicial, km_final, combustible').order('id', desc=True).limit(50).execute()
-                    if res_flota.data:
-                        df_flota = pd.DataFrame(res_flota.data)
-                        st.dataframe(df_flota, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("Sin registros de flota.")
-                except:
-                    st.error("Enlace SQL interrumpido.")
-
-    # ⚡ 8.4. COMUNICACIONES (Dark Mesh)
-    with t_comms:
-        mostrar_buzon(st.session_state.user_sel, st.session_state.rol_sel)
-
-# --- 9. ADMINISTRADOR: NÚCLEO MAESTRO (CANDADO DE TITANIO) ---
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.header("⚙️ NÚCLEO MAESTRO: B. AYALA (ACCESO RAÍZ)")
-    
-    st.markdown("---")
-    c_defcon, c_db = st.columns(2)
-    
-    # ⚡ 9.1. AISLAMIENTO TOTAL
-    with c_defcon:
-        st.subheader("🚨 PROTOCOLO DEFCON 1")
-        st.write("Bloqueo absoluto del sistema. Corta el enlace SQL de toda la flota en terreno y gerencia.")
-        
-        # Un check de confirmación para no apretar el botón rojo por error
-        if st.checkbox("Habilitar Switch de Apagón"):
-            if st.button("☢️ DETONAR APAGÓN GLOBAL", type="primary", use_container_width=True):
-                with st.spinner("Desconectando terminales..."):
-                    try:
-                        # 1. Purga de acceso operativo (Todos a INACTIVO menos Brian Ayala)
-                        supabase.table('ESTRUCTURA_PERSONAL').update({"estado": "BLOQUEO_DEFCON"}).neq('nombre', 'BRIAN AYALA').execute()
-                        
-                        # 2. Inyección de Kill Switch (Fuerza el cierre de sesión en los teléfonos)
-                        supabase.table('SEGURIDAD_OPERADORES').update({"estado": "COMPROMETIDO"}).neq('usuario', 'BRIAN AYALA').execute()
-                        
-                        st.error("DEFCON 1 EJECUTADO. Todos los nodos han sido neutralizados. Acceso exclusivo para Nivel Raíz.")
-                    except:
-                        st.warning("Interferencia en la ejecución SQL.")
-                
-    # ⚡ 9.2. MANTENIMIENTO DE RENDIMIENTO SQL
-    with c_db:
-        st.subheader("📦 MIGRACIÓN TÁCTICA A BÓVEDA")
-        st.write("Purga de memoria caché y traslado de actas operativas a la Bóveda Histórica Inmutable.")
-        
-        if st.button("🗄️ EJECUTAR BARRIDA DE DATOS", use_container_width=True):
-            with st.status("Ejecutando volcado SQL y optimización de índices..."):
-                try:
-                    # Llama a una función interna de Supabase (RPC) para mover filas viejas y vaciar RAM
-                    supabase.rpc('ejecutar_barrida_historica').execute()
-                    time.sleep(2) # Simulación de tiempo de encriptación de bloques
-                    st.success("BARRIDA COMPLETADA. Matriz principal operando al 100% de rendimiento.")
-                except:
-                    st.error("Aviso: Requiere configurar la función 'ejecutar_barrida_historica' en el servidor Supabase.")
-
-    st.markdown("---")
-    
-    # ⚡ 9.3. AUDITORÍA DE LA CÚPULA (ROOT ALERTS)
-    st.subheader("👁️ VISOR EN LA SOMBRA (INTERCEPCIÓN DARK MESH)")
-    st.caption("Tráfico clasificado de Jefatura y Gerencia interceptado por Nivel Raíz.")
-    
-    if st.button("🔄 ACTUALIZAR INTERCEPTOR"):
-        st.rerun()
-
-    try:
-        # Extrae mensajes de la tabla saltándose los bloqueos de usuario normales
-        res_shadow = supabase.table('MENSAJERIA_TACTICA').select('*').eq('dark_mesh', True).order('id', desc=True).limit(10).execute()
-        
-        if res_shadow.data:
-            for m in res_shadow.data:
-                estado_msj = m.get('estado', 'DESCONOCIDO')
-                color_borde = "#FF1744" if estado_msj == "PENDIENTE" else "#00E5FF"
-                
-                st.markdown(f"<div style='border-left: 4px solid {color_borde}; padding-left: 10px; background: rgba(0,0,0,0.2); margin-bottom: 5px;'>", unsafe_allow_html=True)
-                with st.expander(f"🛡️ [INTERCEPTADO] De: {m['remitente']} a {m['destinatario']}"):
-                    st.write(f"*Contenido:* {m['mensaje']}")
-                    st.caption(f"Emitido: {m['fecha_hora']} | Prioridad: {m['prioridad']} | Estado: {estado_msj}")
-                st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.info("La Malla Oscura está en silencio.")
-    except:
-        st.error("Enlace de interceptación caído.")
