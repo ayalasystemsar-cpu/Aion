@@ -8,8 +8,10 @@ from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+# ✅ INYECCIÓN SUPABASE
 from supabase import create_client, Client
 
+# Configuración de página de alto impacto[cite: 1]
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -17,6 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ✅ INICIALIZACIÓN MOTOR SQL SUPABASE
 @st.cache_resource
 def init_connection():
     try:
@@ -26,6 +29,7 @@ def init_connection():
     except Exception:
         return None
 
+# Objeto de conexión activo
 supabase = init_connection()
 
 def aplicar_identidad_alfa():
@@ -40,10 +44,11 @@ def aplicar_identidad_alfa():
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* LOGO EN SIDEBAR */
+        /* ✅ LOGO EN SIDEBAR (Como en tu vista previa) */
         [data-testid="stSidebar"] { 
             background-color: #050507;
             border-right: 1px solid rgba(0, 229, 255, 0.3);
+            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
         }
 
         [data-testid="stSidebar"]::before { 
@@ -58,28 +63,34 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* ESTILO DEL LOGO CENTRAL (LIMPIO) */
+        /* ✅ CONTENEDOR CENTRAL LIMPIO (SIN MARCO)[cite: 1, 2] */
         .escudo-alfa-container {
             display: flex;
             justify-content: center;
             padding: 40px 0;
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
+            background: transparent !important;
         }
 
         .escudo-alfa {
-            width: 420px; /* Ajustado para coincidir con la proporción de la imagen[cite: 1] */
-            animation: pulseAion 6s infinite ease-in-out;
-        }
-
-        @keyframes pulseAion {
-            0%, 100% { transform: scale(1); filter: brightness(1); }
-            50% { transform: scale(1.03); filter: brightness(1.15); }
+            width: 420px; 
+            border: none !important;
+            box-shadow: none !important;
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
         }
 
         h1, h2, h3 { 
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important;
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+            letter-spacing: 3px !important;
+            text-transform: uppercase;
+        }
+
+        .stButton>button { 
+            background: rgba(0, 229, 255, 0.05);
+            color: #00E5FF;
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            font-family: 'Orbitron', sans-serif;
         }
         </style>
         """, unsafe_allow_html=True
@@ -87,7 +98,11 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# ✅ LOGO CENTRAL LIMPIO
+def obtener_hora_argentina():
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
+# ✅ LOGO CENTRAL ACTUALIZADO (Limpio y flotante)[cite: 1, 2]
 st.markdown(
     '<div class="escudo-alfa-container">'
     '<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa">'
@@ -95,10 +110,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
+# --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
+# (AQUÍ CONTINÚA TU CÓDIGO DE LÓGICA DE ROLES)
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
 # (El resto del código se mantiene igual a partir de aquí)
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
