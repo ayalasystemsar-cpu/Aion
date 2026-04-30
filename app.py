@@ -1,4 +1,4 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU CORE) ---
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL (AION-YAROKU CORE) ---
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,9 +8,6 @@ from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from supabase import create_client, Client
-import base64
-import time
 
 # ✅ CORRECCIÓN GEOLOCALIZACIÓN
 try:
@@ -18,7 +15,6 @@ try:
 except ImportError:
     get_geolocation = None
 
-# Configuración de página OLED
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -26,18 +22,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CONEXIONES (SUPABASE & GOOGLE MATRIZ) ---
+# --- 2. CONEXIONES (GOOGLE MATRIZ INTEGRAL) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-
-@st.cache_resource
-def init_connection():
-    try:
-        url = st.secrets["supabase"]["url"]
-        key = st.secrets["supabase"]["key"]
-        return create_client(url, key)
-    except Exception: return None
-
-supabase = init_connection()
 
 def conectar_google():
     try:
@@ -46,19 +32,23 @@ def conectar_google():
         return gspread.authorize(creds)
     except: return None
 
-# --- 3. FUNCIONES DE LÓGICA, DATOS Y COMANDOS ---
+# --- 3. FUNCIONES DE LÓGICA Y NORMALIZACIÓN MAESTRA ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-def actualizar_celda(pestana, fila, columna, valor):
-    try:
-        gc = conectar_google()
-        if gc:
+@st.cache_data(ttl=15)
+def leer_matriz_nube(pestana):
+    gc = conectar_google()
+    if gc:
+        try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.update_acell(f"{columna}{fila}", valor)
-            return True
-    except: return False
+            df = pd.DataFrame(hoja.get_all_records())
+            # ✅ NORMALIZACIÓN TOTAL: Mayúsculas y sin espacios en encabezados
+            df.columns = df.columns.str.strip().str.upper()
+            return df
+        except: return pd.DataFrame()
+    return pd.DataFrame()
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -69,27 +59,16 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: return False
 
-@st.cache_data(ttl=15)
-def leer_matriz_nube(pestana):
-    gc = conectar_google()
-    if gc:
-        try:
+def actualizar_celda(pestana, fila, columna, valor):
+    try:
+        gc = conectar_google()
+        if gc:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            return pd.DataFrame(hoja.get_all_records())
-        except: return pd.DataFrame()
-    return pd.DataFrame()
+            hoja.update_acell(f"{columna}{fila}", valor)
+            return True
+    except: return False
 
-@st.cache_data(ttl=60)
-def cargar_objetivos():
-    df = leer_matriz_nube("OBJETIVOS")
-    if not df.empty:
-        df.columns = df.columns.str.strip().str.upper()
-        df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        return df.dropna(subset=['LATITUD', 'LONGITUD'])
-    return pd.DataFrame()
-
-# --- 4. DISEÑO E IDENTIDAD VISUAL ---
+# --- 4. DISEÑO ALPHA ---
 def aplicar_identidad_alfa():
     st.markdown(
         """
@@ -97,17 +76,14 @@ def aplicar_identidad_alfa():
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         [data-testid="stSidebar"] { background-color: #050507 !important; border-right: 1px solid rgba(0, 229, 255, 0.3) !important; }
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-top: -10px; margin-bottom: 20px; }
-        .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        .panico-container { display: flex !important; justify-content: center !important; align-items: center !important; width: 100% !important; margin: 20px 0 !important; padding: 0 !important; }
+        .contenedor-logo-central { display: flex; justify-content: center; width: 100%; margin-bottom: 20px; }
+        .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5); border-radius: 4px; }
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; line-height: 1.1; text-transform: uppercase; margin: 0 auto !important; 
+            border-radius: 50% !important; width: 105px !important; height: 105px !important; 
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; color: white !important;
         }
-        .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 20px; background: rgba(10, 10, 11, 0.8); }
-        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
+        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; }
         </style>
         """, unsafe_allow_html=True
     )
@@ -115,151 +91,83 @@ def aplicar_identidad_alfa():
 aplicar_identidad_alfa()
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# --- 5. MEMORIA DE SESIÓN Y SIDEBAR ---
+# --- 5. PANEL DE CONTROL (SIDEBAR) ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 
 with st.sidebar:
-    st.markdown('<div style="margin-top: 50px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
-    perfiles = ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
-    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles)
-    lista_sups = ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO"]
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups)
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
+    st.session_state.user_sel = st.selectbox("IDENTIDAD", ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SANOJA LUIS", "MAZACOTTE CLAUDIO"])
     st.markdown("---")
-    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        datos_sos = [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE"]
-        if escribir_registro_nube("ALERTAS", datos_sos):
-            st.error("❗ SOS TRANSMITIDO")
-    st.markdown('</div>', unsafe_allow_html=True)
+        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE"])
+        st.error("❗ SOS TRANSMITIDO")
 
-# --- 6. FLUJO DE INTERFAZ POR ROLES ---
-df_objetivos = cargar_objetivos()
+# --- 6. FLUJO POR ROLES ---
 
-# --- A. ROL: SUPERVISOR ---
+# A. SUPERVISOR
 if st.session_state.rol_sel == "SUPERVISOR":
     st.subheader(f"📱 Estación: {st.session_state.user_sel}")
-    apellido = st.session_state.user_sel.split()[-1].upper()
-    df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
-    if df_zona.empty: df_zona = df_objetivos
-
-    t1, t2, t3 = st.tabs(["📍 RADAR & GPS", "📝 NOVEDADES", "💬 COMUNICACIÓN"])
-    with t1:
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_zona.empty:
-            m = folium.Map(location=[df_zona['LATITUD'].mean(), df_zona['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
-            for _, r in df_zona.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m)
-            st_folium(m, width="100%", height=350)
-        st.markdown('</div>', unsafe_allow_html=True)
+    t1, t2, t3 = st.tabs(["📍 RADAR", "📝 NOVEDADES", "💬 COMUNICACIÓN"])
+    
     with t2:
-        st.subheader("📝 REPORTE DE NOVEDADES")
-        with st.form("acta_tactica"):
-            f_dest = st.selectbox("Objetivo:", df_zona['OBJETIVO'].unique()) if not df_zona.empty else "N/A"
-            f_vig = st.text_input("Personal en Puesto")
+        df_obj = leer_matriz_nube("OBJETIVOS")
+        with st.form("nov_sup"):
+            f_dest = st.selectbox("Objetivo:", df_obj['OBJETIVO'].unique()) if not df_obj.empty else "N/A"
             f_nov = st.text_area("Informe de Novedad")
-            gravedad = st.select_slider("GRAVEDAD:", options=["VERDE", "AMARILLO", "ROJO"])
-            if st.form_submit_button("🚀 TRANSMITIR ACTA"):
-                datos = [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", f_vig, f_dest, f_nov, gravedad]
-                if escribir_registro_nube("ACTAS_FLOTAS", datos):
-                    st.success("Acta derivada a la matriz.")
-    with t3:
-        st.info("Bandeja de Mensajería Sincronizada con Matriz Nube")
+            if st.form_submit_button("🚀 TRANSMITIR"):
+                escribir_registro_nube("ACTAS_FLOTAS", [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, "VERDE"])
+                st.success("Acta enviada.")
 
-# --- B. ROL: MONITOREO ---
+# B. MONITOREO
 elif st.session_state.rol_sel == "MONITOREO":
-    st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
-    df_emergencias = leer_matriz_nube("ALERTAS")
-    sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_emergencias.empty else 0
-    m1, m2, m3 = st.columns(3)
-    m1.metric("🚨 S.O.S ACTIVOS", sos_activos)
-    m2.metric("📡 ESTADO DE RED", "OPERATIVO")
-    m3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+    st.header("🛰️ CENTRAL DE INTELIGENCIA")
+    df_alertas = leer_matriz_nube("ALERTAS")
+    sos_activos = len(df_alertas[df_alertas['ESTADO'] == 'PENDIENTE']) if not df_alertas.empty else 0
+    st.metric("🚨 S.O.S ACTIVOS", sos_activos)
 
-    t_radar, t_gestion, t_chat = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN"])
+    t_radar, t_chat = st.tabs(["🚨 RADAR S.O.S", "💬 COMUNICACIÓN"])
+    
     with t_radar:
         if sos_activos > 0:
-            datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
-            op_en_riesgo = datos_sos['USUARIO']
-            st.error(f"🚨 ALERTA CRÍTICA: {op_en_riesgo}")
-            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            m_sos = folium.Map(location=[-34.6037, -58.3816], zoom_start=12, tiles="CartoDB dark_matter")
-            folium.Marker([-34.6037, -58.3816], popup=f"SOS: {op_en_riesgo}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
-            st_folium(m_sos, width="100%", height=350, key="mapa_mon_sos")
-            st.markdown('</div>', unsafe_allow_html=True)
-            with st.form("cierre_crisis"):
-                res_acta = st.text_area("Informe de Neutralización")
-                if st.form_submit_button("✅ CERRAR ALERTA"):
-                    fila_real = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
-                    if actualizar_celda("ALERTAS", fila_real, "D", "RESUELTO"):
-                        actualizar_celda("ALERTAS", fila_real, "E", res_acta)
-                        st.success("Resuelto"); st.cache_data.clear(); st.rerun()
-        else:
-            st.success("✅ Sistema en Vigilancia Pasiva")
-    with t_gestion:
-        with st.form("acta_base"):
-            op_nombre = st.text_input("Operador:", value=st.session_state.user_sel)
-            nov = st.text_area("Novedades")
-            if st.form_submit_button("🔒 SELLAR"):
-                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), op_nombre, "SISTEMA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
+            last_sos = df_alertas[df_alertas['ESTADO'] == 'PENDIENTE'].iloc[-1]
+            # Mapeo dinámico de columna de usuario
+            u_col = next((c for c in df_alertas.columns if any(k in c for k in ["USUARIO", "OPERADOR", "EMISOR"])), df_alertas.columns[1])
+            st.error(f"🚨 ALERTA CRÍTICA: {last_sos[u_col]}")
+            if st.button("✅ FINALIZAR EMERGENCIA"):
+                fila = df_alertas[df_alertas['ESTADO'] == 'PENDIENTE'].index[-1] + 2
+                actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
                 st.rerun()
+        else: st.success("Vigilancia Pasiva OK")
+
     with t_chat:
-        st.subheader("📨 CENTRO DE MENSAJERÍA SINCRONIZADO")
         df_m = leer_matriz_nube("MENSAJERIA")
         if not df_m.empty:
-            df_m.columns = df_m.columns.str.strip().str.upper()
-            if 'EMISOR' in df_m.columns and 'CONTENIDO' in df_m.columns:
-                for _, msg in df_m.tail(10).iloc[::-1].iterrows():
-                    tipo_avatar = "user" if msg['EMISOR'] == st.session_state.user_sel else "assistant"
-                    with st.chat_message(tipo_avatar):
-                        st.write(f"**{msg['EMISOR']}**: {msg['CONTENIDO']}")
-            else:
-                st.warning("⚠️ Columnas requeridas: EMISOR y CONTENIDO")
-        else:
-            st.info("No hay mensajes registrados.")
+            c_emi = next((c for c in df_m.columns if "EMISOR" in c or "OPERADOR" in c), None)
+            c_con = next((c for c in df_m.columns if "CONTENIDO" in c or "MENSAJE" in c), None)
+            if c_emi and c_con:
+                for _, m in df_m.tail(15).iloc[::-1].iterrows():
+                    with st.chat_message("user"): st.write(f"**{m[c_emi]}**: {m[c_con]}")
 
-# --- C. ROL: JEFE DE OPERACIONES ---
+# C. JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
+    st.header("📋 COMANDO TÁCTICO")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("REPORTES", len(df_actas) if not df_actas.empty else 0)
-    c2.metric("OBJETIVOS", len(df_objetivos))
-    c3.metric("ESTADO", "SINCRO OK")
-    t_inf, t_mapa = st.tabs(["📄 INFORMES", "🌍 MAPA"])
-    with t_inf:
-        if not df_actas.empty: st.dataframe(df_actas.tail(15), use_container_width=True)
-    with t_mapa:
-        m_ops = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
-        for _, r in df_objetivos.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO']).add_to(m_ops)
-        st_folium(m_ops, width="100%", height=400)
+    st.dataframe(df_actas.tail(30), use_container_width=True)
 
-# --- D. ROL: GERENCIA ---
+# D. GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
-    st.header("📈 DASHBOARD ESTRATÉGICO")
-    col_a, col_b = st.columns([1, 2])
-    with col_a:
-        st.subheader("⚠️ Alertas")
-        df_al = leer_matriz_nube("ALERTAS")
-        if not df_al.empty: st.write(df_al['ESTADO'].value_counts())
-    with col_b:
-        st.subheader("🏢 Estructura")
-        df_est = leer_matriz_nube("ESTRUCTURA")
-        if not df_est.empty: st.dataframe(df_est, use_container_width=True)
+    st.header("📈 DASHBOARD GERENCIAL")
+    st.subheader("Estructura de Servicios")
+    st.dataframe(leer_matriz_nube("ESTRUCTURA"), use_container_width=True)
 
-# --- E. ROL: ADMINISTRADOR ---
+# E. ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
-    with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA"):
-        u_ing = st.text_input("ADMIN_USER").lower()
-        p_ing = st.text_input("ADMIN_PASS", type="password")
-        if u_ing == "admin" and p_ing == "aion2026":
-            st.subheader("🏗️ GESTIÓN DE ESTRUCTURA")
-            tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-            nuevo_nombre = st.text_input(f"Nombre del {tipo}:").upper()
-            if st.button(f"PROCESAR ALTA"):
-                if nuevo_nombre:
-                    escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-                    st.success("Alta Exitosa")
+    u = st.text_input("ADMIN_USER")
+    p = st.text_input("ADMIN_PASS", type="password")
+    if u == "admin" and p == "aion2026":
+        if st.button("REINICIAR CACHÉ DE MATRIZ"):
+            st.cache_data.clear()
+            st.success("Datos actualizados desde la nube.")
