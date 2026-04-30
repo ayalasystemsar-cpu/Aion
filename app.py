@@ -8,10 +8,8 @@ from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-# ✅ INYECCIÓN SUPABASE
 from supabase import create_client, Client
 
-# Configuración de página de alto impacto[cite: 1]
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -19,7 +17,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ✅ INICIALIZACIÓN MOTOR SQL SUPABASE
 @st.cache_resource
 def init_connection():
     try:
@@ -29,7 +26,6 @@ def init_connection():
     except Exception:
         return None
 
-# Objeto de conexión activo
 supabase = init_connection()
 
 def aplicar_identidad_alfa():
@@ -44,18 +40,17 @@ def aplicar_identidad_alfa():
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* ✅ LOGO EN SIDEBAR (Como en tu vista previa) */
+        /* SIDEBAR SIN MARCOS EXTRAS[cite: 1, 2] */
         [data-testid="stSidebar"] { 
             background-color: #050507;
             border-right: 1px solid rgba(0, 229, 255, 0.3);
-            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
         }
 
         [data-testid="stSidebar"]::before { 
             content: "";
             display: block;
-            width: 150px;
-            height: 150px;
+            width: 140px;
+            height: 140px;
             margin: 30px auto 10px auto;
             background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
             background-size: contain;
@@ -63,34 +58,26 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* ✅ CONTENEDOR CENTRAL LIMPIO (SIN MARCO)[cite: 1, 2] */
+        /* ✅ CONTENEDOR CENTRAL 100% LIMPIO[cite: 1, 2] */
         .escudo-alfa-container {
             display: flex;
             justify-content: center;
-            padding: 40px 0;
-            background: transparent !important;
+            padding: 20px 0;
+            background: transparent !important; /* Asegura que no haya fondo[cite: 1, 2] */
         }
 
         .escudo-alfa {
-            width: 420px; 
-            border: none !important;
-            box-shadow: none !important;
-            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
+            width: 450px; 
+            border: none !important; /* Elimina cualquier borde[cite: 1, 2] */
+            box-shadow: none !important; /* Elimina cualquier resplandor[cite: 1, 2] */
+            background: transparent !important;
+            display: block;
         }
 
         h1, h2, h3 { 
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important;
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-            letter-spacing: 3px !important;
-            text-transform: uppercase;
-        }
-
-        .stButton>button { 
-            background: rgba(0, 229, 255, 0.05);
-            color: #00E5FF;
-            border: 1px solid rgba(0, 229, 255, 0.4);
-            font-family: 'Orbitron', sans-serif;
         }
         </style>
         """, unsafe_allow_html=True
@@ -98,18 +85,15 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
-# ✅ LOGO CENTRAL ACTUALIZADO (Limpio y flotante)[cite: 1, 2]
+# ✅ RENDERIZADO SIN CLASES INTERMEDIAS QUE GENEREN MARCOS[cite: 1, 2]
 st.markdown(
-    '<div class="escudo-alfa-container">'
-    '<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa">'
-    '</div>', 
+    '<div class="escudo-alfa-container"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa"></div>', 
     unsafe_allow_html=True
 )
 
+def obtener_hora_argentina():
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
 # (AQUÍ CONTINÚA TU CÓDIGO DE LÓGICA DE ROLES)
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
