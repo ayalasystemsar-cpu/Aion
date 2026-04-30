@@ -46,14 +46,14 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Negro OLED con Degradado Táctico[cite: 2] */
+        /* Fondo Negro OLED con Degradado Táctico */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 🛡️ SIDEBAR: Logo del Costado y Bordes[cite: 2] */
+        /* 🛡️ SIDEBAR: Logo del Costado y Bordes */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -71,7 +71,7 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 🛡️ LOGO CENTRAL FLOTANTE (SIN RECUADROS GRISES)[cite: 2] */
+        /* 🛡️ LIMPIEZA DE CONTENEDORES */
         [data-testid="stVerticalBlock"], 
         [data-testid="stVerticalBlock"] > div,
         [data-testid="stMarkdownContainer"],
@@ -82,20 +82,36 @@ def aplicar_identidad_alfa():
             box-shadow: none !important;
         }
 
+        /* 🛡️ LOGO CENTRAL CON LUCES Y BORDE (ESTILO CAPTURA 522) */
         .contenedor-logo-central {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin-top: -30px;
+            margin-top: -10px;
         }
 
-        .logo-phoenix {
-            width: 500px; 
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
-            mix-blend-mode: screen; 
+        .logo-tactico {
+            width: 580px; 
+            border: 2px solid #00e5ff; /* Borde cian sólido */
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.5); /* Luces de resplandor azul */
+            border-radius: 4px;
+            background-color: #000; /* Fondo negro sólido para el recuadro */
         }
 
+        .titulo-estacion {
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            color: #00e5ff;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+            letter-spacing: 2px;
+            margin-top: 10px;
+            text-transform: uppercase;
+        }
+        </style>
+        """, 
+        unsafe_allow_html=True
+    )
         /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
         .panico-container {
             display: flex;
