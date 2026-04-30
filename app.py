@@ -14,13 +14,13 @@ import json
 import base64
 import time
 
-# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Evita caídas de interfaz[cite: 2]
+# ✅ CORRECCIÓN GEOLOCALIZACIÓN
 try:
     from streamlit_js_eval import get_geolocation
 except ImportError:
     get_geolocation = None
 
-# Configuración de página OLED[cite: 2]
+# Configuración de página OLED
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -28,7 +28,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inicialización Supabase[cite: 2]
+# Inicialización Supabase
 @st.cache_resource
 def init_connection():
     try:
@@ -46,14 +46,14 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Negro OLED con Degradado Táctico[cite: 2] */
+        /* Fondo Negro OLED con Degradado Táctico */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 🛡️ SIDEBAR: Logo del Costado y Bordes[cite: 2] */
+        /* 🛡️ SIDEBAR: Estilizado con borde cian */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -71,7 +71,7 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 🛡️ LOGO CENTRAL FLOTANTE (SIN RECUADROS GRISES)[cite: 2] */
+        /* 🛡️ LIMPIEZA DE CONTENEDORES (SIN RECUADROS GRISES) */
         [data-testid="stVerticalBlock"], 
         [data-testid="stVerticalBlock"] > div,
         [data-testid="stMarkdownContainer"],
@@ -82,59 +82,43 @@ def aplicar_identidad_alfa():
             box-shadow: none !important;
         }
 
+        /* 🛡️ LOGO CENTRAL TÁCTICO (AJUSTE SEGÚN CAPTURA 510) */
         .contenedor-logo-central {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin-top: -30px;
+            margin-top: 20px;
+            margin-bottom: 5px;
         }
 
-        .logo-phoenix {
-            width: 500px; 
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
-            mix-blend-mode: screen; 
+        .logo-tactico {
+            width: 580px; /* Tamaño optimizado para impacto visual */
+            border: 2px solid #00e5ff; /* Borde Cian Sólido */
+            box-shadow: 0 0 35px rgba(0, 229, 255, 0.45); /* Resplandor Glow */
+            border-radius: 4px;
         }
 
-        /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
-        .panico-container {
-            display: flex;
-            justify-content: center; /* Centrado horizontal */
-            align-items: center;
-            width: 100%;
-            padding: 20px 0;
-            margin-top: 10px;
-        }
-        
-        .stButton > button[kind="primary"] {
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important;
-            border-radius: 50% !important;
-            width: 110px !important; 
-            height: 110px !important;
-            border: 3px solid #333 !important;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
+        /* TÍTULO DE ESTACIÓN CON ICONO RAYO */
+        .titulo-estacion {
+            text-align: center;
             font-family: 'Orbitron', sans-serif;
-            font-size: 12px !important;
-            font-weight: bold;
+            color: #00e5ff;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+            letter-spacing: 3px;
+            margin-top: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
         }
 
-        /* Contenedor Radar[cite: 1] */
-        .radar-box {
-            border: 1px solid #1A1A1B;
-            border-radius: 12px;
-            padding: 20px;
-            background: rgba(10, 10, 11, 0.8);
-            box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
-        }
-
-        h1, h2, h3, .stSubheader { 
+        /* Estilos generales para subencabezados */
+        h1, h2, h3 { 
             font-family: 'Orbitron', sans-serif; 
             color: #00E5FF !important; 
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
         }
         </style>
-        """, unsafe_allow_html=True
+        """,
+        unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
@@ -143,16 +127,28 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# ✅ RENDERIZADO DEL LOGO CENTRAL: UNA SOLA VEZ[cite: 2]
+# ✅ RENDERIZADO DEL LOGO CENTRAL Y TÍTULO (CAPTURA 510)
 st.markdown(
     """
     <div class="contenedor-logo-central">
         <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
-             class="logo-phoenix">
+             class="logo-tactico">
     </div>
+    <h2 class="titulo-estacion">⚡ ESTACIÓN TÁCTICA: BRIAN AYALA</h2>
     """, 
     unsafe_allow_html=True
 )
+
+# --- BOTONES DE ACCIÓN (ESTILO CAPTURA) ---
+st.write("") # Espaciador
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("🚨 ACTIVAR PÁNICO / SOS", use_container_width=True, type="secondary"):
+        st.error("ALERTA DE PÁNICO ACTIVADA")
+
+with col2:
+    if st.button("🔄 REFRESCAR SISTEMA", use_container_width=True):
+        st.rerun()
 
 # --- 2. MEMORIA DE SESIÓN Y CONTROL DE ACCESO (SIDEBAR) ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
