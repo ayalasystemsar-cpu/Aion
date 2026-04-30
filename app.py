@@ -1,13 +1,26 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU) ---
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (VERSIÓN FINAL AION-YAROKU) ---
 import streamlit as st
 import pandas as pd
+import numpy as np
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
 import pytz
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
+import hashlib
+import json
+import base64
+import time
 
-# Configuración de página OLED
+# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Evita caídas de interfaz[cite: 2]
+try:
+    from streamlit_js_eval import get_geolocation
+except ImportError:
+    get_geolocation = None
+
+# Configuración de página OLED[cite: 2]
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -15,112 +28,161 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Inicialización Supabase[cite: 2]
+@st.cache_resource
+def init_connection():
+    try:
+        url = st.secrets["supabase"]["url"]
+        key = st.secrets["supabase"]["key"]
+        return create_client(url, key)
+    except Exception:
+        return None
+
+supabase = init_connection()
+
 def aplicar_identidad_alfa():
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Negro OLED */
+        /* Fondo Negro OLED con Degradado Táctico[cite: 2] */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* Sidebar Táctica */
+        /* 🛡️ SIDEBAR: Logo del Costado y Bordes[cite: 2] */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
         }
 
-        /* 🖼️ LOGO CENTRAL CON MARCO AZUL (ESTILO CAPTURA 511_2) */
-        .contenedor-logo-aion {
+        [data-testid="stSidebar"]::before { 
+            content: "";
+            display: block;
+            width: 120px;
+            height: 120px;
+            margin: 10px auto;
+            background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* 🛡️ LOGO CENTRAL FLOTANTE (SIN RECUADROS GRISES)[cite: 2] */
+        [data-testid="stVerticalBlock"], 
+        [data-testid="stVerticalBlock"] > div,
+        [data-testid="stMarkdownContainer"],
+        .element-container,
+        .stMarkdown {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .contenedor-logo-central {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            padding: 10px 0;
+            margin-top: -30px;
         }
 
-        .logo-con-marco {
-            width: 520px !important; 
-            border: 2px solid #00e5ff !important;
-            box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important;
-            border-radius: 4px !important;
-            background-color: #000 !important;
+        .logo-phoenix {
+            width: 500px; 
+            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
+            mix-blend-mode: screen; 
         }
 
-        /* 🚨 BOTÓN DE PÁNICO: CHICO Y A LA DERECHA (ESTILO CAPTURA 524) */
-        .panico-derecha {
+        /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
+        .panico-container {
             display: flex;
-            justify-content: flex-end; 
+            justify-content: center; /* Centrado horizontal */
+            align-items: center;
             width: 100%;
-            padding-right: 20px;
-            margin-top: 30px;
+            padding: 20px 0;
+            margin-top: 10px;
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 85px !important;  
-            height: 85px !important; 
-            border: 2px solid #333 !important;
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.4) !important;
+            width: 110px !important; 
+            height: 110px !important;
+            border: 3px solid #333 !important;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 9px !important;
+            font-size: 12px !important;
             font-weight: bold;
-            line-height: 1.1;
-            text-transform: uppercase;
         }
 
-        .titulo-estacion {
-            text-align: center;
-            font-family: 'Orbitron', sans-serif;
-            color: #00e5ff;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
-            letter-spacing: 2px;
-            text-transform: uppercase;
+        /* Contenedor Radar[cite: 1] */
+        .radar-box {
+            border: 1px solid #1A1A1B;
+            border-radius: 12px;
+            padding: 20px;
+            background: rgba(10, 10, 11, 0.8);
+            box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
+        }
+
+        h1, h2, h3, .stSubheader { 
+            font-family: 'Orbitron', sans-serif; 
+            color: #00E5FF !important; 
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
         }
         </style>
-        """, 
-        unsafe_allow_html=True
+        """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
 
-if 'user_sel' not in st.session_state: 
-    st.session_state.user_sel = "BRIAN AYALA"
+def obtener_hora_argentina():
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# --- CUERPO: LOGO CON EL MARCO AZUL QUE QUERÉS ---
+# ✅ RENDERIZADO DEL LOGO CENTRAL: UNA SOLA VEZ[cite: 2]
 st.markdown(
-    f"""
-    <div class="contenedor-logo-aion">
+    """
+    <div class="contenedor-logo-central">
         <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
-             class="logo-con-marco">
+             class="logo-phoenix">
     </div>
-    <h2 class="titulo-estacion">ESTACIÓN TÁCTICA: {st.session_state.user_sel}</h2>
     """, 
     unsafe_allow_html=True
 )
 
-# --- SIDEBAR: BOTÓN A LA DERECHA ---
+# --- 2. MEMORIA DE SESIÓN Y CONTROL DE ACCESO (SIDEBAR) ---
+if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
+if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
+if 'lat' not in st.session_state: st.session_state.lat = 0.0
+if 'lon' not in st.session_state: st.session_state.lon = 0.0
+
 with st.sidebar:
+    # Espacio para logo lateral[cite: 2]
     st.markdown('<div style="margin-top: 140px;"></div>', unsafe_allow_html=True) 
     st.subheader("🛡️ PANEL DE CONTROL")
     
-    st.session_state.user_sel = st.selectbox(
-        "IDENTIDAD OPERATIVA", 
-        ["BRIAN AYALA", "SUPERVISOR NOCTURNO"], 
-        key="sel_user"
-    )
+    perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles, key="selector_acceso_sidebar")
+    rol = st.session_state.rol_sel
+
+    lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
+    if rol == "SUPERVISOR":
+        st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, key="id_ope_sidebar")
     
+    usuario_auth = st.session_state.user_sel
     st.markdown("---")
 
-    # ✅ BOTÓN CIRCULAR A LA DERECHA
-    st.markdown('<div class="panico-derecha">', unsafe_allow_html=True)
-    if st.button("ACTIVAR\\nPÁNICO", type="primary", key="btn_sos_sidebar"):
+with st.sidebar:
+    # ... (Selectores de Acceso e Identidad) ...
+    st.markdown("---")
+
+    # ✅ BLOQUE DEL BOTÓN (CENTRADITO ABAJO)
+    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
+    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_final_v1"):
         st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
     
