@@ -8,10 +8,8 @@ from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-# ✅ INYECCIÓN SUPABASE
 from supabase import create_client, Client
 
-# Configuración de página de alto impacto
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -19,7 +17,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ✅ INICIALIZACIÓN MOTOR SQL SUPABASE
 @st.cache_resource
 def init_connection():
     try:
@@ -29,7 +26,6 @@ def init_connection():
     except Exception:
         return None
 
-# Objeto de conexión activo
 supabase = init_connection()
 
 def aplicar_identidad_alfa():
@@ -38,24 +34,23 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
+        /* 1. Fondo Global */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%);
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* ✅ SIDEBAR PERSONALIZADO (Carga desde GitHub)[cite: 1, 2] */
+        /* 2. Sidebar con Logo[cite: 1, 2] */
         [data-testid="stSidebar"] { 
             background-color: #050507;
             border-right: 1px solid rgba(0, 229, 255, 0.3);
-            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
         }
-
         [data-testid="stSidebar"]::before { 
             content: "";
             display: block;
-            width: 150px;
-            height: 150px;
+            width: 140px;
+            height: 140px;
             margin: 30px auto 10px auto;
             background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
             background-size: contain;
@@ -63,49 +58,33 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* ✅ ELIMINACIÓN TOTAL DE MARCOS Y CONTENEDORES OSCUROS */
-        /* Esta regla "mata" el fondo gris/negro que Streamlit pone a los bloques de Markdown */
-        div[data-testid="stVerticalBlock"] > div:has(.escudo-alfa-container) {
+        /* 3. ELIMINACIÓN AGRESIVA DE CUADROS */
+        /* Esta regla mata CUALQUIER fondo o borde de los contenedores de Streamlit */
+        [data-testid="stVerticalBlock"] > div {
             background-color: transparent !important;
-            background: transparent !important;
             border: none !important;
             box-shadow: none !important;
         }
 
-        .escudo-alfa-container {
-            display: flex;
-            justify-content: center;
-            padding: 40px 0;
-            background: transparent !important;
-        }
-
-        .escudo-alfa {
-            width: 450px; 
-            border: none !important;
-            box-shadow: none !important;
-            background: transparent !important;
+        .escudo-limpio {
             display: block;
-        }
-
-        h1, h2, h3 { 
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-            letter-spacing: 3px !important;
-            text-transform: uppercase;
-        }
-
-        .stButton>button { 
-            background: rgba(0, 229, 255, 0.05);
-            color: #00E5FF;
-            border: 1px solid rgba(0, 229, 255, 0.4);
-            font-family: 'Orbitron', sans-serif;
+            margin-left: auto;
+            margin-right: auto;
+            width: 450px;
+            background: transparent !important;
+            border: none !important;
         }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
+
+# ✅ RENDERIZADO SIN DIVS EXTRAS PARA EVITAR MARCOS[cite: 1, 2]
+st.markdown(
+    f'<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-limpio">', 
+    unsafe_allow_html=True
+)
 
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
