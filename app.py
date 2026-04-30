@@ -53,7 +53,7 @@ def aplicar_identidad_alfa():
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 🛡️ SIDEBAR: Logo del Costado y Bordes */
+        /* 🛡️ SIDEBAR: Estética Táctica y Borde */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -82,7 +82,7 @@ def aplicar_identidad_alfa():
             box-shadow: none !important;
         }
 
-        /* 🛡️ LOGO CENTRAL CON LUCES Y BORDE (ESTILO CAPTURA 522) */
+        /* 🛡️ LOGO CENTRAL CON LUCES (ESTILO CAPTURA 522) */
         .contenedor-logo-central {
             display: flex;
             justify-content: center;
@@ -93,10 +93,10 @@ def aplicar_identidad_alfa():
 
         .logo-tactico {
             width: 580px; 
-            border: 2px solid #00e5ff; /* Borde cian sólido */
-            box-shadow: 0 0 40px rgba(0, 229, 255, 0.5); /* Luces de resplandor azul */
+            border: 2px solid #00e5ff; 
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.5); 
             border-radius: 4px;
-            background-color: #000; /* Fondo negro sólido para el recuadro */
+            background-color: #000;
         }
 
         .titulo-estacion {
@@ -108,32 +108,34 @@ def aplicar_identidad_alfa():
             margin-top: 10px;
             text-transform: uppercase;
         }
-        </style>
-        """, 
-        unsafe_allow_html=True
-    )
-        /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
+
+        /* ✅ BOTÓN DE PÁNICO: REDUCIDO Y A LA DERECHA */
         .panico-container {
             display: flex;
-            justify-content: center; /* Centrado horizontal */
-            align-items: center;
+            justify-content: flex-end; 
             width: 100%;
-            padding: 20px 0;
-            margin-top: 10px;
+            padding-right: 20px;
+            margin-top: 20px;
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 110px !important; 
-            height: 110px !important;
-            border: 3px solid #333 !important;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
+            width: 85px !important;  
+            height: 85px !important; 
+            border: 2px solid #333 !important;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.4) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 12px !important;
+            font-size: 9px !important;
             font-weight: bold;
+            line-height: 1.1;
+            text-transform: uppercase;
         }
+        </style>
+        """, 
+        unsafe_allow_html=True
+    )
 
         /* Contenedor Radar[cite: 1] */
         .radar-box {
