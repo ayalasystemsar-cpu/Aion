@@ -176,16 +176,6 @@ with st.sidebar:
     
     rol = st.session_state.rol_sel
     
-    # 2.4.1. Selector de Perfil Operativo
-    perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
-    st.session_state.rol_sel = st.selectbox(
-        "NIVEL DE ACCESO", 
-        perfiles, 
-        index=perfiles.index(st.session_state.rol_sel)
-    )
-    
-    rol = st.session_state.rol_sel
-
     # 2.4.2. Asignación de Identidad y Nómina (Actualizada: Marcelo Díaz Eliminado)
     # Los servicios de Díaz pasan automáticamente a Brian Ayala.
     lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
