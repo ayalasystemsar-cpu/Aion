@@ -177,10 +177,11 @@ with st.sidebar:
     st.markdown("---")
 
     # ✅ BOTÓN DE PÁNICO REDUCIDO Y DESPLAZADO A LA DERECHA[cite: 1, 2]
-    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
-    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_tactico"):
-        st.error("❗ SOS TRANSMITIDO")
-    st.markdown('</div>', unsafe_allow_html=True)
+    # En el sidebar:
+st.markdown('<div class="panico-container">', unsafe_allow_html=True)
+if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_tactico"):
+    st.error("❗ SOS TRANSMITIDO")
+st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('<div style="margin-bottom: 50px;"></div>', unsafe_allow_html=True)
 
