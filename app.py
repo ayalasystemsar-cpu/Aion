@@ -597,7 +597,22 @@ def mostrar_buzon(usuario_auth, rol):
                                 if ejecutar_acuse_recibo(m['id'], pin_final, st.session_state.lat, st.session_state.lon, usuario_auth):
                                     st.success("ACUSE REGISTRADO.")
                                     st.rerun()
+def mostrar_buzon(usuario_auth, rol):
+    st.markdown("---")
+    st.subheader("📡 COMUNICACIONES TÁCTICAS")
+    
+    # ✅ DEFINICIÓN DE LA CÚPULA (Debe ir aquí arriba)
+    cupula_mando = ["BRIAN AYALA", "LUIS BONGIORNO", "DARÍO CECILIA"]
+    es_cupula = usuario_auth in cupula_mando or rol in ["ADMINISTRADOR", "GERENCIA", "JEFE DE OPERACIONES"]
 
+    # Ahora sí puedes usar es_cupula más abajo
+    tab_recepcion, tab_emision = st.tabs(["📥 BANDEJA DE ENTRADA", "📤 TRANSMITIR DIRECTIVA"])
+    
+    # ... resto del código ...
+    
+    if es_cupula: # Ahora la línea 601 ya sabe qué es es_cupula
+        st.markdown("---")
+        # tu código de purga aquí
 if es_cupula:
     st.markdown("---")
     # Usamos st.session_state.rol_sel para ir a lo seguro
