@@ -47,16 +47,17 @@ def aplicar_identidad_alfa():
             border-right: 1px solid rgba(0, 229, 255, 0.3);
             box-shadow: 5px 0 15px rgba(0,0,0,0.5);
         }
+        /* ✅ LOGO EN SIDEBAR (Como en tu vista previa) */
         [data-testid="stSidebar"]::before { 
-            content: "SISTEMA DE GESTIÓN TÁCTICA";
+            content: "";
             display: block;
-            text-align: center;
-            color: #00E5FF;
-            font-size: 10px;
-            letter-spacing: 5px;
-            padding: 20px 0;
-            font-family: 'Orbitron', sans-serif;
-            opacity: 0.6;
+            width: 180px;
+            height: 180px;
+            margin: 20px auto;
+            background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
         }
         h1, h2, h3 { 
             font-family: 'Orbitron', sans-serif;
@@ -89,13 +90,13 @@ def aplicar_identidad_alfa():
             filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.3));
         }
         .escudo-alfa {
-            width: 320px;
+            width: 450px; /* Tamaño optimizado para impacto visual central */
             animation: pulseAion 6s infinite ease-in-out;
             transition: all 0.5s;
         }
         @keyframes pulseAion {
             0%, 100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 20px rgba(0, 229, 255, 0.4)); }
-            50% { transform: scale(1.05); filter: brightness(1.3) drop-shadow(0 0 40px rgba(0, 229, 255, 0.7)); }
+            50% { transform: scale(1.05); filter: brightness(1.2) drop-shadow(0 0 40px rgba(0, 229, 255, 0.6)); }
         }
         .stTabs [data-baseweb="tab-list"] { gap: 15px; }
         .stTabs [data-baseweb="tab"] { 
@@ -120,9 +121,16 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-st.markdown('<div class="escudo-alfa-container"><img src="https://i.ibb.co/vzrV8Vq/logo-aion.png" class="escudo-alfa"></div>', unsafe_allow_html=True)
+# ✅ LOGO CENTRAL ACTUALIZADO (Referencia a GitHub Assets)
+st.markdown(
+    '<div class="escudo-alfa-container">'
+    '<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa">'
+    '</div>', 
+    unsafe_allow_html=True
+)
 
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
+# (El resto del código se mantiene igual a partir de aquí)
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 if 'qr_mode' not in st.session_state: st.session_state.qr_mode = "Seleccionar..."
