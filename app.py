@@ -40,7 +40,7 @@ def aplicar_identidad_alfa():
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* SIDEBAR SIN MARCOS EXTRAS[cite: 1, 2] */
+        /* SIDEBAR SIN MARCOS */
         [data-testid="stSidebar"] { 
             background-color: #050507;
             border-right: 1px solid rgba(0, 229, 255, 0.3);
@@ -58,26 +58,30 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* ✅ CONTENEDOR CENTRAL 100% LIMPIO[cite: 1, 2] */
+        /* ELIMINACIÓN TOTAL DE MARCOS AUTOMÁTICOS */
+        div[data-testid="stVerticalBlock"] > div:has(img.escudo-alfa) {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
         .escudo-alfa-container {
             display: flex;
             justify-content: center;
             padding: 20px 0;
-            background: transparent !important; /* Asegura que no haya fondo[cite: 1, 2] */
+            background-color: transparent !important;
         }
 
         .escudo-alfa {
             width: 450px; 
-            border: none !important; /* Elimina cualquier borde[cite: 1, 2] */
-            box-shadow: none !important; /* Elimina cualquier resplandor[cite: 1, 2] */
+            border: none !important;
+            box-shadow: none !important;
             background: transparent !important;
-            display: block;
         }
 
         h1, h2, h3 { 
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
         }
         </style>
         """, unsafe_allow_html=True
@@ -85,7 +89,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# ✅ RENDERIZADO SIN CLASES INTERMEDIAS QUE GENEREN MARCOS[cite: 1, 2]
+# ✅ RENDERIZADO DIRECTO
 st.markdown(
     '<div class="escudo-alfa-container"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa"></div>', 
     unsafe_allow_html=True
@@ -94,6 +98,7 @@ st.markdown(
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
 # (AQUÍ CONTINÚA TU CÓDIGO DE LÓGICA DE ROLES)
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
