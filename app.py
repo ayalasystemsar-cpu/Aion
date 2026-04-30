@@ -100,14 +100,29 @@ def aplicar_identidad_alfa():
             background-color: #000 !important;
         }
 
-        /* ✅ BOTÓN DE PÁNICO: A LA DERECHA Y CENTRADO (MODIFICADO) */
+        /* ✅ MODIFICACIÓN: BOTÓN MÁS A LA DERECHA Y CENTRADO VERTICALMENTE */
         .panico-container {
             display: flex;
-            justify-content: flex-end; /* Alineado a la derecha */
-            align-items: center;
+            justify-content: flex-end; /* Lo empuja totalmente a la derecha */
+            align-items: center;       /* Lo centra verticalmente en su espacio */
             width: 100%;
-            padding-right: 20px; /* Margen desde el borde derecho */
-            margin-top: 10px;
+            padding-right: 25px;       /* Aumentamos el margen derecho para que no toque el borde */
+            margin-top: 20px;          /* Espacio superior para separarlo de los selectores */
+        }
+        
+        .stButton > button[kind="primary"] {
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
+            color: white !important;
+            border-radius: 50% !important;
+            width: 95px !important;    /* Tamaño ajustado para que se vea circular y claro */
+            height: 95px !important;
+            border: 3px solid #333 !important;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px !important;
+            font-weight: bold;
+            line-height: 1.1;
+            text-transform: uppercase;
         }
         
         .stButton > button[kind="primary"] {
