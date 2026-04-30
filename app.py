@@ -96,25 +96,26 @@ def aplicar_identidad_alfa():
             mix-blend-mode: screen; 
         }
 
-        /* ✅ BOTÓN DE PÁNICO: REDUCIDO Y DESPLAZADO A LA DERECHA[cite: 1, 2] */
+        /* ✅ BOTÓN DE PÁNICO: CENTRADO DEBAJO DEL PANEL */
         .panico-container {
             display: flex;
-            justify-content: flex-end; /* Mueve a la derecha[cite: 2] */
-            padding-right: 20px; /* Margen derecho[cite: 2] */
-            margin-top: 30px;
+            justify-content: center; /* Cambiado de flex-end a center para centrarlo[cite: 2] */
+            align-items: center;
             width: 100%;
+            padding: 20px 0; 
+            margin-top: 10px;
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 100px !important; /* Tamaño reducido[cite: 2] */
-            height: 100px !important; /* Tamaño reducido[cite: 2] */
+            width: 110px !important; /* Tamaño intermedio para que se vea bien[cite: 2] */
+            height: 110px !important;
             border: 3px solid #333 !important;
             box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 11px !important; /* Texto proporcional[cite: 2] */
+            font-size: 12px !important;
             font-weight: bold;
             line-height: 1.1;
         }
@@ -176,14 +177,14 @@ with st.sidebar:
     usuario_auth = st.session_state.user_sel
     st.markdown("---")
 
-    # ✅ BOTÓN DE PÁNICO REDUCIDO Y DESPLAZADO A LA DERECHA[cite: 1, 2]
-
-st.markdown('<div class="panico-container">', unsafe_allow_html=True)
-if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_tactico"):
-    st.error("❗ SOS TRANSMITIDO")
-st.markdown('</div>', unsafe_allow_html=True)
+  # ✅ BOTÓN DE PÁNICO CENTRADO
+    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
+    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_centrado_final"):
+        st.error("❗ SOS TRANSMITIDO")
+    st.markdown('</div>', unsafe_allow_html=True)
     
-st.markdown('<div style="margin-bottom: 50px;"></div>', unsafe_allow_html=True)
+    # Espacio final alineado correctamente
+    st.markdown('<div style="margin-bottom: 40px;"></div>', unsafe_allow_html=True)
 
 # --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
