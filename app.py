@@ -104,46 +104,29 @@ def aplicar_identidad_alfa():
             text-transform: uppercase;
         }
 
-        /* ✅ CSS PARA BOTÓN DE PÁNICO CIRCULAR EN SIDEBAR */
+       /* ✅ CSS PARA BOTÓN DE PÁNICO REDUCIDO Y DESPLAZADO */
         .panico-container {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            justify-content: flex-end; /* Alinea al final (derecha) del contenedor */
             width: 100%;
-            padding: 20px 0;
+            padding-right: 15px; /* Espacio desde el borde derecho */
+            margin-top: 10px;
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 110px !important; 
-            height: 110px !important;
-            border: 3px solid #333 !important;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
+            width: 90px !important;  /* Tamaño reducido de 110px a 90px */
+            height: 90px !important; /* Tamaño reducido de 110px a 90px */
+            border: 2px solid #333 !important;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.4) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 12px !important;
+            font-size: 10px !important; /* Fuente un poco más pequeña */
             font-weight: bold;
+            line-height: 1.2;
+            transition: transform 0.2s;
         }
-
-        /* Contenedor Radar */
-        .radar-box {
-            border: 1px solid #1A1A1B;
-            border-radius: 12px;
-            padding: 20px;
-            background: rgba(10, 10, 11, 0.8);
-            box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
-        }
-
-        h1, h2, h3, .stSubheader { 
-            font-family: 'Orbitron', sans-serif; 
-            color: #00E5FF !important; 
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
-        }
-        </style>
-        """, 
-        unsafe_allow_html=True
-    )
 
 # Ejecutar Identidad Alfa
 aplicar_identidad_alfa()
@@ -181,12 +164,13 @@ with st.sidebar:
     
     st.markdown("---")
 
-    # ✅ BOTÓN DE PÁNICO CENTRADO EN SIDEBAR
+   with st.sidebar:
+    st.markdown("---")
+    # ✅ CONTENEDOR PARA ALINEACIÓN A LA DERECHA
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_sidebar"):
         st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
-
 # --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
 
