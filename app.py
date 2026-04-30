@@ -598,8 +598,10 @@ def mostrar_buzon(usuario_auth, rol):
                                     st.success("ACUSE REGISTRADO.")
                                     st.rerun()
 
-                        if es_cupula:
-                            st.markdown("---")
+if es_cupula:
+    st.markdown("---")
+    # Usamos st.session_state.rol_sel para ir a lo seguro
+    llave_boton = f"btn_del_{m['id']}_{st.session_state.rol_sel}"
 if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"): # Línea 603
     if purgar_registro_comunicaciones(m['id']):                        # Línea 604
         st.error("REGISTRO DESTRUIDO.")                                # Línea 605 (CON SANGRE)
