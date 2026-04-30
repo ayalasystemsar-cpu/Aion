@@ -102,18 +102,19 @@ def aplicar_identidad_alfa():
 
         
         
-   /* ✅ CENTRADO ABSOLUTO Y AJUSTE DE ALTURA */
+  /* ✅ CENTRADO EXACTO PARA MÓVIL Y WEB (PUNTO MEDIO) */
         .panico-container {
             display: flex !important;
-            justify-content: center !important; /* Centrado horizontal */
+            justify-content: center !important; 
             align-items: center !important;
             width: 100% !important;
-            margin-top: 30px !important;  /* Lo subimos (antes estaba en 60px) */
-            margin-bottom: 10px !important;
+            margin-top: 50px !important; /* Altura ajustada según tu foto */
+            margin-bottom: 20px !important;
             padding: 0 !important;
+            left: 0 !important;
         }
 
-        /* Forzamos el centrado eliminando restricciones de la sidebar */
+        /* Quitamos cualquier alineación heredada de Streamlit */
         div[data-testid="stButton"] {
             display: flex !important;
             justify-content: center !important;
@@ -125,17 +126,17 @@ def aplicar_identidad_alfa():
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 100px !important;
-            height: 100px !important;
+            width: 120px !important; /* Un poco más grande como en la imagen */
+            height: 120px !important;
             border: 3px solid #333 !important;
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.6) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 11px !important;
+            font-size: 12px !important;
             font-weight: bold;
             line-height: 1.1;
             text-transform: uppercase;
             display: block !important;
-            margin: 0 auto !important; /* Asegura el punto medio */
+            margin: 0 auto !important;
         }
 
         /* Contenedor Radar */
