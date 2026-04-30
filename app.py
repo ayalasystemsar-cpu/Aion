@@ -96,13 +96,13 @@ def aplicar_identidad_alfa():
             mix-blend-mode: screen; 
         }
 
-        /* ✅ BOTÓN DE PÁNICO: CENTRADO DEBAJO DEL PANEL */
+        /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
         .panico-container {
             display: flex;
-            justify-content: center; /* Cambiado de flex-end a center para centrarlo[cite: 2] */
+            justify-content: center; /* Centrado horizontal */
             align-items: center;
             width: 100%;
-            padding: 20px 0; 
+            padding: 20px 0;
             margin-top: 10px;
         }
         
@@ -110,14 +110,13 @@ def aplicar_identidad_alfa():
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 110px !important; /* Tamaño intermedio para que se vea bien[cite: 2] */
+            width: 110px !important; 
             height: 110px !important;
             border: 3px solid #333 !important;
             box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
             font-size: 12px !important;
             font-weight: bold;
-            line-height: 1.1;
         }
 
         /* Contenedor Radar[cite: 1] */
@@ -177,11 +176,17 @@ with st.sidebar:
     usuario_auth = st.session_state.user_sel
     st.markdown("---")
 
-  # ✅ BOTÓN DE PÁNICO CENTRADO
+with st.sidebar:
+    # ... (Selectores de Acceso e Identidad) ...
+    st.markdown("---")
+
+    # ✅ BLOQUE DEL BOTÓN (CENTRADITO ABAJO)
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
-    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_centrado_final"):
+    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_final_v1"):
         st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div style="margin-bottom: 50px;"></div>', unsafe_allow_html=True)
     
     # Espacio final alineado correctamente
     st.markdown('<div style="margin-bottom: 40px;"></div>', unsafe_allow_html=True)
@@ -528,22 +533,23 @@ if st.session_state.rol_sel in ["SUPERVISOR", "VIGILADOR", "SERVICIO", "HORIZONT
         </div>
     """, unsafe_allow_html=True)
 
-# ✅ 6. MÓDULO SUPERVISOR: ESTACIÓN TÁCTICA Y TELEMETRÍA ALFA
-# Se eliminaron los guiones iniciales para corregir el SyntaxError
+# --- 6. MÓDULO SUPERVISOR: ESTACIÓN TÁCTICA ---
 
 if st.session_state.rol_sel in ["SUPERVISOR", "SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES", "GERENTE"]:
     st.markdown(f"### ⚡ ESTACIÓN TÁCTICA: {st.session_state.user_sel}")
     
-    # Definición de apellido para evitar NameError
+    # ✅ PASO 1: Garantizar que la variable exista antes de usarla
+    if 'df_objetivos' not in locals() and 'df_objetivos' not in globals():
+        df_objetivos = pd.DataFrame() 
+
     nombre_completo = st.session_state.get('user_sel', "BRIAN AYALA")
     apellido = nombre_completo.split()[-1].upper() 
 
-    # Lógica de filtrado con indentación corregida
+    # ✅ PASO 2: Lógica de filtrado con indentación corregida
     if st.session_state.rol_sel in ["SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES", "GERENTE"]:
         df_zona = df_objetivos
     else:
         if not df_objetivos.empty:
-            # Filtra objetivos que contienen el apellido del supervisor
             df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)]
         else:
             df_zona = pd.DataFrame()
