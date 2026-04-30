@@ -153,6 +153,44 @@ st.markdown(
     """, 
     unsafe_allow_html=True
 )
+
+# --- 2. MEMORIA DE SESIÓN Y CONTROL DE ACCESO (SIDEBAR) ---
+if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
+if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
+if 'lat' not in st.session_state: st.session_state.lat = 0.0
+if 'lon' not in st.session_state: st.session_state.lon = 0.0
+
+with st.sidebar:
+    # Espacio para logo lateral[cite: 2]
+    st.markdown('<div style="margin-top: 140px;"></div>', unsafe_allow_html=True) 
+    st.subheader("🛡️ PANEL DE CONTROL")
+    
+    perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles, key="selector_acceso_sidebar")
+    rol = st.session_state.rol_sel
+
+    lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
+    if rol == "SUPERVISOR":
+        st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, key="id_ope_sidebar")
+    
+    usuario_auth = st.session_state.user_sel
+    st.markdown("---")
+
+with st.sidebar:
+    # ... (Selectores de Acceso e Identidad) ...
+    st.markdown("---")
+
+    # ✅ BLOQUE DEL BOTÓN (CENTRADITO ABAJO)
+    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
+    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_final_v1"):
+        st.error("❗ SOS TRANSMITIDO")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div style="margin-bottom: 50px;"></div>', unsafe_allow_html=True)
+    
+    # Espacio final alineado correctamente
+    st.markdown('<div style="margin-bottom: 40px;"></div>', unsafe_allow_html=True)
+
 # --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
 
