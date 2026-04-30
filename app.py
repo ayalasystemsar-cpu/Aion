@@ -46,21 +46,19 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* 1. Fondo General */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 2. Sidebar */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
         }
 
-        /* 3. LOGO CENTRAL CON MARCO Y LUCES (COMO LA SEGUNDA IMAGEN) */
-        .contenedor-logo-central {
+        /* 🖼️ ESTILO FORZADO PARA LOGO CENTRAL (MARCO AZUL) */
+        .caja-logo-aion {
             display: flex;
             justify-content: center;
             align-items: center;
@@ -69,15 +67,17 @@ def aplicar_identidad_alfa():
             margin-bottom: 20px;
         }
 
-        .logo-tactico {
-            width: 550px; /* Tamaño controlado para que no se expanda */
-            border: 2px solid #00e5ff; /* El marco azul de la foto */
-            box-shadow: 0 0 35px rgba(0, 229, 255, 0.4); /* El resplandor azul */
-            border-radius: 4px;
-            background-color: #000;
+        .img-marco-azul {
+            width: 550px !important; 
+            max-width: 90% !important;
+            border: 2px solid #00e5ff !important; /* El borde de la captura 511 */
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.5) !important; /* El brillo azul */
+            border-radius: 4px !important;
+            background-color: #000 !important;
+            object-fit: contain;
         }
 
-        /* 4. Botón de Pánico (Se queda como está: chico y a la derecha) */
+        /* 🚨 BOTÓN DE PÁNICO (SE MANTIENE CHICO A LA DERECHA) */
         .panico-container {
             display: flex;
             justify-content: flex-end; 
@@ -107,25 +107,20 @@ def aplicar_identidad_alfa():
             color: #00e5ff;
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
             letter-spacing: 2px;
-            text-transform: uppercase;
         }
         </style>
         """, 
         unsafe_allow_html=True
     )
-
-aplicar_identidad_alfa()
-
-def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-# ✅ RENDERIZADO DEL LOGO CENTRAL: UNA SOLA VEZ[cite: 2]
+    
+    # ✅ RENDERIZADO CON NUEVAS CLASES PARA FORZAR EL MARCO
 st.markdown(
-    """
-    <div class="contenedor-logo-central">
+    f"""
+    <div class="caja-logo-aion">
         <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
-             class="logo-phoenix">
+             class="img-marco-azul">
     </div>
+    <h2 class="titulo-estacion">ESTACIÓN TÁCTICA: {st.session_state.user_sel}</h2>
     """, 
     unsafe_allow_html=True
 )
