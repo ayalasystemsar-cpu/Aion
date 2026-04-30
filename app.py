@@ -102,17 +102,23 @@ def aplicar_identidad_alfa():
 
         
         
-     /* ✅ BOTÓN DE PÁNICO: CENTRADO TOTAL EN SIDEBAR */
+     /* ✅ CORRECCIÓN FINAL: CENTRADO ABSOLUTO (PUNTO MEDIO) */
         .panico-container {
             display: flex !important;
-            justify-content: center !important; /* Centrado horizontal exacto */
+            justify-content: center !important; /* Punto medio horizontal */
             align-items: center !important;
             width: 100% !important;
-            padding-right: 0px !important;    /* Quitamos el margen lateral */
-            margin-top: 30px !important;
+            margin: 20px 0 !important;
+            padding: 0 !important;
         }
 
-        /* Centramos el div que envuelve al componente de Streamlit */
+        /* Forzamos el centrado en el contenedor de bloque de Streamlit */
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+        }
+
         div[data-testid="stButton"] {
             display: flex !important;
             justify-content: center !important;
@@ -123,8 +129,8 @@ def aplicar_identidad_alfa():
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 100px !important;   /* Lo agrandamos un poquito para el centro */
-            height: 100px !important;
+            width: 105px !important;
+            height: 105px !important;
             border: 3px solid #333 !important;
             box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
@@ -132,7 +138,7 @@ def aplicar_identidad_alfa():
             font-weight: bold;
             line-height: 1.1;
             text-transform: uppercase;
-            margin: 0 auto !important; /* Centrado automático */
+            margin: 0 auto !important; /* Centrado por margen automático */
         }
 
         /* Contenedor Radar */
