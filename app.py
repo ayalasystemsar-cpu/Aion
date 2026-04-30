@@ -601,10 +601,10 @@ def mostrar_buzon(usuario_auth, rol):
                         if es_cupula:
                             st.markdown("---")
                             if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"):
-                                if purgar_registro_comunicaciones(m['id']):
-                                    st.error("REGISTRO DESTRUIDO.")
-                                    st.rerun()
-               st.markdown("</div>", unsafe_allow_html=True)
+                               if purgar_registro_comunicaciones(m['id']):
+st.error("REGISTRO DESTRUIDO.")
+st.rerun()
+st.markdown("</div>", unsafe_allow_html=True)
 # --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS (GRADO MILITAR) ---
 
 # ✅ 5.1. ACCESO Y SEGURIDAD DE INFRAESTRUCTURA (BÓVEDA DE CREDENCIALES)
