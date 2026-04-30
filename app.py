@@ -94,8 +94,8 @@ def aplicar_identidad_alfa():
 
         .logo-tactico {
             width: 580px; 
-            border: 2px solid #00e5ff; /* Borde Cian Sólido */
-            box-shadow: 0 0 35px rgba(0, 229, 255, 0.45); /* Resplandor Glow */
+            border: 2px solid #00e5ff; 
+            box-shadow: 0 0 35px rgba(0, 229, 255, 0.45); 
             border-radius: 4px;
         }
 
@@ -117,7 +117,6 @@ def aplicar_identidad_alfa():
 aplicar_identidad_alfa()
 
 # ✅ RENDERIZADO DEL LOGO CENTRAL Y TÍTULO
-# Mantiene el fondo original y aplica el borde brillante solicitado
 st.markdown(
     """
     <div class="contenedor-logo-central">
@@ -129,7 +128,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-        /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
+        # ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
         .panico-container {
             display: flex;
             justify-content: center; /* Centrado horizontal */
