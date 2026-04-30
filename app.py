@@ -178,12 +178,19 @@ with st.sidebar:
     usuario_auth = st.session_state.user_sel
 
     st.markdown("---")
+# ✅ BOTÓN DE PÁNICO CENTRADO (ESTILO IMAGEN)
+    # Agregamos un divisor invisible para empujarlo hacia abajo si es necesario
+    st.markdown("<br>", unsafe_allow_html=True) 
 
-    # ✅ BOTÓN DE PÁNICO CENTRADO (ESTILO IMAGEN)[cite: 1, 2]
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_tactico"):
-        st.error("❗ SOS TRANSMITIDO")
+        # Lógica de transmisión SOS
+        hora_sos = obtener_hora_argentina()[cite: 2]
+        st.error(f"❗ SOS TRANSMITIDO A LAS {hora_sos}")[cite: 2]
     st.markdown('</div>', unsafe_allow_html=True)
+
+    # Espacio extra para que en el celular no se tape con la barra de navegación
+    st.markdown('<div style="margin-bottom: 60px;"></div>', unsafe_allow_html=True)
 
 # --- 3. ESTACIÓN DE CONTROL: RADAR Y NAVEGACIÓN ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
