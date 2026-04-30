@@ -102,14 +102,20 @@ def aplicar_identidad_alfa():
 
         
         
-       /* ✅ CORRECCIÓN DEFINITIVA: BOTÓN A LA DERECHA */
+       /* ✅ TRUCO FINAL PARA ALINEAR A LA DERECHA */
         .panico-container {
-            display: flex !important;
-            justify-content: flex-end !important; /* Fuerza el contenido a la derecha */
-            align-items: center !important;      /* Centrado vertical */
             width: 100% !important;
-            padding-right: 30px !important;      /* Espacio exacto desde el borde derecho */
-            margin-top: 30px !important;
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: flex-end !important; /* Empuja todo a la derecha */
+            padding-right: 30px !important;
+            margin-top: 20px !important;
+        }
+
+        /* Selector específico para el div que envuelve al botón de Streamlit */
+        div[data-testid="stButton"] {
+            margin-left: auto !important;
+            width: fit-content !important;
         }
         
         .stButton > button[kind="primary"] {
@@ -125,7 +131,6 @@ def aplicar_identidad_alfa():
             font-weight: bold;
             line-height: 1.1;
             text-transform: uppercase;
-            margin-left: auto !important;        /* Empuja el botón contra el padding derecho */
         }
 
         /* Contenedor Radar */
