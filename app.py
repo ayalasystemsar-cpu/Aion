@@ -7,7 +7,13 @@ import pytz
 from supabase import create_client, Client
 import base64
 
-# Configuración de página de alto impacto
+# ✅ CORRECCIÓN DE ERROR GEOLOCALIZACIÓN
+try:
+    from streamlit_js_eval import get_geolocation
+except ImportError:
+    get_geolocation = None
+
+# Configuración de página
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -15,7 +21,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inicialización del motor SQL de Supabase
+# Inicialización Supabase
 @st.cache_resource
 def init_connection():
     try:
@@ -33,14 +39,14 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
 
-        /* Fondo General de la App */
+        /* Fondo General */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #FFFFFF; 
             font-family: 'Rajdhani', sans-serif; 
         }
 
-        /* 🛡️ LOGO DEL COSTADO (SIDEBAR) */
+        /* 🛡️ SIDEBAR (COSTADO) SIN RECUADROS CELESTES */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important; 
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important; 
@@ -58,13 +64,13 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 🛡️ ELIMINACIÓN RADICAL DEL RECUADRO DEL MEDIO */
-        /* Forzamos a todos los contenedores posibles a ser transparentes */
+        /* 🛡️ ELIMINACIÓN TOTAL DEL RECUADRO DEL MEDIO */
+        /* Atacamos todos los niveles de contenedores de Streamlit */
         [data-testid="stVerticalBlock"], 
         [data-testid="stVerticalBlock"] > div,
         [data-testid="stMarkdownContainer"],
-        .stMarkdown,
-        .element-container {
+        .element-container,
+        .stMarkdown {
             background-color: transparent !important;
             background: transparent !important;
             border: none !important;
@@ -76,14 +82,14 @@ def aplicar_identidad_alfa():
             justify-content: center;
             align-items: center;
             width: 100%;
-            padding: 0;
-            margin-top: -50px; /* Ajuste para subir el logo si es necesario */
+            margin-top: -30px;
         }
 
         .logo-phoenix {
             width: 500px; 
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
-            mix-blend-mode: screen; /* Ayuda a mezclar el negro con el fondo */
+            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.3));
+            /* Esto elimina cualquier rastro de fondo negro en la imagen */
+            mix-blend-mode: screen; 
         }
 
         h1, h2, h3, .stSubheader { 
@@ -97,7 +103,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# ✅ RENDERIZADO DEL LOGO CENTRAL SIN RECUADROS
+# ✅ RENDERIZADO DEL LOGO FLOTANTE
 st.markdown(
     """
     <div class="contenedor-logo-central">
