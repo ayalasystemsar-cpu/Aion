@@ -7,13 +7,13 @@ import pytz
 from supabase import create_client, Client
 import base64
 
-# ✅ CORRECCIÓN DE ERROR GEOLOCALIZACIÓN
+# ✅ CORRECCIÓN FINAL: GEOLOCALIZACIÓN (Evita el mensaje de error rojo)
 try:
     from streamlit_js_eval import get_geolocation
 except ImportError:
     get_geolocation = None
 
-# Configuración de página
+# Configuración de página de alto impacto
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -39,14 +39,14 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
 
-        /* Fondo General */
+        /* Fondo General de la App - Degradado profundo */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #FFFFFF; 
             font-family: 'Rajdhani', sans-serif; 
         }
 
-        /* 🛡️ SIDEBAR (COSTADO) SIN RECUADROS CELESTES */
+        /* 🛡️ SIDEBAR (COSTADO): Estilo y Logo */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important; 
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important; 
@@ -64,8 +64,18 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 🛡️ ELIMINACIÓN TOTAL DEL RECUADRO DEL MEDIO */
-        /* Atacamos todos los niveles de contenedores de Streamlit */
+        [data-testid="stSidebar"]::after { 
+            content: "SISTEMA DE GESTIÓN TÁCTICA";
+            display: block;
+            text-align: center;
+            color: #00E5FF;
+            font-size: 10px;
+            letter-spacing: 3px;
+            font-family: 'Orbitron', sans-serif;
+            opacity: 0.7;
+        }
+
+        /* 🛡️ ELIMINACIÓN DEL RECUADRO DEL MEDIO (TRANSPARENCIA TOTAL) */
         [data-testid="stVerticalBlock"], 
         [data-testid="stVerticalBlock"] > div,
         [data-testid="stMarkdownContainer"],
@@ -82,13 +92,14 @@ def aplicar_identidad_alfa():
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin-top: -30px;
+            padding: 0;
+            margin-top: -20px;
         }
 
         .logo-phoenix {
             width: 500px; 
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.3));
-            /* Esto elimina cualquier rastro de fondo negro en la imagen */
+            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
+            /* Fusiona el negro de la imagen con el fondo azul */
             mix-blend-mode: screen; 
         }
 
@@ -103,7 +114,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# ✅ RENDERIZADO DEL LOGO FLOTANTE
+# ✅ RENDERIZADO DEL LOGO CENTRAL FLOTANTE
 st.markdown(
     """
     <div class="contenedor-logo-central">
