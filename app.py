@@ -531,9 +531,10 @@ if st.session_state.rol_sel in ["SUPERVISOR", "VIGILADOR", "SERVICIO", "HORIZONT
 # --- 6. MÓDULO SUPERVISOR: ESTACIÓN TÁCTICA Y TELEMETRÍA ALFA ---
 
 # Se amplía el acceso a la cúpula para auditoría en tiempo real
-if st.session_state.rol_sel in ["SUPERVISOR", "SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES", "GERENTE"]:
-    st.markdown(f"### ⚡ ESTACIÓN TÁCTICA: {st.session_state.user_sel}")
-    
+if st.session_state.rol_sel in ["SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES", "GERENTE"]:
+        df_zona = df_objetivos
+    else:
+        df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
     # --- 6.1. CONTROL DE FLOTA (LOGÍSTICA INMUTABLE SQL) ---
     with st.expander("🚚 AUDITORÍA DE UNIDAD MÓVIL", expanded=False):
         c_movf, c_km1, c_km2, c_comb = st.columns(4)
