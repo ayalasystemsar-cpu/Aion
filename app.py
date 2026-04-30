@@ -467,83 +467,48 @@ def purgar_registro_comunicaciones(id_mensaje):
     except:
         return False
 
-# ✅ 4.6. INTERFAZ DE COMUNICACIONES Y ENRUTAMIENTO (BUZÓN) 
+# --- 4.6. INTERFAZ DE COMUNICACIONES Y ENRUTAMIENTO (BUZÓN) ---
 def mostrar_buzon(usuario_auth, rol):
     st.markdown("---")
     st.subheader("📡 COMUNICACIONES TÁCTICAS")
     
-    # Definición de la Cúpula de Mando (Con acceso a Dark Mesh y Purga)
+    # ✅ DEFINICIÓN DE LA CÚPULA (Protección de acceso)
     cupula_mando = ["BRIAN AYALA", "LUIS BONGIORNO", "DARÍO CECILIA"]
     es_cupula = usuario_auth in cupula_mando or rol in ["ADMINISTRADOR", "GERENCIA", "JEFE DE OPERACIONES"]
 
     tab_recepcion, tab_emision = st.tabs(["📥 BANDEJA DE ENTRADA", "📤 TRANSMITIR DIRECTIVA"])
 
     # ---------------------------------------------------------
-    # PESTAÑA 1: TRANSMISIÓN (ENRUTAMIENTO SELECTIVO)
+    # PESTAÑA 1: TRANSMISIÓN
     # ---------------------------------------------------------
     with tab_emision:
         st.markdown("*NUEVA DIRECTIVA / NOVEDAD*")
-        
-        # Enrutamiento según jerarquía
         opciones_destinatario = ["CENTRAL DE MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"]
         
         if es_cupula:
-            # La cúpula puede enviar a todos y usar canales grupales
             opciones_destinatario = ["GRUPAL (TODA LA TROPA)"] + opciones_destinatario + ["SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
         elif rol == "MONITOREO":
-            # Monitoreo puede enrutar a Jefatura, Gerencia o Supervisores en terreno
             opciones_destinatario = ["JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
 
-        # --- CORRECCIÓN FINAL: KEY EN SELECTBOX ---
-        destinatario = st.selectbox(
-            "DESTINATARIO TÁCTICO", 
-            opciones_destinatario,
-            key=f"dest_tactico_{rol}_{usuario_auth.replace(' ', '_')}"
-        )
-        
-        # --- KEY EN RADIO ---
-        prioridad = st.radio(
-            "NIVEL DE PRIORIDAD", 
-            ["VERDE (Informativo)", "AMARILLA (Precaución)", "ROJA (Crítico)"], 
-            horizontal=True,
-            key=f"radio_prioridad_{rol}_{usuario_auth.replace(' ', '_')}"
-        )
+        destinatario = st.selectbox("DESTINATARIO TÁCTICO", opciones_destinatario, key=f"dest_{rol}_{usuario_auth.replace(' ', '_')}")
+        prioridad = st.radio("NIVEL DE PRIORIDAD", ["VERDE (Informativo)", "AMARILLA (Precaución)", "ROJA (Crítico)"], horizontal=True, key=f"pri_{rol}")
         nivel_pri = prioridad.split(" ")[0]
 
-        # --- KEY EN TOGGLE ---
-        usar_dark_mesh = False
-        if es_cupula and destinatario in cupula_mando:
-            usar_dark_mesh = st.toggle(
-                "🛡️ ENRUTAR POR MALLA OSCURA (DARK MESH)", 
-                value=False,
-                key=f"mesh_toggle_{rol}_{usuario_auth.replace(' ', '_')}"
-            )
-
-        texto_mensaje = st.text_area("CUERPO DEL REPORTE", height=100, key=f"text_area_{rol}")
+        texto_mensaje = st.text_area("CUERPO DEL REPORTE", height=100, key=f"txt_{rol}")
+        captura = st.camera_input("📷 CAPTURAR FOTOGRAFÍA", key=f"cam_{rol}")
         
-        # Telemetría Óptica
-        st.markdown("*EVIDENCIA ÓPTICA (OPCIONAL)*")
-        captura = st.camera_input("📷 CAPTURAR FOTOGRAFÍA IN SITU", key=f"cam_input_{rol}")
-        
-        if st.button("🚀 TRANSMITIR", use_container_width=True, key=f"btn_transmitir_{rol}"):
-            if texto_mensaje.strip() == "":
-                st.warning("El reporte no puede estar vacío.")
-            else:
+        if st.button("🚀 TRANSMITIR", use_container_width=True, key=f"btn_send_{rol}"):
+            if texto_mensaje.strip() != "":
                 img_b64 = encriptar_imagen_b64(captura) if captura else None
-                exito, pri_final = transmitir_directiva(usuario_auth, destinatario, nivel_pri, texto_mensaje, img_b64, usar_dark_mesh)
-                
-                if exito:
-                    if pri_final == "ROJA" and nivel_pri != "ROJA":
-                        st.error("🚨 MOTOR PREDICTIVO ACTIVADO: Amenaza detectada en el texto. Prioridad escalada a ROJA.")
-                    st.success("TRANSMISIÓN CONFIRMADA Y ENCRIPTADA.")
-                else:
-                    st.error("FALLA DE ENLACE CON SUPABASE.")
+                transmitir_directiva(usuario_auth, destinatario, nivel_pri, texto_mensaje, img_b64)
+                st.success("TRANSMISIÓN ENVIADA.")
+                st.rerun()
 
     # ---------------------------------------------------------
-    # PESTAÑA 2: RECEPCIÓN Y DESENCRIPTACIÓN
+    # PESTAÑA 2: RECEPCIÓN (Aquí es donde estaba el error)
     # ---------------------------------------------------------
     with tab_recepcion:
-        if st.button("🔄 SINCRONIZAR RED", key=f"btn_sincronizar_{rol}"):
+        if st.button("🔄 SINCRONIZAR RED", key=f"sync_{rol}"):
             st.rerun()
             
         try:
@@ -551,78 +516,43 @@ def mostrar_buzon(usuario_auth, rol):
             mensajes = res.data if res.data else []
         except:
             mensajes = []
-            st.error("Enlace SQL interrumpido.")
 
         if not mensajes:
             st.info("Sin tráfico en la red.")
         else:
             for m in mensajes:
+                # Filtros de visibilidad
                 es_para_mi = m['destinatario'] == usuario_auth or m['destinatario'] == "GRUPAL (TODA LA TROPA)"
-                soy_monitoreo_y_es_para_mi = rol == "MONITOREO" and m['destinatario'] == "CENTRAL DE MONITOREO"
+                soy_monitoreo = rol == "MONITOREO" and m['destinatario'] == "CENTRAL DE MONITOREO"
                 
-                if not (es_para_mi or soy_monitoreo_y_es_para_mi):
-                    continue
-                
-                if m['dark_mesh'] and not es_cupula:
-                    continue
+                if not (es_para_mi or soy_monitoreo): continue
+                if m['dark_mesh'] and not es_cupula: continue
 
-                color_borde = "#00E5FF" if m['prioridad'] == "VERDE" else "#FFD600" if m['prioridad'] == "AMARILLA" else "#FF1744"
-                icono_mesh = "🛡️ [DARK MESH] " if m['dark_mesh'] else ""
+                color_b = "#00E5FF" if m['prioridad'] == "VERDE" else "#FFD600" if m['prioridad'] == "AMARILLA" else "#FF1744"
                 
-                with st.expander(f"{icono_mesh}[{m['fecha_hora']}] {m['prioridad']} - De: {m['remitente']} | Estado: {m['estado']}"):
-                    st.markdown(f"<div style='border-left: 4px solid {color_borde}; padding-left: 10px;'>", unsafe_allow_html=True)
+                with st.expander(f"De: {m['remitente']} | {m['fecha_hora']}"):
+                    st.markdown(f"<div style='border-left: 4px solid {color_b}; padding-left: 10px;'>", unsafe_allow_html=True)
+                    st.write(m['mensaje'])
                     
-                    mostrar_contenido = True
-                    if m['prioridad'] == "ROJA" and m['estado'] == "PENDIENTE" and rol not in ["MONITOREO", "ADMINISTRADOR"]:
-                        pin_acceso = st.text_input("🔑 PIN PARA DESENCRIPTAR", type="password", key=f"pin_in_{m['id']}_{rol}")
-                        if pin_acceso == "":
-                            mostrar_contenido = False
-                        else:
-                            st.session_state[f"pin_temp_{m['id']}"] = pin_acceso
+                    if m['imagen_evidencia']:
+                        img_bytes = base64.b64decode(m['imagen_evidencia'])
+                        st.image(img_bytes, use_container_width=True)
 
-                    if mostrar_contenido:
-                        st.write(m['mensaje'])
-                        
-                        if m['imagen_evidencia']:
-                            st.markdown("*EVIDENCIA ADJUNTA:*")
-                            try:
-                                img_bytes = base64.b64decode(m['imagen_evidencia'])
-                                st.image(img_bytes, use_container_width=True)
-                            except:
-                                st.error("Error al desencriptar imagen.")
+                    # ✅ BOTÓN DE ACUSE PARA TODOS
+                    if m['estado'] == "PENDIENTE":
+                        if st.button("✅ RECIBIDO", key=f"ack_{m['id']}"):
+                            ejecutar_acuse_recibo(m['id'], "0000", st.session_state.lat, st.session_state.lon, usuario_auth)
+                            st.rerun()
 
-                        if m['estado'] == "PENDIENTE":
-                            pin_final = st.session_state.get(f"pin_temp_{m['id']}", "0000")
-                            if st.button("✅ DAR ACUSE DE RECIBO", key=f"btn_ack_{m['id']}_{rol}"):
-                                if ejecutar_acuse_recibo(m['id'], pin_final, st.session_state.lat, st.session_state.lon, usuario_auth):
-                                    st.success("ACUSE REGISTRADO.")
-                                    st.rerun()
-def mostrar_buzon(usuario_auth, rol):
-    st.markdown("---")
-    st.subheader("📡 COMUNICACIONES TÁCTICAS")
-    
-    # ✅ DEFINICIÓN DE LA CÚPULA (Debe ir aquí arriba)
-    cupula_mando = ["BRIAN AYALA", "LUIS BONGIORNO", "DARÍO CECILIA"]
-    es_cupula = usuario_auth in cupula_mando or rol in ["ADMINISTRADOR", "GERENCIA", "JEFE DE OPERACIONES"]
-
-    # Ahora sí puedes usar es_cupula más abajo
-    tab_recepcion, tab_emision = st.tabs(["📥 BANDEJA DE ENTRADA", "📤 TRANSMITIR DIRECTIVA"])
-    
-    # ... resto del código ...
-    
-    if es_cupula: # Ahora la línea 601 ya sabe qué es es_cupula
-        st.markdown("---")
-        # tu código de purga aquí
-if es_cupula:
-    st.markdown("---")
-    # Usamos st.session_state.rol_sel para ir a lo seguro
-    llave_boton = f"btn_del_{m['id']}_{st.session_state.rol_sel}"
-if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"): # Línea 603
-    if purgar_registro_comunicaciones(m['id']):                        # Línea 604
-        st.error("REGISTRO DESTRUIDO.")                                # Línea 605 (CON SANGRE)
-        st.rerun()                                                     # Línea 606 (ALINEADA CON 605)
-st.markdown("</div>", unsafe_allow_html=True)                          # Línea 607 (VUELVE ATRÁS)
-# --- 5. INFRAESTRUCTURA LATERAL, IDENTIDAD Y BOTONES TÁCTICOS (GRADO MILITAR) ---
+                    # ✅ BOTÓN DE PURGA SÓLO PARA LA CÚPULA (Bien alineado)
+                    if es_cupula:
+                        st.markdown("---")
+                        if st.button("☢️ PURGAR REGISTRO", key=f"del_{m['id']}", type="primary"):
+                            if purgar_registro_comunicaciones(m['id']):
+                                st.error("DESTRUIDO.")
+                                st.rerun()
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
 
 # ✅ 5.1. ACCESO Y SEGURIDAD DE INFRAESTRUCTURA (BÓVEDA DE CREDENCIALES)
 def acceso_infraestructura_critica():
