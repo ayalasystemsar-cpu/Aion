@@ -154,7 +154,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 Cmbio todo esto?
-
 # --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
 
