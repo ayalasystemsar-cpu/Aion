@@ -14,13 +14,13 @@ import json
 import base64
 import time
 
-# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Sin caracteres invisibles
+# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Evita caídas de interfaz[cite: 2]
 try:
     from streamlit_js_eval import get_geolocation
 except ImportError:
     get_geolocation = None
 
-# Configuración de página OLED
+# Configuración de página OLED[cite: 2]
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -28,7 +28,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inicialización Supabase
+# Inicialización Supabase[cite: 2]
 @st.cache_resource
 def init_connection():
     try:
@@ -46,14 +46,14 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Negro OLED con Degradado Táctico */
+        /* Fondo Negro OLED con Degradado Táctico[cite: 2] */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 🛡️ SIDEBAR: Logo del Costado y Bordes */
+        /* 🛡️ SIDEBAR: Logo del Costado y Bordes[cite: 2] */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -71,7 +71,7 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 🛡️ LIMPIEZA DE CONTENEDORES */
+        /* 🛡️ LOGO CENTRAL FLOTANTE (SIN RECUADROS GRISES)[cite: 2] */
         [data-testid="stVerticalBlock"], 
         [data-testid="stVerticalBlock"] > div,
         [data-testid="stMarkdownContainer"],
@@ -82,53 +82,21 @@ def aplicar_identidad_alfa():
             box-shadow: none !important;
         }
 
-        /* 🛡️ LOGO CENTRAL TÁCTICO (ESTILO CAPTURA 511) */
         .contenedor-logo-central {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin-top: 10px;
-            margin-bottom: 5px;
+            margin-top: -30px;
         }
 
-        .logo-tactico {
-            width: 580px; 
-            border: 2px solid #00e5ff; 
-            box-shadow: 0 0 35px rgba(0, 229, 255, 0.45); 
-            border-radius: 4px;
+        .logo-phoenix {
+            width: 500px; 
+            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
+            mix-blend-mode: screen; 
         }
 
-        .titulo-estacion {
-            text-align: center;
-            font-family: 'Orbitron', sans-serif;
-            color: #00e5ff;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
-            letter-spacing: 3px;
-            margin-top: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-aplicar_identidad_alfa()
-
-# ✅ RENDERIZADO DEL LOGO CENTRAL Y TÍTULO
-st.markdown(
-    """
-    <div class="contenedor-logo-central">
-        <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
-             class="logo-tactico">
-    </div>
-    <h2 class="titulo-estacion">⚡ ESTACIÓN TÁCTICA: BRIAN AYALA</h2>
-    """, 
-    unsafe_allow_html=True
-)
-
-        # ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
+        /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
         .panico-container {
             display: flex;
             justify-content: center; /* Centrado horizontal */
