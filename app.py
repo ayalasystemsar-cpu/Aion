@@ -8,10 +8,9 @@ from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-# ✅ INYECCIÓN SUPABASE
 from supabase import create_client, Client
 
-# Configuración de página de alto impacto
+# Configuración de página de alto impacto[cite: 1]
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -19,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ✅ INICIALIZACIÓN MOTOR SQL SUPABASE
+# ✅ INICIALIZACIÓN MOTOR SQL SUPABASE[cite: 2]
 @st.cache_resource
 def init_connection():
     try:
@@ -29,7 +28,6 @@ def init_connection():
     except Exception:
         return None
 
-# Objeto de conexión activo para usar en el resto del código
 supabase = init_connection()
 
 def aplicar_identidad_alfa():
@@ -37,28 +35,33 @@ def aplicar_identidad_alfa():
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+        
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%);
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
+
+        /* DISEÑO DE BARRA LATERAL (SIDEBAR)[cite: 2] */
         [data-testid="stSidebar"] { 
             background-color: #050507;
             border-right: 1px solid rgba(0, 229, 255, 0.3);
             box-shadow: 5px 0 15px rgba(0,0,0,0.5);
         }
-        /* ✅ LOGO EN SIDEBAR (Como en tu vista previa) */
+
+        /* ✅ LOGO EN EL SIDEBAR (Carga desde tu GitHub) */
         [data-testid="stSidebar"]::before { 
             content: "";
             display: block;
-            width: 180px;
-            height: 180px;
-            margin: 20px auto;
+            width: 160px;
+            height: 160px;
+            margin: 20px auto 10px auto;
             background-image: url("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg");
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
         }
+
         h1, h2, h3 { 
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important;
@@ -66,50 +69,38 @@ def aplicar_identidad_alfa():
             letter-spacing: 3px !important;
             text-transform: uppercase;
         }
+
         .stButton>button { 
             background: rgba(0, 229, 255, 0.05);
             color: #00E5FF;
             border: 1px solid rgba(0, 229, 255, 0.4);
             border-radius: 2px;
             font-family: 'Orbitron', sans-serif;
-            font-size: 12px;
-            letter-spacing: 2px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            height: 45px;
         }
-        .stButton>button:hover { 
-            background: #00E5FF;
-            color: #000000;
-            box-shadow: 0 0 30px rgba(0, 229, 255, 0.8);
-            transform: scale(1.02);
-        }
+
         .escudo-alfa-container {
             display: flex;
             justify-content: center;
             padding: 30px 0;
             filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.3));
         }
+
         .escudo-alfa {
-            width: 450px; /* Tamaño optimizado para impacto visual central */
+            width: 480px; /* Tamaño central para mayor impacto visual[cite: 1] */
             animation: pulseAion 6s infinite ease-in-out;
             transition: all 0.5s;
         }
+
         @keyframes pulseAion {
             0%, 100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 20px rgba(0, 229, 255, 0.4)); }
             50% { transform: scale(1.05); filter: brightness(1.2) drop-shadow(0 0 40px rgba(0, 229, 255, 0.6)); }
         }
+
         .stTabs [data-baseweb="tab-list"] { gap: 15px; }
         .stTabs [data-baseweb="tab"] { 
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.1);
-            color: #888;
-            padding: 10px 25px;
             font-family: 'Orbitron', sans-serif;
-        }
-        .stTabs [aria-selected="true"] { 
-            background: rgba(0, 229, 255, 0.15) !important;
-            color: #00E5FF !important;
-            border: 1px solid #00E5FF !important;
         }
         </style>
         """, unsafe_allow_html=True
@@ -121,7 +112,7 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# ✅ LOGO CENTRAL ACTUALIZADO (Referencia a GitHub Assets)
+# ✅ LOGO CENTRAL ACTUALIZADO (Referencia directa a tus assets de GitHub)
 st.markdown(
     '<div class="escudo-alfa-container">'
     '<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa">'
