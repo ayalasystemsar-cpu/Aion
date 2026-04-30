@@ -597,11 +597,12 @@ def mostrar_buzon(usuario_auth, rol):
                                 if ejecutar_acuse_recibo(m['id'], pin_final, st.session_state.lat, st.session_state.lon, usuario_auth):
                                     st.success("ACUSE REGISTRADO.")
                                     st.rerun()
-
-                        if es_cupula:
+if es_cupula:
                             st.markdown("---")
                             if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"):
                                 if purgar_registro_comunicaciones(m['id']):
                                     st.error("REGISTRO DESTRUIDO.")
                                     st.rerun()
-               st.markdown("</div>", unsafe_allow_html=True)
+            
+            # ESTA LÍNEA DEBE TENER LA MISMA SANGRÍA QUE EL "for m in mensajes"
+            st.markdown("</div>", unsafe_allow_html=True)
