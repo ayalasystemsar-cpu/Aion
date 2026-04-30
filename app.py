@@ -205,19 +205,33 @@ elif st.session_state.rol_sel == "MONITOREO":
 
     with t_radar:
         if sos_activos > 0:
-            # Filtramos las que dicen 'PENDIENTE' en la columna ESTADO[cite: 1]
+            # Filtramos las que dicen 'PENDIENTE' en la columna ESTADO
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             
-            # 🚨 CAMBIO CLAVE: Usamos 'USUARIO' porque así está en tu GSheet[cite: 1]
+            # 🚨 CAMBIO CLAVE: Identificación por columna 'USUARIO'
             op_en_riesgo = datos_sos['USUARIO'] 
             st.error(f"🚨 ALERTA CRÍTICA: {op_en_riesgo}")
+
+            # --- MAPA TÁCTICO DE EMERGENCIA ---
+            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+            centro_lat, centro_lon = -34.6037, -58.3816 
+            
+            m_sos = folium.Map(location=[centro_lat, centro_lon], zoom_start=12, tiles="CartoDB dark_matter")
+            
+            # Marcador de Alerta Roja Pulsante
+            folium.Marker(
+                [centro_lat, centro_lon], 
+                popup=f"EMERGENCIA: {op_en_riesgo}", 
+                icon=folium.Icon(color="red", icon="exclamation-triangle", prefix="fa")
+            ).add_to(m_sos)
+            
+            st_folium(m_sos, width="100%", height=400, key="mapa_emergencia")
+            st.markdown('</div>', unsafe_allow_html=True)
             
             with st.form("cierre_crisis"):
                 res_acta = st.text_area("Informe de Neutralización")
                 if st.form_submit_button("✅ CERRAR ALERTA"):
-                    # Buscamos la fila (index + 2)[cite: 1]
                     fila_real = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
-                    # 'D' es la columna ESTADO en tu archivo[cite: 1]
                     if actualizar_celda("ALERTAS", fila_real, "D", "RESUELTO"):
                         actualizar_celda("ALERTAS", fila_real, "E", res_acta)
                         st.success("Emergencia Resuelta")
@@ -225,6 +239,8 @@ elif st.session_state.rol_sel == "MONITOREO":
                         st.rerun()
         else:
             st.success("✅ Sistema en Vigilancia Pasiva")
+            m_pasivo = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
+            st_folium(m_pasivo, width="100%", height=400, key="mapa_pasivo")
 
     with t_gestion:
         with st.form("acta_base"):
@@ -233,6 +249,20 @@ elif st.session_state.rol_sel == "MONITOREO":
             if st.form_submit_button("🔒 SELLAR LIBRO"):
                 escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), op_nombre, "DARÍO CECILIA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
                 st.success("Sellado."); st.rerun()
+
+    with t_chat:
+        st.subheader("📨 CENTRO DE MENSAJERÍA SINCRONIZADO")
+        df_mensajes = leer_matriz_nube("MENSAJERIA")
+        
+        if not df_mensajes.empty:
+            for _, msg in df_mensajes.tail(15).iloc[::-1].iterrows():
+                tipo_msg = "user" if msg['EMISOR'] == st.session_state.user_sel else "assistant"
+                with st.chat_message(tipo_msg):
+                    st.write(f"**{msg['EMISOR']}** ➔ **{msg['RECEPTOR']}**")
+                    st.caption(f"🕒 {msg['FECHA']}")
+                    st.info(msg['CONTENIDO'])
+        else:
+            st.warning("No se detectan comunicaciones en la matriz de nube.")
 
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
