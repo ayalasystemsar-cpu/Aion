@@ -102,39 +102,37 @@ def aplicar_identidad_alfa():
 
         
         
-     /* 🚨 CONTROL ABSOLUTO PARA MOVER EL BOTÓN A LA DERECHA */
-        /* Primero: quitamos el centrado que Streamlit pone por defecto */
-        [data-testid="stSidebarNavItems"] + div,
-        .panico-container,
-        div[data-testid="stVerticalBlock"] > div:has(button[kind="primary"]) {
+     /* ✅ BOTÓN DE PÁNICO: CENTRADO TOTAL EN SIDEBAR */
+        .panico-container {
             display: flex !important;
-            justify-content: flex-end !important;
+            justify-content: center !important; /* Centrado horizontal exacto */
+            align-items: center !important;
             width: 100% !important;
-            flex-direction: row !important;
+            padding-right: 0px !important;    /* Quitamos el margen lateral */
+            margin-top: 30px !important;
         }
 
-        /* Segundo: Forzamos al contenedor del botón a alinearse a la derecha */
+        /* Centramos el div que envuelve al componente de Streamlit */
         div[data-testid="stButton"] {
             display: flex !important;
-            justify-content: flex-end !important;
+            justify-content: center !important;
             width: 100% !important;
-            padding-right: 30px !important; /* Ajuste para alinear con los selectores */
         }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 95px !important;
-            height: 95px !important;
+            width: 100px !important;   /* Lo agrandamos un poquito para el centro */
+            height: 100px !important;
             border: 3px solid #333 !important;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.6) !important;
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
-            font-size: 10px !important;
+            font-size: 11px !important;
             font-weight: bold;
             line-height: 1.1;
             text-transform: uppercase;
-            margin: 0 !important; /* Quitamos márgenes automáticos que lo centran */
+            margin: 0 auto !important; /* Centrado automático */
         }
 
         /* Contenedor Radar */
