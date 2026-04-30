@@ -1,26 +1,13 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (VERSIÓN FINAL AION-YAROKU) ---
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU) ---
 import streamlit as st
 import pandas as pd
-import numpy as np
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
 import pytz
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
-import hashlib
-import json
-import base64
-import time
 
-# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Evita caídas de interfaz[cite: 2]
-try:
-    from streamlit_js_eval import get_geolocation
-except ImportError:
-    get_geolocation = None
-
-# Configuración de página OLED[cite: 2]
+# Configuración de página OLED
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -28,62 +15,49 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inicialización Supabase[cite: 2]
-@st.cache_resource
-def init_connection():
-    try:
-        url = st.secrets["supabase"]["url"]
-        key = st.secrets["supabase"]["key"]
-        return create_client(url, key)
-    except Exception:
-        return None
-
-supabase = init_connection()
-
 def aplicar_identidad_alfa():
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
+        /* Fondo Negro OLED */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
+        /* Sidebar Táctica */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
         }
 
-        /* 🖼️ ESTILO FORZADO PARA LOGO CENTRAL (MARCO AZUL) */
-        .caja-logo-aion {
+        /* 🖼️ LOGO CENTRAL CON MARCO AZUL (ESTILO CAPTURA 511_2) */
+        .contenedor-logo-aion {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin-top: 10px;
-            margin-bottom: 20px;
+            padding: 10px 0;
         }
 
-        .img-marco-azul {
-            width: 550px !important; 
-            max-width: 90% !important;
-            border: 2px solid #00e5ff !important; /* El borde de la captura 511 */
-            box-shadow: 0 0 40px rgba(0, 229, 255, 0.5) !important; /* El brillo azul */
+        .logo-con-marco {
+            width: 520px !important; 
+            border: 2px solid #00e5ff !important;
+            box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important;
             border-radius: 4px !important;
             background-color: #000 !important;
-            object-fit: contain;
         }
 
-        /* 🚨 BOTÓN DE PÁNICO (SE MANTIENE CHICO A LA DERECHA) */
-        .panico-container {
+        /* 🚨 BOTÓN DE PÁNICO: CHICO Y A LA DERECHA (ESTILO CAPTURA 524) */
+        .panico-derecha {
             display: flex;
             justify-content: flex-end; 
             width: 100%;
             padding-right: 20px;
-            margin-top: 20px;
+            margin-top: 30px;
         }
         
         .stButton > button[kind="primary"] {
@@ -107,53 +81,46 @@ def aplicar_identidad_alfa():
             color: #00e5ff;
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
             letter-spacing: 2px;
+            text-transform: uppercase;
         }
         </style>
         """, 
         unsafe_allow_html=True
     )
-    
-    # ✅ RENDERIZADO CON NUEVAS CLASES PARA FORZAR EL MARCO
+
+aplicar_identidad_alfa()
+
+if 'user_sel' not in st.session_state: 
+    st.session_state.user_sel = "BRIAN AYALA"
+
+# --- CUERPO: LOGO CON EL MARCO AZUL QUE QUERÉS ---
 st.markdown(
     f"""
-    <div class="caja-logo-aion">
+    <div class="contenedor-logo-aion">
         <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
-             class="img-marco-azul">
+             class="logo-con-marco">
     </div>
     <h2 class="titulo-estacion">ESTACIÓN TÁCTICA: {st.session_state.user_sel}</h2>
     """, 
     unsafe_allow_html=True
 )
 
-# --- 2. MEMORIA DE SESIÓN Y CONTROL DE ACCESO (SIDEBAR) ---
-if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
-if 'lat' not in st.session_state: st.session_state.lat = 0.0
-if 'lon' not in st.session_state: st.session_state.lon = 0.0
-
+# --- SIDEBAR: BOTÓN A LA DERECHA ---
 with st.sidebar:
-    # Espacio para logo lateral[cite: 2]
     st.markdown('<div style="margin-top: 140px;"></div>', unsafe_allow_html=True) 
     st.subheader("🛡️ PANEL DE CONTROL")
     
-    perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
-    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles, key="selector_acceso_sidebar")
-    rol = st.session_state.rol_sel
-
-    lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
-    if rol == "SUPERVISOR":
-        st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, key="id_ope_sidebar")
+    st.session_state.user_sel = st.selectbox(
+        "IDENTIDAD OPERATIVA", 
+        ["BRIAN AYALA", "SUPERVISOR NOCTURNO"], 
+        key="sel_user"
+    )
     
-    usuario_auth = st.session_state.user_sel
     st.markdown("---")
 
-with st.sidebar:
-    # ... (Selectores de Acceso e Identidad) ...
-    st.markdown("---")
-
-    # ✅ BLOQUE DEL BOTÓN (CENTRADITO ABAJO)
-    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
-    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_final_v1"):
+    # ✅ BOTÓN CIRCULAR A LA DERECHA
+    st.markdown('<div class="panico-derecha">', unsafe_allow_html=True)
+    if st.button("ACTIVAR\\nPÁNICO", type="primary", key="btn_sos_sidebar"):
         st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
     
