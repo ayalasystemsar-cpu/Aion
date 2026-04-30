@@ -1,3 +1,4 @@
+
 # --- 1. CONFIGURACIÓN MAESTRA E IDENTIDAD VISUAL CORPORATIVA ---
 import streamlit as st
 import pandas as pd
@@ -11,18 +12,10 @@ from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
 import hashlib
 import json
-# Protecciones de importación para evitar caídas del servidor
-try:
-    from streamlit_js_eval import get_geolocation
-except ImportError:
-    get_geolocation = None
+import base64
+import time
 
-try:
-    from streamlit_autorefresh import st_autorefresh
-except ImportError:
-    st_autorefresh = None
-
-# Inicialización del motor SQL de Supabase (Motor de Aprendizaje)
+# Inicialización del motor SQL de Supabase
 @st.cache_resource
 def init_connection():
     try:
@@ -32,7 +25,6 @@ def init_connection():
     except Exception:
         return None
 
-# Objeto de conexión activo
 supabase = init_connection()
 
 # Configuración de página de alto impacto
@@ -43,64 +35,74 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Función para la sincronización temporal exacta
-def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
-# Función Maestra de Identidad y Estética (Glassmorphism y Semáforos)
 def aplicar_identidad_alfa():
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
 
-        .stApp { background-color: #0A0A0A; color: #FFFFFF; font-family: 'Rajdhani', sans-serif; }
-        [data-testid="stSidebar"] { background-color: #050507; border-right: 1px solid rgba(0, 229, 255, 0.3); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
-        [data-testid="stSidebar"]::before { 
-            content: "SISTEMA DE GESTIÓN TÁCTICA"; display: block; text-align: center; color: #00E5FF;
-            font-size: 10px; letter-spacing: 5px; padding: 20px 0; font-family: 'Orbitron', sans-serif; opacity: 0.6;
+        /* Fondo y Texto General */
+        .stApp { 
+            background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
+            color: #FFFFFF; 
+            font-family: 'Rajdhani', sans-serif; 
         }
-        
-        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; text-shadow: 0 0 20px rgba(0, 229, 255, 0.5); letter-spacing: 2px !important; text-transform: uppercase; font-weight: bold;}
-        
-        .stButton>button { background: rgba(0, 229, 255, 0.05); color: #00E5FF; border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 4px; font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 2px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); height: 45px; width: 100%; font-weight: bold;}
-        .stButton>button:hover { background: #00E5FF; color: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.8); transform: scale(1.02); }
-        
-        /* Contenedores y Alarmas de Seguridad */
-        .logo-container { background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 15px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05); }
-        .alerta-panico { background-color: #FF0000 !important; color: white !important; font-size: 28px; text-align: center; padding: 25px; border-radius: 12px; font-weight: bold; animation: blink 0.5s infinite; border: 2px solid #FFF;}
-        .novedad-roja { border-left: 5px solid #FF0000; padding-left: 10px; background-color: rgba(255,0,0,0.1); padding: 10px; border-radius: 5px; margin-bottom: 8px;}
-        .novedad-amarilla { border-left: 5px solid #FFCC00; padding-left: 10px; background-color: rgba(255,204,0,0.1); padding: 10px; border-radius: 5px; margin-bottom: 8px;}
-        .novedad-verde { border-left: 5px solid #00FF00; padding-left: 10px; background-color: rgba(0,255,0,0.1); padding: 10px; border-radius: 5px; margin-bottom: 8px;}
-        
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
-        
-        /* Estructura Glassmorphism para Tabs */
-        .stTabs [data-baseweb="tab-list"] { gap: 15px; }
-        .stTabs [data-baseweb="tab"] { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 10px 25px; font-family: 'Orbitron', sans-serif; }
-        .stTabs [aria-selected="true"] { background: rgba(0, 229, 255, 0.15) !important; color: #00E5FF !important; border: 1px solid #00E5FF !important; }
+
+        /* Sidebar Limpio[cite: 1] */
+        [data-testid="stSidebar"] { 
+            background-color: #050507 !important; 
+            border-right: 1px solid rgba(0, 229, 255, 0.3) !important; 
+        }
+
+        /* Títulos Estilo Táctico[cite: 1] */
+        h1, h2, h3, .stSubheader { 
+            font-family: 'Orbitron', sans-serif; 
+            color: #00E5FF !important; 
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
+            text-transform: uppercase;
+        }
+
+        /* 🛡️ ELIMINACIÓN RADICAL DE MARCOS PARA EL LOGO */
+        div[data-testid="stVerticalBlock"] > div {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .contenedor-logo-central {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 20px 0;
+            background: transparent !important;
+        }
+
+        .logo-phoenix {
+            width: 500px; /* Tamaño optimizado según imagen */
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
+            background: transparent !important;
+        }
         </style>
         """, unsafe_allow_html=True
     )
 
-# Ejecución de la capa visual
 aplicar_identidad_alfa()
 
-# ✅ LOGO CENTRADO Y EQUILIBRADO (SIN OPACAR PESTAÑAS)
+# ✅ RENDERIZADO DEL LOGO CENTRAL LIMPIO[cite: 1]
 st.markdown(
     """
-    <div style="display: flex; justify-content: center; width: 100%; margin-top: -30px; margin-bottom: 0px;">
-        <img src="https://i.ibb.co/kMz5rP0/AION-YAROKU-LOGO.png" 
-             style="width: 50%; 
-                    max-height: 250px; 
-                    object-fit: contain; 
-                    mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%);
-                    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%);">
+    <div class="contenedor-logo-central">
+        <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
+             class="logo-phoenix">
     </div>
     """, 
     unsafe_allow_html=True
 )
+
+def obtener_hora_argentina():
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 # --- 2. MEMORIA DE SESIÓN, CONTROL DE ACCESO Y TÁCTICA LATERAL ---
 import base64
 
