@@ -606,8 +606,8 @@ if m['estado'] == "PENDIENTE":
 
                         if es_cupula:
                             st.markdown("---")
-                            if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"):
-                                if purgar_registro_comunicaciones(m['id']):
+                        if st.button("☢️ PURGAR", key=f"btn_del_{m['id']}_{rol}", type="primary"):
+                        if purgar_registro_comunicaciones(m['id']):
                                     st.error("REGISTRO DESTRUIDO.")
                                     st.rerun()
 
