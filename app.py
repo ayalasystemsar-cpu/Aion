@@ -142,7 +142,16 @@ aplicar_identidad_alfa()
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
+# 📍 AQUÍ VA EL BLOQUE: Justo después de las funciones y antes de la Sección 2
+st.markdown(
+    """
+    <div class="contenedor-logo-central">
+        <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
+             class="logo-phoenix">
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
 # ✅ RENDERIZADO DEL LOGO CENTRAL[cite: 2]
 st.markdown(
     """
