@@ -90,20 +90,8 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# ✅ RENDERIZADO DEL LOGO CENTRAL LIMPIO[cite: 1, 2]
-st.markdown(
-    '<div class="escudo-alfa-container">'
-    '<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="escudo-alfa">'
-    '</div>', 
-    unsafe_allow_html=True
-)
 
 # --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
-
-# --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
-# (AQUÍ CONTINÚA TU CÓDIGO DE LÓGICA DE ROLES)
-# --- 2. CONTROL DE ACCESO Y MEMORIA DE SESIÓN ---
-# (El resto del código se mantiene igual a partir de aquí)
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 if 'qr_mode' not in st.session_state: st.session_state.qr_mode = "Seleccionar..."
