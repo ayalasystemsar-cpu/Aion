@@ -102,23 +102,38 @@ def aplicar_identidad_alfa():
 
         
         
-     /* ✅ CORRECCIÓN FINAL: CENTRADO ABSOLUTO (PUNTO MEDIO) */
+     /* ✅ AJUSTE DE POSICIÓN: BAJAR EL BOTÓN Y MANTENER PUNTO MEDIO */
         .panico-container {
             display: flex !important;
-            justify-content: center !important; /* Punto medio horizontal */
+            justify-content: center !important; 
             align-items: center !important;
             width: 100% !important;
-            margin: 20px 0 !important;
+            margin-top: 60px !important; /* Aumentamos este valor para bajarlo */
+            margin-bottom: 20px !important;
             padding: 0 !important;
         }
 
-        /* Forzamos el centrado en el contenedor de bloque de Streamlit */
-        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div {
+        div[data-testid="stButton"] {
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
         }
-
+        
+        .stButton > button[kind="primary"] {
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
+            color: white !important;
+            border-radius: 50% !important;
+            width: 105px !important;
+            height: 105px !important;
+            border: 3px solid #333 !important;
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px !important;
+            font-weight: bold;
+            line-height: 1.1;
+            text-transform: uppercase;
+            margin: 0 auto !important;
+        }
         div[data-testid="stButton"] {
             display: flex !important;
             justify-content: center !important;
