@@ -10,7 +10,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
 
-# Configuración de página
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -18,7 +17,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inicialización Supabase
 @st.cache_resource
 def init_connection():
     try:
@@ -31,22 +29,23 @@ def init_connection():
 supabase = init_connection()
 
 def aplicar_identidad_alfa():
-    # ELIMINAMOS TODOS LOS MARCOS DE MANERA GLOBAL
+    # RESETEO GLOBAL DE CONTENEDORES PARA ELIMINAR CUADROS
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
+        /* Fondo General de la App */
         .stApp { 
-            background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%);
+            background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important;
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* SIDEBAR SIN MARCOS */
+        /* Sidebar con Logo[cite: 1, 2] */
         [data-testid="stSidebar"] { 
-            background-color: #050507;
-            border-right: 1px solid rgba(0, 229, 255, 0.3);
+            background-color: #050507 !important;
+            border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
         }
 
         [data-testid="stSidebar"]::before { 
@@ -61,35 +60,36 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* ✅ ESTO MATA CUALQUIER CUADRO OSCURO EN EL CENTRO */
-        div[data-testid="stVerticalBlock"] > div {
+        /* 🛡️ ELIMINACIÓN RADICAL DE MARCOS */
+        /* Forzamos a TODOS los contenedores de bloques a ser transparentes */
+        [data-testid="stVerticalBlock"] > div, 
+        [data-testid="stMarkdownContainer"], 
+        .stMarkdown {
             background-color: transparent !important;
             border: none !important;
             box-shadow: none !important;
         }
 
-        .img-flotante {
+        .logo-central-limpio {
             display: block;
             margin: 0 auto;
             width: 450px;
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
+            line-height: 0;
         }
 
-        h1, h2, h3 { 
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important;
-        }
+        h1, h2, h3 { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
 
-# ✅ RENDERIZADO MÁS SIMPLE POSIBLE (Sin DIVS extras)
+# ✅ RENDERIZADO ULTRA-SIMPLE[cite: 1, 2]
 st.markdown(
-    f'<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="img-flotante">', 
+    f'<img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-central-limpio">', 
     unsafe_allow_html=True
 )
 
