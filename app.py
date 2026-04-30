@@ -102,50 +102,31 @@ def aplicar_identidad_alfa():
 
         
         
-     /* ✅ AJUSTE DE POSICIÓN: BAJAR EL BOTÓN Y MANTENER PUNTO MEDIO */
+   /* ✅ CENTRADO ABSOLUTO Y AJUSTE DE ALTURA */
         .panico-container {
             display: flex !important;
-            justify-content: center !important; 
+            justify-content: center !important; /* Centrado horizontal */
             align-items: center !important;
             width: 100% !important;
-            margin-top: 60px !important; /* Aumentamos este valor para bajarlo */
-            margin-bottom: 20px !important;
+            margin-top: 30px !important;  /* Lo subimos (antes estaba en 60px) */
+            margin-bottom: 10px !important;
             padding: 0 !important;
         }
 
+        /* Forzamos el centrado eliminando restricciones de la sidebar */
         div[data-testid="stButton"] {
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
-        }
-        
-        .stButton > button[kind="primary"] {
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important;
-            border-radius: 50% !important;
-            width: 105px !important;
-            height: 105px !important;
-            border: 3px solid #333 !important;
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 11px !important;
-            font-weight: bold;
-            line-height: 1.1;
-            text-transform: uppercase;
             margin: 0 auto !important;
         }
-        div[data-testid="stButton"] {
-            display: flex !important;
-            justify-content: center !important;
-            width: 100% !important;
-        }
         
         .stButton > button[kind="primary"] {
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important;
             border-radius: 50% !important;
-            width: 105px !important;
-            height: 105px !important;
+            width: 100px !important;
+            height: 100px !important;
             border: 3px solid #333 !important;
             box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important;
             font-family: 'Orbitron', sans-serif;
@@ -153,7 +134,8 @@ def aplicar_identidad_alfa():
             font-weight: bold;
             line-height: 1.1;
             text-transform: uppercase;
-            margin: 0 auto !important; /* Centrado por margen automático */
+            display: block !important;
+            margin: 0 auto !important; /* Asegura el punto medio */
         }
 
         /* Contenedor Radar */
