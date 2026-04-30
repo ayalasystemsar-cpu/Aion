@@ -6,21 +6,15 @@ import folium
 from streamlit_folium import st_folium
 from datetime import datetime
 import pytz
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from supabase import create_client, Client
-import hashlib
-import json
-import base64
-import time
 
-# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Evita caídas de interfaz[cite: 2]
+# ✅ CORRECCIÓN GEOLOCALIZACIÓN: Sin caracteres invisibles
 try:
     from streamlit_js_eval import get_geolocation
 except ImportError:
     get_geolocation = None
 
-# Configuración de página OLED[cite: 2]
+# Configuración de página OLED
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -28,7 +22,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inicialización Supabase[cite: 2]
+# Inicialización Supabase
 @st.cache_resource
 def init_connection():
     try:
@@ -46,14 +40,14 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         
-        /* Fondo Negro OLED con Degradado Táctico[cite: 2] */
+        /* Fondo Negro OLED con Degradado Táctico */
         .stApp { 
             background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; 
             color: #E0E0E0;
             font-family: 'Rajdhani', sans-serif;
         }
 
-        /* 🛡️ SIDEBAR: Logo del Costado y Bordes[cite: 2] */
+        /* 🛡️ SIDEBAR: Estética Táctica y Borde */
         [data-testid="stSidebar"] { 
             background-color: #050507 !important;
             border-right: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -71,7 +65,7 @@ def aplicar_identidad_alfa():
             background-position: center;
         }
 
-        /* 🛡️ LOGO CENTRAL FLOTANTE (SIN RECUADROS GRISES)[cite: 2] */
+        /* 🛡️ LIMPIEZA DE CONTENEDORES */
         [data-testid="stVerticalBlock"], 
         [data-testid="stVerticalBlock"] > div,
         [data-testid="stMarkdownContainer"],
@@ -82,28 +76,41 @@ def aplicar_identidad_alfa():
             box-shadow: none !important;
         }
 
+        /* 🛡️ LOGO CENTRAL TÁCTICO (EFECTO CAPTURA 511) */
         .contenedor-logo-central {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin-top: -30px;
+            margin-top: 10px;
+            margin-bottom: 5px;
         }
 
-        .logo-phoenix {
-            width: 500px; 
-            filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.2));
-            mix-blend-mode: screen; 
+        .logo-tactico {
+            width: 580px; 
+            border: 2px solid #00e5ff; /* Borde Cian Sólido */
+            box-shadow: 0 0 35px rgba(0, 229, 255, 0.45); /* Resplandor Glow */
+            border-radius: 4px;
         }
 
-        /* ✅ CSS PARA BOTÓN CENTRADO DEBAJO DEL PANEL */
+        .titulo-estacion {
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            color: #00e5ff;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+            letter-spacing: 3px;
+            margin-top: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* ✅ CSS PARA BOTÓN DE PÁNICO CIRCULAR EN SIDEBAR */
         .panico-container {
             display: flex;
-            justify-content: center; /* Centrado horizontal */
+            justify-content: center;
             align-items: center;
             width: 100%;
             padding: 20px 0;
-            margin-top: 10px;
         }
         
         .stButton > button[kind="primary"] {
@@ -119,7 +126,7 @@ def aplicar_identidad_alfa():
             font-weight: bold;
         }
 
-        /* Contenedor Radar[cite: 1] */
+        /* Contenedor Radar */
         .radar-box {
             border: 1px solid #1A1A1B;
             border-radius: 12px;
@@ -134,62 +141,51 @@ def aplicar_identidad_alfa():
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); 
         }
         </style>
-        """, unsafe_allow_html=True
+        """, 
+        unsafe_allow_html=True
     )
 
+# Ejecutar Identidad Alfa
 aplicar_identidad_alfa()
 
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# ✅ RENDERIZADO DEL LOGO CENTRAL: UNA SOLA VEZ[cite: 2]
+# ✅ RENDERIZADO DEL LOGO CENTRAL (SEGÚN CAPTURA 511)
 st.markdown(
     """
     <div class="contenedor-logo-central">
         <img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" 
-             class="logo-phoenix">
+             class="logo-tactico">
     </div>
+    <h2 class="titulo-estacion">⚡ ESTACIÓN TÁCTICA: BRIAN AYALA</h2>
     """, 
     unsafe_allow_html=True
 )
 
-# --- 2. MEMORIA DE SESIÓN Y CONTROL DE ACCESO (SIDEBAR) ---
+# --- 2. MEMORIA DE SESIÓN Y SIDEBAR ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
-if 'lat' not in st.session_state: st.session_state.lat = 0.0
-if 'lon' not in st.session_state: st.session_state.lon = 0.0
 
 with st.sidebar:
-    # Espacio para logo lateral[cite: 2]
     st.markdown('<div style="margin-top: 140px;"></div>', unsafe_allow_html=True) 
     st.subheader("🛡️ PANEL DE CONTROL")
     
     perfiles = ["SUPERVISOR", "MONITOREO", "VIGILADOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
-    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles, key="selector_acceso_sidebar")
-    rol = st.session_state.rol_sel
-
-    lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
-    if rol == "SUPERVISOR":
-        st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, key="id_ope_sidebar")
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles, key="sel_rol")
     
-    usuario_auth = st.session_state.user_sel
+    lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
+    if st.session_state.rol_sel == "SUPERVISOR":
+        st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, key="sel_user")
+    
     st.markdown("---")
 
-with st.sidebar:
-    # ... (Selectores de Acceso e Identidad) ...
-    st.markdown("---")
-
-    # ✅ BLOQUE DEL BOTÓN (CENTRADITO ABAJO)
+    # ✅ BOTÓN DE PÁNICO CENTRADO EN SIDEBAR
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
-    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_final_v1"):
+    if st.button("ACTIVAR\nPÁNICO", type="primary", key="btn_sos_sidebar"):
         st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('<div style="margin-bottom: 50px;"></div>', unsafe_allow_html=True)
-    
-    # Espacio final alineado correctamente
-    st.markdown('<div style="margin-bottom: 40px;"></div>', unsafe_allow_html=True)
 
 # --- 3. ESTACIÓN DE CONTROL PRINCIPAL ---
 st.subheader(f"📱 Estación de Control: {st.session_state.user_sel}")
@@ -214,7 +210,6 @@ with c_nav:
     st.markdown(f"**LAT:** `{-34.577427}`")
     st.markdown(f"**LON:** `{-58.464084}`")
     st.markdown('</div>', unsafe_allow_html=True)
-
 st.markdown('</div>', unsafe_allow_html=True)
 # --- 4. CONTINUACIÓN DE FUNCIONES OPERATIVAS (Buzón, Actas, etc.) ---
 # ✅ 4.1. MOTOR DE PROCESAMIENTO ÓPTICO (BASE64)
