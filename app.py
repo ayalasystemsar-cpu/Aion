@@ -113,20 +113,29 @@ if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-sidebar"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
-    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO"])
+    perfiles = ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles)
+    lista_sups = ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO"]
+    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups)
+    st.markdown("---")
     
+    # ✅ FIX PARA ERROR DE CELULAR (KeyError: 'coords')
     loc = get_geolocation()
-    lat_act = loc['coords']['latitude'] if loc else 0.0
-    lon_act = loc['coords']['longitude'] if loc else 0.0
+    if loc and 'coords' in loc:
+        lat_act = loc['coords'].get('latitude', 0.0)
+        lon_act = loc['coords'].get('longitude', 0.0)
+    else:
+        lat_act, lon_act = -34.6037, -58.3816 # Buenos Aires Base
 
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
         carga_sos = f"LAT: {lat_act} | LON: {lon_act}"
-        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+        datos_sos = [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos]
+        if escribir_registro_nube("ALERTAS", datos_sos):
+            st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 6. FLUJO DE INTERFAZ POR ROLES ---
+# --- 6. FLUJO DE CUERPO CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
 df_objetivos = cargar_objetivos()
@@ -166,7 +175,7 @@ elif st.session_state.rol_sel == "MONITOREO":
     m2.metric("📡 ESTADO DE RED", "OPERATIVO")
     m3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
+    t_radar, t_base = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     with t_radar:
         if sos_activos > 0:
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
@@ -211,13 +220,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             st_folium(m_ops, width="100%", height=450)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- D. ROL: GERENCIA ---
-elif st.session_state.rol_sel == "GERENCIA":
-    st.header("📈 DASHBOARD ESTRATÉGICO")
-    df_al = leer_matriz_nube("ALERTAS")
-    if not df_al.empty: st.write(df_al['ESTADO'].value_counts())
-
-# --- E. ROL: ADMINISTRADOR ---
+# --- D. ROL: ADMINISTRADOR ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
     u_ing = st.text_input("ADMIN_USER")
