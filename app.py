@@ -169,9 +169,11 @@ elif st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     with t_radar:
         if sos_activos > 0:
+            # Obtener datos de la alerta más reciente
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             op_riesgo = datos_sos['USUARIO']
             carga = str(datos_sos.get('CARGA_UTIL', ''))
+            
             try:
                 lat_sos = float(carga.split("|")[0].split(":")[1].strip())
                 lon_sos = float(carga.split("|")[1].split(":")[1].strip())
@@ -188,10 +190,27 @@ elif st.session_state.rol_sel == "MONITOREO":
                 AntPath(locations=[[lat_sos, lon_sos], [coords_apoyo[0], coords_apoyo[1]]], color="#00E5FF", weight=5).add_to(m_sos)
             st_folium(m_sos, width="100%", height=400)
             st.markdown('</div>', unsafe_allow_html=True)
-            if st.button("CERRAR ALERTA"):
-                fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
-                actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
-                st.rerun()
+
+            # --- NUEVA SECCIÓN DE NEUTRALIZACIÓN ---
+            st.subheader("📝 PROTOCOLO DE CIERRE")
+            informe_neutralizacion = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Describa las acciones tomadas para resolver la emergencia...")
+
+            if st.button("FINALIZAR Y CERRAR ALERTA", type="secondary"):
+                if informe_neutralizacion.strip() == "":
+                    st.warning("⚠️ Debe completar el informe antes de cerrar la alerta.")
+                else:
+                    # Buscamos la fila en Google Sheets (index + 2 por encabezado y base 1)
+                    fila_idx = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
+                    
+                    # Actualizamos el estado a RESUELTO
+                    actualizar_celda("ALERTAS", fila_idx, "D", "RESUELTO")
+                    
+                    # Opcional: Guardamos el informe en una columna nueva (por ejemplo la 'F' si está vacía)
+                    # o lo registramos en el libro de novedades
+                    actualizar_celda("ALERTAS", fila_idx, "F", informe_neutralizacion)
+                    
+                    st.success("Alerta Neutralizada correctamente.")
+                    st.rerun()
         else:
             st.success("✅ Sistema en Vigilancia Pasiva")
 
