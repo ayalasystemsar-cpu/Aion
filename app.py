@@ -4,17 +4,12 @@ import pandas as pd
 import numpy as np
 import folium
 from streamlit_folium import st_folium
+from folium.plugins import AntPath
 from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from supabase import create_client, Client
-
-# ✅ CORRECCIÓN GEOLOCALIZACIÓN
-try:
-    from streamlit_js_eval import get_geolocation
-except ImportError:
-    get_geolocation = None
+from streamlit_js_eval import get_geolocation
 
 # Configuración de página OLED
 st.set_page_config(
@@ -24,18 +19,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CONEXIONES (SUPABASE & GOOGLE MATRIZ) ---
+# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-
-@st.cache_resource
-def init_connection():
-    try:
-        url = st.secrets["supabase"]["url"]
-        key = st.secrets["supabase"]["key"]
-        return create_client(url, key)
-    except Exception: return None
-
-supabase = init_connection()
 
 def conectar_google():
     try:
@@ -87,6 +72,14 @@ def cargar_objetivos():
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
     return pd.DataFrame()
 
+def calcular_emergencia(lat, lon, df_obj):
+    """Retorna Objetivo, Comisaría y sus Coordenadas"""
+    if df_obj.empty or lat == 0.0: return "Sin datos", "Sin datos", None
+    df_temp = df_obj.copy()
+    df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - lat)**2 + (df_temp['LONGITUD'] - lon)**2)
+    cercano = df_temp.loc[df_temp['distancia'].idxmin()]
+    return cercano['OBJETIVO'], cercano.get('POLICIA', '911'), (cercano['LATITUD'], cercano['LONGITUD'])
+
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
 def aplicar_identidad_alfa():
     st.markdown(
@@ -125,9 +118,15 @@ with st.sidebar:
     lista_sups = ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO"]
     st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups)
     st.markdown("---")
+    
+    loc = get_geolocation()
+    lat_act = loc['coords']['latitude'] if loc else 0.0
+    lon_act = loc['coords']['longitude'] if loc else 0.0
+
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        datos_sos = [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE"]
+        carga_sos = f"LAT: {lat_act} | LON: {lon_act}"
+        datos_sos = [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos]
         if escribir_registro_nube("ALERTAS", datos_sos):
             st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -162,39 +161,75 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 datos = [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", f_vig, f_dest, f_nov, gravedad]
                 if escribir_registro_nube("ACTAS_FLOTAS", datos):
                     st.success("Acta derivada a la matriz.")
-    with t3:
-        st.info("Bandeja de Mensajería Sincronizada con Matriz Nube")
 
-# --- B. ROL: MONITOREO ---
+# --- B. ROL: MONITOREO (CON MAPA INTEGRADO Y RUTA) ---
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
     sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_emergencias.empty else 0
+    
     m1, m2, m3 = st.columns(3)
     m1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     m2.metric("📡 ESTADO DE RED", "OPERATIVO")
     m3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
     t_radar, t_gestion, t_chat = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN"])
+    
     with t_radar:
         if sos_activos > 0:
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             op_en_riesgo = datos_sos['USUARIO']
-            st.error(f"🚨 ALERTA CRÍTICA: {op_en_riesgo}")
+            carga = str(datos_sos.get('CARGA_UTIL', ''))
+            
+            try:
+                lat_sos = float(carga.split("|")[0].split(":")[1].strip())
+                lon_sos = float(carga.split("|")[1].split(":")[1].strip())
+            except: lat_sos, lon_sos = -34.6037, -58.3816 # Coordenadas base si falla GPS
+
+            # Triangulación
+            obj_cercano, policia_nombre, coords_apoyo = calcular_emergencia(lat_sos, lon_sos, df_objetivos)
+            
+            st.markdown(f"""
+                <div style="background-color: #FF0000; color: white; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid white; margin-bottom: 10px;">
+                    <h2 style="color: white !important;">🚨 EMERGENCIA: {op_en_riesgo} 🚨</h2>
+                    <p style="font-size: 18px;"><b>UBICADO EN:</b> {obj_cercano}</p>
+                    <p style="font-size: 20px; font-weight: bold; color: #FFFF00;">🚓 COMISARÍA: {policia_nombre}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            m_sos = folium.Map(location=[-34.6037, -58.3816], zoom_start=12, tiles="CartoDB dark_matter")
-            folium.Marker([-34.6037, -58.3816], popup=f"SOS: {op_en_riesgo}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
-            st_folium(m_sos, width="100%", height=350, key="mapa_mon_sos")
+            m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=15, tiles="CartoDB dark_matter")
+            
+            # Marcador Supervisor / Objetivo
+            folium.Marker([lat_sos, lon_sos], tooltip=f"{op_en_riesgo} / {obj_cercano}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
+            
+            if coords_apoyo:
+                # Marcador Comisaría
+                folium.Marker([coords_apoyo[0], coords_apoyo[1]], tooltip=f"APOYO: {policia_nombre}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
+                
+                # Ruta Animada Táctica (Uber Style)
+                AntPath(locations=[[lat_sos, lon_sos], [coords_apoyo[0], coords_apoyo[1]]], color="#00E5FF", pulse_color="#FFFFFF", weight=5, opacity=0.8).add_to(m_sos)
+            
+            st_folium(m_sos, width="100%", height=400, key="mapa_mon_sos")
             st.markdown('</div>', unsafe_allow_html=True)
+            
             with st.form("cierre_crisis"):
                 res_acta = st.text_area("Informe de Neutralización")
                 if st.form_submit_button("✅ CERRAR ALERTA"):
                     fila_real = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                     if actualizar_celda("ALERTAS", fila_real, "D", "RESUELTO"):
-                        actualizar_celda("ALERTAS", fila_real, "E", res_acta)
+                        actualizar_celda("ALERTAS", fila_real, "F", res_acta)
                         st.success("Resuelto"); st.cache_data.clear(); st.rerun()
         else:
             st.success("✅ Sistema en Vigilancia Pasiva")
+            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+            if not df_objetivos.empty:
+                m_pass = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+                for _, r in df_objetivos.iterrows():
+                    folium.CircleMarker(location=[r['LATITUD'], r['LONGITUD']], radius=5, color="#00E5FF", fill=True, popup=f"Objetivo: {r['OBJETIVO']}").add_to(m_pass)
+                st_folium(m_pass, width="100%", height=400, key="mapa_vigilancia_pasiva")
+            st.markdown('</div>', unsafe_allow_html=True)
+
     with t_gestion:
         with st.form("acta_base"):
             op_nombre = st.text_input("Operador:", value=st.session_state.user_sel)
@@ -202,6 +237,7 @@ elif st.session_state.rol_sel == "MONITOREO":
             if st.form_submit_button("🔒 SELLAR"):
                 escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), op_nombre, "SISTEMA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
                 st.rerun()
+                
     with t_chat:
         st.subheader("📨 CENTRO DE MENSAJERÍA SINCRONIZADO")
         df_m = leer_matriz_nube("MENSAJERIA")
@@ -211,44 +247,25 @@ elif st.session_state.rol_sel == "MONITOREO":
                 contenido = msg.get('CONTENIDO', msg.get('Contenido', 'Sin mensaje'))
                 with st.chat_message("user"):
                     st.write(f"**{emisor}**: {contenido}")
-        else:
-            st.info("No hay mensajes registrados.")
 
-# --- C. ROL: JEFE DE OPERACIONES (CORREGIDO) ---
+# --- C. ROL: JEFE DE OPERACIONES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-    
     c1, c2, c3 = st.columns(3)
     c1.metric("REPORTES", len(df_actas) if not df_actas.empty else 0)
     c2.metric("OBJETIVOS", len(df_objetivos))
     c3.metric("ESTADO", "SINCRO OK")
-    
     t_inf, t_mapa = st.tabs(["📄 INFORMES", "🌍 MAPA"])
-    
     with t_inf:
-        if not df_actas.empty: 
-            st.dataframe(df_actas.tail(15), use_container_width=True)
-            
+        if not df_actas.empty: st.dataframe(df_actas.tail(15), use_container_width=True)
     with t_mapa:
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_objetivos.empty:
-            m_ops = folium.Map(
-                location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], 
-                zoom_start=11, 
-                tiles="CartoDB dark_matter"
-            )
-            
+            m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             for _, r in df_objetivos.iterrows():
-                folium.Marker(
-                    location=[r['LATITUD'], r['LONGITUD']], 
-                    popup=f"OBJETIVO: {r['OBJETIVO']}",
-                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-                ).add_to(m_ops)
-            
+                folium.Marker(location=[r['LATITUD'], r['LONGITUD']], popup=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
             st_folium(m_ops, width="100%", height=400, key="mapa_jefe_ops")
-        else:
-            st.warning("No hay datos de objetivos con coordenadas válidas para mostrar.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- D. ROL: GERENCIA ---
