@@ -88,6 +88,11 @@ def aplicar_identidad_alfa():
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         [data-testid="stSidebar"] { background-color: #050507 !important; border-right: 1px solid rgba(0, 229, 255, 0.3) !important; }
+        
+        /* Contenedor del logo en Sidebar */
+        .contenedor-logo-sidebar { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 20px; padding: 10px; }
+        .logo-sidebar { width: 180px !important; filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.4)); }
+        
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-top: -10px; margin-bottom: 20px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         .panico-container { display: flex !important; justify-content: center !important; align-items: center !important; width: 100% !important; margin: 20px 0 !important; padding: 0 !important; }
@@ -104,14 +109,15 @@ def aplicar_identidad_alfa():
     )
 
 aplicar_identidad_alfa()
-st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
 # --- 5. MEMORIA DE SESIÓN Y SIDEBAR ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 
 with st.sidebar:
-    st.markdown('<div style="margin-top: 50px;"></div>', unsafe_allow_html=True)
+    # ✅ Imagen al costado arriba del panel de control
+    st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-sidebar"></div>', unsafe_allow_html=True)
+    
     st.subheader("🛡️ PANEL DE CONTROL")
     perfiles = ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
     st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles)
@@ -132,6 +138,8 @@ with st.sidebar:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. FLUJO DE INTERFAZ POR ROLES ---
+st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
+
 df_objetivos = cargar_objetivos()
 
 # --- A. ROL: SUPERVISOR ---
@@ -184,9 +192,8 @@ elif st.session_state.rol_sel == "MONITOREO":
             try:
                 lat_sos = float(carga.split("|")[0].split(":")[1].strip())
                 lon_sos = float(carga.split("|")[1].split(":")[1].strip())
-            except: lat_sos, lon_sos = -34.6037, -58.3816 # Coordenadas base si falla GPS
+            except: lat_sos, lon_sos = -34.6037, -58.3816 # Buenos Aires Base
 
-            # Triangulación
             obj_cercano, policia_nombre, coords_apoyo = calcular_emergencia(lat_sos, lon_sos, df_objetivos)
             
             st.markdown(f"""
@@ -199,15 +206,10 @@ elif st.session_state.rol_sel == "MONITOREO":
 
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=15, tiles="CartoDB dark_matter")
-            
-            # Marcador Supervisor / Objetivo
             folium.Marker([lat_sos, lon_sos], tooltip=f"{op_en_riesgo} / {obj_cercano}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
             
             if coords_apoyo:
-                # Marcador Comisaría
                 folium.Marker([coords_apoyo[0], coords_apoyo[1]], tooltip=f"APOYO: {policia_nombre}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
-                
-                # Ruta Animada Táctica (Uber Style)
                 AntPath(locations=[[lat_sos, lon_sos], [coords_apoyo[0], coords_apoyo[1]]], color="#00E5FF", pulse_color="#FFFFFF", weight=5, opacity=0.8).add_to(m_sos)
             
             st_folium(m_sos, width="100%", height=400, key="mapa_mon_sos")
@@ -230,68 +232,26 @@ elif st.session_state.rol_sel == "MONITOREO":
                 st_folium(m_pass, width="100%", height=400, key="mapa_vigilancia_pasiva")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with t_gestion:
-        with st.form("acta_base"):
-            op_nombre = st.text_input("Operador:", value=st.session_state.user_sel)
-            nov = st.text_area("Novedades")
-            if st.form_submit_button("🔒 SELLAR"):
-                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), op_nombre, "SISTEMA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
-                st.rerun()
-                
-    with t_chat:
-        st.subheader("📨 CENTRO DE MENSAJERÍA SINCRONIZADO")
-        df_m = leer_matriz_nube("MENSAJERIA")
-        if not df_m.empty:
-            for _, msg in df_m.tail(10).iloc[::-1].iterrows():
-                emisor = msg.get('EMISOR', msg.get('Emisor', 'Desconocido'))
-                contenido = msg.get('CONTENIDO', msg.get('Contenido', 'Sin mensaje'))
-                with st.chat_message("user"):
-                    st.write(f"**{emisor}**: {contenido}")
-
 # --- C. ROL: JEFE DE OPERACIONES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("REPORTES", len(df_actas) if not df_actas.empty else 0)
-    c2.metric("OBJETIVOS", len(df_objetivos))
-    c3.metric("ESTADO", "SINCRO OK")
-    t_inf, t_mapa = st.tabs(["📄 INFORMES", "🌍 MAPA"])
-    with t_inf:
-        if not df_actas.empty: st.dataframe(df_actas.tail(15), use_container_width=True)
-    with t_mapa:
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_objetivos.empty:
-            m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows():
-                folium.Marker(location=[r['LATITUD'], r['LONGITUD']], popup=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
-            st_folium(m_ops, width="100%", height=400, key="mapa_jefe_ops")
-        st.markdown('</div>', unsafe_allow_html=True)
+    if not df_actas.empty: st.dataframe(df_actas.tail(15), use_container_width=True)
 
 # --- D. ROL: GERENCIA ---
 elif st.session_state.rol_sel == "GERENCIA":
     st.header("📈 DASHBOARD ESTRATÉGICO")
-    col_a, col_b = st.columns([1, 2])
-    with col_a:
-        st.subheader("⚠️ Alertas")
-        df_al = leer_matriz_nube("ALERTAS")
-        if not df_al.empty: st.write(df_al['ESTADO'].value_counts())
-    with col_b:
-        st.subheader("🏢 Estructura")
-        df_est = leer_matriz_nube("ESTRUCTURA")
-        if not df_est.empty: st.dataframe(df_est, use_container_width=True)
+    df_al = leer_matriz_nube("ALERTAS")
+    if not df_al.empty: st.write(df_al['ESTADO'].value_counts())
 
 # --- E. ROL: ADMINISTRADOR ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
-    with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA"):
-        u_ing = st.text_input("ADMIN_USER").lower()
-        p_ing = st.text_input("ADMIN_PASS", type="password")
-        if u_ing == "admin" and p_ing == "aion2026":
-            st.subheader("🏗️ GESTIÓN DE ESTRUCTURA")
-            tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-            nuevo_nombre = st.text_input(f"Nombre del {tipo}:").upper()
-            if st.button(f"PROCESAR ALTA"):
-                if nuevo_nombre:
-                    escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-                    st.success("Alta Exitosa")
+    u_ing = st.text_input("ADMIN_USER")
+    p_ing = st.text_input("ADMIN_PASS", type="password")
+    if u_ing == "admin" and p_ing == "aion2026":
+        tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nuevo_nombre = st.text_input(f"Nombre del {tipo}:").upper()
+        if st.button(f"PROCESAR ALTA"):
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            st.success("Alta Exitosa")
