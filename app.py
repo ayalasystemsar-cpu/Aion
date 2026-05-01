@@ -149,7 +149,7 @@ df_objetivos = cargar_objetivos()
 
 # --- 7. FLUJO DE INTERFAZ POR ROLES ---
 
-# A. ROL: SUPERVISOR (Iconos Azules unificados)
+# A. ROL: SUPERVISOR
 if st.session_state.rol_sel == "SUPERVISOR":
     st.markdown(f'<div class="estacion-titulo">📱 Estación de Control: {st.session_state.user_sel}</div>', unsafe_allow_html=True)
     st.markdown('<div style="color:#E0E0E0; font-size:16px; margin-top:20px; text-align:center;">📍 Mi Radar de Servicios y GPS</div>', unsafe_allow_html=True)
@@ -173,7 +173,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ACTAS_FLOTAS", [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, "VERDE"])
                 st.success("Reporte enviado.")
 
-# B. ROL: MONITOREO (Iconos Azules + Cierre Permanente)
+# B. ROL: MONITOREO (Implementación de Latido SOS)
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -206,13 +206,36 @@ elif st.session_state.rol_sel == "MONITOREO":
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_sos = folium.Map(location=[lat_m, lon_m], zoom_start=13, tiles="CartoDB dark_matter")
+        
+        # Objetivos normales (Unificado: Escudo Azul)
         for _, r in df_objetivos.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
+        
+        # --- LÓGICA DE ICONO LATIENTE (SOLO EN MONITOREO) ---
         if info_sos:
-            folium.Marker([info_sos["lat"], info_sos["lon"]], icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
+            # HTML/CSS para el efecto de latido táctico
+            html_pulse = f"""
+            <div style="position: relative;">
+                <div style="position: absolute; width: 25px; height: 25px; background: red; border-radius: 50%; animation: pulse 1.2s infinite;"></div>
+                <div style="position: absolute; width: 25px; height: 25px; background: red; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">!</div>
+            </div>
+            <style>
+            @keyframes pulse {{
+                0% {{ transform: scale(1); opacity: 1; }}
+                100% {{ transform: scale(3.5); opacity: 0; }}
+            }}
+            </style>
+            """
+            folium.Marker(
+                [info_sos["lat"], info_sos["lon"]],
+                icon=folium.DivIcon(html=html_pulse, icon_size=(25,25)),
+                tooltip=f"ALERTA ACTIVA: {info_sos['user']}"
+            ).add_to(m_sos)
+            
             if 'coo_apoyo' in locals() and coo_apoyo:
                 AntPath(locations=[[info_sos["lat"], info_sos["lon"]], [coo_apoyo[0], coo_apoyo[1]]], color="#FF0000", weight=5).add_to(m_sos)
-        st_folium(m_sos, width="100%", height=450, key="map_sos")
+        
+        st_folium(m_sos, width="100%", height=450, key="map_mon_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.subheader("📝 PROTOCOLO DE CIERRE")
@@ -229,7 +252,10 @@ elif st.session_state.rol_sel == "MONITOREO":
                 st.success(f"Operativo Finalizado.")
                 st.rerun()
 
-# C. ROL: JEFE DE OPERACIONES (Unificado con Iconos Azules)
+    with t_gestion:
+        if not df_emergencias.empty: st.dataframe(df_emergencias.tail(20), use_container_width=True)
+
+# C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.header("📋 COMANDO DE OPERACIONES TÁCTICAS")
     tab_inf, tab_map = st.tabs(["📄 INFORMES", "🌍 MAPA"])
@@ -241,7 +267,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_objetivos.empty:
             m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             for _, r in df_objetivos.iterrows():
-                # UNIFICADO: Azul y Escudo para mantener la identidad visual corporativa
                 folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
             st_folium(m_ops, width="100%", height=500, key="mapa_operaciones")
         st.markdown('</div>', unsafe_allow_html=True)
