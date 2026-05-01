@@ -166,69 +166,78 @@ elif st.session_state.rol_sel == "MONITOREO":
     m2.metric("📡 ESTADO DE RED", "OPERATIVO")
     m3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Añadimos la pestaña de MAPA GENERAL
-    t_radar, t_mapa, t_gestion = st.tabs(["🚨 RADAR S.O.S", "🌍 MAPA GENERAL", "📖 LIBRO DE BASE"])
+    t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     
     with t_radar:
+        # 1. Definimos la base del mapa (coordenadas por defecto si no hay S.O.S)
+        lat_mapa, lon_mapa = -34.6037, -58.3816 # Centro por defecto (Buenos Aires)
+        if not df_objetivos.empty:
+            lat_mapa, lon_mapa = df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()
+
+        # 2. Si hay S.O.S, priorizamos esa ubicación y mostramos la alerta
+        info_sos = None
         if sos_activos > 0:
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             op_riesgo = datos_sos['USUARIO']
             carga = str(datos_sos.get('CARGA_UTIL', ''))
-            
             try:
-                lat_sos = float(carga.split("|")[0].split(":")[1].strip())
-                lon_sos = float(carga.split("|")[1].split(":")[1].strip())
-            except: lat_sos, lon_sos = -34.6037, -58.3816
+                lat_mapa = float(carga.split("|")[0].split(":")[1].strip())
+                lon_mapa = float(carga.split("|")[1].split(":")[1].strip())
+                info_sos = {"user": op_riesgo, "lat": lat_mapa, "lon": lon_mapa}
+            except: pass
             
-            obj_cercano, policia, coords_apoyo = calcular_emergencia(lat_sos, lon_sos, df_objetivos)
-            st.error(f"🚨 EMERGENCIA: {op_riesgo} | {obj_cercano} | POLICÍA: {policia}")
-            
-            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=15, tiles="CartoDB dark_matter")
-            folium.Marker([lat_sos, lon_sos], tooltip=op_riesgo, icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
-            if coords_apoyo:
-                folium.Marker([coords_apoyo[0], coords_apoyo[1]], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
-                AntPath(locations=[[lat_sos, lon_sos], [coords_apoyo[0], coords_apoyo[1]]], color="#00E5FF", weight=5).add_to(m_sos)
-            st_folium(m_sos, width="100%", height=400, key="mapa_sos")
-            st.markdown('</div>', unsafe_allow_html=True)
+            obj_cercano, policia, coords_apoyo = calcular_emergencia(lat_mapa, lon_mapa, df_objetivos)
+            st.error(f"🚨 EMERGENCIA ACTIVA: {op_riesgo} | OBJETIVO MÁS CERCANO: {obj_cercano} | POLICÍA: {policia}")
+        else:
+            st.success("✅ Sistema en Vigilancia Pasiva - Radar de Objetivos Operativo")
 
-            # --- INFORME DE NEUTRALIZACIÓN ---
+        # 3. Renderizado del Mapa (Siempre visible)
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        m_radar = folium.Map(location=[lat_mapa, lon_mapa], zoom_start=13, tiles="CartoDB dark_matter")
+        
+        # Dibujamos todos los objetivos del sistema
+        for _, r in df_objetivos.iterrows():
+            folium.Marker(
+                [r['LATITUD'], r['LONGITUD']], 
+                popup=r['OBJETIVO'],
+                tooltip=r['OBJETIVO'],
+                icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+            ).add_to(m_radar)
+
+        # Si hay un S.O.S, dibujamos el marcador rojo y la ruta de apoyo
+        if info_sos:
+            folium.Marker(
+                [info_sos["lat"], info_sos["lon"]], 
+                tooltip="OPERADOR EN RIESGO", 
+                icon=folium.Icon(color="red", icon="warning")
+            ).add_to(m_radar)
+            
+            # Línea de respuesta táctica si hay coordenadas de apoyo
+            if 'coords_apoyo' in locals() and coords_apoyo:
+                AntPath(locations=[[info_sos["lat"], info_sos["lon"]], [coords_apoyo[0], coords_apoyo[1]]], 
+                        color="#FF0000", weight=5, pulse_color="#ffffff").add_to(m_radar)
+
+        st_folium(m_radar, width="100%", height=500, key="mapa_radar_sos")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # 4. Panel de Neutralización (Solo si hay S.O.S)
+        if sos_activos > 0:
             st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neutralizacion = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Describa el resultado del operativo...")
-            if st.button("CERRAR ALERTA Y REGISTRAR"):
+            inf_neutralizacion = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Detalle las novedades del cierre...")
+            if st.button("FINALIZAR OPERATIVO"):
                 if inf_neutralizacion.strip():
                     fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                     actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
-                    actualizar_celda("ALERTAS", fila, "F", inf_neutralizacion) # Guarda el informe en columna F
-                    st.success("Alerta cerrada.")
+                    actualizar_celda("ALERTAS", fila, "F", inf_neutralizacion)
+                    st.success("Alerta Neutralizada.")
                     st.rerun()
                 else:
-                    st.warning("Escriba el informe antes de cerrar.")
-        else:
-            st.success("✅ Sistema en Vigilancia Pasiva")
-
-    with t_mapa:
-        st.subheader("📍 COBERTURA TOTAL DE OBJETIVOS")
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_objetivos.empty:
-            # Mapa centrado en el promedio de los objetivos
-            m_gen = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows():
-                folium.Marker(
-                    [r['LATITUD'], r['LONGITUD']], 
-                    popup=f"Objetivo: {r['OBJETIVO']}",
-                    tooltip=r['OBJETIVO'],
-                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-                ).add_to(m_gen)
-            st_folium(m_gen, width="100%", height=500, key="mapa_general_monitoreo")
-        else:
-            st.info("No hay objetivos cargados para mostrar.")
-        st.markdown('</div>', unsafe_allow_html=True)
+                    st.warning("Debe completar el informe para cerrar el evento.")
 
     with t_gestion:
-        st.subheader("📖 REGISTRO DE ALERTAS")
+        st.subheader("📖 LIBRO DE BASE - REGISTROS")
         if not df_emergencias.empty:
-            st.dataframe(df_emergencias.tail(15), use_container_width=True)
+            st.dataframe(df_emergencias.tail(20), use_container_width=True)
 
 # --- C. ROL: JEFE DE OPERACIONES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
