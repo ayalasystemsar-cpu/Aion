@@ -119,13 +119,13 @@ with st.sidebar:
     st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups)
     st.markdown("---")
     
-    # ✅ FIX PARA ERROR DE CELULAR (KeyError: 'coords')
+    # ✅ FIX PARA ERROR DE CELULAR (KeyError: 'coords')[cite: 1]
     loc = get_geolocation()
     if loc and 'coords' in loc:
         lat_act = loc['coords'].get('latitude', 0.0)
         lon_act = loc['coords'].get('longitude', 0.0)
     else:
-        lat_act, lon_act = -34.6037, -58.3816 # Buenos Aires Base
+        lat_act, lon_act = -34.6037, -58.3816 # Coordenadas base (BsAs) si falla el GPS
 
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
@@ -164,7 +164,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ACTAS_FLOTAS", [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, "VERDE"])
                 st.success("Enviado.")
 
-# --- B. ROL: MONITOREO ---
+# --- B. ROL: MONITOREO (CON VIGILANCIA PASIVA)[cite: 1] ---
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -202,9 +202,21 @@ elif st.session_state.rol_sel == "MONITOREO":
                 actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
                 st.rerun()
         else:
+            # ✅ VIGILANCIA PASIVA: MAPA COMPLETO DE LA RED[cite: 1]
             st.success("✅ Sistema en Vigilancia Pasiva")
+            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+            if not df_objetivos.empty:
+                m_pass = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+                for _, r in df_objetivos.iterrows():
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']], 
+                        radius=5, color="#00E5FF", fill=True, 
+                        popup=f"Objetivo: {r['OBJETIVO']}"
+                    ).add_to(m_pass)
+                st_folium(m_pass, width="100%", height=450, key="mapa_mon_pasivo")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-# --- C. ROL: JEFE DE OPERACIONES ---
+# --- C. ROL: JEFE DE OPERACIONES (INFORMES Y MAPA)[cite: 1] ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
@@ -216,8 +228,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_objetivos.empty:
             m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             for _, r in df_objetivos.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO']).add_to(m_ops)
-            st_folium(m_ops, width="100%", height=450)
+                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
+            st_folium(m_ops, width="100%", height=450, key="mapa_jefe_ops")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- D. ROL: ADMINISTRADOR ---
