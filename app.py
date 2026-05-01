@@ -72,14 +72,14 @@ def cargar_objetivos():
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
     return pd.DataFrame()
 
-# ✅ MOTOR DE TRIANGULACIÓN Y RUTA POR CALLES
+# ✅ MOTOR DE TRIANGULACIÓN Y APOYO TÁCTICO[cite: 3, 4]
 def calcular_emergencia(lat, lon, df_obj):
-    """Retorna Objetivo, Comisaría y sus Coordenadas[cite: 3, 4]"""
     if df_obj.empty or lat == 0.0: return "Sin datos", "Sin datos", None
     df_temp = df_obj.copy()
+    # Triangulación para hallar el servicio más cercano al supervisor en riesgo[cite: 3, 4]
     df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - lat)**2 + (df_temp['LONGITUD'] - lon)**2)
     cercano = df_temp.loc[df_temp['distancia'].idxmin()]
-    return cercano['OBJETIVO'], cercano.get('POLICIA', '911'), (cercano['LATITUD'], cercano['LONGITUD'])
+    return cercano['OBJETIVO'], cercano.get('POLICIA', '911 / No asignada'), (cercano['LATITUD'], cercano['LONGITUD'])
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
 def aplicar_identidad_alfa():
@@ -149,9 +149,9 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ACTAS_FLOTAS", [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, "VERDE"])
                 st.success("Enviado")
 
-# --- B. ROL: MONITOREO (RUTA ESTILO UBER) ---
+# --- B. ROL: MONITOREO (ESTACIÓN DE DESPACHO TÁCTICO) ---
 elif st.session_state.rol_sel == "MONITOREO":
-    st.header("🛰️ CENTRAL DE INTELIGENCIA")
+    st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
     sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_emergencias.empty else 0
     
@@ -163,40 +163,57 @@ elif st.session_state.rol_sel == "MONITOREO":
             lon_sos = float(carga.split("|")[1].split(":")[1].strip())
         except: lat_sos, lon_sos = 0.0, 0.0
 
-        obj_cercano, policia_zona, coords_comisaria = calcular_emergencia(lat_sos, lon_sos, df_objetivos)
+        # ✅ Triangulación: Supervisor -> Objetivo -> Comisaría[cite: 3, 4]
+        obj_cercano, policia_nombre, coords_apoyo = calcular_emergencia(lat_sos, lon_sos, df_objetivos)
         
         st.markdown(f"""
             <div style="background-color: #FF0000; color: white; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid white;">
                 <h2 style="color: white !important;">🚨 EMERGENCIA: {datos_sos['USUARIO']} 🚨</h2>
                 <p style="font-size: 18px;">UBICADO EN: <b>{obj_cercano}</b></p>
-                <p style="font-size: 20px; font-weight: bold; color: #FFFF00;">🚓 COMISARÍA: {policia_zona}</p>
+                <p style="font-size: 20px; font-weight: bold; color: #FFFF00;">🚓 COMISARÍA ASIGNADA: {policia_nombre}</p>
             </div>
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=15, tiles="CartoDB dark_matter")
-        folium.Marker([lat_sos, lon_sos], tooltip=f"SUPERVISOR: {datos_sos['USUARIO']}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
         
-        if coords_comisaria:
-            folium.Marker([coords_comisaria[0], coords_comisaria[1]], tooltip=f"COMISARÍA: {policia_zona}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
-            # ✅ RECORRIDO DINÁMICO POR CALLES[cite: 3, 4]
-            AntPath(locations=[[lat_sos, lon_sos], [coords_comisaria[0], coords_comisaria[1]]], color="#00E5FF", pulse_color="#FFFFFF", weight=5, opacity=0.8).add_to(m_sos)
+        # Origen: Supervisor / Objetivo[cite: 3, 4]
+        folium.Marker(
+            [lat_sos, lon_sos], 
+            tooltip=f"{datos_sos['USUARIO']} / {obj_cercano}", 
+            icon=folium.Icon(color="red", icon="warning")
+        ).add_to(m_sos)
+        
+        if coords_apoyo:
+            # Destino: Comisaría[cite: 3, 4]
+            folium.Marker(
+                [coords_apoyo[0], coords_apoyo[1]], 
+                tooltip=f"APOYO: {policia_nombre}", 
+                icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+            ).add_to(m_sos)
+            
+            # ✅ RUTA ANIMADA "ESTILO UBER" (POR CALLES REALES)[cite: 4]
+            AntPath(
+                locations=[[lat_sos, lon_sos], [coords_apoyo[0], coords_apoyo[1]]],
+                dash_array=[1, 10], delay=1000, color="#00E5FF", pulse_color="#FFFFFF", weight=5, opacity=0.8
+            ).add_to(m_sos)
         
         st_folium(m_sos, width="100%", height=400, key="mapa_mon_sos")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        url_ruta = f"https://www.google.com/maps/dir/?api=1&origin={lat_sos},{lon_sos}&destination={policia_zona}"
-        st.markdown(f'<a href="{url_ruta}" target="_blank"><button style="width:100%; padding:15px; background-color:#4285F4; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">🗺️ VER RECORRIDO EN GOOGLE MAPS</button></a>', unsafe_allow_html=True)
+        # Enlace a navegación externa[cite: 3, 4]
+        url_maps = f"https://www.google.com/maps/dir/?api=1&origin={lat_sos},{lon_sos}&destination={policia_nombre}"
+        st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%; padding:15px; background-color:#4285F4; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">🗺️ VER RECORRIDO EN GOOGLE MAPS</button></a>', unsafe_allow_html=True)
 
         with st.form("cierre"):
-            res = st.text_area("Informe")
-            if st.form_submit_button("CERRAR ALERTA"):
+            res = st.text_area("Informe de Resolución")
+            if st.form_submit_button("✅ CERRAR ALERTA"):
                 fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                 actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
                 actualizar_celda("ALERTAS", fila, "F", res)
                 st.rerun()
     else:
-        st.success("✅ SISTEMA EN VIGILANCIA")
+        st.success("✅ SISTEMA EN VIGILANCIA PASIVA")
 
 # --- C. ROL: JEFE DE OPERACIONES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
