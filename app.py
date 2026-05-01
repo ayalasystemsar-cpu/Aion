@@ -56,12 +56,13 @@ def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
+        # Limpieza de coordenadas para asegurar que sean numéricas
         df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
     return pd.DataFrame()
 
-# --- 4. DISEÑO E IDENTIDAD VISUAL ---
+# --- 4. DISEÑO E IDENTIDAD VISUAL (ESTILO OLED CIAN) ---
 def aplicar_identidad_alfa():
     st.markdown(
         """
@@ -92,28 +93,16 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. PANEL DE CONTROL Y ACCESO RESTRINGIDO ---
-PERMISOS = {
-    "SUPERVISOR": ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SANOJA LUIS", "MAZACOTTE CLAUDIO"],
-    "MONITOREO": ["PORZIO GONZALO", "MAZACOTTE CLAUDIO", "LUIS BONGIORNO"],
-    "JEFE DE OPERACIONES": ["LUIS BONGIORNO", "BRIAN AYALA"],
-    "GERENCIA": ["BRIAN AYALA"],
-    "ADMINISTRADOR": ["BRIAN AYALA"]
-}
+# --- 5. PANEL DE CONTROL Y CONFIGURACIÓN DE ACCESO ---
+# Se mantiene la lista de usuarios para identificación, pero se libera la vista en secciones clave
+USUARIOS_SISTEMA = ["BRIAN AYALA", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "DARÍO CECILIA", "LUIS BONGIORNO", "PORZIO GONZALO"]
 
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-sidebar"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
     
-    rol_elegido = st.selectbox("NIVEL DE ACCESO", list(PERMISOS.keys()))
-    usuario_elegido = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "DARÍO CECILIA", "LUIS BONGIORNO", "PORZIO GONZALO"])
-    
-    if usuario_elegido in PERMISOS[rol_elegido]:
-        st.session_state.rol_sel = rol_elegido
-        st.session_state.user_sel = usuario_elegido
-    else:
-        st.error(f"ACCESO DENEGADO: {usuario_elegido} no es {rol_elegido}")
-        st.stop()
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["MONITOREO", "SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
+    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", USUARIOS_SISTEMA)
 
     loc = get_geolocation()
     lat_act, lon_act = (loc['coords']['latitude'], loc['coords']['longitude']) if loc and 'coords' in loc else (-34.6037, -58.3816)
@@ -128,83 +117,91 @@ with st.sidebar:
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 df_objetivos = cargar_objetivos()
 
-# --- ROL: SUPERVISOR ---
-if st.session_state.rol_sel == "SUPERVISOR":
+# --- SECCIÓN: MONITOREO (ACCESO LIBERADO) ---
+if st.session_state.rol_sel == "MONITOREO":
+    st.subheader("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
+    df_alertas = leer_matriz_nube("ALERTAS")
+    pendientes = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'] if not df_alertas.empty else pd.DataFrame()
+    
+    m1, m2, m3 = st.columns(3)
+    m1.metric("🚨 S.O.S ACTIVOS", len(pendientes))
+    m2.metric("📡 ESTADO DE RED", "OPERATIVO")
+    m3.metric("🕒 HORA LOCAL", obtener_hora_argentina())
+
+    tab_radar, tab_base = st.tabs(["🚨 RADAR S.O.S", "📖 MAPA DE OBJETIVOS"])
+    
+    with tab_radar:
+        if not pendientes.empty:
+            alerta = pendientes.iloc[-1]
+            st.markdown(f'<div class="banner-emergencia">ALERTA ACTIVA: {alerta["USUARIO"]}</div>', unsafe_allow_html=True)
+            # Mapa de monitoreo con objetivos visibles
+            m_mon = folium.Map(location=[lat_act, lon_act], zoom_start=12, tiles="CartoDB dark_matter")
+            for _, r in df_objetivos.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_mon)
+            st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_sos")
+        else:
+            st.success("✅ Vigilancia Pasiva - Sin Emergencias")
+
+    with tab_base:
+        if not df_objetivos.empty:
+            m_base = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            for _, r in df_objetivos.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_base)
+            st_folium(m_base, width="100%", height=500, key="mapa_monitoreo_base")
+
+# --- SECCIÓN: SUPERVISOR ---
+elif st.session_state.rol_sel == "SUPERVISOR":
     st.subheader(f"⚡ ESTACIÓN TÁCTICA: {st.session_state.user_sel}")
+    
+    # Filtro para mostrar objetivos asignados a este supervisor (basado en apellido)
     apellido = st.session_state.user_sel.split()[-1].upper()
     df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
     
-    st.write("DESLICE PARA ACTIVAR S.O.S.")
-    val_sos = st.slider("SOS", 0, 100, 0, label_visibility="collapsed")
-    if val_sos == 100:
-        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT: {lat_act} | LON: {lon_act}"])
-        st.error("🚨 S.O.S ENVIADO")
-
-    if st.button("🔄 REFRESCAR SISTEMA", use_container_width=True): st.rerun()
-    st.info(f"🛰️ TELEMETRÍA GPS ACTIVA\n\nLat: {lat_act}\n\nLon: {lon_act}")
+    st.info(f"🛰️ TELEMETRÍA GPS ACTIVA | Lat: {lat_act} | Lon: {lon_act}")
 
     t_map, t_rep = st.tabs(["📍 RADAR GPS", "📝 REPORTE"])
     with t_map:
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_sup = folium.Map(location=[lat_act, lon_act], zoom_start=13, tiles="CartoDB dark_matter")
-        folium.Marker([lat_act, lon_act], popup="MÓVIL", icon=folium.Icon(color="red", icon="car", prefix="fa")).add_to(m_sup)
+        # Marcador de posición actual
+        folium.Marker([lat_act, lon_act], popup="MI POSICIÓN", icon=folium.Icon(color="red", icon="car", prefix="fa")).add_to(m_sup)
+        # Mostrar todos los objetivos de su zona en el mapa
         for _, r in df_zona.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sup)
         st_folium(m_sup, width="100%", height=450, key="map_supervisor")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ROL: MONITOREO ---
-elif st.session_state.rol_sel == "MONITOREO":
-    st.subheader("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
-    df_alertas = leer_matriz_nube("ALERTAS")
-    pendientes = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'] if not df_alertas.empty else pd.DataFrame()
-    
-    if not pendientes.empty:
-        alerta = pendientes.iloc[-1]
-        st.markdown(f'<div class="banner-emergencia">ALERTA ACTIVA: {alerta["USUARIO"]}</div>', unsafe_allow_html=True)
-        st.markdown("### Informe de Neutralización")
-        inf_texto = st.text_area("Resolución táctica:", placeholder="Escriba aquí...", label_visibility="collapsed")
-        if st.button("CERRAR ALERTA", type="secondary", use_container_width=True):
-            if inf_texto: st.success("Alerta neutralizada.")
-            else: st.warning("Informe obligatorio.")
-    else: st.success("✅ Vigilancia Pasiva")
-
-# --- ROL: JEFE DE OPERACIONES ---
+# --- SECCIÓN: JEFE DE OPERACIONES (ACCESO LIBERADO) ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-    t_inf, t_map = st.tabs(["📄 INFORMES", "🌍 MAPA"])
+    
+    t_inf, t_map = st.tabs(["📄 INFORMES DE FLOTA", "🌍 MAPA ESTRATÉGICO"])
     with t_inf:
         if not df_actas.empty: st.dataframe(df_actas.tail(20), use_container_width=True)
+        else: st.info("No hay informes registrados.")
+        
     with t_map:
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_objetivos.empty:
             m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            st_folium(m_ops, width="100%", height=450, key="map_jefe")
+            # En esta vista se ven todos los objetivos del sistema
+            for _, r in df_objetivos.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
+            st_folium(m_ops, width="100%", height=500, key="map_jefe_ops")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ROL: GERENCIA ---
-elif st.session_state.rol_sel == "GERENCIA":
-    st.header("📈 DASHBOARD ESTRATÉGICO")
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.subheader("⚠️ ALERTAS SOS")
+# --- SECCIÓN: GERENCIA / ADMINISTRADOR ---
+elif st.session_state.rol_sel in ["GERENCIA", "ADMINISTRADOR"]:
+    if st.session_state.rol_sel == "GERENCIA":
+        st.header("📈 DASHBOARD ESTRATÉGICO")
         df_al = leer_matriz_nube("ALERTAS")
-        if not df_al.empty: st.write(df_al['ESTADO'].value_counts())
-    with col2:
-        st.subheader("🏢 ESTRUCTURA AGENCIA")
-        df_est = leer_matriz_nube("ESTRUCTURA")
-        if not df_est.empty: st.dataframe(df_est, use_container_width=True)
-
-# --- ROL: ADMINISTRADOR ---
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.header("⚙️ NÚCLEO MAESTRO")
-    u_ing = st.text_input("ADMIN_USER")
-    p_ing = st.text_input("ADMIN_PASS", type="password")
-    if u_ing == "admin" and p_ing == "aion2026":
-        st.success("Acceso Autorizado")
-        tipo = st.radio("Alta de:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nombre = st.text_input("Nombre:").upper()
-        if st.button("PROCESAR ALTA"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nombre, "ACTIVO", st.session_state.user_sel])
-            st.success("Alta exitosa.")
+        if not df_al.empty: st.write("Resumen de Estados:", df_al['ESTADO'].value_counts())
+        st.dataframe(leer_matriz_nube("ESTRUCTURA"), use_container_width=True)
+    else:
+        st.header("⚙️ NÚCLEO MAESTRO")
+        u_ing = st.text_input("ADMIN_USER")
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        if u_ing == "admin" and p_ing == "aion2026":
+            st.success("Acceso Autorizado")
+            # Lógica de administración...
