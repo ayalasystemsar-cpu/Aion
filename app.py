@@ -149,7 +149,7 @@ df_objetivos = cargar_objetivos()
 
 # --- 7. FLUJO DE INTERFAZ POR ROLES ---
 
-# A. ROL: SUPERVISOR
+# A. ROL: SUPERVISOR (Iconos Azules unificados)
 if st.session_state.rol_sel == "SUPERVISOR":
     st.markdown(f'<div class="estacion-titulo">📱 Estación de Control: {st.session_state.user_sel}</div>', unsafe_allow_html=True)
     st.markdown('<div style="color:#E0E0E0; font-size:16px; margin-top:20px; text-align:center;">📍 Mi Radar de Servicios y GPS</div>', unsafe_allow_html=True)
@@ -173,7 +173,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ACTAS_FLOTAS", [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, "VERDE"])
                 st.success("Reporte enviado.")
 
-# B. ROL: MONITOREO (Modificado para visibilidad permanente de protocolos)
+# B. ROL: MONITOREO (Iconos Azules + Cierre Permanente)
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -215,28 +215,21 @@ elif st.session_state.rol_sel == "MONITOREO":
         st_folium(m_sos, width="100%", height=450, key="map_sos")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # PROTOCOLO DE CIERRE (SIEMPRE VISIBLE)
         st.subheader("📝 PROTOCOLO DE CIERRE")
         inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Debe escribir el detalle del operativo para finalizar...")
-        
-        # El botón está siempre, pero solo actúa si hay SOS pendientes
         if st.button("FINALIZAR OPERATIVO", use_container_width=True):
             if sos_activos == 0:
                 st.info("No hay operativos de pánico activos para cerrar.")
             elif not inf_neu.strip():
                 st.warning("⚠️ ACCIÓN BLOQUEADA: Debe completar el informe antes de cerrar el evento.")
             else:
-                # Procesa el cierre de la alerta más reciente
                 fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                 actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
                 actualizar_celda("ALERTAS", fila, "F", inf_neu)
-                st.success(f"Operativo Finalizado. Registro actualizado en la matriz.")
+                st.success(f"Operativo Finalizado.")
                 st.rerun()
 
-    with t_gestion:
-        if not df_emergencias.empty: st.dataframe(df_emergencias.tail(20), use_container_width=True)
-
-# C. ROL: JEFE DE OPERACIONES
+# C. ROL: JEFE DE OPERACIONES (Unificado con Iconos Azules)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.header("📋 COMANDO DE OPERACIONES TÁCTICAS")
     tab_inf, tab_map = st.tabs(["📄 INFORMES", "🌍 MAPA"])
@@ -245,10 +238,12 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_actas.empty: st.dataframe(df_actas.tail(20), use_container_width=True)
     with tab_map:
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean() if not df_objetivos.empty else -34.6, df_objetivos['LONGITUD'].mean() if not df_objetivos.empty else -58.4], zoom_start=11, tiles="CartoDB dark_matter")
-        for _, r in df_objetivos.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="green", icon="dot-circle-o", prefix="fa")).add_to(m_ops)
-        st_folium(m_ops, width="100%", height=500, key="mapa_operaciones")
+        if not df_objetivos.empty:
+            m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            for _, r in df_objetivos.iterrows():
+                # UNIFICADO: Azul y Escudo para mantener la identidad visual corporativa
+                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
+            st_folium(m_ops, width="100%", height=500, key="mapa_operaciones")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # D. ADMINISTRADOR
