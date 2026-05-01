@@ -149,7 +149,7 @@ df_objetivos = cargar_objetivos()
 
 # --- 7. FLUJO DE INTERFAZ POR ROLES ---
 
-# A. ROL: SUPERVISOR (Captura 531)
+# A. ROL: SUPERVISOR
 if st.session_state.rol_sel == "SUPERVISOR":
     st.markdown(f'<div class="estacion-titulo">📱 Estación de Control: {st.session_state.user_sel}</div>', unsafe_allow_html=True)
     st.markdown('<div style="color:#E0E0E0; font-size:16px; margin-top:20px; text-align:center;">📍 Mi Radar de Servicios y GPS</div>', unsafe_allow_html=True)
@@ -173,7 +173,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ACTAS_FLOTAS", [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, "VERDE"])
                 st.success("Reporte enviado.")
 
-# B. ROL: MONITOREO (Lógica Táctica de Alertas)
+# B. ROL: MONITOREO (Modificado para visibilidad permanente de protocolos)
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -194,46 +194,44 @@ elif st.session_state.rol_sel == "MONITOREO":
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             op_riesgo = datos_sos['USUARIO']
             carga = str(datos_sos.get('CARGA_UTIL', ''))
-            
             try:
                 lat_m = float(carga.split("|")[0].split(":")[1].strip())
                 lon_m = float(carga.split("|")[1].split(":")[1].strip())
                 info_sos = {"user": op_riesgo, "lat": lat_m, "lon": lon_m}
-                
-                # --- LÓGICA TÁCTICA AGREGADA ---
                 obj_c, pol, coo_apoyo = calcular_emergencia(lat_m, lon_m, df_objetivos)
-                st.error(f"🚨 EMERGENCIA ACTIVA: {op_riesgo} | APOYO CERCANO: {obj_c} | POLICÍA: {pol}")
+                st.error(f"🚨 EMERGENCIA ACTIVA: {op_riesgo} | APOYO: {obj_c} | POLICÍA: {pol}")
             except: pass
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_sos = folium.Map(location=[lat_m, lon_m], zoom_start=13, tiles="CartoDB dark_matter")
-        
-        # Dibujar Objetivos
         for _, r in df_objetivos.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
-        
-        # Dibujar S.O.S y Ruta de Respuesta
         if info_sos:
-            folium.Marker([info_sos["lat"], info_sos["lon"]], tooltip="RIESGO", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
+            folium.Marker([info_sos["lat"], info_sos["lon"]], icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
             if 'coo_apoyo' in locals() and coo_apoyo:
-                # Trazado de ruta táctica neón
-                AntPath(locations=[[info_sos["lat"], info_sos["lon"]], [coo_apoyo[0], coo_apoyo[1]]], 
-                        color="#FF0000", weight=5, pulse_color="#ffffff").add_to(m_sos)
-                
-        st_folium(m_sos, width="100%", height=450, key="map_mon_tactico")
+                AntPath(locations=[[info_sos["lat"], info_sos["lon"]], [coo_apoyo[0], coo_apoyo[1]]], color="#FF0000", weight=5).add_to(m_sos)
+        st_folium(m_sos, width="100%", height=450, key="map_sos")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        if sos_activos > 0:
-            st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
-            if st.button("FINALIZAR OPERATIVO"):
-                if inf_neu.strip():
-                    fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
-                    actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
-                    actualizar_celda("ALERTAS", fila, "F", inf_neu)
-                    st.rerun()
+        # PROTOCOLO DE CIERRE (SIEMPRE VISIBLE)
+        st.subheader("📝 PROTOCOLO DE CIERRE")
+        inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Debe escribir el detalle del operativo para finalizar...")
+        
+        # El botón está siempre, pero solo actúa si hay SOS pendientes
+        if st.button("FINALIZAR OPERATIVO", use_container_width=True):
+            if sos_activos == 0:
+                st.info("No hay operativos de pánico activos para cerrar.")
+            elif not inf_neu.strip():
+                st.warning("⚠️ ACCIÓN BLOQUEADA: Debe completar el informe antes de cerrar el evento.")
+            else:
+                # Procesa el cierre de la alerta más reciente
+                fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
+                actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
+                actualizar_celda("ALERTAS", fila, "F", inf_neu)
+                st.success(f"Operativo Finalizado. Registro actualizado en la matriz.")
+                st.rerun()
 
     with t_gestion:
         if not df_emergencias.empty: st.dataframe(df_emergencias.tail(20), use_container_width=True)
