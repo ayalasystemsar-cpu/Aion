@@ -120,7 +120,7 @@ with st.sidebar:
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 df_objetivos = cargar_objetivos()
 
-# --- MONITOREO (SEGÚN CAPTURA 535 y 537) ---
+# --- MONITOREO ---
 if st.session_state.rol_sel == "MONITOREO":
     st.subheader("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_alertas = leer_matriz_nube("ALERTAS")
@@ -144,7 +144,6 @@ if st.session_state.rol_sel == "MONITOREO":
             
             obj, pol, _ = calcular_emergencia(lat_s, lon_s, df_objetivos)
             
-            # Banner Rojo (Imagen 537)
             st.markdown(f"""<div class="banner-emergencia">
                 <h3>Operador: {alerta['USUARIO']}</h3>
                 <p>OBJETIVO CERCANO: {obj}</p>
@@ -155,12 +154,16 @@ if st.session_state.rol_sel == "MONITOREO":
             folium.Marker([lat_s, lon_s], popup=alerta['USUARIO'], icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
             st_folium(m_sos, width="100%", height=400)
             
-            # Botón funcional de ruta
             if st.button("🛣️ VER MEJOR RUTA DE RESPUESTA", use_container_width=True):
                 url = f"https://www.google.com/maps/dir/?api=1&destination={lat_s},{lon_s}"
                 st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
         else:
             st.success("✅ Vigilancia Pasiva - Sin Alertas")
+            if not df_objetivos.empty:
+                m_base = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+                for _, r in df_objetivos.iterrows():
+                    folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=5, color="#00E5FF", fill=True).add_to(m_base)
+                st_folium(m_base, width="100%", height=450, key="mapa_mon_pasivo")
 
     with t_com:
         st.subheader("📫 CENTRO DE MENSAJERÍA SINCRONIZADO")
@@ -177,7 +180,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         m_sup = folium.Map(location=[lat_act, lon_act], zoom_start=12, tiles="CartoDB dark_matter")
         for _, r in df_zona.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sup)
-        st_folium(m_sup, width="100%", height=400)
+        st_folium(m_sup, width="100%", height=400, key="mapa_supervisor")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# --- JEFE DE OPERACIONES ---
+elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    st.subheader("📋 COMANDO DE OPERACIONES")
+    df_actas = leer_matriz_nube("ACTAS_FLOTAS")
+    t_inf, t_mapa = st.tabs(["📄 INFORMES", "🌍 MAPA"])
+    with t_inf:
+        if not df_actas.empty: st.dataframe(df_actas.tail(20), use_container_width=True)
+    with t_mapa:
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        if not df_objetivos.empty:
+            m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            for _, r in df_objetivos.iterrows():
+                folium.Marker(location=[r['LATITUD'], r['LONGITUD']], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
+            st_folium(m_ops, width="100%", height=450, key="mapa_jefe_iconos")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- GERENCIA ---
@@ -194,7 +213,12 @@ elif st.session_state.rol_sel == "GERENCIA":
 # --- ADMINISTRADOR ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
-    if st.text_input("ADMIN_PASS", type="password") == "aion2026":
-        st.success("Acceso Autorizado")
-```[cite: 1]
+    u_ing = st.text_input("ADMIN_USER")
+    p_ing = st.text_input("ADMIN_PASS", type="password")
+    if u_ing == "admin" and p_ing == "aion2026":
+        tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nuevo_nombre = st.text_input(f"Nombre del {tipo}:").upper()
+        if st.button("PROCESAR ALTA"):
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            st.success("Alta Exitosa")
        
