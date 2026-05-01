@@ -121,15 +121,19 @@ with st.sidebar:
     lon_act = loc['coords']['longitude'] if loc else 0.0
 
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
+    
+    # LÓGICA MODIFICADA AQUÍ
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
         carga_sos = f"LAT: {lat_act} | LON: {lon_act}"
-        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+        exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+        
+        if exito:
+            st.error("🚨 S.O.S ENVIADO") # Mensaje visual destacado
+            st.toast("Señal de emergencia transmitida a la central", icon="🛡️") # Notificación adicional
+        else:
+            st.warning("Error de conexión al enviar S.O.S")
+            
     st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 6. FLUJO DE INTERFAZ POR ROLES ---
-st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
-
-df_objetivos = cargar_objetivos()
 
 # --- A. ROL: SUPERVISOR ---
 if st.session_state.rol_sel == "SUPERVISOR":
