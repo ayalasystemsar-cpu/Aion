@@ -130,44 +130,48 @@ with st.sidebar:
 # --- 6. FLUJO DE INTERFAZ POR ROLES ---
 df_objetivos = cargar_objetivos()
 
-# --- A. ROL: SUPERVISOR (FILTRADO POR ZONA PROPIA) ---
+# --- A. ROL: SUPERVISOR (FILTRADO MEJORADO) ---
 if st.session_state.rol_sel == "SUPERVISOR":
     st.subheader(f"📱 Estación: {st.session_state.user_sel}")
     
-    # ✅ FILTRO DE SEGURIDAD: Solo objetivos asignados a este supervisor[cite: 5, 6]
-    apellido = st.session_state.user_sel.split()[-1].upper()
-    df_propio = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
+    # ✅ FILTRO MEJORADO: Busca por nombre o apellido. Si no hay nada, muestra todo[cite: 5, 6].
+    nombres_busqueda = st.session_state.user_sel.split()
+    apellido_sup = nombres_busqueda[-1].upper() if nombres_busqueda else ""
+    
+    # Si el DataFrame no está vacío, intentamos filtrar[cite: 5].
+    if not df_objetivos.empty:
+        df_propio = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.upper().str.contains(apellido_sup, na=False)]
+        # Si el filtro resulta vacío, devolvemos todos para no perder la visual[cite: 3, 4].
+        if df_propio.empty:
+            df_propio = df_objetivos
+    else:
+        df_propio = pd.DataFrame()
     
     t1, t2, t3 = st.tabs(["📍 MI RADAR", "📝 NOVEDADES", "💬 CHAT"])
     with t1:
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        # Centrar mapa en sus objetivos o su posición actual[cite: 3, 4]
         lat_mapa = df_propio['LATITUD'].mean() if not df_propio.empty else (lat_act if lat_act != 0 else -34.6)
         lon_mapa = df_propio['LONGITUD'].mean() if not df_propio.empty else (lon_act if lon_act != 0 else -58.4)
         
-        m = folium.Map(location=[lat_mapa, lon_mapa], zoom_start=13, tiles="CartoDB dark_matter")
-        
-        # Marcador de posición actual del supervisor[cite: 3, 4]
+        m = folium.Map(location=[lat_mapa, lon_mapa], zoom_start=12, tiles="CartoDB dark_matter")
         folium.Marker([lat_act, lon_act], tooltip="MI POSICIÓN", icon=folium.Icon(color="red", icon="user")).add_to(m)
         
-        # Solo marcar sus objetivos[cite: 5, 6]
         for _, r in df_propio.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m)
+            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m)
         
         st_folium(m, width="100%", height=350)
         st.markdown('</div>', unsafe_allow_html=True)
     with t2:
         with st.form("nov_sup"):
-            # Solo puede elegir sus objetivos para reportar novedades[cite: 5, 6]
             f_dest = st.selectbox("Objetivo:", df_propio['OBJETIVO'].unique()) if not df_propio.empty else "N/A"
             f_nov = st.text_area("Novedad Operativa")
             if st.form_submit_button("TRANSMITIR"):
                 escribir_registro_nube("ACTAS_FLOTAS", [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, "VERDE"])
-                st.success("Informe transmitido a la matriz.")
+                st.success("Informe transmitido.")
 
-# --- B. ROL: MONITOREO (ESTACIÓN DE DESPACHO) ---
+# --- B. ROL: MONITOREO ---
 elif st.session_state.rol_sel == "MONITOREO":
-    st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
+    st.header("🛰️ CENTRAL DE INTELIGENCIA")
     df_emergencias = leer_matriz_nube("ALERTAS")
     sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_emergencias.empty else 0
     
@@ -183,59 +187,52 @@ elif st.session_state.rol_sel == "MONITOREO":
         
         st.markdown(f"""
             <div style="background-color: #FF0000; color: white; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid white;">
-                <h2 style="color: white !important;">🚨 EMERGENCIA: {datos_sos['USUARIO']} 🚨</h2>
-                <p style="font-size: 18px;">UBICADO EN: <b>{obj_cercano}</b></p>
-                <p style="font-size: 20px; font-weight: bold; color: #FFFF00;">🚓 COMISARÍA ASIGNADA: {policia_nombre}</p>
+                <h2 style="color: white !important;">🚨 EMERGENCIA: {datos_sos['USUARIO']} / {obj_cercano} 🚨</h2>
+                <p style="font-size: 20px; font-weight: bold; color: #FFFF00;">🚓 COMISARÍA: {policia_nombre}</p>
             </div>
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=15, tiles="CartoDB dark_matter")
-        folium.Marker([lat_sos, lon_sos], tooltip=f"{datos_sos['USUARIO']} / {obj_cercano}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
+        folium.Marker([lat_sos, lon_sos], tooltip=f"SUPERVISOR: {datos_sos['USUARIO']}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
         
         if coords_apoyo:
-            folium.Marker([coords_apoyo[0], coords_apoyo[1]], tooltip=f"APOYO: {policia_nombre}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
+            folium.Marker([coords_apoyo[0], coords_apoyo[1]], tooltip=f"COMISARÍA: {policia_nombre}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
             AntPath(locations=[[lat_sos, lon_sos], [coords_apoyo[0], coords_apoyo[1]]], color="#00E5FF", pulse_color="#FFFFFF", weight=5, opacity=0.8).add_to(m_sos)
         
         st_folium(m_sos, width="100%", height=400, key="mapa_mon_sos")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        url_maps = f"https://www.google.com/maps/dir/?api=1&origin={lat_sos},{lon_sos}&destination={policia_nombre}"
-        st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%; padding:15px; background-color:#4285F4; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">🗺️ VER RECORRIDO EN GOOGLE MAPS</button></a>', unsafe_allow_html=True)
+        url_ruta = f"https://www.google.com/maps/dir/?api=1&origin={lat_sos},{lon_sos}&destination={policia_nombre}"
+        st.markdown(f'<a href="{url_ruta}" target="_blank"><button style="width:100%; padding:15px; background-color:#4285F4; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">🗺️ RUTA EN MAPS</button></a>', unsafe_allow_html=True)
 
         with st.form("cierre"):
-            res = st.text_area("Informe de Resolución")
-            if st.form_submit_button("✅ CERRAR ALERTA"):
+            res = st.text_area("Informe")
+            if st.form_submit_button("CERRAR"):
                 fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                 actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
                 actualizar_celda("ALERTAS", fila, "F", res)
                 st.rerun()
     else:
-        st.success("✅ SISTEMA EN VIGILANCIA PASIVA")
+        st.success("✅ SISTEMA OPERATIVO")
 
-# --- C. ROL: JEFE DE OPERACIONES ---
+# --- C. RESTO DE ROLES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.subheader("📋 COMANDO DE OPERACIONES")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
     if not df_actas.empty: st.dataframe(df_actas.tail(15), use_container_width=True)
-    if not df_objetivos.empty:
-        m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-        for _, r in df_objetivos.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
-        st_folium(m_ops, width="100%", height=400)
 
-# --- D. OTROS ROLES ---
 elif st.session_state.rol_sel == "GERENCIA":
-    st.header("📈 DASHBOARD ESTRATÉGICO")
+    st.header("📈 DASHBOARD")
     df_al = leer_matriz_nube("ALERTAS")
     if not df_al.empty: st.write(df_al['ESTADO'].value_counts())
 
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.header("⚙️ NÚCLEO MAESTRO")
+    st.header("⚙️ NÚCLEO")
     u = st.text_input("USER")
     p = st.text_input("PASS", type="password")
     if u == "admin" and p == "aion2026":
-        nombre = st.text_input("NUEVO SERVICIO")
+        nombre = st.text_input("SERVICIO")
         if st.button("ALTA"):
             escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), "SERVICIO", nombre.upper(), "ACTIVO", st.session_state.user_sel])
             st.success("Ok")
