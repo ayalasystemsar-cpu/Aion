@@ -123,7 +123,6 @@ with st.sidebar:
 
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        # Empaquetamos selección manual: Usuario, Objetivo y Supervisor
         carga_sos = f"LAT:{lat_act}|LON:{lon_act}|OBJ:{obj_panico}|SUP:{sup_panico}"
         exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
         if exito:
@@ -151,7 +150,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
         st_folium(m, width="100%", height=400, key="map_sup")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# B. ROL: MONITOREO (CON BOTÓN DE FINALIZAR E INFORME)
+# B. ROL: MONITOREO (MAPA SIEMPRE VISIBLE)
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -164,6 +163,12 @@ elif st.session_state.rol_sel == "MONITOREO":
 
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     with t_radar:
+        # Inicializamos variables de ubicación para el mapa general
+        lat_mapa, lon_mapa = -34.6, -58.4
+        if not df_objetivos.empty:
+            lat_mapa, lon_mapa = df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()
+
+        # Si hay SOS, actualizamos el encabezado y la ubicación del mapa
         if sos_activos > 0:
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             quien_tira = datos_sos['USUARIO']
@@ -171,39 +176,46 @@ elif st.session_state.rol_sel == "MONITOREO":
             
             try:
                 partes = carga.split("|")
-                lat_m = float(partes[0].split(":")[1])
-                lon_m = float(partes[1].split(":")[1])
+                lat_mapa = float(partes[0].split(":")[1])
+                lon_mapa = float(partes[1].split(":")[1])
                 obj_rep = partes[2].split(":")[1]
                 sup_rep = partes[3].split(":")[1]
                 
-                # IDENTIFICACIÓN TÁCTICA
                 st.error(f"🚨 ALERTA ACTIVA DE: {quien_tira}")
                 st.error(f"🎯 OBJETIVO: {obj_rep} | 👤 RESPONSABLE: {sup_rep}")
-            except: lat_m, lon_m, obj_rep = -34.6, -58.4, "ERROR DE DATOS"
+            except: obj_rep = "ERROR DE LECTURA"
+        else:
+            st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
-            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            m_sos = folium.Map(location=[lat_m, lon_m], zoom_start=14, tiles="CartoDB dark_matter")
+        # EL MAPA SE RENDERIZA SIEMPRE FUERA DEL BLOQUE IF
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        m_sos = folium.Map(location=[lat_mapa, lon_mapa], zoom_start=13 if sos_activos == 0 else 15, tiles="CartoDB dark_matter")
+        
+        # Dibujamos objetivos normales
+        for _, r in df_objetivos.iterrows():
+            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
+        
+        # Si hay alerta, añadimos el latido
+        if sos_activos > 0:
             html_pulse = """<div style="position: relative;"><div style="position: absolute; width: 25px; height: 25px; background: red; border-radius: 50%; animation: pulse 1.2s infinite;"></div><div style="position: absolute; width: 25px; height: 25px; background: red; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">!</div></div><style>@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.5); opacity: 0; } }</style>"""
-            folium.Marker([lat_m, lon_m], icon=folium.DivIcon(html=html_pulse, icon_size=(25,25))).add_to(m_sos)
-            st_folium(m_sos, width="100%", height=450, key="map_sos_manual")
-            st.markdown('</div>', unsafe_allow_html=True)
+            folium.Marker([lat_mapa, lon_mapa], icon=folium.DivIcon(html=html_pulse, icon_size=(25,25))).add_to(m_sos)
 
-            # --- PROTOCOLO DE CIERRE (BOTÓN Y ESCRITURA) ---
+        st_folium(m_sos, width="100%", height=450, key="map_mon_siempre_visible")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # BLOQUE DE CIERRE (Solo aparece si hay SOS activo)
+        if sos_activos > 0:
             st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Escriba aquí el detalle del operativo para poder cerrar la alerta...")
-            
+            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
             if st.button("FINALIZAR OPERATIVO", use_container_width=True):
                 if inf_neu.strip():
-                    # Buscamos la fila en la nube (index + 2 por encabezado de Sheets)
                     fila_idx = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                     actualizar_celda("ALERTAS", fila_idx, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_idx, "F", inf_neu)
-                    st.success("✅ Operativo Finalizado y Registrado.")
+                    st.success("Operativo Finalizado.")
                     st.rerun()
                 else:
-                    st.warning("⚠️ ACCIÓN BLOQUEADA: El informe de neutralización es obligatorio.")
-        else:
-            st.success("✅ Vigilancia Pasiva - Radar Operativo")
+                    st.warning("Debe completar el informe.")
 
     with t_gestion:
         if not df_emergencias.empty: st.dataframe(df_emergencias.tail(20), use_container_width=True)
