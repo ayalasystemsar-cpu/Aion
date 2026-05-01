@@ -118,12 +118,12 @@ with st.sidebar:
     sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "EDGAR VERA", "OTRO"])
     
     loc = get_geolocation()
-    lat_act = loc['coords']['latitude'] if loc else 0.0
-    lon_act = loc['coords'].get('longitude', 0.0) if loc else 0.0
+    lat_envio = loc['coords']['latitude'] if loc else 0.0
+    lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
 
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        carga_sos = f"LAT:{lat_act}|LON:{lon_act}|OBJ:{obj_panico}|SUP:{sup_panico}"
+        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_panico}|SUP:{sup_panico}"
         escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
         st.error(f"🚨 S.O.S ENVIADO: {obj_panico}")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -133,27 +133,17 @@ st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubus
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: SUPERVISOR (MAPA RESTAURADO)
+# A. ROL: SUPERVISOR
 if st.session_state.rol_sel == "SUPERVISOR":
-    st.markdown(f'<div class="estacion-titulo">📱 Estación de Control: {st.session_state.user_sel}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div style="text-align:center; color:#00E5FF; font-weight:bold;">Servicio Actual: {obj_panico}</div>', unsafe_allow_html=True)
-    
-    t1, t2 = st.tabs(["📍 RADAR GPS", "📝 REPORTE"])
-    with t1:
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        m_sup = folium.Map(location=[lat_act if lat_act != 0 else -34.6, lon_act if lon_act != 0 else -58.4], zoom_start=12, tiles="CartoDB dark_matter")
-        for _, r in df_objetivos.iterrows():
-            folium.Marker(
-                [r['LATITUD'], r['LONGITUD']], 
-                tooltip=f"OBJETIVO: {r['OBJETIVO']}", 
-                icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-            ).add_to(m_sup)
-        if lat_act != 0:
-            folium.Marker([lat_act, lon_act], icon=folium.Icon(color="red", icon="user", prefix="fa")).add_to(m_sup)
-        st_folium(m_sup, width="100%", height=400, key="map_supervisor")
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="estacion-titulo">📱 Supervisor: {st.session_state.user_sel}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+    m_sup = folium.Map(location=[-34.6, -58.4], zoom_start=12, tiles="CartoDB dark_matter")
+    for _, r in df_objetivos.iterrows():
+        folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"OBJ: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sup)
+    st_folium(m_sup, width="100%", height=400, key="map_supervisor")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# B. ROL: MONITOREO (MAPA + CIERRE + LÓGICA DE COLOR)
+# B. ROL: MONITOREO (BLINDADO A SELECCIÓN MANUAL)
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -166,55 +156,61 @@ elif st.session_state.rol_sel == "MONITOREO":
 
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     with t_radar:
-        lat_mapa, lon_mapa = -34.6, -58.4
-        obj_en_panico = ""
+        lat_foco, lon_foco = -34.6, -58.4
+        objetivo_alerta = ""
         
         if sos_activos > 0:
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             try:
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
-                lat_mapa = float(partes[0].split(":")[1])
-                lon_mapa = float(partes[1].split(":")[1])
-                obj_en_panico = partes[2].split(":")[1]
-                sup_reportado = partes[3].split(":")[1]
-                st.error(f"🚨 EMERGENCIA: {datos_sos['USUARIO']} | 🎯 {obj_en_panico} | 👤 SUP: {sup_reportado}")
+                objetivo_alerta = partes[2].split(":")[1]
+                supervisor_alerta = partes[3].split(":")[1]
+                
+                # BUSCAMOS COORDENADAS DEL OBJETIVO SELECCIONADO EN LA BASE DE OBJETIVOS
+                target_data = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_alerta].iloc[0]
+                lat_foco, lon_foco = target_data['LATITUD'], target_data['LONGITUD']
+                
+                st.error(f"🚨 EMERGENCIA EN CURSO: {datos_sos['USUARIO']}")
+                st.error(f"🎯 OBJETIVO SELECCIONADO: {objetivo_alerta} | 👤 RESPONSABLE: {supervisor_alerta}")
             except: pass
         else:
+            if not df_objetivos.empty:
+                lat_foco, lon_foco = df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        m_mon = folium.Map(location=[lat_mapa, lon_mapa], zoom_start=13, tiles="CartoDB dark_matter")
+        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
         for _, r in df_objetivos.iterrows():
-            # CAMBIO DE COLOR DINÁMICO: Si es el objetivo reportado, se pone rojo
-            color_final = "red" if r['OBJETIVO'] == obj_en_panico else "blue"
+            # LÓGICA DE COLOR: Si es el objetivo que elegiste, se pone rojo
+            es_alerta = (r['OBJETIVO'] == objetivo_alerta)
+            color_m = "red" if es_alerta else "blue"
             
             folium.Marker(
                 [r['LATITUD'], r['LONGITUD']], 
                 tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-                icon=folium.Icon(color=color_final, icon="shield", prefix="fa")
+                icon=folium.Icon(color=color_m, icon="shield", prefix="fa")
             ).add_to(m_mon)
-        
-        if sos_activos > 0:
-            html_pulse = """<div style="position: relative;"><div style="position: absolute; width: 25px; height: 25px; background: red; border-radius: 50%; animation: pulse 1.2s infinite;"></div></div><style>@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.5); opacity: 0; } }</style>"""
-            folium.Marker([lat_mapa, lon_mapa], icon=folium.DivIcon(html=html_pulse)).add_to(m_mon)
+            
+            if es_alerta:
+                html_pulse = """<div style="position: relative;"><div style="position: absolute; width: 30px; height: 30px; background: red; border-radius: 50%; animation: pulse 1.2s infinite;"></div></div><style>@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(4); opacity: 0; } }</style>"""
+                folium.Marker([r['LATITUD'], r['LONGITUD']], icon=folium.DivIcon(html=html_pulse)).add_to(m_mon)
 
-        st_folium(m_mon, width="100%", height=450, key="map_monitoreo_full")
+        st_folium(m_mon, width="100%", height=450, key="map_monitoreo_final")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # PROTOCOLO DE CIERRE (RESTAURADO)
         if sos_activos > 0:
             st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Escriba el detalle aquí...")
+            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Debe escribir el detalle del operativo para finalizar...")
             if st.button("FINALIZAR OPERATIVO", use_container_width=True):
                 if inf_neu.strip():
-                    fila_idx = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
-                    actualizar_celda("ALERTAS", fila_idx, "D", "RESUELTO")
-                    actualizar_celda("ALERTAS", fila_idx, "F", inf_neu)
+                    fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
+                    actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
+                    actualizar_celda("ALERTAS", fila, "F", inf_neu)
                     st.success("Operativo Finalizado.")
                     st.rerun()
                 else:
-                    st.warning("Debe completar el informe.")
+                    st.warning("⚠️ El informe es obligatorio para cerrar la alerta.")
 
 # C. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
