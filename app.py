@@ -89,14 +89,11 @@ def cargar_objetivos():
 
 # ✅ MOTOR DE TRIANGULACIÓN Y LOCALIZACIÓN DE COMISARÍA
 def calcular_emergencia(lat, lon, df_obj):
-    """Retorna el Objetivo y los datos de la Comisaría/Policía[cite: 3, 4]"""
+    """Retorna el Objetivo, la Comisaría y las coordenadas de destino[cite: 3, 4]"""
     if df_obj.empty or lat == 0.0: return "Sin datos", "Sin datos", None
     df_temp = df_obj.copy()
     df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - lat)**2 + (df_temp['LONGITUD'] - lon)**2)
     cercano = df_temp.loc[df_temp['distancia'].idxmin()]
-    
-    # Extraemos también la ubicación de la comisaría si estuviera disponible
-    # Por ahora devolvemos el Objetivo, el Nombre de la Comisaría y las coordenadas del Objetivo de referencia[cite: 3, 4]
     return cercano['OBJETIVO'], cercano.get('POLICIA', '911 / No asignada'), (cercano['LATITUD'], cercano['LONGITUD'])
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
@@ -182,7 +179,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
     with t3:
         st.info("Bandeja de Mensajería Sincronizada con Matriz Nube")
 
-# --- B. ROL: MONITOREO (MAPA CON RUTA VISUAL A COMISARÍA) ---
+# --- B. ROL: MONITOREO (ESTACIÓN DE RESPUESTA TÁCTICA FINAL) ---
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -203,37 +200,45 @@ elif st.session_state.rol_sel == "MONITOREO":
                 lon_sos = float(carga.split("|")[1].split(":")[1].strip())
             except: lat_sos, lon_sos = 0.0, 0.0
 
-            # ✅ Triangulación: Supervisor -> Objetivo de referencia -> Comisaría[cite: 3, 4]
+            # ✅ Triangulación Avanzada[cite: 3, 4]
             obj_cercano, policia_zona, coords_obj = calcular_emergencia(lat_sos, lon_sos, df_objetivos)
             
             st.markdown(f"""
                 <div style="background-color: #FF0000; color: white; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid white;">
                     <h2 style="color: white !important;">🚨 EMERGENCIA DETECTADA 🚨</h2>
-                    <h4 style="color: white !important;">Operador: {datos_sos['USUARIO']}</h4>
-                    <p style="font-size: 18px;"><b>OBJETIVO CERCANO:</b> {obj_cercano}</p>
+                    <h4 style="color: white !important;">SUPERVISOR: {datos_sos['USUARIO']}</h4>
+                    <p style="font-size: 18px;"><b>OBJETIVO DE REFERENCIA:</b> {obj_cercano}</p>
                     <p style="font-size: 20px; font-weight: bold; color: #FFFF00;">🚓 COMISARÍA ASIGNADA: {policia_zona}</p>
                 </div>
             """, unsafe_allow_html=True)
 
-            # ✅ MAPA CON MARCADORES Y RUTA VISUAL[cite: 3, 4]
+            # ✅ MAPA CON IDENTIFICACIÓN DE NOMBRES Y RUTA[cite: 3, 4]
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=14, tiles="CartoDB dark_matter")
+            m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=15, tiles="CartoDB dark_matter")
             
-            # Marcador Supervisor (Rojo)
-            folium.Marker([lat_sos, lon_sos], popup=f"SUPERVISOR: {datos_sos['USUARIO']}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
+            # Marcador Supervisor con Nombre Visible[cite: 3, 4]
+            folium.Marker(
+                [lat_sos, lon_sos], 
+                tooltip=f"SUPERVISOR: {datos_sos['USUARIO']}", 
+                icon=folium.Icon(color="red", icon="warning")
+            ).add_to(m_sos)
             
-            # Marcador Comisaría/Objetivo (Azul)
+            # Marcador Objetivo/Comisaría con Nombre Visible[cite: 3, 4]
             if coords_obj:
-                folium.Marker([coords_obj[0], coords_obj[1]], popup=f"COMISARÍA/APOYO: {policia_zona}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
-                # Línea visual de la ruta más corta (Vector táctico)[cite: 3, 4]
-                folium.PolyLine([[lat_sos, lon_sos], [coords_obj[0], coords_obj[1]]], color="yellow", weight=5, opacity=0.8, dash_array='10').add_to(m_sos)
+                folium.Marker(
+                    [coords_obj[0], coords_obj[1]], 
+                    tooltip=f"OBJETIVO: {obj_cercano} / COMISARÍA: {policia_zona}", 
+                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                ).add_to(m_sos)
+                # Línea táctica de enlace[cite: 3, 4]
+                folium.PolyLine([[lat_sos, lon_sos], [coords_obj[0], coords_obj[1]]], color="yellow", weight=5, opacity=0.8).add_to(m_sos)
             
             st_folium(m_sos, width="100%", height=400, key="mapa_mon_sos")
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Botón de Navegación Externa[cite: 3, 4]
+            # ✅ ENRUTAMIENTO DINÁMICO A COMISARÍA[cite: 3, 4]
             url_ruta = f"https://www.google.com/maps/dir/?api=1&origin={lat_sos},{lon_sos}&destination={policia_zona}"
-            st.markdown(f'<a href="{url_ruta}" target="_blank"><button style="width:100%; padding:15px; background-color:#4285F4; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">🚓 INICIAR RUTA DE RESPUESTA (GOOGLE MAPS)</button></a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{url_ruta}" target="_blank"><button style="width:100%; padding:15px; background-color:#4285F4; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">🚓 VER CÓMO IR A LA COMISARÍA ASIGNADA</button></a>', unsafe_allow_html=True)
 
             with st.form("cierre_crisis"):
                 res_acta = st.text_area("Informe de Neutralización")
