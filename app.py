@@ -34,15 +34,6 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-def actualizar_celda(pestana, fila, columna, valor):
-    try:
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.update_acell(f"{columna}{fila}", valor)
-            return True
-    except: return False
-
 def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
@@ -72,14 +63,7 @@ def cargar_objetivos():
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
     return pd.DataFrame()
 
-def calcular_emergencia(lat, lon, df_obj):
-    if df_obj.empty or lat == 0.0: return "Sin datos", "Sin datos", None
-    df_temp = df_obj.copy()
-    df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - lat)**2 + (df_temp['LONGITUD'] - lon)**2)
-    cercano = df_temp.loc[df_temp['distancia'].idxmin()]
-    return cercano['OBJETIVO'], cercano.get('POLICIA', '911'), (cercano['LATITUD'], cercano['LONGITUD'])
-
-# --- 4. DISEÑO E IDENTIDAD VISUAL ---
+# --- 4. DISEÑO E IDENTIDAD VISUAL (SEGÚN CAPTURA 545) ---
 def aplicar_identidad_alfa():
     st.markdown(
         """
@@ -87,37 +71,43 @@ def aplicar_identidad_alfa():
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         [data-testid="stSidebar"] { background-color: #050507 !important; border-right: 1px solid rgba(0, 229, 255, 0.3) !important; }
-        .contenedor-logo-sidebar { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 20px; padding: 10px; }
-        .logo-sidebar { width: 180px !important; filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.4)); }
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-top: -10px; margin-bottom: 20px; }
-        .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        .panico-container { display: flex !important; justify-content: center !important; align-items: center !important; width: 100% !important; margin: 20px 0 !important; padding: 0 !important; }
+        
+        /* Logo Sidebar con borde neón */
+        .contenedor-logo-sidebar { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 20px; padding: 10px; border: 1px solid #00e5ff; border-radius: 4px; background: #000; }
+        .logo-sidebar { width: 100% !important; filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.4)); }
+        
+        /* Logo Central Phoenix con borde Neón Cian */
+        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-top: 10px; margin-bottom: 30px; }
+        .logo-phoenix { width: 500px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 30px rgba(0, 229, 255, 0.4) !important; border-radius: 4px !important; background-color: #000 !important; padding: 5px; }
+        
+        .panico-container { display: flex !important; justify-content: center !important; align-items: center !important; width: 100% !important; margin-top: 40px !important; }
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; line-height: 1.1; text-transform: uppercase; margin: 0 auto !important; 
+            color: white !important; border-radius: 50% !important; width: 110px !important; height: 110px !important; 
+            border: 2px solid #333 !important; box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important; 
+            font-family: 'Orbitron', sans-serif; font-size: 12px !important; font-weight: bold; line-height: 1.1; text-transform: uppercase; 
         }
-        .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.8); }
-        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
+        .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 15px; background: rgba(10, 10, 11, 0.8); }
+        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; text-shadow: 0 0 10px rgba(0, 229, 255, 0.4); }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
 
-# --- 5. MEMORIA DE SESIÓN Y SIDEBAR ---
+# --- 5. SIDEBAR Y SEGURIDAD GPS ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-sidebar"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
-    perfiles = ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
+    perfiles = ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "ADMINISTRADOR"]
     st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles)
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO"])
+    lista_sups = ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO"]
+    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups)
     
-    # Protección de GPS para móviles[cite: 1]
+    # Fix para móviles (Evita KeyError)[cite: 1]
     loc = get_geolocation()
     if loc and 'coords' in loc:
         lat_act = loc['coords'].get('latitude', 0.0)
@@ -131,12 +121,40 @@ with st.sidebar:
         escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 6. FLUJO DE CUERPO CENTRAL ---
+# --- 6. FLUJO CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 df_objetivos = cargar_objetivos()
 
-# --- A. ROL: JEFE DE OPERACIONES (ICONOS DETALLADOS)[cite: 1] ---
-if st.session_state.rol_sel == "JEFE DE OPERACIONES":
+# --- A. ROL: SUPERVISOR (ESTACIÓN TÁCTICA) ---
+if st.session_state.rol_sel == "SUPERVISOR":
+    st.subheader(f"⚡ ESTACIÓN TÁCTICA: {st.session_state.user_sel}")
+    apellido = st.session_state.user_sel.split()[-1].upper()
+    df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
+    if df_zona.empty: df_zona = df_objetivos
+
+    t_mapa, t_novedades = st.tabs(["📍 RADAR GPS", "📝 REPORTE DE NOVEDADES"])
+    
+    with t_mapa:
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        if not df_zona.empty:
+            m = folium.Map(location=[df_zona['LATITUD'].mean(), df_zona['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+            for _, r in df_zona.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m)
+            st_folium(m, width="100%", height=400, key="mapa_supervisor")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with t_novedades:
+        with st.form("form_novedades"):
+            f_dest = st.selectbox("OBJETIVO:", df_zona['OBJETIVO'].unique()) if not df_zona.empty else "N/A"
+            f_nov = st.text_area("INFORME DE NOVEDAD:")
+            f_gravedad = st.select_slider("NIVEL DE RIESGO:", options=["VERDE", "AMARILLO", "ROJO"])
+            if st.form_submit_button("🚀 TRANSMITIR ACTA"):
+                datos = [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, f_gravedad]
+                if escribir_registro_nube("ACTAS_FLOTAS", datos):
+                    st.success("Acta transmitida a la matriz central.")
+
+# --- B. ROL: JEFE DE OPERACIONES (ICONOS DETALLADOS) ---
+elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
     t_inf, t_mapa = st.tabs(["📄 INFORMES", "🌍 MAPA"])
@@ -149,7 +167,6 @@ if st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_objetivos.empty:
             m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             for _, r in df_objetivos.iterrows():
-                # ✅ Marcadores con iconos de escudo para visualización táctica
                 folium.Marker(
                     location=[r['LATITUD'], r['LONGITUD']], 
                     popup=f"OBJETIVO: {r['OBJETIVO']}",
@@ -158,37 +175,17 @@ if st.session_state.rol_sel == "JEFE DE OPERACIONES":
             st_folium(m_ops, width="100%", height=450, key="mapa_jefe_ops_iconos")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- B. ROL: MONITOREO ---
+# --- C. ROL: MONITOREO (MODO VIGILANCIA PASIVA) ---
 elif st.session_state.rol_sel == "MONITOREO":
-    st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
-    df_emergencias = leer_matriz_nube("ALERTAS")
-    sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_emergencias.empty else 0
-    t_radar, t_base = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
-    with t_radar:
-        if sos_activos > 0:
-            datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
-            carga = str(datos_sos.get('CARGA_UTIL', ''))
-            try:
-                lat_sos = float(carga.split("|")[0].split(":")[1].strip())
-                lon_sos = float(carga.split("|")[1].split(":")[1].strip())
-            except: lat_sos, lon_sos = -34.6037, -58.3816
-            m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=15, tiles="CartoDB dark_matter")
-            folium.Marker([lat_sos, lon_sos], icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
-            st_folium(m_sos, width="100%", height=400)
-        else:
-            st.success("✅ Sistema en Vigilancia Pasiva")
-            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            if not df_objetivos.empty:
-                m_pass = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
-                for _, r in df_objetivos.iterrows():
-                    folium.CircleMarker(location=[r['LATITUD'], r['LONGITUD']], radius=5, color="#00E5FF", fill=True).add_to(m_pass)
-                st_folium(m_pass, width="100%", height=450, key="mapa_mon_pasivo")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-# --- C. ROL: SUPERVISOR ---
-elif st.session_state.rol_sel == "SUPERVISOR":
-    st.subheader(f"📱 Estación: {st.session_state.user_sel}")
-    # ... Lógica de Supervisor[cite: 1]
+    st.header("🛰️ CENTRAL DE INTELIGENCIA")
+    st.success("✅ Sistema en Vigilancia Pasiva")
+    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+    if not df_objetivos.empty:
+        m_pass = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+        for _, r in df_objetivos.iterrows():
+            folium.CircleMarker(location=[r['LATITUD'], r['LONGITUD']], radius=5, color="#00E5FF", fill=True).add_to(m_pass)
+        st_folium(m_pass, width="100%", height=450, key="mapa_mon_pasivo")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- D. ROL: ADMINISTRADOR ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
@@ -197,5 +194,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026":
         tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nuevo_nombre = st.text_input(f"Nombre del {tipo}:").upper()
         if st.button("PROCESAR ALTA"):
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
             st.success("Alta Exitosa")
