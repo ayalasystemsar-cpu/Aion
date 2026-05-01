@@ -80,7 +80,7 @@ def aplicar_identidad_alfa():
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         [data-testid="stSidebar"] { background-color: #050507 !important; border-right: 1px solid rgba(0, 229, 255, 0.3) !important; }
-        .contenedor-logo-sidebar { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 20px; padding: 10px; }
+        .contenedor-logo-sidebar { display: flex; justify-content: center; align-items: center; padding: 10px; margin-bottom: 20px; }
         .logo-sidebar { width: 180px !important; filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.4)); border: 1.5px solid #00e5ff; border-radius: 4px; background: #000; }
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-top: -10px; margin-bottom: 20px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
@@ -123,12 +123,11 @@ with st.sidebar:
 
     st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        # Se empaquetan los datos elegidos manualmente para que lleguen a Monitoreo
+        # Empaquetamos selección manual: Usuario, Objetivo y Supervisor
         carga_sos = f"LAT:{lat_act}|LON:{lon_act}|OBJ:{obj_panico}|SUP:{sup_panico}"
         exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
         if exito:
             st.error(f"🚨 S.O.S ENVIADO: {obj_panico}")
-            st.toast(f"Alerta activa en {obj_panico}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. LOGO CENTRAL ---
@@ -139,7 +138,7 @@ st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubus
 # A. ROL: SUPERVISOR
 if st.session_state.rol_sel == "SUPERVISOR":
     st.markdown(f'<div class="estacion-titulo">📱 Estación de Control: {st.session_state.user_sel}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div style="text-align:center; color:#00E5FF; font-weight:bold;">Zona de Operación Seleccionada: {obj_panico}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center; color:#00E5FF; font-weight:bold;">Servicio: {obj_panico}</div>', unsafe_allow_html=True)
     
     t1, t2 = st.tabs(["📍 RADAR GPS", "📝 REPORTE"])
     with t1:
@@ -152,7 +151,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
         st_folium(m, width="100%", height=400, key="map_sup")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# B. ROL: MONITOREO
+# B. ROL: MONITOREO (CON BOTÓN DE FINALIZAR E INFORME)
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -167,6 +166,7 @@ elif st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         if sos_activos > 0:
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
+            quien_tira = datos_sos['USUARIO']
             carga = str(datos_sos.get('CARGA_UTIL', ''))
             
             try:
@@ -175,23 +175,38 @@ elif st.session_state.rol_sel == "MONITOREO":
                 lon_m = float(partes[1].split(":")[1])
                 obj_rep = partes[2].split(":")[1]
                 sup_rep = partes[3].split(":")[1]
-                st.error(f"🚨 EMERGENCIA CONFIRMADA: {datos_sos['USUARIO']} | OBJETIVO: {obj_rep} | SUPERVISOR: {sup_rep}")
-                meta_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_rep].iloc[0] if not df_objetivos.empty else None
-            except:
-                lat_m, lon_m, obj_rep, sup_rep, meta_data = -34.6, -58.4, "DATOS ILEGIBLES", "N/A", None
+                
+                # IDENTIFICACIÓN TÁCTICA
+                st.error(f"🚨 ALERTA ACTIVA DE: {quien_tira}")
+                st.error(f"🎯 OBJETIVO: {obj_rep} | 👤 RESPONSABLE: {sup_rep}")
+            except: lat_m, lon_m, obj_rep = -34.6, -58.4, "ERROR DE DATOS"
 
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             m_sos = folium.Map(location=[lat_m, lon_m], zoom_start=14, tiles="CartoDB dark_matter")
             html_pulse = """<div style="position: relative;"><div style="position: absolute; width: 25px; height: 25px; background: red; border-radius: 50%; animation: pulse 1.2s infinite;"></div><div style="position: absolute; width: 25px; height: 25px; background: red; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">!</div></div><style>@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.5); opacity: 0; } }</style>"""
             folium.Marker([lat_m, lon_m], icon=folium.DivIcon(html=html_pulse, icon_size=(25,25))).add_to(m_sos)
-            
-            if meta_data is not None:
-                 AntPath(locations=[[lat_m, lon_m], [meta_data['LATITUD'], meta_data['LONGITUD']]], color="#FF0000").add_to(m_sos)
-
             st_folium(m_sos, width="100%", height=450, key="map_sos_manual")
             st.markdown('</div>', unsafe_allow_html=True)
+
+            # --- PROTOCOLO DE CIERRE (BOTÓN Y ESCRITURA) ---
+            st.subheader("📝 PROTOCOLO DE CIERRE")
+            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Escriba aquí el detalle del operativo para poder cerrar la alerta...")
+            
+            if st.button("FINALIZAR OPERATIVO", use_container_width=True):
+                if inf_neu.strip():
+                    # Buscamos la fila en la nube (index + 2 por encabezado de Sheets)
+                    fila_idx = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
+                    actualizar_celda("ALERTAS", fila_idx, "D", "RESUELTO")
+                    actualizar_celda("ALERTAS", fila_idx, "F", inf_neu)
+                    st.success("✅ Operativo Finalizado y Registrado.")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ ACCIÓN BLOQUEADA: El informe de neutralización es obligatorio.")
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
+
+    with t_gestion:
+        if not df_emergencias.empty: st.dataframe(df_emergencias.tail(20), use_container_width=True)
 
 # C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
@@ -199,14 +214,13 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     tab_map = st.tabs(["🌍 MAPA"])[0]
     with tab_map:
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_objetivos.empty:
-            m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
-            st_folium(m_ops, width="100%", height=500, key="mapa_operaciones")
+        m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean() if not df_objetivos.empty else -34.6, -58.4], zoom_start=11, tiles="CartoDB dark_matter")
+        for _, r in df_objetivos.iterrows():
+            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
+        st_folium(m_ops, width="100%", height=500, key="mapa_ops")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# D. ADMINISTRADOR (NÚCLEO MAESTRO)
+# D. ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
     u_ing = st.text_input("ADMIN_USER")
