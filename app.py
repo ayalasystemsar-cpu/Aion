@@ -166,10 +166,11 @@ elif st.session_state.rol_sel == "MONITOREO":
     m2.metric("📡 ESTADO DE RED", "OPERATIVO")
     m3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
+    # Añadimos la pestaña de MAPA GENERAL
+    t_radar, t_mapa, t_gestion = st.tabs(["🚨 RADAR S.O.S", "🌍 MAPA GENERAL", "📖 LIBRO DE BASE"])
+    
     with t_radar:
         if sos_activos > 0:
-            # Obtener datos de la alerta más reciente
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             op_riesgo = datos_sos['USUARIO']
             carga = str(datos_sos.get('CARGA_UTIL', ''))
@@ -188,31 +189,46 @@ elif st.session_state.rol_sel == "MONITOREO":
             if coords_apoyo:
                 folium.Marker([coords_apoyo[0], coords_apoyo[1]], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
                 AntPath(locations=[[lat_sos, lon_sos], [coords_apoyo[0], coords_apoyo[1]]], color="#00E5FF", weight=5).add_to(m_sos)
-            st_folium(m_sos, width="100%", height=400)
+            st_folium(m_sos, width="100%", height=400, key="mapa_sos")
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- NUEVA SECCIÓN DE NEUTRALIZACIÓN ---
+            # --- INFORME DE NEUTRALIZACIÓN ---
             st.subheader("📝 PROTOCOLO DE CIERRE")
-            informe_neutralizacion = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Describa las acciones tomadas para resolver la emergencia...")
-
-            if st.button("FINALIZAR Y CERRAR ALERTA", type="secondary"):
-                if informe_neutralizacion.strip() == "":
-                    st.warning("⚠️ Debe completar el informe antes de cerrar la alerta.")
-                else:
-                    # Buscamos la fila en Google Sheets (index + 2 por encabezado y base 1)
-                    fila_idx = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
-                    
-                    # Actualizamos el estado a RESUELTO
-                    actualizar_celda("ALERTAS", fila_idx, "D", "RESUELTO")
-                    
-                    # Opcional: Guardamos el informe en una columna nueva (por ejemplo la 'F' si está vacía)
-                    # o lo registramos en el libro de novedades
-                    actualizar_celda("ALERTAS", fila_idx, "F", informe_neutralizacion)
-                    
-                    st.success("Alerta Neutralizada correctamente.")
+            inf_neutralizacion = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Describa el resultado del operativo...")
+            if st.button("CERRAR ALERTA Y REGISTRAR"):
+                if inf_neutralizacion.strip():
+                    fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
+                    actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
+                    actualizar_celda("ALERTAS", fila, "F", inf_neutralizacion) # Guarda el informe en columna F
+                    st.success("Alerta cerrada.")
                     st.rerun()
+                else:
+                    st.warning("Escriba el informe antes de cerrar.")
         else:
             st.success("✅ Sistema en Vigilancia Pasiva")
+
+    with t_mapa:
+        st.subheader("📍 COBERTURA TOTAL DE OBJETIVOS")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        if not df_objetivos.empty:
+            # Mapa centrado en el promedio de los objetivos
+            m_gen = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            for _, r in df_objetivos.iterrows():
+                folium.Marker(
+                    [r['LATITUD'], r['LONGITUD']], 
+                    popup=f"Objetivo: {r['OBJETIVO']}",
+                    tooltip=r['OBJETIVO'],
+                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                ).add_to(m_gen)
+            st_folium(m_gen, width="100%", height=500, key="mapa_general_monitoreo")
+        else:
+            st.info("No hay objetivos cargados para mostrar.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with t_gestion:
+        st.subheader("📖 REGISTRO DE ALERTAS")
+        if not df_emergencias.empty:
+            st.dataframe(df_emergencias.tail(15), use_container_width=True)
 
 # --- C. ROL: JEFE DE OPERACIONES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
