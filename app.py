@@ -179,7 +179,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
     with t3:
         st.info("Bandeja de Mensajería Sincronizada con Matriz Nube")
 
-# --- B. ROL: MONITOREO (ESTACIÓN DE RESPUESTA TÁCTICA FINAL) ---
+# --- B. ROL: MONITOREO (SISTEMA DE RUTA TÁCTICA A COMISARÍA) ---
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -200,45 +200,45 @@ elif st.session_state.rol_sel == "MONITOREO":
                 lon_sos = float(carga.split("|")[1].split(":")[1].strip())
             except: lat_sos, lon_sos = 0.0, 0.0
 
-            # ✅ Triangulación Avanzada[cite: 3, 4]
+            # ✅ Triangulación Táctica[cite: 3, 4]
             obj_cercano, policia_zona, coords_obj = calcular_emergencia(lat_sos, lon_sos, df_objetivos)
             
             st.markdown(f"""
                 <div style="background-color: #FF0000; color: white; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid white;">
                     <h2 style="color: white !important;">🚨 EMERGENCIA DETECTADA 🚨</h2>
                     <h4 style="color: white !important;">SUPERVISOR: {datos_sos['USUARIO']}</h4>
-                    <p style="font-size: 18px;"><b>OBJETIVO DE REFERENCIA:</b> {obj_cercano}</p>
+                    <p style="font-size: 18px;"><b>OBJETIVO CERCANO:</b> {obj_cercano}</p>
                     <p style="font-size: 20px; font-weight: bold; color: #FFFF00;">🚓 COMISARÍA ASIGNADA: {policia_zona}</p>
                 </div>
             """, unsafe_allow_html=True)
 
-            # ✅ MAPA CON IDENTIFICACIÓN DE NOMBRES Y RUTA[cite: 3, 4]
+            # ✅ MAPA CON IDENTIFICACIÓN Y RUTA VISUAL[cite: 3, 4]
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             m_sos = folium.Map(location=[lat_sos, lon_sos], zoom_start=15, tiles="CartoDB dark_matter")
             
-            # Marcador Supervisor con Nombre Visible[cite: 3, 4]
+            # Marcador Supervisor (Rojo) con Tooltip permanente
             folium.Marker(
                 [lat_sos, lon_sos], 
-                tooltip=f"SUPERVISOR: {datos_sos['USUARIO']}", 
+                tooltip=f"PELIGRO: {datos_sos['USUARIO']}", 
                 icon=folium.Icon(color="red", icon="warning")
             ).add_to(m_sos)
             
-            # Marcador Objetivo/Comisaría con Nombre Visible[cite: 3, 4]
+            # Marcador Objetivo/Comisaría (Azul) con Tooltip permanente
             if coords_obj:
                 folium.Marker(
                     [coords_obj[0], coords_obj[1]], 
-                    tooltip=f"OBJETIVO: {obj_cercano} / COMISARÍA: {policia_zona}", 
+                    tooltip=f"DESTINO: {policia_zona} ({obj_cercano})", 
                     icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                 ).add_to(m_sos)
-                # Línea táctica de enlace[cite: 3, 4]
-                folium.PolyLine([[lat_sos, lon_sos], [coords_obj[0], coords_obj[1]]], color="yellow", weight=5, opacity=0.8).add_to(m_sos)
+                # Línea de ruta visual directa (Vuelo de pájaro táctico)[cite: 3, 4]
+                folium.PolyLine([[lat_sos, lon_sos], [coords_obj[0], coords_obj[1]]], color="yellow", weight=4, opacity=0.8).add_to(m_sos)
             
             st_folium(m_sos, width="100%", height=400, key="mapa_mon_sos")
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # ✅ ENRUTAMIENTO DINÁMICO A COMISARÍA[cite: 3, 4]
+            # ✅ BOTÓN DE RUTA DE RESPUESTA[cite: 3, 4]
             url_ruta = f"https://www.google.com/maps/dir/?api=1&origin={lat_sos},{lon_sos}&destination={policia_zona}"
-            st.markdown(f'<a href="{url_ruta}" target="_blank"><button style="width:100%; padding:15px; background-color:#4285F4; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">🚓 VER CÓMO IR A LA COMISARÍA ASIGNADA</button></a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{url_ruta}" target="_blank"><button style="width:100%; padding:15px; background-color:#4285F4; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">🗺️ INICIAR RUTA A LA COMISARÍA ASIGNADA</button></a>', unsafe_allow_html=True)
 
             with st.form("cierre_crisis"):
                 res_acta = st.text_area("Informe de Neutralización")
