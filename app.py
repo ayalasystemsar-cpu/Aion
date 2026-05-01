@@ -72,12 +72,13 @@ def cargar_objetivos():
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
     return pd.DataFrame()
 
+# FUNCIÓN DE CÁLCULO DE EMERGENCIA AMPLIADA (OBJETIVO + POLICÍA + SUPERVISOR)
 def calcular_emergencia(lat, lon, df_obj):
-    if df_obj.empty or lat == 0.0: return "Sin datos", "Sin datos", None
+    if df_obj.empty or lat == 0.0: return "Sin datos", "Sin datos", None, "N/A"
     df_temp = df_obj.copy()
     df_temp['distancia'] = np.sqrt((df_temp['LATITUD'] - lat)**2 + (df_temp['LONGITUD'] - lon)**2)
     cercano = df_temp.loc[df_temp['distancia'].idxmin()]
-    return cercano['OBJETIVO'], cercano.get('POLICIA', '911'), (cercano['LATITUD'], cercano['LONGITUD'])
+    return cercano['OBJETIVO'], cercano.get('POLICIA', '911'), (cercano['LATITUD'], cercano['LONGITUD']), cercano.get('SUPERVISOR', 'N/A')
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
 def aplicar_identidad_alfa():
@@ -138,8 +139,6 @@ with st.sidebar:
         if exito:
             st.error("🚨 S.O.S ENVIADO")
             st.toast("Señal transmitida a central", icon="🛡️")
-        else:
-            st.warning("⚠️ Fallo en red SOS")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. FLUJO CENTRAL ---
@@ -173,7 +172,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ACTAS_FLOTAS", [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", "", f_dest, f_nov, "VERDE"])
                 st.success("Reporte enviado.")
 
-# B. ROL: MONITOREO (Implementación de Latido SOS)
+# B. ROL: MONITOREO (CON LATIDO SOS E INFORMACIÓN DE SUPERVISOR)
 elif st.session_state.rol_sel == "MONITOREO":
     st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -198,8 +197,13 @@ elif st.session_state.rol_sel == "MONITOREO":
                 lat_m = float(carga.split("|")[0].split(":")[1].strip())
                 lon_m = float(carga.split("|")[1].split(":")[1].strip())
                 info_sos = {"user": op_riesgo, "lat": lat_m, "lon": lon_m}
-                obj_c, pol, coo_apoyo = calcular_emergencia(lat_m, lon_m, df_objetivos)
-                st.error(f"🚨 EMERGENCIA ACTIVA: {op_riesgo} | APOYO: {obj_c} | POLICÍA: {pol}")
+                
+                # CÁLCULO AMPLIADO: OBJETIVO + POLICÍA + COORDENADAS + SUPERVISOR DE ZONA
+                obj_c, pol, coo_apoyo, sup_zona = calcular_emergencia(lat_m, lon_m, df_objetivos)
+                
+                # DESPLIEGUE DE ALERTA CON SUPERVISOR Y OBJETIVO
+                st.error(f"🚨 EMERGENCIA ACTIVA: {op_riesgo} | OBJETIVO: {obj_c} | SUPERVISOR ZONA: {sup_zona}")
+                st.warning(f"📞 Jurisdicción Policial: {pol}")
             except: pass
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
@@ -207,13 +211,11 @@ elif st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_sos = folium.Map(location=[lat_m, lon_m], zoom_start=13, tiles="CartoDB dark_matter")
         
-        # Objetivos normales (Unificado: Escudo Azul)
         for _, r in df_objetivos.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sos)
         
-        # --- LÓGICA DE ICONO LATIENTE (SOLO EN MONITOREO) ---
         if info_sos:
-            # HTML/CSS para el efecto de latido táctico
+            # ICONO LATIENTE
             html_pulse = f"""
             <div style="position: relative;">
                 <div style="position: absolute; width: 25px; height: 25px; background: red; border-radius: 50%; animation: pulse 1.2s infinite;"></div>
@@ -229,7 +231,7 @@ elif st.session_state.rol_sel == "MONITOREO":
             folium.Marker(
                 [info_sos["lat"], info_sos["lon"]],
                 icon=folium.DivIcon(html=html_pulse, icon_size=(25,25)),
-                tooltip=f"ALERTA ACTIVA: {info_sos['user']}"
+                tooltip=f"ALERTA: {info_sos['user']}"
             ).add_to(m_sos)
             
             if 'coo_apoyo' in locals() and coo_apoyo:
@@ -241,16 +243,14 @@ elif st.session_state.rol_sel == "MONITOREO":
         st.subheader("📝 PROTOCOLO DE CIERRE")
         inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN", placeholder="Debe escribir el detalle del operativo para finalizar...")
         if st.button("FINALIZAR OPERATIVO", use_container_width=True):
-            if sos_activos == 0:
-                st.info("No hay operativos de pánico activos para cerrar.")
-            elif not inf_neu.strip():
-                st.warning("⚠️ ACCIÓN BLOQUEADA: Debe completar el informe antes de cerrar el evento.")
-            else:
+            if sos_activos > 0 and inf_neu.strip():
                 fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
                 actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
                 actualizar_celda("ALERTAS", fila, "F", inf_neu)
                 st.success(f"Operativo Finalizado.")
                 st.rerun()
+            else:
+                st.warning("⚠️ Acción bloqueada: No hay SOS pendiente o falta el informe detallado.")
 
     with t_gestion:
         if not df_emergencias.empty: st.dataframe(df_emergencias.tail(20), use_container_width=True)
