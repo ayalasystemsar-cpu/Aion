@@ -1,4 +1,4 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU CORE) ---
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL (AION-YAROKU CORE) ---
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -56,53 +56,74 @@ def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
-        # Limpieza de coordenadas para asegurar que sean numéricas
         df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
     return pd.DataFrame()
 
-# --- 4. DISEÑO E IDENTIDAD VISUAL (ESTILO OLED CIAN) ---
+# --- 4. DISEÑO E IDENTIDAD VISUAL (ESTILO OLED CÁLIDO) ---
 def aplicar_identidad_alfa():
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
-        [data-testid="stSidebar"] { background-color: #050507 !important; border-right: 1px solid rgba(0, 229, 255, 0.3) !important; }
-        .contenedor-logo-sidebar { display: flex; justify-content: center; margin-bottom: 20px; padding: 10px; border: 1px solid #00e5ff; border-radius: 4px; background: #000; }
-        .logo-sidebar { width: 100% !important; filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.4)); }
-        .contenedor-logo-central { display: flex; justify-content: center; margin-top: 10px; margin-bottom: 30px; }
-        .logo-phoenix { width: 500px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 30px rgba(0, 229, 255, 0.4) !important; border-radius: 4px; background-color: #000; padding: 5px; }
+        
+        .stApp { background: radial-gradient(circle at top, #0A0A0A 0%, #030303 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
+        [data-testid="stSidebar"] { background-color: #050505 !important; border-right: 1px solid rgba(212, 175, 55, 0.2) !important; }
+        
+        /* Botón de Pánico (Rojo táctico suave) */
         .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
+            background: radial-gradient(circle, #B22222 0%, #4B0000 100%) !important; 
             color: white !important; border-radius: 50% !important; width: 110px !important; height: 110px !important; 
-            border: 2px solid #333 !important; box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 12px !important; font-weight: bold;
+            border: 1px solid #333 !important; box-shadow: 0 0 15px rgba(178, 34, 34, 0.4) !important; 
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
+        
+        /* BOTÓN RECTANGULAR FINO (Color Cálido Ámbar/Dorado Suave) */
         .stButton > button[kind="secondary"] {
-            background: #121212 !important; color: #00E5FF !important; border: 1px solid #00E5FF !important;
-            border-radius: 4px !important; width: 100% !important; height: 35px !important; font-family: 'Orbitron', sans-serif;
+            background-color: transparent !important;
+            color: #D4AF37 !important;
+            border: 1px solid rgba(212, 175, 55, 0.5) !important;
+            border-radius: 2px !important;
+            width: 100% !important;
+            height: 32px !important;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 500;
+            font-size: 13px !important;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: 0.3s;
         }
-        .banner-emergencia { background: #FF0000; color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 10px; border: 2px solid #FFF; }
-        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; text-shadow: 0 0 10px rgba(0, 229, 255, 0.4); }
-        .stTextArea textarea { background-color: #121212 !important; color: #E0E0E0 !important; border: 1px solid #FF0000 !important; }
+        .stButton > button[kind="secondary"]:hover {
+            background-color: rgba(212, 175, 55, 0.1) !important;
+            border-color: #D4AF37 !important;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+
+        .radar-box { border: 1px solid #1A1A1A; border-radius: 4px; padding: 15px; background: rgba(5, 5, 5, 0.9); }
+        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #D4AF37 !important; font-weight: 400; }
+        
+        /* Input de Informe táctico */
+        .stTextArea textarea { 
+            background-color: #0A0A0A !important; 
+            color: #D4AF37 !important; 
+            border: 1px solid rgba(212, 175, 55, 0.3) !important; 
+            border-radius: 2px;
+        }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
 
-# --- 5. PANEL DE CONTROL Y CONFIGURACIÓN DE ACCESO ---
-# Se mantiene la lista de usuarios para identificación, pero se libera la vista en secciones clave
-USUARIOS_SISTEMA = ["BRIAN AYALA", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "DARÍO CECILIA", "LUIS BONGIORNO", "PORZIO GONZALO"]
+# --- 5. PANEL DE CONTROL ---
+USUARIOS = ["BRIAN AYALA", "SANOJA LUIS", "MAZACOTTE CLAUDIO", "DARÍO CECILIA", "LUIS BONGIORNO", "PORZIO GONZALO"]
 
 with st.sidebar:
-    st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-sidebar"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:100%"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
-    
     st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["MONITOREO", "SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", USUARIOS_SISTEMA)
+    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", USUARIOS)
 
     loc = get_geolocation()
     lat_act, lon_act = (loc['coords']['latitude'], loc['coords']['longitude']) if loc and 'coords' in loc else (-34.6037, -58.3816)
@@ -110,98 +131,70 @@ with st.sidebar:
     st.markdown('<div style="display:flex; justify-content:center; margin-top:40px;">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
         escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT: {lat_act} | LON: {lon_act}"])
-        st.error("🚨 S.O.S ENVIADO")
+        st.toast("🚨 S.O.S ENVIADO", icon="⚠️")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. FLUJO CENTRAL ---
-st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 df_objetivos = cargar_objetivos()
+st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:400px; opacity:0.8"></div>', unsafe_allow_html=True)
 
-# --- SECCIÓN: MONITOREO (ACCESO LIBERADO) ---
+# --- ROL: MONITOREO ---
 if st.session_state.rol_sel == "MONITOREO":
     st.subheader("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
     df_alertas = leer_matriz_nube("ALERTAS")
     pendientes = df_alertas[df_alertas['ESTADO'].astype(str).str.upper() == 'PENDIENTE'] if not df_alertas.empty else pd.DataFrame()
     
-    m1, m2, m3 = st.columns(3)
-    m1.metric("🚨 S.O.S ACTIVOS", len(pendientes))
-    m2.metric("📡 ESTADO DE RED", "OPERATIVO")
-    m3.metric("🕒 HORA LOCAL", obtener_hora_argentina())
+    if not pendientes.empty:
+        alerta = pendientes.iloc[-1]
+        st.warning(f"ALERTA ACTIVA: {alerta['USUARIO']}")
+        
+        st.markdown("### Informe de Neutralización")
+        inf_texto = st.text_area("Resolución:", placeholder="Escriba aquí...", label_visibility="collapsed")
+        
+        if st.button("CERRAR ALERTA", type="secondary"):
+            if inf_texto: st.success("Alerta procesada.")
+            else: st.error("Falta informe.")
+    else: st.success("✅ Vigilancia Pasiva")
 
-    tab_radar, tab_base = st.tabs(["🚨 RADAR S.O.S", "📖 MAPA DE OBJETIVOS"])
-    
-    with tab_radar:
-        if not pendientes.empty:
-            alerta = pendientes.iloc[-1]
-            st.markdown(f'<div class="banner-emergencia">ALERTA ACTIVA: {alerta["USUARIO"]}</div>', unsafe_allow_html=True)
-            # Mapa de monitoreo con objetivos visibles
-            m_mon = folium.Map(location=[lat_act, lon_act], zoom_start=12, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_mon)
-            st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_sos")
-        else:
-            st.success("✅ Vigilancia Pasiva - Sin Emergencias")
-
-    with tab_base:
-        if not df_objetivos.empty:
-            m_base = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_base)
-            st_folium(m_base, width="100%", height=500, key="mapa_monitoreo_base")
-
-# --- SECCIÓN: SUPERVISOR ---
+# --- ROL: SUPERVISOR ---
 elif st.session_state.rol_sel == "SUPERVISOR":
     st.subheader(f"⚡ ESTACIÓN TÁCTICA: {st.session_state.user_sel}")
-    
-    # Filtro para mostrar objetivos asignados a este supervisor (basado en apellido)
     apellido = st.session_state.user_sel.split()[-1].upper()
     df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
     
-    st.info(f"🛰️ TELEMETRÍA GPS ACTIVA | Lat: {lat_act} | Lon: {lon_act}")
-
     t_map, t_rep = st.tabs(["📍 RADAR GPS", "📝 REPORTE"])
     with t_map:
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_sup = folium.Map(location=[lat_act, lon_act], zoom_start=13, tiles="CartoDB dark_matter")
-        # Marcador de posición actual
         folium.Marker([lat_act, lon_act], popup="MI POSICIÓN", icon=folium.Icon(color="red", icon="car", prefix="fa")).add_to(m_sup)
-        # Mostrar todos los objetivos de su zona en el mapa
         for _, r in df_zona.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sup)
-        st_folium(m_sup, width="100%", height=450, key="map_supervisor")
+        st_folium(m_sup, width="100%", height=450, key="map_sup")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- SECCIÓN: JEFE DE OPERACIONES (ACCESO LIBERADO) ---
+# --- ROL: JEFE DE OPERACIONES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
     df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-    
-    t_inf, t_map = st.tabs(["📄 INFORMES DE FLOTA", "🌍 MAPA ESTRATÉGICO"])
-    with t_inf:
-        if not df_actas.empty: st.dataframe(df_actas.tail(20), use_container_width=True)
-        else: st.info("No hay informes registrados.")
-        
-    with t_map:
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_objetivos.empty:
-            m_ops = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            # En esta vista se ven todos los objetivos del sistema
-            for _, r in df_objetivos.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_ops)
-            st_folium(m_ops, width="100%", height=500, key="map_jefe_ops")
-        st.markdown('</div>', unsafe_allow_html=True)
+    if not df_actas.empty: st.dataframe(df_actas.tail(20), use_container_width=True)
 
-# --- SECCIÓN: GERENCIA / ADMINISTRADOR ---
-elif st.session_state.rol_sel in ["GERENCIA", "ADMINISTRADOR"]:
-    if st.session_state.rol_sel == "GERENCIA":
-        st.header("📈 DASHBOARD ESTRATÉGICO")
-        df_al = leer_matriz_nube("ALERTAS")
-        if not df_al.empty: st.write("Resumen de Estados:", df_al['ESTADO'].value_counts())
-        st.dataframe(leer_matriz_nube("ESTRUCTURA"), use_container_width=True)
-    else:
-        st.header("⚙️ NÚCLEO MAESTRO")
-        u_ing = st.text_input("ADMIN_USER")
-        p_ing = st.text_input("ADMIN_PASS", type="password")
-        if u_ing == "admin" and p_ing == "aion2026":
-            st.success("Acceso Autorizado")
-            # Lógica de administración...
+# --- ROL: GERENCIA ---
+elif st.session_state.rol_sel == "GERENCIA":
+    st.subheader("📈 DASHBOARD ESTRATÉGICO")
+    df_al = leer_matriz_nube("ALERTAS")
+    if not df_al.empty: st.write(df_al['ESTADO'].value_counts())
+
+# --- ROL: ADMINISTRADOR (AL FINAL) ---
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    st.header("⚙️ NÚCLEO MAESTRO")
+    u_admin = st.text_input("ADMIN_USER")
+    p_admin = st.text_input("ADMIN_PASS", type="password")
+    
+    if u_admin == "admin" and p_admin == "aion2026":
+        st.success("SISTEMA DESBLOQUEADO")
+        tipo = st.radio("Alta de:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nombre = st.text_input(f"Nombre {tipo}:").upper()
+        if st.button("PROCESAR ALTA", type="secondary"):
+            if nombre:
+                escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nombre, "ACTIVO", st.session_state.user_sel])
+                st.success("Alta Exitosa")
