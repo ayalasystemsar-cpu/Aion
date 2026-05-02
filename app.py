@@ -153,7 +153,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 
 
-# A. ROL: MONITOREO (SISTEMA DE RUTA DINÁMICA CORREGIDO)
+# A. ROL: MONITOREO (VERSIÓN CON DIAGNÓSTICO DE RUTA)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -182,24 +182,28 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             datos_sos = alertas_activas.iloc[-1]
             try:
-                # 1. LIMPIEZA DE CARGA ÚTIL
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
                 obj_en_panico = partes[2].split(":")[1].strip()
                 sup_responsable = partes[3].split(":")[1].strip()
                 
-                # 2. SEGURO DE COORDENADAS DEL OBJETIVO
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
-                # 3. BUSCADOR DE COMISARÍA (FORZADO)
+                # --- REVISIÓN ESTRÍCTA DE COMISARIAS ---
                 if not df_comisarias.empty:
                     for _, com in df_comisarias.iterrows():
                         try:
-                            # Convertimos coordenadas de comisaría asegurando punto decimal
-                            c_lat = float(str(com['LATITUD']).replace(',','.'))
-                            c_lon = float(str(com['LONGITUD']).replace(',','.'))
+                            # Forzamos la conversión y limpieza de coordenadas
+                            c_lat_str = str(com.get('LATITUD', '0')).replace(',','.')
+                            c_lon_str = str(com.get('LONGITUD', '0')).replace(',','.')
                             
+                            c_lat = float(c_lat_str)
+                            c_lon = float(c_lon_str)
+                            
+                            if c_lat == 0 or c_lon == 0: continue
+
+                            # Cálculo de distancia
                             R = 6371.0
                             phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
                             dphi = math.radians(c_lat - lat_foco)
@@ -211,13 +215,18 @@ if st.session_state.rol_sel == "MONITOREO":
                                 dist_minima, comisaria_cercana = d, com
                         except: continue
                 
-                st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico}")
+                st.error(f"🚨 EMERGENCIA: {obj_en_panico}")
+                
+                # --- AYUDA VISUAL SI FALLA ---
                 if comisaria_cercana is not None:
-                    st.warning(f"🚓 RESPUESTA DESDE: {comisaria_cercana['NOMBRE']} ({dist_minima:.2f} Km)")
+                    st.warning(f"🚓 RUTA CALCULADA HACIA: {comisaria_cercana['NOMBRE']}")
+                else:
+                    st.sidebar.warning("⚠️ No se encontró comisaría válida. Revisá las coordenadas en el Excel.")
             except Exception as e: 
-                st.sidebar.error(f"Error técnico: {e}")
+                st.sidebar.error(f"Error en datos: {e}")
+        else:
+            st.success("✅ Vigilancia Pasiva")
 
-        # --- CONSTRUCCIÓN DEL MAPA ---
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
         
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
@@ -225,7 +234,8 @@ if st.session_state.rol_sel == "MONITOREO":
 
         for _, r in df_objetivos.iterrows():
             try:
-                r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
+                r_lat = float(str(r['LATITUD']).replace(',','.'))
+                r_lon = float(str(r['LONGITUD']).replace(',','.'))
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 
                 color_nodo = "red" if es_sos else "#00E5FF"
@@ -244,32 +254,32 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             except: continue
 
-        # --- DIBUJAR RUTA Y COMISARÍA ---
+        # --- DIBUJO DE RUTA (CON ANT-PATH FORZADO) ---
         if sos_activos > 0 and comisaria_cercana is not None:
             try:
                 clat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
                 clon = float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
                 
-                # Poner el marcador de la comisaría
+                # Marcador Comisaría
                 folium.Marker(
                     [clat, clon], 
-                    tooltip=f"🚓 COMISARÍA: {comisaria_cercana['NOMBRE']}", 
+                    tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
                     icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")
                 ).add_to(m_mon)
                 
-                # Trazar AntPath (Efecto Uber)
+                # AntPath Amarilla para que se vea sí o sí
                 AntPath(
                     locations=[[clat, clon], [lat_foco, lon_foco]],
-                    color='#FFEB3B', # Cambié a amarillo para que resalte sobre el cian
+                    color='#FFEB3B', 
                     pulse_color='#FFFFFF',
                     weight=6, 
                     delay=600
                 ).add_to(m_mon)
             except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_final_corregido")
+        st_folium(m_mon, width="100%", height=450, key="mapa_diag_final")
 
-        # --- PROTOCOLO DE CIERRE ---
+        # --- BOTÓN DE CIERRE ---
         if sos_activos > 0:
             st.subheader("📝 PROTOCOLO DE CIERRE")
             inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
@@ -278,10 +288,10 @@ if st.session_state.rol_sel == "MONITOREO":
                     fila_excel = alertas_activas.index[-1] + 2
                     actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
-                    st.success("Operativo Finalizado")
+                    st.success("✅ Operativo Finalizado")
                     st.rerun()
                 else:
-                    st.warning("Escriba el informe antes de cerrar.")
+                    st.warning("⚠️ Escriba el informe.")
                     
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
