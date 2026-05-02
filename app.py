@@ -152,7 +152,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 
 
-# A. ROL: MONITOREO (SISTEMA INTEGRAL: RUTA DINÁMICA + CIERRE RESTAURADO)
+# A. ROL: MONITOREO (SISTEMA INTEGRAL: RUTA DINÁMICA + BOTÓN ORIGINAL)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -227,7 +227,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     location=[r_lat, r_lon],
                     radius=8 if es_sos else 6,
                     color=color_nodo,
-                    fill=es_sos, # Relleno solo si es SOS, hueco si es normal
+                    fill=es_sos,
                     fill_color=color_nodo,
                     fill_opacity=0.6,
                     weight=3,
@@ -257,22 +257,21 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final_v2")
+        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final_v3")
 
-        # --- PROTOCOLO DE CIERRE (RESTAURADO) ---
+        # --- PROTOCOLO DE CIERRE (BOTÓN ANTERIOR RESTAURADO) ---
         if sos_activos > 0:
-            st.markdown("---")
             st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN / NOVEDADES", placeholder="Describa el resultado del operativo...")
-            if st.button("FINALIZAR OPERATIVO", use_container_width=True, type="primary"):
+            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
+            if st.button("FINALIZAR OPERATIVO", use_container_width=True):
                 if inf_neu.strip():
                     fila_excel = alertas_activas.index[-1] + 2
                     actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
-                    st.success("✅ Operativo Finalizado y Registrado.")
+                    st.success("Operativo Finalizado")
                     st.rerun()
                 else:
-                    st.warning("⚠️ Escriba el informe antes de cerrar el SOS.")
+                    st.warning("Escriba el informe antes de cerrar.")
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
