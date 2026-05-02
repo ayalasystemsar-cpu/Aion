@@ -106,7 +106,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (JERARQUÍA COMPLETA) ---
+# --- 5. SIDEBAR TÁCTICO (ACTUALIZADO CON SUPERVISOR NOCTURNO) ---
 df_objetivos = cargar_objetivos()
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -116,12 +116,16 @@ with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
     st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO"])
+    
+    # LISTA DE IDENTIDAD OPERATIVA ACTUALIZADA
+    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"])
     
     st.write("---")
     st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
     obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
-    sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "OTRO"])
+    
+    # LISTA DE SUPERVISORES DE ZONA (SIN EDGAR VERA)
+    sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "SUPERVISOR NOCTURNO", "OTRO"])
     
     loc = get_geolocation()
     lat_envio = loc['coords']['latitude'] if loc else 0.0
@@ -135,7 +139,7 @@ with st.sidebar:
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# Título dinámico
+# Títulos por Rol con Estilo Glow
 titulos = {
     "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
     "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
@@ -190,7 +194,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {sup_mostrar}", 
                 icon=folium.Icon(color=color_m, icon="shield", prefix="fa")
             ).add_to(m_mon)
-        st_folium(m_mon, width="100%", height=450, key="map_mon_v_final")
+        st_folium(m_mon, width="100%", height=450, key="map_mon_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
         if sos_activos > 0:
@@ -204,11 +208,11 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.rerun()
 
     with t_gestion:
-        st.subheader("📖 HISTORIAL DE ALERTAS Y OPERATIVOS")
+        st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
 
-# B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA COMÚN)
+# B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
     st.markdown('<div class="radar-box">', unsafe_allow_html=True)
     centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
@@ -216,17 +220,17 @@ elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA
     for _, r in df_objetivos.iterrows():
         folium.Marker(
             [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJ: {r['OBJETIVO']} | SUP: {r.get('SUPERVISOR', 'N/A')}", 
+            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
             icon=folium.Icon(color="blue", icon="shield", prefix="fa")
         ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_{st.session_state.rol_sel}")
+    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
     st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
-        st.subheader("📊 ESTADO GENERAL DE NOVEDADES")
+        st.subheader("📋 REPORTE DE MOVIMIENTOS")
         df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
         if not df_novedades.empty:
-            st.dataframe(df_novedades.tail(10), use_container_width=True)
+            st.dataframe(df_novedades.tail(20), use_container_width=True)
 
 # C. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
