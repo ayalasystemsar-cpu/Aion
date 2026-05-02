@@ -151,20 +151,21 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (SISTEMA DE RUTA DINÁMICA - VERSIÓN FINAL REFORZADA)
+# A. ROL: MONITOREO (SISTEMA INTEGRAL: RUTA + COMISARÍAS + CIERRE)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
     import folium
     import math
 
-    # 1. CARGA DE DATOS (Asegurate que los nombres de las hojas sean exactos)
+    # 1. CARGA DE DATOS DESDE TU EXCEL
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
     alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
     sos_activos = len(alertas_activas)
     
+    # Indicadores superiores
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
@@ -181,32 +182,27 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             datos_sos = alertas_activas.iloc[-1]
             try:
-                # Extracción de datos de la alerta
+                # Procesar datos de la alerta
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
                 obj_en_panico = partes[2].split(":")[1].strip()
                 sup_responsable = partes[3].split(":")[1].strip()
                 
-                # Ubicación del Objetivo
+                # Ubicación del punto en emergencia
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
-                # --- BÚSQUEDA AGRESIVA DE COMISARÍAS ---
+                # --- BÚSQUEDA DE COMISARÍA SEGÚN TU EXCEL ---
                 if not df_comisarias.empty:
                     for _, com in df_comisarias.iterrows():
                         try:
-                            # Limpieza total de coordenadas
+                            # Acceso directo a las columnas NOMBRE, LATITUD, LONGITUD
                             c_lat = float(str(com['LATITUD']).replace(',','.'))
                             c_lon = float(str(com['LONGITUD']).replace(',','.'))
                             
-                            # Ignorar si las coordenadas están en 0 o vacías
-                            if c_lat == 0 or c_lon == 0: continue
-
-                            # Haversine
                             R = 6371.0
                             phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
-                            dphi = math.radians(c_lat - lat_foco)
-                            dlambda = math.radians(c_lon - lon_foco)
+                            dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
                             a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
                             d = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
                             
@@ -214,73 +210,64 @@ if st.session_state.rol_sel == "MONITOREO":
                                 dist_minima, comisaria_cercana = d, com
                         except: continue
                 
-                st.error(f"🚨 EMERGENCIA: {obj_en_panico}")
-                
+                st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico}")
                 if comisaria_cercana is not None:
-                    st.warning(f"🚓 UNIDAD DETECTADA: {comisaria_cercana['NOMBRE']} a {dist_minima:.2f} Km")
-                else:
-                    # Si esto aparece, el problema está en tu Excel de Comisarías
-                    st.sidebar.error("❌ ERROR: No hay coordenadas válidas en 'COMISARIAS'.")
-            except Exception as e: 
-                st.sidebar.error(f"⚠️ Error en datos: {e}")
+                    st.warning(f"🚓 RESPUESTA RECOMENDADA: {comisaria_cercana['NOMBRE']} a {dist_minima:.2f} Km")
+            except: pass
         else:
-            st.success("✅ Vigilancia Pasiva")
+            st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
-        # --- MAPA ---
+        # --- CONSTRUCCIÓN DEL MAPA TÁCTICO ---
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
         
+        # Efecto visual de titileo
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
+        # Dibujar todos los objetivos (Círculos huecos)
         for _, r in df_objetivos.iterrows():
             try:
-                r_lat = float(str(r['LATITUD']).replace(',','.'))
-                r_lon = float(str(r['LONGITUD']).replace(',','.'))
+                r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
-                
                 color_nodo = "red" if es_sos else "#00E5FF"
-                label_txt = f"{'🚨 ' if es_sos else ''}OBJ: {r['OBJETIVO']} | SUP: {sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')}"
-
+                
                 folium.CircleMarker(
                     location=[r_lat, r_lon],
                     radius=8 if es_sos else 6,
                     color=color_nodo,
                     fill=es_sos,
                     fill_color=color_nodo,
-                    fill_opacity=0.6,
                     weight=3,
-                    tooltip=label_txt,
+                    tooltip=f"<b>{'🚨 ' if es_sos else ''}OBJ:</b> {r['OBJETIVO']}<br><b>👤 SUP:</b> {sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')}",
                     className="blink-icon" if es_sos else ""
                 ).add_to(m_mon)
             except: continue
 
-        # --- DIBUJO DE RUTA ---
+        # --- DIBUJAR RUTA Y COMISARÍA ---
         if sos_activos > 0 and comisaria_cercana is not None:
             try:
                 clat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
                 clon = float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
                 
-                # Marcador Comisaría
+                # Marcador de la comisaría
                 folium.Marker(
                     [clat, clon], 
                     tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
                     icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")
                 ).add_to(m_mon)
                 
-                # AntPath (Ruta dinámica)
+                # Ruta dinámica amarilla (AntPath)
                 AntPath(
                     locations=[[clat, clon], [lat_foco, lon_foco]],
-                    color='#FFEB3B', # Amarillo intenso
-                    pulse_color='#FFFFFF',
-                    weight=6, 
-                    delay=600
+                    color='#FFEB3B', pulse_color='#FFFFFF', weight=6, delay=600
                 ).add_to(m_mon)
             except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final_v5")
+        st_folium(m_mon, width="100%", height=450, key="mapa_final_corregido_Aion")
 
-        # --- PROTOCOLO DE CIERRE ---
+        # --- PROTOCOLO DE CIERRE (BOTÓN ORIGINAL) ---
         if sos_activos > 0:
+            st.markdown("---")
             st.subheader("📝 PROTOCOLO DE CIERRE")
             inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
             if st.button("FINALIZAR OPERATIVO", use_container_width=True):
@@ -291,7 +278,13 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Operativo Finalizado")
                     st.rerun()
                 else:
-                    st.warning("⚠️ Escriba el informe.")
+                    st.warning("⚠️ Debe escribir el informe para cerrar el SOS.")
+
+    # --- LIBRO DE BASE ---
+    with t_gestion:
+        st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        if not df_emergencias.empty:
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
                     
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
