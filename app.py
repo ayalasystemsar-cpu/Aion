@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (SISTEMA INTEGRAL TÁCTICO)
+# A. ROL: MONITOREO (SISTEMA INTEGRAL: CÍRCULOS + CIERRE ORIGINAL)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -168,6 +168,7 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
+    # --- PESTAÑAS TÁCTICAS ---
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     
     with t_radar:
@@ -186,7 +187,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
-                # Cálculo de Comisaría más cercana
                 if not df_comisarias.empty:
                     import math
                     for _, com in df_comisarias.iterrows():
@@ -209,21 +209,11 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
-        # --- MAPA CON CÍRCULOS TÁCTICOS Y SUPERVISORES ---
-        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
-        # CSS: Brillo para nodos y pulso para SOS
-        map_css = """
-        <style>
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; stroke-width: 2; }
-            50% { transform: scale(1.3); opacity: 0.5; stroke-width: 5; }
-            100% { transform: scale(1); opacity: 1; stroke-width: 2; }
-        }
-        .blink-circle { animation: pulse 1s infinite; filter: drop-shadow(0 0 8px #FF0000); }
-        .static-circle { filter: drop-shadow(0 0 4px #00E5FF); }
-        </style>
-        """
+        # CSS para titilado de los círculos
+        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
         for _, r in df_objetivos.iterrows():
@@ -231,51 +221,50 @@ if st.session_state.rol_sel == "MONITOREO":
                 r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 
-                color_nodo = "#FF0000" if es_sos else "#00E5FF"
-                clase_nodo = "blink-circle" if es_sos else "static-circle"
-                radio_nodo = 11 if es_sos else 7 
-                super_nombre = sup_responsable if es_sos else r.get('SUPERVISOR', 'Sin asignar')
+                # Definición de color y clase según estado
+                color_punto = "red" if es_sos else "#00E5FF"
+                clase_punto = "blink-icon" if es_sos else ""
+                
+                # Tooltip con Objetivo y Supervisor
+                sup_display = sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')
+                tooltip_txt = f"OBJ: {r['OBJETIVO']} | SUP: {sup_display}"
 
                 folium.CircleMarker(
                     location=[r_lat, r_lon],
-                    radius=radio_nodo,
-                    color=color_nodo,
+                    radius=8 if es_sos else 6,
+                    color=color_punto,
                     fill=True,
-                    fill_color=color_nodo,
-                    fill_opacity=0.8,
-                    weight=3,
-                    tooltip=f"<b>🎯 OBJETIVO:</b> {r['OBJETIVO']}<br><b>👤 SUP:</b> {super_nombre}",
-                    className=clase_nodo
+                    fill_color=color_punto,
+                    fill_opacity=0.7,
+                    weight=2,
+                    tooltip=tooltip_txt,
+                    className=clase_punto
                 ).add_to(m_mon)
             except: continue
 
-        # Ruta hacia comisaría si hay SOS
         if sos_activos > 0 and comisaria_cercana is not None:
             try:
                 clat, clon = float(str(comisaria_cercana['LATITUD']).replace(',','.')), float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
-                folium.Marker([clat, clon], tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
-                              icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")).add_to(m_mon)
-                
-                AntPath(locations=[[clat, clon], [lat_foco, lon_foco]], color='#FFEB3B', weight=6, opacity=0.9, delay=500).add_to(m_mon)
+                folium.Marker([clat, clon], tooltip=f"POLICÍA: {comisaria_cercana['NOMBRE']}", icon=folium.Icon(color="darkblue", icon="balance-scale", prefix="fa")).add_to(m_mon)
+                AntPath(locations=[[clat, clon], [lat_foco, lon_foco]], color='#00E5FF', weight=5, opacity=0.9, delay=800).add_to(m_mon)
             except: pass
 
         st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_vFinal_Full")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- PROTOCOLO DE CIERRE (RESTAURADO) ---
+        # --- BOTÓN DE CIERRE TAL CUAL ESTABA ---
         if sos_activos > 0:
-            st.markdown("---")
             st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN / NOVEDADES", placeholder="Describa el resultado del operativo...")
-            if st.button("FINALIZAR OPERATIVO", use_container_width=True, type="primary"):
+            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
+            if st.button("FINALIZAR OPERATIVO", use_container_width=True):
                 if inf_neu.strip():
-                    # Suponiendo que la fila en el Excel coincide con el index + 2
                     fila_excel = alertas_activas.index[-1] + 2
                     actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
-                    st.success("✅ Operativo Finalizado y Registrado en Libro de Base.")
+                    st.success("Operativo Finalizado")
                     st.rerun()
                 else:
-                    st.warning("⚠️ Debe ingresar un informe antes de cerrar el SOS.")
+                    st.warning("Escriba el informe antes de cerrar.")
 
     # --- LIBRO DE BASE ---
     with t_gestion:
