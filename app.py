@@ -152,7 +152,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 
 
-# A. ROL: MONITOREO (SISTEMA DE RUTA DINÁMICA + TOOLTIP TÁCTICO)
+# A. ROL: MONITOREO (SISTEMA INTEGRAL: RUTA DINÁMICA + CIERRE RESTAURADO)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -189,7 +189,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
-                # Buscar Comisaría más cercana
                 if not df_comisarias.empty:
                     for _, com in df_comisarias.iterrows():
                         try:
@@ -204,14 +203,13 @@ if st.session_state.rol_sel == "MONITOREO":
                                 dist_minima, comisaria_cercana = d, com
                         except: continue
                 
-                st.error(f"🚨 EMERGENCIA: {datos_sos['USUARIO']} | 🎯 {obj_en_panico}")
+                st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico}")
             except: pass
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
-        # CSS para el titileo suave
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
@@ -221,41 +219,35 @@ if st.session_state.rol_sel == "MONITOREO":
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 
                 color_nodo = "red" if es_sos else "#00E5FF"
-                # Icono de emergencia 🚨 solo si es SOS
                 prefix = "🚨 " if es_sos else ""
                 sup_display = sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')
-                
-                # Tooltip que se ve al pasar o cliquear el punto
                 label_txt = f"{prefix}OBJ: {r['OBJETIVO']} | SUP: {sup_display}"
 
                 folium.CircleMarker(
                     location=[r_lat, r_lon],
                     radius=8 if es_sos else 6,
                     color=color_nodo,
-                    fill=es_sos,
+                    fill=es_sos, # Relleno solo si es SOS, hueco si es normal
                     fill_color=color_nodo,
                     fill_opacity=0.6,
                     weight=3,
-                    tooltip=label_txt, # Esto aparece al pasar el mouse
-                    popup=label_txt,   # Esto aparece al hacer CLIC
+                    tooltip=label_txt,
+                    popup=label_txt,
                     className="blink-icon" if es_sos else ""
                 ).add_to(m_mon)
             except: continue
 
-        # --- TRAZADO DE RUTA TIPO UBER ---
         if sos_activos > 0 and comisaria_cercana is not None:
             try:
                 clat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
                 clon = float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
                 
-                # Marcador de Comisaría
                 folium.Marker(
                     [clat, clon], 
                     tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
-                    icon=folium.Icon(color="darkblue", icon="shield", prefix="fa")
+                    icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")
                 ).add_to(m_mon)
                 
-                # Ruta AntPath (Camino dinámico)
                 AntPath(
                     locations=[[clat, clon], [lat_foco, lon_foco]],
                     color='#00E5FF', 
@@ -265,21 +257,29 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final")
+        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final_v2")
 
-        # --- PROTOCOLO DE CIERRE ---
+        # --- PROTOCOLO DE CIERRE (RESTAURADO) ---
         if sos_activos > 0:
+            st.markdown("---")
             st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
-            if st.button("FINALIZAR OPERATIVO", use_container_width=True):
+            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN / NOVEDADES", placeholder="Describa el resultado del operativo...")
+            if st.button("FINALIZAR OPERATIVO", use_container_width=True, type="primary"):
                 if inf_neu.strip():
                     fila_excel = alertas_activas.index[-1] + 2
                     actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
-                    st.success("Operativo Finalizado")
+                    st.success("✅ Operativo Finalizado y Registrado.")
                     st.rerun()
                 else:
-                    st.warning("Escriba el informe antes de cerrar.")
+                    st.warning("⚠️ Escriba el informe antes de cerrar el SOS.")
+
+    with t_gestion:
+        st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        if not df_emergencias.empty:
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+        else:
+            st.info("No hay registros en el historial.")
                     
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
