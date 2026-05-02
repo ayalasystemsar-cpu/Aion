@@ -151,7 +151,8 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (ESTÉTICA FIEL A LA IMAGEN + CIERRE RESTAURADO)
+
+# A. ROL: MONITOREO (ESTÉTICA FIEL A LA IMAGEN + ICONO EN PESTAÑA + CIERRE)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -168,7 +169,7 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # --- PESTAÑAS TÁCTICAS ---
+    # --- PESTAÑAS TÁCTICAS CON ICONO ---
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     
     with t_radar:
@@ -212,7 +213,7 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
-        # CSS: Titileo de opacidad simple (sin movimiento de punto)
+        # CSS: Titileo de opacidad simple
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
@@ -221,11 +222,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 
-                # Color según estado (Cian como en la imagen o Rojo para SOS)
                 color_borde = "red" if es_sos else "#00E5FF"
                 clase_punto = "blink-icon" if es_sos else ""
                 
-                # Datos del supervisor para el tooltip
                 sup_display = sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')
                 tooltip_txt = f"OBJ: {r['OBJETIVO']} | SUP: {sup_display}"
 
@@ -233,10 +232,10 @@ if st.session_state.rol_sel == "MONITOREO":
                     location=[r_lat, r_lon],
                     radius=7, 
                     color=color_borde,
-                    fill=True if es_sos else False, # Hueco como en imagen 542
+                    fill=True if es_sos else False,
                     fill_color=color_borde if es_sos else None,
                     fill_opacity=0.6 if es_sos else 0,
-                    weight=3, # Borde marcado
+                    weight=3,
                     tooltip=tooltip_txt,
                     className=clase_punto
                 ).add_to(m_mon)
@@ -252,13 +251,12 @@ if st.session_state.rol_sel == "MONITOREO":
         st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_vFinal_Full")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- PROTOCOLO DE CIERRE (MANTENIDO) ---
+        # --- PROTOCOLO DE CIERRE ---
         if sos_activos > 0:
             st.subheader("📝 PROTOCOLO DE CIERRE")
             inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
             if st.button("FINALIZAR OPERATIVO", use_container_width=True):
                 if inf_neu.strip():
-                    # Cálculo de fila para actualizar en la nube
                     fila_excel = alertas_activas.index[-1] + 2
                     actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
