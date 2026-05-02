@@ -4,13 +4,13 @@ import pandas as pd
 import numpy as np
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import AntPath
+from folium.plugins import AntPath # LIBRERÍA PARA LA RUTA ANIMADA
 from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
-import math
+import math # PARA CÁLCULO DE DISTANCIAS TÁCTICAS
 
 # Configuración de página OLED
 st.set_page_config(
@@ -59,18 +59,22 @@ def leer_matriz_nube(pestana):
     if gc:
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            return pd.DataFrame(hoja.get_all_records())
+            df = pd.DataFrame(hoja.get_all_records())
+            df.columns = df.columns.str.strip().str.upper() # LIMPIEZA DE CABECERAS
+            return df
         except: return pd.DataFrame()
     return pd.DataFrame()
 
 # CÁLCULO DE DISTANCIA (Fórmula Haversine)
 def calcular_distancia(lat1, lon1, lat2, lon2):
-    rad = math.pi / 180
-    dlat = (lat2 - lat1) * rad
-    dlon = (lon2 - lon1) * rad
-    a = math.sin(dlat/2)**2 + math.cos(lat1*rad) * math.cos(lat2*rad) * math.sin(dlon/2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    return 6371 * c # Resultado en Km
+    try:
+        rad = math.pi / 180
+        dlat = (float(lat2) - float(lat1)) * rad
+        dlon = (float(lon2) - float(lon1)) * rad
+        a = math.sin(dlat/2)**2 + math.cos(float(lat1)*rad) * math.cos(float(lat2)*rad) * math.sin(dlon/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return 6371 * c # Resultado en Km
+    except: return 9999
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
 def aplicar_identidad_alfa():
@@ -81,19 +85,7 @@ def aplicar_identidad_alfa():
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        .estacion-titulo {
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important;
-            font-size: 24px;
-            margin-top: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
+        .estacion-titulo { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 24px; text-align: center; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); text-transform: uppercase; margin-top: 10px; }
         .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.9); }
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
@@ -109,17 +101,7 @@ aplicar_identidad_alfa()
 
 # --- 5. CARGA DE BASES OPERATIVAS ---
 df_objetivos = leer_matriz_nube("OBJETIVOS")
-if not df_objetivos.empty:
-    df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
-    df_objetivos['LATITUD'] = pd.to_numeric(df_objetivos['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-    df_objetivos['LONGITUD'] = pd.to_numeric(df_objetivos['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-
-# Base de Comisarías (Asegurate que la pestaña se llame 'COMISARIAS')
 df_comisarias = leer_matriz_nube("COMISARIAS")
-if not df_comisarias.empty:
-    df_comisarias.columns = df_comisarias.columns.str.strip().str.upper()
-    df_comisarias['LATITUD'] = pd.to_numeric(df_comisarias['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-    df_comisarias['LONGITUD'] = pd.to_numeric(df_comisarias['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
 
 # --- 6. SIDEBAR TÁCTICO ---
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -132,7 +114,7 @@ with st.sidebar:
     st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"])
     
     st.write("---")
-    st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
+    st.markdown("**🚨 EMERGENCIA**")
     obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
     sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "SUPERVISOR NOCTURNO", "OTRO"])
     
@@ -177,26 +159,23 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             try:
-                partes = datos_sos.get('CARGA_UTIL', '').split("|")
-                obj_en_panico = partes[2].split(":")[1]
-                sup_rep = partes[3].split(":")[1]
-                
-                # Coordenadas del Objetivo en pánico
+                obj_en_panico = datos_sos.get('CARGA_UTIL', '').split("|")[2].split(":")[1]
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
-                lat_foco, lon_foco = target_data['LATITUD'], target_data['LONGITUD']
+                lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
+                lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
                 
                 # LÓGICA DE COMISARÍA MÁS CERCANA
                 dist_min = float('inf')
                 if not df_comisarias.empty:
                     for _, com in df_comisarias.iterrows():
-                        d = calcular_distancia(lat_foco, lon_foco, com['LATITUD'], com['LONGITUD'])
+                        d = calcular_distancia(lat_foco, lon_foco, str(com['LATITUD']).replace(',','.'), str(com['LONGITUD']).replace(',','.'))
                         if d < dist_min:
                             dist_min = d
                             comisaria_cercana = com
                 
-                st.error(f"🚨 EMERGENCIA: {datos_sos['USUARIO']} | 🎯 {obj_en_panico} | 👤 SUP: {sup_rep}")
+                st.error(f"🚨 EMERGENCIA: {datos_sos['USUARIO']} | 🎯 {obj_en_panico}")
                 if comisaria_cercana is not None:
-                    st.warning(f"🚓 SOPORTE: {comisaria_cercana['NOMBRE']} a {dist_min:.2f} Km")
+                    st.warning(f"🚓 RESPUESTA: {comisaria_cercana['NOMBRE']} a {dist_min:.2f} Km")
             except: pass
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
@@ -204,27 +183,29 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
-        for _, r in df_objetivos.iterrows():
-            es_alerta = (r['OBJETIVO'] == obj_en_panico)
-            color_m = "red" if es_alerta else "blue"
-            folium.Marker(
-                [r['LATITUD'], r['LONGITUD']], 
-                tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {sup_rep if es_alerta else r.get('SUPERVISOR', 'N/A')}", 
-                icon=folium.Icon(color=color_m, icon="shield", prefix="fa")
-            ).add_to(m_mon)
+        # OBJETIVOS
+        if not df_objetivos.empty:
+            for _, r in df_objetivos.iterrows():
+                es_sos = (r['OBJETIVO'] == obj_en_panico)
+                folium.Marker(
+                    [float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))], 
+                    tooltip=f"OBJ: {r['OBJETIVO']}", 
+                    icon=folium.Icon(color="red" if es_sos else "blue", icon="shield", prefix="fa")
+                ).add_to(m_mon)
             
         # TRAZADO DE RUTA TÁCTICA
         if sos_activos > 0 and comisaria_cercana is not None:
-            # Marcador de Comisaría
+            c_lat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
+            c_lon = float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
+            
             folium.Marker(
-                [comisaria_cercana['LATITUD'], comisaria_cercana['LONGITUD']],
+                [c_lat, c_lon],
                 tooltip=f"COMISARÍA: {comisaria_cercana['NOMBRE']}",
                 icon=folium.Icon(color="darkblue", icon="balance-scale", prefix="fa")
             ).add_to(m_mon)
             
-            # Línea de ruta animada
             AntPath(
-                locations=[[comisaria_cercana['LATITUD'], comisaria_cercana['LONGITUD']], [lat_foco, lon_foco]],
+                locations=[[c_lat, c_lon], [lat_foco, lon_foco]],
                 color='#00E5FF', weight=5, opacity=0.8, delay=1000
             ).add_to(m_mon)
 
@@ -248,7 +229,20 @@ if st.session_state.rol_sel == "MONITOREO":
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
     st.markdown('<div class="radar-box">', unsafe_allow_html=True)
     m_visor = folium.Map(location=[-34.6, -58.4], zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+    if not df_objetivos.empty:
+        for _, r in df_objetivos.iterrows():
+            folium.Marker([float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
     st_folium(m_visor, width="100%", height=500, key=f"map_fiscal_{st.session_state.rol_sel}")
     st.markdown('</div>', unsafe_allow_html=True)
+
+# C. ROL: ADMINISTRADOR
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    st.header("⚙️ NÚCLEO MAESTRO")
+    u_ing = st.text_input("ADMIN_USER")
+    p_ing = st.text_input("ADMIN_PASS", type="password")
+    if u_ing == "admin" and p_ing == "aion2026":
+        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nuevo_nombre = st.text_input("Nombre:").upper()
+        if st.button("REGISTRAR"):
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            st.success("Alta Exitosa")
