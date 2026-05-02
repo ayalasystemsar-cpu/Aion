@@ -71,18 +71,15 @@ def cargar_objetivos():
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
     return pd.DataFrame()
 
-# --- 4. DISEÑO E IDENTIDAD VISUAL (ESTILO GLOW RESTAURADO) ---
+# --- 4. DISEÑO E IDENTIDAD VISUAL ---
 def aplicar_identidad_alfa():
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-        
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
-        
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        
         .estacion-titulo {
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important;
@@ -96,9 +93,7 @@ def aplicar_identidad_alfa():
             letter-spacing: 2px;
             text-transform: uppercase;
         }
-
         .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.9); }
-        
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
             color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
@@ -111,7 +106,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO ---
+# --- 5. SIDEBAR TÁCTICO (JERARQUÍA COMPLETA) ---
 df_objetivos = cargar_objetivos()
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -119,13 +114,14 @@ if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
-    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "ADMINISTRADOR"])
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS P.", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO"])
+    st.subheader("🛡️ PANEL DE CONTROL")
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
+    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO"])
     
     st.write("---")
     st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
     obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
-    sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "EDGAR VERA", "OTRO"])
+    sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "OTRO"])
     
     loc = get_geolocation()
     lat_envio = loc['coords']['latitude'] if loc else 0.0
@@ -139,12 +135,15 @@ with st.sidebar:
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-if st.session_state.rol_sel == "MONITOREO":
-    st.markdown('<div class="estacion-titulo">🛰️ CENTRAL DE INTELIGENCIA OPERATIVA</div>', unsafe_allow_html=True)
-elif st.session_state.rol_sel == "SUPERVISOR":
-    st.markdown(f'<div class="estacion-titulo">📱 Estación de Control: {st.session_state.user_sel}</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="estacion-titulo">SISTEMA TÁCTICO DE COMANDO</div>', unsafe_allow_html=True)
+# Título dinámico
+titulos = {
+    "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
+    "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
+    "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
+    "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
+    "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO"
+}
+st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
 
@@ -204,23 +203,30 @@ if st.session_state.rol_sel == "MONITOREO":
                     actualizar_celda("ALERTAS", fila, "F", inf_neu)
                     st.rerun()
 
-    # --- RESTAURACIÓN DEL LIBRO DE BASE ---
     with t_gestion:
         st.subheader("📖 HISTORIAL DE ALERTAS Y OPERATIVOS")
         if not df_emergencias.empty:
-            # Mostramos las últimas alertas registradas
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay registros en el Libro de Base.")
 
-# B. ROL: SUPERVISOR
-elif st.session_state.rol_sel == "SUPERVISOR":
+# B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA COMÚN)
+elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
     st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    m_sup = folium.Map(location=[-34.6, -58.4], zoom_start=12, tiles="CartoDB dark_matter")
+    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
     for _, r in df_objetivos.iterrows():
-        folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sup)
-    st_folium(m_sup, width="100%", height=400, key="map_supervisor_v_final")
+        folium.Marker(
+            [r['LATITUD'], r['LONGITUD']], 
+            tooltip=f"OBJ: {r['OBJETIVO']} | SUP: {r.get('SUPERVISOR', 'N/A')}", 
+            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+        ).add_to(m_visor)
+    st_folium(m_visor, width="100%", height=500, key=f"map_{st.session_state.rol_sel}")
     st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
+        st.subheader("📊 ESTADO GENERAL DE NOVEDADES")
+        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_novedades.empty:
+            st.dataframe(df_novedades.tail(10), use_container_width=True)
 
 # C. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
