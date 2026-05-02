@@ -151,6 +151,8 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
+# --- 7. FLUJO POR ROLES ---
+
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -171,8 +173,6 @@ if st.session_state.rol_sel == "MONITOREO":
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             try:
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
-                lat_foco = float(partes[0].split(":")[1])
-                lon_foco = float(partes[1].split(":")[1])
                 obj_en_panico = partes[2].split(":")[1]
                 sup_rep = partes[3].split(":")[1]
                 st.error(f"🚨 EMERGENCIA: {datos_sos['USUARIO']} | 🎯 {obj_en_panico} | 👤 SUP: {sup_rep}")
@@ -185,15 +185,36 @@ if st.session_state.rol_sel == "MONITOREO":
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
+
+        # --- INYECCIÓN DE CSS PARA EL TITILADO ---
+        map_css = """
+        <style>
+        @keyframes blink {
+            0% { opacity: 1.0; }
+            50% { opacity: 0.2; }
+            100% { opacity: 1.0; }
+        }
+        .blink-icon {
+            animation: blink 1s linear infinite;
+        }
+        </style>
+        """
+        m_mon.get_root().header.add_child(folium.Element(map_css))
+
         for _, r in df_objetivos.iterrows():
             es_alerta = (r['OBJETIVO'] == obj_en_panico)
             color_m = "red" if es_alerta else "blue"
             sup_mostrar = sup_rep if es_alerta else r.get('SUPERVISOR', 'N/A')
+            
+            # Si es alerta, aplicamos la clase CSS personalizada 'blink-icon'
+            icon_extra_css = "blink-icon" if es_alerta else ""
+            
             folium.Marker(
                 [r['LATITUD'], r['LONGITUD']], 
                 tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {sup_mostrar}", 
-                icon=folium.Icon(color=color_m, icon="shield", prefix="fa")
+                icon=folium.Icon(color=color_m, icon="shield", prefix="fa", extraClasses=icon_extra_css)
             ).add_to(m_mon)
+
         st_folium(m_mon, width="100%", height=450, key="map_mon_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -206,11 +227,6 @@ if st.session_state.rol_sel == "MONITOREO":
                     actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila, "F", inf_neu)
                     st.rerun()
-
-    with t_gestion:
-        st.subheader("📖 HISTORIAL DE OPERATIVOS")
-        if not df_emergencias.empty:
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
 
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
