@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (SISTEMA INTEGRAL ACTUALIZADO)
+# A. ROL: MONITOREO (SISTEMA INTEGRAL TÁCTICO)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -186,6 +186,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
+                # Cálculo de Comisaría más cercana
                 if not df_comisarias.empty:
                     import math
                     for _, com in df_comisarias.iterrows():
@@ -208,76 +209,78 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
-        # --- MAPA CON CÍRCULOS TÁCTICOS ---
+        # --- MAPA CON CÍRCULOS TÁCTICOS Y SUPERVISORES ---
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
         
-        # CSS para el efecto titilante del círculo rojo
+        # CSS: Brillo para nodos y pulso para SOS
         map_css = """
         <style>
         @keyframes pulse {
-            0% { stroke-opacity: 1; fill-opacity: 0.8; }
-            50% { stroke-opacity: 0.2; fill-opacity: 0.2; }
-            100% { stroke-opacity: 1; fill-opacity: 0.8; }
+            0% { transform: scale(1); opacity: 1; stroke-width: 2; }
+            50% { transform: scale(1.3); opacity: 0.5; stroke-width: 5; }
+            100% { transform: scale(1); opacity: 1; stroke-width: 2; }
         }
-        .blink-circle { animation: pulse 1s infinite; }
+        .blink-circle { animation: pulse 1s infinite; filter: drop-shadow(0 0 8px #FF0000); }
+        .static-circle { filter: drop-shadow(0 0 4px #00E5FF); }
         </style>
         """
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
-        # Dibujar todos los objetivos como circulitos
         for _, r in df_objetivos.iterrows():
             try:
                 r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 
-                color_circulo = "#FF0000" if es_sos else "#00E5FF"
-                clase_anim = "blink-circle" if es_sos else ""
-                
+                color_nodo = "#FF0000" if es_sos else "#00E5FF"
+                clase_nodo = "blink-circle" if es_sos else "static-circle"
+                radio_nodo = 11 if es_sos else 7 
+                super_nombre = sup_responsable if es_sos else r.get('SUPERVISOR', 'Sin asignar')
+
                 folium.CircleMarker(
                     location=[r_lat, r_lon],
-                    radius=7 if es_sos else 5,
-                    color=color_circulo,
+                    radius=radio_nodo,
+                    color=color_nodo,
                     fill=True,
-                    fill_color=color_circulo,
-                    fill_opacity=0.7,
-                    weight=2,
-                    tooltip=f"OBJ: {r['OBJETIVO']}",
-                    className=clase_anim
+                    fill_color=color_nodo,
+                    fill_opacity=0.8,
+                    weight=3,
+                    tooltip=f"<b>🎯 OBJETIVO:</b> {r['OBJETIVO']}<br><b>👤 SUP:</b> {super_nombre}",
+                    className=clase_nodo
                 ).add_to(m_mon)
             except: continue
 
-        # Dibujar Comisaría y Ruta si hay SOS activo
+        # Ruta hacia comisaría si hay SOS
         if sos_activos > 0 and comisaria_cercana is not None:
             try:
                 clat, clon = float(str(comisaria_cercana['LATITUD']).replace(',','.')), float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
+                folium.Marker([clat, clon], tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
+                              icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")).add_to(m_mon)
                 
-                # Icono distintivo para la policía
-                folium.Marker(
-                    [clat, clon], 
-                    tooltip=f"POLICÍA: {comisaria_cercana['NOMBRE']}", 
-                    icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")
-                ).add_to(m_mon)
-                
-                # Trazado de ruta dinámica (AntPath)
-                AntPath(
-                    locations=[[clat, clon], [lat_foco, lon_foco]], 
-                    color='#FFEB3B', # Amarillo para contraste de ruta
-                    weight=5, 
-                    opacity=0.8, 
-                    delay=600,
-                    dash_array=[10, 20]
-                ).add_to(m_mon)
+                AntPath(locations=[[clat, clon], [lat_foco, lon_foco]], color='#FFEB3B', weight=6, opacity=0.9, delay=500).add_to(m_mon)
             except: pass
 
         st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_vFinal_Full")
 
-        # (Resto del código de Protocolo de Cierre e Historial se mantiene igual...)
+        # --- PROTOCOLO DE CIERRE (RESTAURADO) ---
+        if sos_activos > 0:
+            st.markdown("---")
+            st.subheader("📝 PROTOCOLO DE CIERRE")
+            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN / NOVEDADES", placeholder="Describa el resultado del operativo...")
+            if st.button("FINALIZAR OPERATIVO", use_container_width=True, type="primary"):
+                if inf_neu.strip():
+                    # Suponiendo que la fila en el Excel coincide con el index + 2
+                    fila_excel = alertas_activas.index[-1] + 2
+                    actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
+                    actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
+                    st.success("✅ Operativo Finalizado y Registrado en Libro de Base.")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Debe ingresar un informe antes de cerrar el SOS.")
 
-    # --- LIBRO DE BASE RESTAURADO ---
+    # --- LIBRO DE BASE ---
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
-            # Mostramos los más recientes primero
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
         else:
             st.info("No hay registros en el historial.")
