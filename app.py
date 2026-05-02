@@ -80,11 +80,9 @@ def aplicar_identidad_alfa():
         
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         
-        /* Logo Central Phoenix */
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         
-        /* ESTILO DE LETRAS "GLOW" RESTAURADO */
         .estacion-titulo {
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important;
@@ -125,6 +123,7 @@ with st.sidebar:
     st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS P.", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO"])
     
     st.write("---")
+    st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
     obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
     sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "EDGAR VERA", "OTRO"])
     
@@ -140,7 +139,6 @@ with st.sidebar:
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# Título dinámico con el estilo GLOW restaurado
 if st.session_state.rol_sel == "MONITOREO":
     st.markdown('<div class="estacion-titulo">🛰️ CENTRAL DE INTELIGENCIA OPERATIVA</div>', unsafe_allow_html=True)
 elif st.session_state.rol_sel == "SUPERVISOR":
@@ -176,7 +174,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 sup_rep = partes[3].split(":")[1]
                 st.error(f"🚨 EMERGENCIA: {datos_sos['USUARIO']} | 🎯 {obj_en_panico} | 👤 SUP: {sup_rep}")
                 
-                # Re-enfocar el mapa al objetivo si existe en la base
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
                 lat_foco, lon_foco = target_data['LATITUD'], target_data['LONGITUD']
             except: pass
@@ -194,7 +191,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {sup_mostrar}", 
                 icon=folium.Icon(color=color_m, icon="shield", prefix="fa")
             ).add_to(m_mon)
-        st_folium(m_mon, width="100%", height=450, key="map_mon_v4")
+        st_folium(m_mon, width="100%", height=450, key="map_mon_v_final")
         st.markdown('</div>', unsafe_allow_html=True)
 
         if sos_activos > 0:
@@ -207,13 +204,22 @@ if st.session_state.rol_sel == "MONITOREO":
                     actualizar_celda("ALERTAS", fila, "F", inf_neu)
                     st.rerun()
 
+    # --- RESTAURACIÓN DEL LIBRO DE BASE ---
+    with t_gestion:
+        st.subheader("📖 HISTORIAL DE ALERTAS Y OPERATIVOS")
+        if not df_emergencias.empty:
+            # Mostramos las últimas alertas registradas
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+        else:
+            st.info("No hay registros en el Libro de Base.")
+
 # B. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
     st.markdown('<div class="radar-box">', unsafe_allow_html=True)
     m_sup = folium.Map(location=[-34.6, -58.4], zoom_start=12, tiles="CartoDB dark_matter")
     for _, r in df_objetivos.iterrows():
         folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_sup)
-    st_folium(m_sup, width="100%", height=400, key="map_supervisor_v4")
+    st_folium(m_sup, width="100%", height=400, key="map_supervisor_v_final")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # C. ROL: ADMINISTRADOR
