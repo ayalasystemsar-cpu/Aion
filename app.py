@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (SISTEMA CON RASTREO TÁCTICO DE DATOS)
+# A. ROL: MONITOREO (ESTÉTICA FINAL TOOLTIP + RUTA AUTOMÁTICA)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -180,28 +180,22 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             datos_sos = alertas_activas.iloc[-1]
             try:
-                # 1. Extraemos el objetivo de la CARGA_UTIL
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
                 obj_en_panico = partes[2].split(":")[1].strip()
                 sup_responsable = partes[3].split(":")[1].strip()
                 
-                # 2. Buscamos las coordenadas del OBJETIVO
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
-                # 3. RASTREO DE COMISARÍAS (Diagnóstico en vivo)
+                # --- BUSCADOR POR POSICIÓN (A prueba de errores) ---
                 if not df_comisarias.empty:
-                    # Forzamos limpieza de nombres de columnas
-                    df_comisarias.columns = df_comisarias.columns.str.strip().str.upper()
-                    
                     for _, com in df_comisarias.iterrows():
                         try:
-                            # Aseguramos que lea LATITUD y LONGITUD (con D) de tu Excel
-                            c_lat = float(str(com['LATITUD']).replace(',','.'))
-                            c_lon = float(str(com['LONGITUD']).replace(',','.'))
+                            nombre_com = com.iloc[0]
+                            c_lat = float(str(com.iloc[1]).replace(',','.'))
+                            c_lon = float(str(com.iloc[2]).replace(',','.'))
                             
-                            # Cálculo de distancia real
                             R = 6371.0
                             phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
                             dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
@@ -209,66 +203,57 @@ if st.session_state.rol_sel == "MONITOREO":
                             d = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
                             
                             if d < dist_minima:
-                                dist_minima, comisaria_cercana = d, com
+                                dist_minima = d
+                                comisaria_cercana = {"NOMBRE": nombre_com, "LAT": c_lat, "LON": c_lon}
                         except: continue
-
-                # AVISO TÁCTICO DE ESTADO
-                if comisaria_cercana is not None:
-                    st.error(f"🚨 SOS: {obj_en_panico} | 🚓 RUTA A: {comisaria_cercana['NOMBRE']}")
-                else:
-                    st.warning("⚠️ SOS detectado pero no se encuentra ruta. Revisar nombres de columnas en Excel.")
-
-            except Exception as e:
-                st.write(f"Error de lectura: {e}")
+                
+                st.error(f"🚨 EMERGENCIA: {obj_en_panico}")
+            except: pass
         else:
             st.success("✅ Vigilancia Pasiva")
 
-        # MAPA CON TODAS LAS PROTECCIONES
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
         
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
-        # Dibujar puntos huecos (Cian) y SOS (Rojo)
         for _, r in df_objetivos.iterrows():
             try:
                 r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 color_nodo = "red" if es_sos else "#00E5FF"
                 
+                # TOOLTIP CON ESTÉTICA DE LA IMAGEN (HTML)
+                sup_display = sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')
+                tooltip_html = f"""
+                <div style="font-family: sans-serif; font-size: 12px;">
+                    🚨 <b>OBJ:</b> {r['OBJETIVO']}<br>
+                    👤 <b>SUP:</b> {sup_display}
+                </div>
+                """
+
                 folium.CircleMarker(
-                    location=[r_lat, r_lon],
-                    radius=8 if es_sos else 6,
-                    color=color_nodo,
-                    fill=es_sos,
-                    fill_color=color_nodo,
-                    weight=3,
-                    tooltip=f"OBJ: {r['OBJETIVO']} | SUP: {sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')}",
+                    location=[r_lat, r_lon], radius=8 if es_sos else 6,
+                    color=color_nodo, fill=es_sos, fill_color=color_nodo, weight=3,
+                    tooltip=folium.Tooltip(tooltip_html, sticky=True),
                     className="blink-icon" if es_sos else ""
                 ).add_to(m_mon)
             except: continue
 
-        # DIBUJAR RUTA SI EXISTE COMISARÍA
-        if sos_activos > 0 and comisaria_cercana is not None:
+        # --- RUTA Y COMISARÍA ---
+        if sos_activos > 0 and comisaria_cercana:
             try:
-                clat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
-                clon = float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
+                clat, clon = comisaria_cercana['LAT'], comisaria_cercana['LON']
+                folium.Marker([clat, clon], tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
+                             icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")).add_to(m_mon)
                 
-                folium.Marker(
-                    [clat, clon], 
-                    tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
-                    icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")
-                ).add_to(m_mon)
-                
-                AntPath(
-                    locations=[[clat, clon], [lat_foco, lon_foco]],
-                    color='#FFEB3B', weight=6, delay=600
-                ).add_to(m_mon)
+                AntPath(locations=[[clat, clon], [lat_foco, lon_foco]], 
+                        color='#FFEB3B', weight=6, delay=600).add_to(m_mon)
             except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_tactico_vFinal")
+        st_folium(m_mon, width="100%", height=450, key="mapa_final_estetica_v6")
 
-        # BOTÓN DE CIERRE (TAL CUAL LO NECESITÁS)
+        # --- PROTOCOLO DE CIERRE ---
         if sos_activos > 0:
             st.markdown("---")
             st.subheader("📝 PROTOCOLO DE CIERRE")
@@ -281,7 +266,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Operativo Finalizado")
                     st.rerun()
                 else:
-                    st.warning("⚠️ Escriba el informe para cerrar.")
+                    st.warning("⚠️ Complete el informe.")
                     
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
