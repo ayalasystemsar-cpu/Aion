@@ -151,15 +151,14 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-
-
-# A. ROL: MONITOREO (VERSIÓN CON DIAGNÓSTICO DE RUTA)
+# A. ROL: MONITOREO (SISTEMA DE RUTA DINÁMICA - VERSIÓN FINAL REFORZADA)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
     import folium
     import math
 
+    # 1. CARGA DE DATOS (Asegurate que los nombres de las hojas sean exactos)
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
@@ -182,28 +181,28 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             datos_sos = alertas_activas.iloc[-1]
             try:
+                # Extracción de datos de la alerta
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
                 obj_en_panico = partes[2].split(":")[1].strip()
                 sup_responsable = partes[3].split(":")[1].strip()
                 
+                # Ubicación del Objetivo
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
-                # --- REVISIÓN ESTRÍCTA DE COMISARIAS ---
+                # --- BÚSQUEDA AGRESIVA DE COMISARÍAS ---
                 if not df_comisarias.empty:
                     for _, com in df_comisarias.iterrows():
                         try:
-                            # Forzamos la conversión y limpieza de coordenadas
-                            c_lat_str = str(com.get('LATITUD', '0')).replace(',','.')
-                            c_lon_str = str(com.get('LONGITUD', '0')).replace(',','.')
+                            # Limpieza total de coordenadas
+                            c_lat = float(str(com['LATITUD']).replace(',','.'))
+                            c_lon = float(str(com['LONGITUD']).replace(',','.'))
                             
-                            c_lat = float(c_lat_str)
-                            c_lon = float(c_lon_str)
-                            
+                            # Ignorar si las coordenadas están en 0 o vacías
                             if c_lat == 0 or c_lon == 0: continue
 
-                            # Cálculo de distancia
+                            # Haversine
                             R = 6371.0
                             phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
                             dphi = math.radians(c_lat - lat_foco)
@@ -217,16 +216,17 @@ if st.session_state.rol_sel == "MONITOREO":
                 
                 st.error(f"🚨 EMERGENCIA: {obj_en_panico}")
                 
-                # --- AYUDA VISUAL SI FALLA ---
                 if comisaria_cercana is not None:
-                    st.warning(f"🚓 RUTA CALCULADA HACIA: {comisaria_cercana['NOMBRE']}")
+                    st.warning(f"🚓 UNIDAD DETECTADA: {comisaria_cercana['NOMBRE']} a {dist_minima:.2f} Km")
                 else:
-                    st.sidebar.warning("⚠️ No se encontró comisaría válida. Revisá las coordenadas en el Excel.")
+                    # Si esto aparece, el problema está en tu Excel de Comisarías
+                    st.sidebar.error("❌ ERROR: No hay coordenadas válidas en 'COMISARIAS'.")
             except Exception as e: 
-                st.sidebar.error(f"Error en datos: {e}")
+                st.sidebar.error(f"⚠️ Error en datos: {e}")
         else:
             st.success("✅ Vigilancia Pasiva")
 
+        # --- MAPA ---
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
         
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
@@ -254,7 +254,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             except: continue
 
-        # --- DIBUJO DE RUTA (CON ANT-PATH FORZADO) ---
+        # --- DIBUJO DE RUTA ---
         if sos_activos > 0 and comisaria_cercana is not None:
             try:
                 clat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
@@ -267,19 +267,19 @@ if st.session_state.rol_sel == "MONITOREO":
                     icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")
                 ).add_to(m_mon)
                 
-                # AntPath Amarilla para que se vea sí o sí
+                # AntPath (Ruta dinámica)
                 AntPath(
                     locations=[[clat, clon], [lat_foco, lon_foco]],
-                    color='#FFEB3B', 
+                    color='#FFEB3B', # Amarillo intenso
                     pulse_color='#FFFFFF',
                     weight=6, 
                     delay=600
                 ).add_to(m_mon)
             except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_diag_final")
+        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final_v5")
 
-        # --- BOTÓN DE CIERRE ---
+        # --- PROTOCOLO DE CIERRE ---
         if sos_activos > 0:
             st.subheader("📝 PROTOCOLO DE CIERRE")
             inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
