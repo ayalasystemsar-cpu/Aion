@@ -152,7 +152,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 
 
-# A. ROL: MONITOREO (SISTEMA INTEGRAL: RUTA DINÁMICA + BOTÓN ORIGINAL)
+# A. ROL: MONITOREO (SISTEMA INTEGRAL: RUTA AUTOMÁTICA POR SOS + CIERRE)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -162,6 +162,7 @@ if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
+    # Filtrar solo alertas pendientes
     alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
     sos_activos = len(alertas_activas)
     
@@ -178,6 +179,7 @@ if st.session_state.rol_sel == "MONITOREO":
         comisaria_cercana = None
         dist_minima = float('inf')
         
+        # SI HAY SOS, CALCULAMOS LA RUTA ANTES DE DIBUJAR EL MAPA
         if sos_activos > 0:
             datos_sos = alertas_activas.iloc[-1]
             try:
@@ -185,10 +187,12 @@ if st.session_state.rol_sel == "MONITOREO":
                 obj_en_panico = partes[2].split(":")[1]
                 sup_responsable = partes[3].split(":")[1]
                 
+                # Coordenadas del Objetivo en pánico
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
+                # Lógica para encontrar la Comisaría más cercana
                 if not df_comisarias.empty:
                     for _, com in df_comisarias.iterrows():
                         try:
@@ -204,11 +208,14 @@ if st.session_state.rol_sel == "MONITOREO":
                         except: continue
                 
                 st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico}")
+                if comisaria_cercana is not None:
+                    st.warning(f"🚓 UNIDAD RECOMENDADA: {comisaria_cercana['NOMBRE']} a {dist_minima:.2f} Km")
             except: pass
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
-        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
+        # --- DIBUJO DEL MAPA ---
+        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=12, tiles="CartoDB dark_matter")
         
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
@@ -237,17 +244,20 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             except: continue
 
+        # --- DIBUJAR RUTA Y COMISARÍA (ESTILO UBER) ---
         if sos_activos > 0 and comisaria_cercana is not None:
             try:
                 clat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
                 clon = float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
                 
+                # Marca la comisaría
                 folium.Marker(
                     [clat, clon], 
                     tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
                     icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")
                 ).add_to(m_mon)
                 
+                # Traza el camino dinámico
                 AntPath(
                     locations=[[clat, clon], [lat_foco, lon_foco]],
                     color='#00E5FF', 
@@ -257,9 +267,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final_v3")
+        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_auto_route")
 
-        # --- PROTOCOLO DE CIERRE (BOTÓN ANTERIOR RESTAURADO) ---
+        # --- PROTOCOLO DE CIERRE (BOTÓN ORIGINAL) ---
         if sos_activos > 0:
             st.subheader("📝 PROTOCOLO DE CIERRE")
             inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
