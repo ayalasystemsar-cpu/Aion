@@ -151,14 +151,13 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# --- 7. FLUJO POR ROLES ---
-
-# A. ROL: MONITOREO (CON INTELIGENCIA DE RUTA INTERCEPTORA)
+# A. ROL: MONITOREO (CON INTELIGENCIA DE INTERCEPCIÓN REFORZADA)
 if st.session_state.rol_sel == "MONITOREO":
-    from folium.plugins import AntPath # Necesitamos esto para la ruta animada
+    from folium.plugins import AntPath # IMPORTANTE: Esto dibuja la ruta
     
+    # 1. CARGAMOS TODAS LAS BASES NECESARIAS
     df_emergencias = leer_matriz_nube("ALERTAS")
-    df_comisarias = leer_matriz_nube("COMISARIAS") # Cargamos tu nueva base
+    df_comisarias = leer_matriz_nube("COMISARIAS") # ESTA ES LA CLAVE
     
     sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_emergencias.empty else 0
     
@@ -176,18 +175,19 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
             try:
+                # Extraemos el objetivo de la carga útil
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
                 obj_en_panico = partes[2].split(":")[1]
-                sup_rep = partes[3].split(":")[1]
                 
+                # Buscamos la ubicación del objetivo
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
-                # --- LÓGICA DE INTERCEPCIÓN (CÁLCULO DE COMISARÍA MÁS CERCANA) ---
+                # --- LÓGICA DE INTERCEPCIÓN ---
                 if not df_comisarias.empty:
                     import math
-                    def calc_dist(la1, lo1, la2, lo2):
+                    def calc_dist_pro(la1, lo1, la2, lo2):
                         R = 6371.0
                         la1, lo1, la2, lo2 = map(math.radians, [la1, lo1, la2, lo2])
                         dlat, dlon = la2 - la1, lo2 - lo1
@@ -195,12 +195,14 @@ if st.session_state.rol_sel == "MONITOREO":
                         return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
 
                     for _, com in df_comisarias.iterrows():
-                        c_lat = float(str(com['LATITUD']).replace(',','.'))
-                        c_lon = float(str(com['LONGITUD']).replace(',','.'))
-                        d = calc_dist(lat_foco, lon_foco, c_lat, c_lon)
-                        if d < dist_minima:
-                            dist_minima = d
-                            comisaria_cercana = com
+                        try:
+                            c_lat = float(str(com['LATITUD']).replace(',','.'))
+                            c_lon = float(str(com['LONGITUD']).replace(',','.'))
+                            d = calc_dist_pro(lat_foco, lon_foco, c_lat, c_lon)
+                            if d < dist_minima:
+                                dist_minima = d
+                                comisaria_cercana = com
+                        except: continue
             except: pass
             
             st.error(f"🚨 EMERGENCIA: {datos_sos['USUARIO']} | 🎯 {obj_en_panico}")
@@ -212,48 +214,45 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
 
-        # CSS para el parpadeo
+        # CSS para el parpadeo (Blink)
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.1;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
         # Dibujar Objetivos
         for _, r in df_objetivos.iterrows():
-            es_alerta = (r['OBJETIVO'] == obj_en_panico)
-            folium.Marker(
-                [float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))], 
-                tooltip=f"OBJ: {r['OBJETIVO']}", 
-                icon=folium.Icon(color="red" if es_alerta else "blue", icon="shield", prefix="fa", extraClasses="blink-icon" if es_alerta else "")
-            ).add_to(m_mon)
+            try:
+                r_lat = float(str(r['LATITUD']).replace(',','.'))
+                r_lon = float(str(r['LONGITUD']).replace(',','.'))
+                es_alerta = (r['OBJETIVO'] == obj_en_panico)
+                folium.Marker(
+                    [r_lat, r_lon], 
+                    tooltip=f"OBJ: {r['OBJETIVO']}", 
+                    icon=folium.Icon(color="red" if es_alerta else "blue", icon="shield", prefix="fa", extraClasses="blink-icon" if es_alerta else "")
+                ).add_to(m_mon)
+            except: continue
 
-        # --- DIBUJAR COMISARÍA Y RUTA DE RESPUESTA ---
+        # --- DIBUJAR COMISARÍA Y RUTA (ESTO ES LO QUE NO SALÍA) ---
         if sos_activos > 0 and comisaria_cercana is not None:
-            com_lat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
-            com_lon = float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
-            
-            # Marcador de Comisaría (Azul Oscuro)
-            folium.Marker(
-                [com_lat, com_lon],
-                tooltip=f"COMISARÍA: {comisaria_cercana['NOMBRE']}",
-                icon=folium.Icon(color="darkblue", icon="balance-scale", prefix="fa")
-            ).add_to(m_mon)
-            
-            # Trazado de Ruta Animada (Cian)
-            AntPath(
-                locations=[[com_lat, com_lon], [lat_foco, lon_foco]],
-                color='#00E5FF', weight=5, opacity=0.8, delay=1000
-            ).add_to(m_mon)
+            try:
+                com_lat = float(str(comisaria_cercana['LATITUD']).replace(',','.'))
+                com_lon = float(str(comisaria_cercana['LONGITUD']).replace(',','.'))
+                
+                # Marcador de Comisaría (Azul Oscuro)
+                folium.Marker(
+                    [com_lat, com_lon],
+                    tooltip=f"COMISARÍA: {comisaria_cercana['NOMBRE']}",
+                    icon=folium.Icon(color="darkblue", icon="balance-scale", prefix="fa")
+                ).add_to(m_mon)
+                
+                # Trazado de Ruta Animada (Cian)
+                AntPath(
+                    locations=[[com_lat, com_lon], [lat_foco, lon_foco]],
+                    color='#00E5FF', weight=5, opacity=0.9, delay=800
+                ).add_to(m_mon)
+            except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="map_mon_tactico")
+        st_folium(m_mon, width="100%", height=450, key="map_mon_tactico_final")
         st.markdown('</div>', unsafe_allow_html=True)
-
-        if sos_activos > 0:
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
-            if st.button("FINALIZAR OPERATIVO", use_container_width=True):
-                if inf_neu.strip():
-                    fila = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
-                    actualizar_celda("ALERTAS", fila, "D", "RESUELTO")
-                    actualizar_celda("ALERTAS", fila, "F", inf_neu)
-                    st.rerun()
 
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
