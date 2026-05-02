@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (SISTEMA INTEGRAL: CÍRCULOS FIJOS + CIERRE ORIGINAL)
+# A. ROL: MONITOREO (SISTEMA INTEGRAL: CÍRCULOS CON BORDE NEGRO + CIERRE ORIGINAL)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -212,8 +212,8 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
-        # CSS corregido: Titileo de opacidad simple (SIN MOVIMIENTO)
-        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.2;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
+        # CSS: Titileo de opacidad simple para que el punto no se mueva
+        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
         for _, r in df_objetivos.iterrows():
@@ -221,7 +221,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 
-                color_punto = "red" if es_sos else "#00E5FF"
+                color_relleno = "red" if es_sos else "#00E5FF"
                 clase_punto = "blink-icon" if es_sos else ""
                 
                 sup_display = sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')
@@ -230,11 +230,11 @@ if st.session_state.rol_sel == "MONITOREO":
                 folium.CircleMarker(
                     location=[r_lat, r_lon],
                     radius=9 if es_sos else 6,
-                    color=color_punto,
+                    color="black", # --- EFECTO: BORDE NEGRO ---
                     fill=True,
-                    fill_color=color_punto,
-                    fill_opacity=0.7,
-                    weight=2,
+                    fill_color=color_relleno,
+                    fill_opacity=0.9, # Un poco más opaco para que resalte
+                    weight=2, # Grosor del borde negro
                     tooltip=tooltip_txt,
                     className=clase_punto
                 ).add_to(m_mon)
@@ -250,7 +250,7 @@ if st.session_state.rol_sel == "MONITOREO":
         st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_vFinal_Full")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- PROTOCOLO DE CIERRE ORIGINAL RESTAURADO ---
+        # --- PROTOCOLO DE CIERRE ORIGINAL ---
         if sos_activos > 0:
             st.subheader("📝 PROTOCOLO DE CIERRE")
             inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
