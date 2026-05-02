@@ -151,24 +151,27 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (ESTÉTICA FINAL TOOLTIP + RUTA AUTOMÁTICA)
+# A. ROL: MONITOREO (RESTAURACIÓN DE PESTAÑAS + RUTA AGRESIVA)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
     import folium
     import math
 
+    # Carga de datos
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
     alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
     sos_activos = len(alertas_activas)
     
+    # Métricas superiores
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
+    # --- PESTAÑAS (RESTAURADAS) ---
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     
     with t_radar:
@@ -180,19 +183,21 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             datos_sos = alertas_activas.iloc[-1]
             try:
+                # Procesar Carga Útil
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
                 obj_en_panico = partes[2].split(":")[1].strip()
                 sup_responsable = partes[3].split(":")[1].strip()
                 
+                # Coordenadas del Objetivo
                 target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
                 lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
                 lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
 
-                # --- BUSCADOR POR POSICIÓN (A prueba de errores) ---
+                # --- BÚSQUEDA POR POSICIÓN (Col 0=Nombre, 1=Lat, 2=Lon) ---
                 if not df_comisarias.empty:
                     for _, com in df_comisarias.iterrows():
                         try:
-                            nombre_com = com.iloc[0]
+                            # Forzamos lectura por orden de columna del Excel
                             c_lat = float(str(com.iloc[1]).replace(',','.'))
                             c_lon = float(str(com.iloc[2]).replace(',','.'))
                             
@@ -204,7 +209,7 @@ if st.session_state.rol_sel == "MONITOREO":
                             
                             if d < dist_minima:
                                 dist_minima = d
-                                comisaria_cercana = {"NOMBRE": nombre_com, "LAT": c_lat, "LON": c_lon}
+                                comisaria_cercana = {"NOMBRE": com.iloc[0], "LAT": c_lat, "LON": c_lon}
                         except: continue
                 
                 st.error(f"🚨 EMERGENCIA: {obj_en_panico}")
@@ -212,8 +217,10 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.success("✅ Vigilancia Pasiva")
 
+        # --- MAPA ---
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
         
+        # Efecto Blink
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
@@ -223,14 +230,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 color_nodo = "red" if es_sos else "#00E5FF"
                 
-                # TOOLTIP CON ESTÉTICA DE LA IMAGEN (HTML)
+                # Tooltip idéntico a tu captura
                 sup_display = sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')
-                tooltip_html = f"""
-                <div style="font-family: sans-serif; font-size: 12px;">
-                    🚨 <b>OBJ:</b> {r['OBJETIVO']}<br>
-                    👤 <b>SUP:</b> {sup_display}
-                </div>
-                """
+                tooltip_html = f"🚨 <b>OBJ:</b> {r['OBJETIVO']}<br>👤 <b>SUP:</b> {sup_display}"
 
                 folium.CircleMarker(
                     location=[r_lat, r_lon], radius=8 if es_sos else 6,
@@ -240,20 +242,20 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             except: continue
 
-        # --- RUTA Y COMISARÍA ---
+        # --- DIBUJAR RUTA ---
         if sos_activos > 0 and comisaria_cercana:
             try:
-                clat, clon = comisaria_cercana['LAT'], comisaria_cercana['LON']
-                folium.Marker([clat, clon], tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
+                folium.Marker([comisaria_cercana['LAT'], comisaria_cercana['LON']], 
+                             tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
                              icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")).add_to(m_mon)
                 
-                AntPath(locations=[[clat, clon], [lat_foco, lon_foco]], 
+                AntPath(locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
                         color='#FFEB3B', weight=6, delay=600).add_to(m_mon)
             except: pass
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_final_estetica_v6")
+        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_v11")
 
-        # --- PROTOCOLO DE CIERRE ---
+        # --- BOTÓN DE CIERRE ---
         if sos_activos > 0:
             st.markdown("---")
             st.subheader("📝 PROTOCOLO DE CIERRE")
@@ -266,7 +268,15 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Operativo Finalizado")
                     st.rerun()
                 else:
-                    st.warning("⚠️ Complete el informe.")
+                    st.warning("⚠️ Escriba el informe.")
+
+    # --- LIBRO DE BASE (RESTAURADO) ---
+    with t_gestion:
+        st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        if not df_emergencias.empty:
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+        else:
+            st.info("No hay registros en el historial.")
                     
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
