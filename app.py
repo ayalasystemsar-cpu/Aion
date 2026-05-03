@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (RESTAURACIÓN TOTAL + RUTA FORZADA + TOOLTIP HTML)
+# A. ROL: MONITOREO (RESTAURACIÓN TOTAL + RUTA POSICIONAL + TOOLTIP HTML)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
