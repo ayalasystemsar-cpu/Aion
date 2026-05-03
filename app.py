@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (RESTAURACIÓN TOTAL + RUTA POSICIONAL + TOOLTIP HTML)
+# A. ROL: MONITOREO (RESTAURACIÓN DE PESTAÑAS + RUTA POSICIONAL + TOOLTIP HTML)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -282,7 +282,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 else:
                     st.warning("⚠️ Escriba el informe para cerrar.")
 
-    # --- PESTAÑA LIBRO DE BASE (RESTAURADO) ---
+    # --- PESTAÑA LIBRO DE BASE (FUERA DEL BLOQUE RADAR) ---
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
