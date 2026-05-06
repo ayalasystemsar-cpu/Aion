@@ -200,24 +200,17 @@ if st.session_state.rol_sel == "MONITOREO":
                 lat_foco = limpiar_coord(target_row['LATITUD'])
                 lon_foco = limpiar_coord(target_row['LONGITUD'])
 
-              # 3. BUSCAR COMISARÍA MÁS CERCANA (VERSIÓN ULTRA-COMPATIBLE)
-                if not df_comisarias.empty:
-                    # Limpiamos los datos de comisarías antes de empezar
-                    # Nos saltamos la primera fila si es el encabezado 'NOMBRE'
+                # 3. BUSCAR COMISARÍA MÁS CERCANA (VERSIÓN ULTRA-COMPATIBLE)
+                if not df_comisarias.empty and lat_foco is not None:
                     df_proc = df_comisarias.copy()
                     if str(df_proc.iloc[0, 0]).strip().upper() == "NOMBRE":
                         df_proc = df_proc.iloc[1:]
 
                     for _, com in df_proc.iterrows():
                         try:
-                            # Extraemos y limpiamos coordenadas de la comisaría
-                            c_lat_raw = com.iloc[1]
-                            c_lon_raw = com.iloc[2]
-                            
-                            c_lat = limpiar_coord(c_lat_raw)
-                            c_lon = limpiar_coord(c_lon_raw)
+                            c_lat = limpiar_coord(com.iloc[1])
+                            c_lon = limpiar_coord(com.iloc[2])
 
-                            # Verificamos que tengamos coordenadas válidas del objetivo y la comisaría
                             if all(v is not None for v in [lat_foco, lon_foco, c_lat, c_lon]):
                                 R = 6371.0
                                 phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
@@ -234,10 +227,21 @@ if st.session_state.rol_sel == "MONITOREO":
                                         "LON": c_lon
                                     }
                         except:
-                            continue # Si una fila falla, saltamos a la siguiente sin detenernos
+                            continue
+
+                if comisaria_cercana:
+                    st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico} | Cercana: {comisaria_cercana['NOMBRE']}")
+                else:
+                    st.warning(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico} | Buscando Comisaría...")
+            
+            except Exception as e:
+                st.error(f"Error procesando datos de emergencia: {e}")
+        else:
+            st.success("✅ Vigilancia Pasiva - Radar Operativo")
+
+        # --- CONSTRUCCIÓN DEL MAPA ---
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
-        # Estilo CSS para parpadeo
         map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
@@ -247,7 +251,6 @@ if st.session_state.rol_sel == "MONITOREO":
             if r_lat and r_lon:
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
                 color_nodo = "red" if es_sos else "#00E5FF"
-                
                 tooltip_html = f"🚨 <b>OBJ:</b> {r['OBJETIVO']}<br>👤 <b>SUP:</b> {sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')}"
 
                 folium.CircleMarker(
@@ -263,20 +266,15 @@ if st.session_state.rol_sel == "MONITOREO":
 
         # --- DIBUJAR RUTA Y COMISARÍA (SI HAY SOS) ---
         if sos_activos > 0 and comisaria_cercana:
-            # Marcador de Comisaría
             folium.Marker(
                 [comisaria_cercana['LAT'], comisaria_cercana['LON']], 
                 tooltip=f"🚓 {comisaria_cercana['NOMBRE']} (a {dist_minima:.2f} km)", 
                 icon=folium.Icon(color="blue", icon="shield", prefix="fa")
             ).add_to(m_mon)
             
-            # AntPath (Línea Amarilla Animada)
             AntPath(
                 locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
-                color='#FFEB3B', 
-                weight=6, 
-                delay=600,
-                pulse_color='#FFFFFF'
+                color='#FFEB3B', weight=6, delay=600, pulse_color='#FFFFFF'
             ).add_to(m_mon)
 
         # Renderizar Mapa
