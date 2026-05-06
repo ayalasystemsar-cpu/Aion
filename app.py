@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 # ==========================================
-# A. ROL: MONITOREO - VISTA TÁCTICA FINAL (SIN ERRORES)
+# A. ROL: MONITOREO - VISTA TÁCTICA OSCURA
 # ==========================================
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
@@ -192,9 +192,6 @@ if st.session_state.rol_sel == "MONITOREO":
         alertas_activas = df_emergencias.iloc[0:0] # Vacío si no hay columna estado
         
     sos_activos = len(alertas_activas)
-
-    # --- CABECERA ---
-    st.markdown("<h1 style='text-align: center; color: #00E5FF; letter-spacing: 3px;'>AION YAROKU - COMMAND CENTER</h1>", unsafe_allow_html=True)
 
     # --- DISEÑO TÁCTICO 3 COLUMNAS ---
     col_izq, col_centro, col_der = st.columns([1, 4, 1.5])
@@ -238,12 +235,13 @@ if st.session_state.rol_sel == "MONITOREO":
                         except: continue
             except: pass
 
-        # --- MAPA SATELITAL (Look de Inteligencia) ---
+        # --- MAPA OSCURO (Look de Inteligencia) ---
+        # Usamos CartoDB Dark Matter para que sea completamente negro/oscuro
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=15, 
-                           tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 
-                           attr='Esri')
+                           tiles='https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 
+                           attr='CartoDB')
 
-        # Efecto Radar
+        # Efecto Radar Pulsante (Rojo)
         radar_css = "<style>@keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(4); opacity: 0; } } .radar-wave { background: rgba(255, 0, 0, 0.4); border-radius: 50%; animation: pulse 1.5s infinite; border: 2px solid red; }</style>"
         m_mon.get_root().header.add_child(folium.Element(radar_css))
 
@@ -252,9 +250,11 @@ if st.session_state.rol_sel == "MONITOREO":
             if r_lat and r_lon:
                 es_sos = (str(r.get('OBJETIVO', '')).strip().upper() == obj_en_panico and obj_en_panico != "")
                 if es_sos:
+                    # Punto Rojo de Emergencia Pulsante
                     folium.Marker([r_lat, r_lon], icon=folium.DivIcon(html='<div class="radar-wave" style="width:40px; height:40px;"></div>')).add_to(m_mon)
                     folium.CircleMarker([r_lat, r_lon], radius=12, color="red", fill=True, fill_color="red", fill_opacity=0.9, z_index=1000).add_to(m_mon)
                 else:
+                    # Puntos Cian Normales (con baja opacidad)
                     folium.CircleMarker([r_lat, r_lon], radius=4, color="#00E5FF", fill=True, fill_opacity=0.3).add_to(m_mon)
 
         if comisaria_cercana and lat_foco:
