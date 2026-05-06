@@ -200,46 +200,41 @@ if st.session_state.rol_sel == "MONITOREO":
                 lat_foco = limpiar_coord(target_row['LATITUD'])
                 lon_foco = limpiar_coord(target_row['LONGITUD'])
 
-                # 3. BUSCAR COMISARÍA MÁS CERCANA (Con filtro de encabezado)
-                if not df_comisarias.empty and lat_foco and lon_foco:
-                    # Si la primera fila es el encabezado "NOMBRE", la saltamos
-                    if str(df_comisarias.iloc[0, 0]).upper() == "NOMBRE":
-                        df_proceso = df_comisarias.iloc[1:].copy()
-                    else:
-                        df_proceso = df_comisarias.copy()
+              # 3. BUSCAR COMISARÍA MÁS CERCANA (VERSIÓN ULTRA-COMPATIBLE)
+                if not df_comisarias.empty:
+                    # Limpiamos los datos de comisarías antes de empezar
+                    # Nos saltamos la primera fila si es el encabezado 'NOMBRE'
+                    df_proc = df_comisarias.copy()
+                    if str(df_proc.iloc[0, 0]).strip().upper() == "NOMBRE":
+                        df_proc = df_proc.iloc[1:]
 
-                    for _, com in df_proceso.iterrows():
-                        c_lat = limpiar_coord(com.iloc[1]) # Columna B (Lat)
-                        c_lon = limpiar_coord(com.iloc[2]) # Columna C (Lon)
-                        
-                        if c_lat is not None and c_lon is not None:
-                            # Fórmula de Haversine
-                            R = 6371.0
-                            phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
-                            dphi = math.radians(c_lat - lat_foco)
-                            dlambda = math.radians(c_lon - lon_foco)
-                            a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-                            dist = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
+                    for _, com in df_proc.iterrows():
+                        try:
+                            # Extraemos y limpiamos coordenadas de la comisaría
+                            c_lat_raw = com.iloc[1]
+                            c_lon_raw = com.iloc[2]
                             
-                            if dist < dist_minima:
-                                dist_minima = dist
-                                comisaria_cercana = {
-                                    "NOMBRE": com.iloc[0], 
-                                    "LAT": c_lat, 
-                                    "LON": c_lon
-                                }
+                            c_lat = limpiar_coord(c_lat_raw)
+                            c_lon = limpiar_coord(c_lon_raw)
 
-                if comisaria_cercana:
-                    st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico} | Comisaría: {comisaria_cercana['NOMBRE']}")
-                else:
-                    st.warning(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico} | Buscando Comisaría...")
-
-            except Exception as e:
-                st.warning(f"Error procesando SOS: {e}")
-        else:
-            st.success("✅ Vigilancia Pasiva - Radar Operativo")
-
-        # --- CONSTRUCCIÓN DEL MAPA ---
+                            # Verificamos que tengamos coordenadas válidas del objetivo y la comisaría
+                            if all(v is not None for v in [lat_foco, lon_foco, c_lat, c_lon]):
+                                R = 6371.0
+                                phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
+                                dphi = math.radians(c_lat - lat_foco)
+                                dlambda = math.radians(c_lon - lon_foco)
+                                a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+                                dist = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
+                                
+                                if dist < dist_minima:
+                                    dist_minima = dist
+                                    comisaria_cercana = {
+                                        "NOMBRE": str(com.iloc[0]), 
+                                        "LAT": c_lat, 
+                                        "LON": c_lon
+                                    }
+                        except:
+                            continue # Si una fila falla, saltamos a la siguiente sin detenernos
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
         # Estilo CSS para parpadeo
