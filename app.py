@@ -151,13 +151,28 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 # ==========================================
-# A. ROL: MONITOREO - INTERFAZ "AION YAROKU TACTICAL"
+# A. ROL: MONITOREO - VISTA TÁCTICA FULL SCREEN
 # ==========================================
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
     import folium
     import math
+
+    # CONFIGURACIÓN DE PANTALLA ANCHA (Para que no quede todo en el centro)
+    st.markdown("""
+        <style>
+        .main .block-container { max-width: 95%; padding-top: 1rem; }
+        [data-testid="stMetricValue"] { font-size: 24px; color: #00E5FF; }
+        .stDataFrame { background-color: #0E1117; }
+        .tactical-border { 
+            border: 1px solid #1E293B; 
+            padding: 15px; 
+            border-radius: 10px; 
+            background-color: #0F172A;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     def n_ok(v):
         try: return float(str(v).replace(',', '.').strip())
@@ -169,28 +184,21 @@ if st.session_state.rol_sel == "MONITOREO":
     alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
     sos_activos = len(alertas_activas)
 
-    # Estilo de Fondo y Títulos (CSS)
-    st.markdown("""
-        <style>
-        [data-testid="stMetricValue"] { font-size: 28px; color: #00E5FF; }
-        .emergency-box { background-color: rgba(255, 0, 0, 0.2); padding: 10px; border-radius: 10px; border: 1px solid red; }
-        </style>
-    """, unsafe_allow_html=True)
+    # --- CABECERA TÁCTICA ---
+    st.markdown("<h1 style='text-align: center; color: #00E5FF; letter-spacing: 2px;'>AION YAROKU - COMMAND CENTER</h1>", unsafe_allow_html=True)
+    st.write("---")
 
-    # --- ESTRUCTURA TÁCTICA DE 3 COLUMNAS ---
-    col_izq, col_centro, col_der = st.columns([1.2, 3.5, 1.5])
+    # --- DISTRIBUCIÓN DE 3 COLUMNAS REALES ---
+    col_izq, col_centro, col_der = st.columns([1, 4, 1.5])
 
     with col_izq:
-        st.markdown("### 📡 INDICADORES")
-        st.metric("S.O.S ACTIVOS", sos_activos, delta="CRÍTICO" if sos_activos > 0 else "NORMAL", delta_color="inverse")
-        st.write("---")
-        st.write("🔴 **ESTADO:** RADAR ACTIVO")
-        st.write("🟢 **SISTEMA:** ONLINE")
-        st.write("🚓 **UNIDADES:**", len(df_comisarias))
-        st.write("📍 **NODOS:**", len(df_objetivos))
-        
-        if sos_activos > 0:
-            st.markdown("<div class='emergency-box'>🚨 <b>PROTOCOLO ACTIVADO</b><br>Desplegando ruta de interceptación...</div>", unsafe_allow_html=True)
+        st.markdown("<div class='tactical-border'>", unsafe_allow_html=True)
+        st.subheader("📡 STATUS")
+        st.metric("ALERTAS", sos_activos, delta="CRÍTICO" if sos_activos > 0 else "OK", delta_color="inverse")
+        st.write("**SISTEMA:** 💻 ONLINE")
+        st.write("**RED:** 📡 ACTIVA")
+        st.write("**NODOS:**", len(df_objetivos))
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_centro:
         lat_foco, lon_foco = -34.6037, -58.3816
@@ -209,7 +217,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if not match.empty:
                 lat_foco, lon_foco = n_ok(match.iloc[0]['LATITUD']), n_ok(match.iloc[0]['LONGITUD'])
 
-            # Cálculo de Comisaría más cercana
+            # Búsqueda de Comisaría
             if not df_comisarias.empty and lat_foco:
                 df_c_datos = df_comisarias.copy()
                 if "NOMBRE" in str(df_c_datos.iloc[0,0]).upper(): df_c_datos = df_c_datos.iloc[1:]
@@ -225,56 +233,53 @@ if st.session_state.rol_sel == "MONITOREO":
                             comisaria_cercana = {"NOMBRE": str(com.iloc[0]), "LAT": c_lat, "LON": c_lon}
                     except: continue
 
-        # --- MAPA TÁCTICO CON EFECTO RADAR (ASÍ COMO LA IMAGEN) ---
+        # --- MAPA CON SERVIDOR TÁCTICO (ANTIBLOQUEO) ---
+        # Usamos Esri World Imagery para que se vea satelital/pro como en la imagen
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=15, 
-                           tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", attr='CartoDB')
+                           tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 
+                           attr='Esri')
 
-        # CSS PARA ONDAS DE CHOQUE ROJAS (TITILE EXPANSIVO)
         radar_css = """
         <style>
         @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(4); opacity: 0; } }
-        .radar-wave { background: rgba(255, 0, 0, 0.4); border-radius: 50%; animation: pulse 2s infinite; border: 2px solid red; }
+        .radar-wave { background: rgba(255, 0, 0, 0.4); border-radius: 50%; animation: pulse 1.5s infinite; border: 2px solid red; }
         </style>
         """
         m_mon.get_root().header.add_child(folium.Element(radar_css))
 
-        # Dibujar todos los puntos
         for _, r in df_objetivos.iterrows():
             r_lat, r_lon = n_ok(r.get('LATITUD')), n_ok(r.get('LONGITUD'))
             if r_lat and r_lon:
                 es_sos = (str(r.get('OBJETIVO', '')).strip().upper() == obj_en_panico and obj_en_panico != "")
                 if es_sos:
-                    # Onda de Radar (Doble capa para que se vea más fuerte)
                     folium.Marker([r_lat, r_lon], icon=folium.DivIcon(html='<div class="radar-wave" style="width:40px; height:40px;"></div>')).add_to(m_mon)
-                    folium.CircleMarker([r_lat, r_lon], radius=15, color="red", fill=True, fill_color="red", fill_opacity=0.9, z_index=1000).add_to(m_mon)
+                    folium.CircleMarker([r_lat, r_lon], radius=12, color="red", fill=True, fill_color="red", fill_opacity=0.9, z_index=1000).add_to(m_mon)
                 else:
-                    folium.CircleMarker([r_lat, r_lon], radius=5, color="#00E5FF", fill=True, fill_opacity=0.2).add_to(m_mon)
+                    folium.CircleMarker([r_lat, r_lon], radius=4, color="#00E5FF", fill=True, fill_opacity=0.3).add_to(m_mon)
 
-        # Ruta de Respuesta Amarilla
         if comisaria_cercana and lat_foco:
             folium.Marker([comisaria_cercana['LAT'], comisaria_cercana['LON']], 
                           icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_mon)
             AntPath(locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
-                    color='#FFEB3B', weight=8, delay=400, pulse_color='white').add_to(m_mon)
+                    color='#FFEB3B', weight=6, delay=400).add_to(m_mon)
             m_mon.fit_bounds([[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]])
 
-        st_folium(m_mon, width="100%", height=550, key="mapa_tactico_final")
+        st_folium(m_mon, width="100%", height=600, key="tactical_map_yaroku")
 
     with col_der:
-        st.markdown("### 📖 NOVEDADES")
+        st.markdown("<div class='tactical-border'>", unsafe_allow_html=True)
+        st.subheader("📖 REGISTROS")
         if not df_emergencias.empty:
-            # Vista compacta del historial
             st.dataframe(df_emergencias[['HORA', 'ESTADO']].iloc[::-1], height=300, use_container_width=True)
         
         if sos_activos > 0:
-            st.error(f"OBJ: {obj_en_panico}")
-            st.info(f"SUP: {sup_responsable}")
-            inf = st.text_area("INFORME DE CIERRE", placeholder="Escriba aquí...")
+            st.error(f"EMERGENCIA: {obj_en_panico}")
+            inf = st.text_area("INFORME")
             if st.button("FINALIZAR", use_container_width=True):
-                if inf.strip():
-                    actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "D", "RESUELTO")
-                    actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "F", inf)
-                    st.rerun()
+                actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "D", "RESUELTO")
+                actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "F", inf)
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
                     
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
