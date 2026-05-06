@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 # ==========================================
-# A. ROL: MONITOREO - VISTA TÁCTICA FULL SCREEN
+# A. ROL: MONITOREO - VISTA TÁCTICA FINAL (SIN ERRORES)
 # ==========================================
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
@@ -159,12 +159,11 @@ if st.session_state.rol_sel == "MONITOREO":
     import folium
     import math
 
-    # CONFIGURACIÓN DE PANTALLA ANCHA (Para que no quede todo en el centro)
+    # Ajuste de pantalla ancha y estilo táctico
     st.markdown("""
         <style>
-        .main .block-container { max-width: 95%; padding-top: 1rem; }
+        .main .block-container { max-width: 98%; padding-top: 1rem; }
         [data-testid="stMetricValue"] { font-size: 24px; color: #00E5FF; }
-        .stDataFrame { background-color: #0E1117; }
         .tactical-border { 
             border: 1px solid #1E293B; 
             padding: 15px; 
@@ -181,22 +180,30 @@ if st.session_state.rol_sel == "MONITOREO":
     # 1. CARGA DE DATOS
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
-    alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+    
+    # Verificación de columnas para evitar el KeyError
+    cols_actuales = df_emergencias.columns.tolist()
+    # Buscamos si existe 'ESTADO' o 'estado', etc.
+    col_estado = next((c for c in cols_actuales if c.upper() == 'ESTADO'), None)
+    
+    if col_estado:
+        alertas_activas = df_emergencias[df_emergencias[col_estado].astype(str).str.upper() == 'PENDIENTE']
+    else:
+        alertas_activas = df_emergencias.iloc[0:0] # Vacío si no hay columna estado
+        
     sos_activos = len(alertas_activas)
 
-    # --- CABECERA TÁCTICA ---
-    st.markdown("<h1 style='text-align: center; color: #00E5FF; letter-spacing: 2px;'>AION YAROKU - COMMAND CENTER</h1>", unsafe_allow_html=True)
-    st.write("---")
+    # --- CABECERA ---
+    st.markdown("<h1 style='text-align: center; color: #00E5FF; letter-spacing: 3px;'>AION YAROKU - COMMAND CENTER</h1>", unsafe_allow_html=True)
 
-    # --- DISTRIBUCIÓN DE 3 COLUMNAS REALES ---
+    # --- DISEÑO TÁCTICO 3 COLUMNAS ---
     col_izq, col_centro, col_der = st.columns([1, 4, 1.5])
 
     with col_izq:
         st.markdown("<div class='tactical-border'>", unsafe_allow_html=True)
         st.subheader("📡 STATUS")
-        st.metric("ALERTAS", sos_activos, delta="CRÍTICO" if sos_activos > 0 else "OK", delta_color="inverse")
+        st.metric("S.O.S", sos_activos, delta="CRÍTICO" if sos_activos > 0 else "OK", delta_color="inverse")
         st.write("**SISTEMA:** 💻 ONLINE")
-        st.write("**RED:** 📡 ACTIVA")
         st.write("**NODOS:**", len(df_objetivos))
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -207,44 +214,37 @@ if st.session_state.rol_sel == "MONITOREO":
         dist_minima = float('inf')
 
         if sos_activos > 0:
-            datos_sos = alertas_activas.iloc[-1]
-            carga = str(datos_sos.get('CARGA_UTIL', ''))
-            if "OBJETIVO:" in carga.upper():
-                obj_en_panico = carga.split("OBJETIVO:")[1].split("|")[0].strip().upper()
-                sup_responsable = carga.split("SUPERVISOR:")[1].strip() if "SUPERVISOR:" in carga.upper() else "N/A"
-            
-            match = df_objetivos[df_objetivos['OBJETIVO'].str.strip().str.upper() == obj_en_panico]
-            if not match.empty:
-                lat_foco, lon_foco = n_ok(match.iloc[0]['LATITUD']), n_ok(match.iloc[0]['LONGITUD'])
+            try:
+                datos_sos = alertas_activas.iloc[-1]
+                carga = str(datos_sos.get('CARGA_UTIL', ''))
+                if "OBJETIVO:" in carga.upper():
+                    obj_en_panico = carga.split("OBJETIVO:")[1].split("|")[0].strip().upper()
+                
+                match = df_objetivos[df_objetivos['OBJETIVO'].str.strip().str.upper() == obj_en_panico]
+                if not match.empty:
+                    lat_foco, lon_foco = n_ok(match.iloc[0]['LATITUD']), n_ok(match.iloc[0]['LONGITUD'])
 
-            # Búsqueda de Comisaría
-            if not df_comisarias.empty and lat_foco:
-                df_c_datos = df_comisarias.copy()
-                if "NOMBRE" in str(df_c_datos.iloc[0,0]).upper(): df_c_datos = df_c_datos.iloc[1:]
-                for _, com in df_c_datos.iterrows():
-                    try:
-                        c_lat, c_lon = n_ok(com.iloc[1]), n_ok(com.iloc[2])
-                        R = 6371.0
-                        dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
-                        a = math.sin(dphi/2)**2 + math.cos(math.radians(lat_foco))*math.cos(math.radians(c_lat))*math.sin(dlambda/2)**2
-                        dist = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
-                        if dist < dist_minima:
-                            dist_minima = dist
-                            comisaria_cercana = {"NOMBRE": str(com.iloc[0]), "LAT": c_lat, "LON": c_lon}
-                    except: continue
+                if not df_comisarias.empty and lat_foco:
+                    for _, com in df_comisarias.iterrows():
+                        try:
+                            c_lat, c_lon = n_ok(com.iloc[1]), n_ok(com.iloc[2])
+                            R = 6371.0
+                            dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
+                            a = math.sin(dphi/2)**2 + math.cos(math.radians(lat_foco))*math.cos(math.radians(c_lat))*math.sin(dlambda/2)**2
+                            dist = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
+                            if dist < dist_minima:
+                                dist_minima = dist
+                                comisaria_cercana = {"NOMBRE": str(com.iloc[0]), "LAT": c_lat, "LON": c_lon}
+                        except: continue
+            except: pass
 
-        # --- MAPA CON SERVIDOR TÁCTICO (ANTIBLOQUEO) ---
-        # Usamos Esri World Imagery para que se vea satelital/pro como en la imagen
+        # --- MAPA SATELITAL (Look de Inteligencia) ---
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=15, 
                            tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 
                            attr='Esri')
 
-        radar_css = """
-        <style>
-        @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(4); opacity: 0; } }
-        .radar-wave { background: rgba(255, 0, 0, 0.4); border-radius: 50%; animation: pulse 1.5s infinite; border: 2px solid red; }
-        </style>
-        """
+        # Efecto Radar
+        radar_css = "<style>@keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(4); opacity: 0; } } .radar-wave { background: rgba(255, 0, 0, 0.4); border-radius: 50%; animation: pulse 1.5s infinite; border: 2px solid red; }</style>"
         m_mon.get_root().header.add_child(folium.Element(radar_css))
 
         for _, r in df_objetivos.iterrows():
@@ -258,29 +258,27 @@ if st.session_state.rol_sel == "MONITOREO":
                     folium.CircleMarker([r_lat, r_lon], radius=4, color="#00E5FF", fill=True, fill_opacity=0.3).add_to(m_mon)
 
         if comisaria_cercana and lat_foco:
-            folium.Marker([comisaria_cercana['LAT'], comisaria_cercana['LON']], 
-                          icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_mon)
-            AntPath(locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
-                    color='#FFEB3B', weight=6, delay=400).add_to(m_mon)
+            folium.Marker([comisaria_cercana['LAT'], comisaria_cercana['LON']], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_mon)
+            AntPath(locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], color='#FFEB3B', weight=6, delay=400).add_to(m_mon)
             m_mon.fit_bounds([[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]])
 
-        st_folium(m_mon, width="100%", height=600, key="tactical_map_yaroku")
+        st_folium(m_mon, width="100%", height=600, key="tactical_map_final")
 
     with col_der:
         st.markdown("<div class='tactical-border'>", unsafe_allow_html=True)
         st.subheader("📖 REGISTROS")
+        # Aquí corregimos el error: Solo mostramos columnas que de verdad existen
+        cols_a_mostrar = [c for c in ['FECHA', 'HORA', 'ESTADO'] if c in df_emergencias.columns]
         if not df_emergencias.empty:
-            st.dataframe(df_emergencias[['HORA', 'ESTADO']].iloc[::-1], height=300, use_container_width=True)
+            st.dataframe(df_emergencias[cols_a_mostrar].iloc[::-1], height=300, use_container_width=True)
         
         if sos_activos > 0:
             st.error(f"EMERGENCIA: {obj_en_panico}")
-            inf = st.text_area("INFORME")
+            inf = st.text_area("INFORME DE CIERRE")
             if st.button("FINALIZAR", use_container_width=True):
-                actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "D", "RESUELTO")
-                actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "F", inf)
+                actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, col_estado if col_estado else "D", "RESUELTO")
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
-                    
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
     st.markdown('<div class="radar-box">', unsafe_allow_html=True)
