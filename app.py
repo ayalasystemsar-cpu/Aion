@@ -151,14 +151,18 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (RECONSTRUCCIÓN TOTAL: PESTAÑAS + RUTA + TOOLTIP HTML)
+# A. ROL: MONITOREO (VERSIÓN ANTIBLOQUEO YAROKU15)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
     import folium
     import math
 
-    # 1. CARGA DE DATOS (ALERTAS Y COMISARIAS)
+    def n_ok(v):
+        try: return float(str(v).replace(',', '.').strip())
+        except: return None
+
+    # 1. CARGA DE DATOS
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
@@ -171,119 +175,112 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # 2. CREACIÓN DE PESTAÑAS (Aseguramos que ambas existan)
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     
     with t_radar:
-        lat_foco, lon_foco = -34.6, -58.4
-        obj_en_panico, sup_responsable = "", ""
+        lat_foco, lon_foco = -34.6037, -58.3816 # Centro por defecto
+        obj_en_panico = ""
         comisaria_cercana = None
         dist_minima = float('inf')
         
         if sos_activos > 0:
-            datos_sos = alertas_activas.iloc[-1]
             try:
-                # Extraer Objetivo y Supervisor
-                partes = datos_sos.get('CARGA_UTIL', '').split("|")
-                obj_en_panico = partes[2].split(":")[1].strip()
-                sup_responsable = partes[3].split(":")[1].strip()
+                datos_sos = alertas_activas.iloc[-1]
+                carga = str(datos_sos.get('CARGA_UTIL', ''))
                 
-                # Ubicación del Objetivo en pánico (Limpieza de comas)
-                target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
-                lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
-                lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
+                # Extraer Objetivo
+                if "|" in carga:
+                    partes = carga.split("|")
+                    for p in partes:
+                        if "OBJETIVO:" in p.upper(): obj_en_panico = p.split(":")[1].strip().upper()
+                
+                # Localizar coordenadas del Objetivo
+                if obj_en_panico:
+                    match = df_objetivos[df_objetivos['OBJETIVO'].str.strip().str.upper() == obj_en_panico]
+                    if not match.empty:
+                        lat_foco = n_ok(match.iloc[0]['LATITUD'])
+                        lon_foco = n_ok(match.iloc[0]['LONGITUD'])
 
-                # Buscar Comisaría (Usando posiciones de columna A, B, C de tu Excel)
-                if not df_comisarias.empty:
-                    for _, com in df_comisarias.iterrows():
+                # Buscar Comisaría más cercana
+                if not df_comisarias.empty and lat_foco:
+                    df_c_limpio = df_comisarias.copy()
+                    if "NOMBRE" in str(df_c_limpio.iloc[0,0]).upper(): df_c_limpio = df_c_limpio.iloc[1:]
+                    
+                    for _, com in df_c_limpio.iterrows():
                         try:
-                            # Posición 0: Nombre, 1: Lat, 2: Lon (según tu Captura 565)
-                            c_lat = float(str(com.iloc[1]).replace(',','.'))
-                            c_lon = float(str(com.iloc[2]).replace(',','.'))
-                            
-                            R = 6371.0
-                            phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
-                            dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
-                            a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-                            d = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
-                            
-                            if d < dist_minima:
-                                dist_minima = d
-                                comisaria_cercana = {"NOMBRE": com.iloc[0], "LAT": c_lat, "LON": c_lon}
+                            c_lat, c_lon = n_ok(com.iloc[1]), n_ok(com.iloc[2])
+                            if c_lat and c_lon:
+                                R = 6371.0
+                                phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
+                                dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
+                                a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+                                dist = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
+                                if dist < dist_minima:
+                                    dist_minima = dist
+                                    comisaria_cercana = {"NOMBRE": str(com.iloc[0]), "LAT": c_lat, "LON": c_lon}
                         except: continue
-                
-                st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico}")
+
+                if comisaria_cercana:
+                    st.error(f"🚨 EMERGENCIA: {obj_en_panico} | PROXIMIDAD: {comisaria_cercana['NOMBRE']}")
             except: pass
         else:
-            st.success("✅ Vigilancia Pasiva - Radar Operativo")
+            st.success("✅ Vigilancia Pasiva - Sin Alertas")
 
-        # --- MAPA ---
-        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
+        # --- MAPA CON TILES ANTIBLOQUEO (CARTODB) ---
+        m_mon = folium.Map(
+            location=[lat_foco, lon_foco], 
+            zoom_start=14, 
+            tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", 
+            attr='CartoDB'
+        )
         
-        # Efecto Blink para el objetivo en SOS
-        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
+        # CSS para el parpadeo
+        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.2;}100%{opacity:1;}} .blink-red {animation: blink 0.6s linear infinite; border: 2px solid white; border-radius: 50%;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
-        # Dibujar todos los puntos (Círculos huecos cian)
+        # Dibujar Objetivos
         for _, r in df_objetivos.iterrows():
-            try:
-                r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
-                es_sos = (r['OBJETIVO'] == obj_en_panico)
-                color_nodo = "red" if es_sos else "#00E5FF"
-                
-                # Tooltip con la estética que me pediste (2 líneas e iconos)
-                sup_display = sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')
-                tooltip_html = f"🚨 <b>OBJ:</b> {r['OBJETIVO']}<br>👤 <b>SUP:</b> {sup_display}"
-
+            r_lat, r_lon = n_ok(r.get('LATITUD')), n_ok(r.get('LONGITUD'))
+            if r_lat and r_lon:
+                es_sos = (str(r.get('OBJETIVO', '')).strip().upper() == obj_en_panico and obj_en_panico != "")
                 folium.CircleMarker(
-                    location=[r_lat, r_lon], radius=8 if es_sos else 6,
-                    color=color_nodo, fill=es_sos, fill_color=color_nodo, weight=3,
-                    tooltip=folium.Tooltip(tooltip_html, sticky=True),
-                    className="blink-icon" if es_sos else ""
+                    location=[r_lat, r_lon], radius=15 if es_sos else 6,
+                    color="red" if es_sos else "#00E5FF", fill=True, fill_opacity=0.8,
+                    className="blink-red" if es_sos else "", z_index=1000 if es_sos else 1,
+                    tooltip=f"OBJETIVO: {r['OBJETIVO']}"
                 ).add_to(m_mon)
-            except: continue
 
-        # --- DIBUJAR RUTA Y COMISARÍA (SI HAY SOS) ---
-        if sos_activos > 0 and comisaria_cercana:
-            try:
-                # Icono azul de Comisaría
-                folium.Marker(
-                    [comisaria_cercana['LAT'], comisaria_cercana['LON']], 
-                    tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
-                    icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")
-                ).add_to(m_mon)
-                
-                # Ruta dinámica amarilla
-                AntPath(
-                    locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
-                    color='#FFEB3B', weight=6, delay=600
-                ).add_to(m_mon)
-            except: pass
+        # Dibujar Ruta a Comisaría
+        if comisaria_cercana and sos_activos > 0:
+            folium.Marker(
+                [comisaria_cercana['LAT'], comisaria_cercana['LON']], 
+                icon=folium.Icon(color="blue", icon="shield", prefix="fa"),
+                tooltip=comisaria_cercana['NOMBRE']
+            ).add_to(m_mon)
+            
+            AntPath(
+                locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
+                color='#FFEB3B', weight=8, delay=500
+            ).add_to(m_mon)
+            
+            m_mon.fit_bounds([[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]])
 
-        st_folium(m_mon, width="100%", height=450, key="mapa_final_corregido_v30")
+        # MOSTRAR MAPA
+        st_folium(m_mon, width="100%", height=450, key="mapa_yaroku_v200")
 
-        # --- BOTÓN DE CIERRE (DEBAJO DEL MAPA) ---
         if sos_activos > 0:
             st.markdown("---")
-            st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
+            inf = st.text_area("INFORME DE CIERRE")
             if st.button("FINALIZAR OPERATIVO", use_container_width=True):
-                if inf_neu.strip():
-                    fila_excel = alertas_activas.index[-1] + 2
-                    actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
-                    actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
-                    st.success("✅ Operativo Finalizado")
+                if inf.strip():
+                    actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "D", "RESUELTO")
+                    actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "F", inf)
                     st.rerun()
-                else:
-                    st.warning("⚠️ El informe es obligatorio para cerrar.")
 
-    # --- LIBRO DE BASE (FUERA DEL RADAR) ---
     with t_gestion:
-        st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        st.subheader("📖 HISTORIAL")
         if not df_emergencias.empty:
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay registros en el historial.")
                     
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
