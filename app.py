@@ -151,7 +151,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (VERSIÓN ANTIBLOQUEO YAROKU15)
+# A. ROL: MONITOREO (VERSIÓN FINAL YAROKU15 - PUNTO ROJO FORZADO)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -169,7 +169,7 @@ if st.session_state.rol_sel == "MONITOREO":
     alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
     sos_activos = len(alertas_activas)
     
-    # Indicadores superiores
+    # Dashboard superior
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
@@ -178,8 +178,8 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     
     with t_radar:
-        lat_foco, lon_foco = -34.6037, -58.3816 # Centro por defecto
-        obj_en_panico = ""
+        lat_foco, lon_foco = -34.6, -58.4 
+        obj_en_panico, sup_responsable = "", "N/A"
         comisaria_cercana = None
         dist_minima = float('inf')
         
@@ -188,25 +188,22 @@ if st.session_state.rol_sel == "MONITOREO":
                 datos_sos = alertas_activas.iloc[-1]
                 carga = str(datos_sos.get('CARGA_UTIL', ''))
                 
-                # Extraer Objetivo
                 if "|" in carga:
                     partes = carga.split("|")
                     for p in partes:
                         if "OBJETIVO:" in p.upper(): obj_en_panico = p.split(":")[1].strip().upper()
+                        if "SUPERVISOR:" in p.upper(): sup_responsable = p.split(":")[1].strip()
                 
-                # Localizar coordenadas del Objetivo
                 if obj_en_panico:
                     match = df_objetivos[df_objetivos['OBJETIVO'].str.strip().str.upper() == obj_en_panico]
                     if not match.empty:
                         lat_foco = n_ok(match.iloc[0]['LATITUD'])
                         lon_foco = n_ok(match.iloc[0]['LONGITUD'])
 
-                # Buscar Comisaría más cercana
                 if not df_comisarias.empty and lat_foco:
-                    df_c_limpio = df_comisarias.copy()
-                    if "NOMBRE" in str(df_c_limpio.iloc[0,0]).upper(): df_c_limpio = df_c_limpio.iloc[1:]
-                    
-                    for _, com in df_c_limpio.iterrows():
+                    df_c_datos = df_comisarias.copy()
+                    if "NOMBRE" in str(df_c_datos.iloc[0,0]).upper(): df_c_datos = df_c_datos.iloc[1:]
+                    for _, com in df_c_datos.iterrows():
                         try:
                             c_lat, c_lon = n_ok(com.iloc[1]), n_ok(com.iloc[2])
                             if c_lat and c_lon:
@@ -219,14 +216,14 @@ if st.session_state.rol_sel == "MONITOREO":
                                     dist_minima = dist
                                     comisaria_cercana = {"NOMBRE": str(com.iloc[0]), "LAT": c_lat, "LON": c_lon}
                         except: continue
-
+                
                 if comisaria_cercana:
                     st.error(f"🚨 EMERGENCIA: {obj_en_panico} | PROXIMIDAD: {comisaria_cercana['NOMBRE']}")
             except: pass
         else:
-            st.success("✅ Vigilancia Pasiva - Sin Alertas")
+            st.success("✅ Vigilancia Pasiva")
 
-        # --- MAPA CON TILES ANTIBLOQUEO (CARTODB) ---
+        # --- MAPA CON SERVIDOR ESTABLE (CARTODB DARK) ---
         m_mon = folium.Map(
             location=[lat_foco, lon_foco], 
             zoom_start=14, 
@@ -234,8 +231,13 @@ if st.session_state.rol_sel == "MONITOREO":
             attr='CartoDB'
         )
         
-        # CSS para el parpadeo
-        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.2;}100%{opacity:1;}} .blink-red {animation: blink 0.6s linear infinite; border: 2px solid white; border-radius: 50%;}</style>"
+        # CSS para el parpadeo REFORZADO
+        map_css = """
+        <style>
+        @keyframes blinker { 0% { opacity: 1.0; } 50% { opacity: 0.1; } 100% { opacity: 1.0; } }
+        .emergency-blink { animation: blinker 0.6s linear infinite; border: 3px solid white !important; }
+        </style>
+        """
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
         # Dibujar Objetivos
@@ -243,15 +245,33 @@ if st.session_state.rol_sel == "MONITOREO":
             r_lat, r_lon = n_ok(r.get('LATITUD')), n_ok(r.get('LONGITUD'))
             if r_lat and r_lon:
                 es_sos = (str(r.get('OBJETIVO', '')).strip().upper() == obj_en_panico and obj_en_panico != "")
-                folium.CircleMarker(
-                    location=[r_lat, r_lon], radius=15 if es_sos else 6,
-                    color="red" if es_sos else "#00E5FF", fill=True, fill_opacity=0.8,
-                    className="blink-red" if es_sos else "", z_index=1000 if es_sos else 1,
-                    tooltip=f"OBJETIVO: {r['OBJETIVO']}"
-                ).add_to(m_mon)
+                
+                if es_sos:
+                    # PUNTO ROJO DE EMERGENCIA (Más grande y con clase de parpadeo)
+                    folium.CircleMarker(
+                        location=[r_lat, r_lon],
+                        radius=18,
+                        color="red",
+                        fill=True,
+                        fill_color="red",
+                        fill_opacity=0.9,
+                        className="emergency-blink",
+                        z_index=9999,
+                        tooltip=f"🚨 EMERGENCIA: {r['OBJETIVO']}"
+                    ).add_to(m_mon)
+                else:
+                    # Puntos normales azules
+                    folium.CircleMarker(
+                        location=[r_lat, r_lon],
+                        radius=6,
+                        color="#00E5FF",
+                        fill=True,
+                        fill_opacity=0.4,
+                        tooltip=f"OBJ: {r['OBJETIVO']}"
+                    ).add_to(m_mon)
 
-        # Dibujar Ruta a Comisaría
-        if comisaria_cercana and sos_activos > 0:
+        # Dibujar Ruta y Marcador
+        if comisaria_cercana and lat_foco:
             folium.Marker(
                 [comisaria_cercana['LAT'], comisaria_cercana['LON']], 
                 icon=folium.Icon(color="blue", icon="shield", prefix="fa"),
@@ -260,13 +280,12 @@ if st.session_state.rol_sel == "MONITOREO":
             
             AntPath(
                 locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
-                color='#FFEB3B', weight=8, delay=500
+                color='#FFEB3B', weight=8, delay=500, pulse_color='white'
             ).add_to(m_mon)
             
             m_mon.fit_bounds([[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]])
 
-        # MOSTRAR MAPA
-        st_folium(m_mon, width="100%", height=450, key="mapa_yaroku_v200")
+        st_folium(m_mon, width="100%", height=450, key="mapa_yaroku_final_v3")
 
         if sos_activos > 0:
             st.markdown("---")
@@ -278,7 +297,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.rerun()
 
     with t_gestion:
-        st.subheader("📖 HISTORIAL")
+        st.subheader("📖 LIBRO DE BASE")
         if not df_emergencias.empty:
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
                     
