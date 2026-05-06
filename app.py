@@ -150,7 +150,6 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
-
 # A. ROL: MONITOREO (RECONSTRUCCIÓN TOTAL CON RUTA DINÁMICA)
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
@@ -161,6 +160,8 @@ if st.session_state.rol_sel == "MONITOREO":
     # --- FUNCIÓN AUXILIAR DE LIMPIEZA ---
     def limpiar_coord(valor):
         try:
+            if valor is None or str(valor).strip() == "":
+                return None
             return float(str(valor).replace(',', '.').strip())
         except:
             return None
@@ -181,7 +182,7 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
     
     with t_radar:
-        lat_foco, lon_foco = -34.6, -58.4  # Centro por defecto (CABA)
+        lat_foco, lon_foco = -34.6, -58.4  # Centro por defecto
         obj_en_panico, sup_responsable = "", ""
         comisaria_cercana = None
         dist_minima = float('inf')
@@ -199,13 +200,19 @@ if st.session_state.rol_sel == "MONITOREO":
                 lat_foco = limpiar_coord(target_row['LATITUD'])
                 lon_foco = limpiar_coord(target_row['LONGITUD'])
 
-                # 3. BUSCAR COMISARÍA MÁS CERCANA (Cálculo Matemático)
+                # 3. BUSCAR COMISARÍA MÁS CERCANA (Con filtro de encabezado)
                 if not df_comisarias.empty and lat_foco and lon_foco:
-                    for _, com in df_comisarias.iterrows():
+                    # Si la primera fila es el encabezado "NOMBRE", la saltamos
+                    if str(df_comisarias.iloc[0, 0]).upper() == "NOMBRE":
+                        df_proceso = df_comisarias.iloc[1:].copy()
+                    else:
+                        df_proceso = df_comisarias.copy()
+
+                    for _, com in df_proceso.iterrows():
                         c_lat = limpiar_coord(com.iloc[1]) # Columna B (Lat)
                         c_lon = limpiar_coord(com.iloc[2]) # Columna C (Lon)
                         
-                        if c_lat and c_lon:
+                        if c_lat is not None and c_lon is not None:
                             # Fórmula de Haversine
                             R = 6371.0
                             phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
@@ -222,7 +229,11 @@ if st.session_state.rol_sel == "MONITOREO":
                                     "LON": c_lon
                                 }
 
-                st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico} | Comisaría: {comisaria_cercana['NOMBRE'] if comisaria_cercana else 'Buscando...'}")
+                if comisaria_cercana:
+                    st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico} | Comisaría: {comisaria_cercana['NOMBRE']}")
+                else:
+                    st.warning(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico} | Buscando Comisaría...")
+
             except Exception as e:
                 st.warning(f"Error procesando SOS: {e}")
         else:
@@ -257,14 +268,14 @@ if st.session_state.rol_sel == "MONITOREO":
 
         # --- DIBUJAR RUTA Y COMISARÍA (SI HAY SOS) ---
         if sos_activos > 0 and comisaria_cercana:
-            # Marcador de Comisaría (Escudo Azul)
+            # Marcador de Comisaría
             folium.Marker(
                 [comisaria_cercana['LAT'], comisaria_cercana['LON']], 
                 tooltip=f"🚓 {comisaria_cercana['NOMBRE']} (a {dist_minima:.2f} km)", 
                 icon=folium.Icon(color="blue", icon="shield", prefix="fa")
             ).add_to(m_mon)
             
-            # Línea de trayectoria animada (AntPath)
+            # AntPath (Línea Amarilla Animada)
             AntPath(
                 locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
                 color='#FFEB3B', 
@@ -274,7 +285,7 @@ if st.session_state.rol_sel == "MONITOREO":
             ).add_to(m_mon)
 
         # Renderizar Mapa
-        st_folium(m_mon, width="100%", height=500, key="mapa_monitoreo_yaroku")
+        st_folium(m_mon, width="100%", height=500, key="mapa_monitoreo_yaroku_v5")
 
         # --- BOTÓN DE CIERRE ---
         if sos_activos > 0:
