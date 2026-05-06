@@ -150,9 +150,8 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
-
 # ==========================================
-# A. ROL: MONITOREO - INTERFAZ TÁCTICA FINAL
+# A. ROL: MONITOREO - INTERFAZ "AION YAROKU TACTICAL"
 # ==========================================
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
@@ -167,142 +166,115 @@ if st.session_state.rol_sel == "MONITOREO":
     # 1. CARGA DE DATOS
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
-    
     alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
     sos_activos = len(alertas_activas)
-    
-    # --- DASHBOARD DE INDICADORES (TAL CUAL LA IMAGEN) ---
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c1:
-        st.metric("🚨 ALERTAS ACTIVAS", sos_activos, delta_color="inverse")
-    with c2:
-        st.markdown("<h2 style='text-align: center; color: white;'>CENTRO DE COMANDO TÁCTICO</h2>", unsafe_allow_html=True)
-    with c3:
-        st.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_radar, t_gestion = st.tabs(["📡 RADAR S.O.S (VISTA TÁCTICA)", "📖 LIBRO DE BASE"])
-    
-    with t_radar:
-        lat_foco, lon_foco = -34.6, -58.4 
+    # Estilo de Fondo y Títulos (CSS)
+    st.markdown("""
+        <style>
+        [data-testid="stMetricValue"] { font-size: 28px; color: #00E5FF; }
+        .emergency-box { background-color: rgba(255, 0, 0, 0.2); padding: 10px; border-radius: 10px; border: 1px solid red; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # --- ESTRUCTURA TÁCTICA DE 3 COLUMNAS ---
+    col_izq, col_centro, col_der = st.columns([1.2, 3.5, 1.5])
+
+    with col_izq:
+        st.markdown("### 📡 INDICADORES")
+        st.metric("S.O.S ACTIVOS", sos_activos, delta="CRÍTICO" if sos_activos > 0 else "NORMAL", delta_color="inverse")
+        st.write("---")
+        st.write("🔴 **ESTADO:** RADAR ACTIVO")
+        st.write("🟢 **SISTEMA:** ONLINE")
+        st.write("🚓 **UNIDADES:**", len(df_comisarias))
+        st.write("📍 **NODOS:**", len(df_objetivos))
+        
+        if sos_activos > 0:
+            st.markdown("<div class='emergency-box'>🚨 <b>PROTOCOLO ACTIVADO</b><br>Desplegando ruta de interceptación...</div>", unsafe_allow_html=True)
+
+    with col_centro:
+        lat_foco, lon_foco = -34.6037, -58.3816
         obj_en_panico, sup_responsable = "", "N/A"
         comisaria_cercana = None
         dist_minima = float('inf')
-        
+
         if sos_activos > 0:
-            try:
-                datos_sos = alertas_activas.iloc[-1]
-                carga = str(datos_sos.get('CARGA_UTIL', ''))
-                if "|" in carga:
-                    partes = carga.split("|")
-                    for p in partes:
-                        if "OBJETIVO:" in p.upper(): obj_en_panico = p.split(":")[1].strip().upper()
-                        if "SUPERVISOR:" in p.upper(): sup_responsable = p.split(":")[1].strip()
-                
-                # Ubicación de la emergencia
-                match = df_objetivos[df_objetivos['OBJETIVO'].str.strip().str.upper() == obj_en_panico]
-                if not match.empty:
-                    lat_foco = n_ok(match.iloc[0]['LATITUD'])
-                    lon_foco = n_ok(match.iloc[0]['LONGITUD'])
+            datos_sos = alertas_activas.iloc[-1]
+            carga = str(datos_sos.get('CARGA_UTIL', ''))
+            if "OBJETIVO:" in carga.upper():
+                obj_en_panico = carga.split("OBJETIVO:")[1].split("|")[0].strip().upper()
+                sup_responsable = carga.split("SUPERVISOR:")[1].strip() if "SUPERVISOR:" in carga.upper() else "N/A"
+            
+            match = df_objetivos[df_objetivos['OBJETIVO'].str.strip().str.upper() == obj_en_panico]
+            if not match.empty:
+                lat_foco, lon_foco = n_ok(match.iloc[0]['LATITUD']), n_ok(match.iloc[0]['LONGITUD'])
 
-                # Buscar Comisaría más cercana
-                if not df_comisarias.empty and lat_foco:
-                    df_c = df_comisarias.copy()
-                    if "NOMBRE" in str(df_c.iloc[0,0]).upper(): df_c = df_c.iloc[1:]
-                    for _, com in df_c.iterrows():
-                        try:
-                            c_lat, c_lon = n_ok(com.iloc[1]), n_ok(com.iloc[2])
-                            if c_lat and c_lon:
-                                R = 6371.0
-                                phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
-                                dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
-                                a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-                                dist = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
-                                if dist < dist_minima:
-                                    dist_minima = dist
-                                    comisaria_cercana = {"NOMBRE": str(com.iloc[0]), "LAT": c_lat, "LON": c_lon}
-                        except: continue
-            except: pass
+            # Cálculo de Comisaría más cercana
+            if not df_comisarias.empty and lat_foco:
+                df_c_datos = df_comisarias.copy()
+                if "NOMBRE" in str(df_c_datos.iloc[0,0]).upper(): df_c_datos = df_c_datos.iloc[1:]
+                for _, com in df_c_datos.iterrows():
+                    try:
+                        c_lat, c_lon = n_ok(com.iloc[1]), n_ok(com.iloc[2])
+                        R = 6371.0
+                        dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
+                        a = math.sin(dphi/2)**2 + math.cos(math.radians(lat_foco))*math.cos(math.radians(c_lat))*math.sin(dlambda/2)**2
+                        dist = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
+                        if dist < dist_minima:
+                            dist_minima = dist
+                            comisaria_cercana = {"NOMBRE": str(com.iloc[0]), "LAT": c_lat, "LON": c_lon}
+                    except: continue
 
-        # --- MAPA CON ESTÉTICA DE LA IMAGEN ---
-        m_mon = folium.Map(
-            location=[lat_foco, lon_foco], 
-            zoom_start=14, 
-            tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", 
-            attr='CartoDB'
-        )
-        
-        # CSS PARA EL EFECTO RADAR (TITILE / BLINK)
-        map_css = """
+        # --- MAPA TÁCTICO CON EFECTO RADAR (ASÍ COMO LA IMAGEN) ---
+        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=15, 
+                           tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", attr='CartoDB')
+
+        # CSS PARA ONDAS DE CHOQUE ROJAS (TITILE EXPANSIVO)
+        radar_css = """
         <style>
-        @keyframes radar-pulse {
-            0% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(3); opacity: 0; }
-        }
-        .radar-pulse {
-            background: rgba(255, 0, 0, 0.5);
-            border-radius: 50%;
-            border: 2px solid red;
-            animation: radar-pulse 1.5s ease-out infinite;
-        }
+        @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(4); opacity: 0; } }
+        .radar-wave { background: rgba(255, 0, 0, 0.4); border-radius: 50%; animation: pulse 2s infinite; border: 2px solid red; }
         </style>
         """
-        m_mon.get_root().header.add_child(folium.Element(map_css))
+        m_mon.get_root().header.add_child(folium.Element(radar_css))
 
         # Dibujar todos los puntos
         for _, r in df_objetivos.iterrows():
             r_lat, r_lon = n_ok(r.get('LATITUD')), n_ok(r.get('LONGITUD'))
             if r_lat and r_lon:
                 es_sos = (str(r.get('OBJETIVO', '')).strip().upper() == obj_en_panico and obj_en_panico != "")
-                
                 if es_sos:
-                    # EFECTO RADAR (PUNTO TITILANDO)
-                    folium.Marker(
-                        [r_lat, r_lon],
-                        icon=folium.DivIcon(html=f'<div class="radar-pulse" style="width: 20px; height: 20px;"></div>')
-                    ).add_to(m_mon)
-                    folium.CircleMarker(
-                        location=[r_lat, r_lon], radius=15, color="red", fill=True, fill_color="red", fill_opacity=0.9, z_index=1000,
-                        tooltip=f"<b>EMERGENCIA ACTIVA:</b> {obj_en_panico}"
-                    ).add_to(m_mon)
+                    # Onda de Radar (Doble capa para que se vea más fuerte)
+                    folium.Marker([r_lat, r_lon], icon=folium.DivIcon(html='<div class="radar-wave" style="width:40px; height:40px;"></div>')).add_to(m_mon)
+                    folium.CircleMarker([r_lat, r_lon], radius=15, color="red", fill=True, fill_color="red", fill_opacity=0.9, z_index=1000).add_to(m_mon)
                 else:
-                    folium.CircleMarker(
-                        location=[r_lat, r_lon], radius=6, color="#00E5FF", fill=True, fill_opacity=0.3,
-                        tooltip=f"Objetivo: {r['OBJETIVO']}"
-                    ).add_to(m_mon)
+                    folium.CircleMarker([r_lat, r_lon], radius=5, color="#00E5FF", fill=True, fill_opacity=0.2).add_to(m_mon)
 
-        # RUTA DE RESPUESTA (LÍNEA AMARILLA DINÁMICA)
+        # Ruta de Respuesta Amarilla
         if comisaria_cercana and lat_foco:
-            # Comisaría
-            folium.Marker(
-                [comisaria_cercana['LAT'], comisaria_cercana['LON']], 
-                icon=folium.Icon(color="blue", icon="shield", prefix="fa"),
-                tooltip=f"<b>COMISARÍA CERCANA:</b> {comisaria_cercana['NOMBRE']}"
-            ).add_to(m_mon)
-            
-            # Línea Amarilla (AntPath)
-            AntPath(
-                locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
-                color='#FFEB3B', weight=8, delay=400, dash_array=[10, 20], pulse_color='white'
-            ).add_to(m_mon)
-            
+            folium.Marker([comisaria_cercana['LAT'], comisaria_cercana['LON']], 
+                          icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_mon)
+            AntPath(locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
+                    color='#FFEB3B', weight=8, delay=400, pulse_color='white').add_to(m_mon)
             m_mon.fit_bounds([[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]])
 
-        st_folium(m_mon, width="100%", height=550, key="mapa_tactico_yaroku")
+        st_folium(m_mon, width="100%", height=550, key="mapa_tactico_final")
 
-        # PANEL DE CIERRE (LIBRO DE BASE INTEGRADO ABAJO)
+    with col_der:
+        st.markdown("### 📖 NOVEDADES")
+        if not df_emergencias.empty:
+            # Vista compacta del historial
+            st.dataframe(df_emergencias[['HORA', 'ESTADO']].iloc[::-1], height=300, use_container_width=True)
+        
         if sos_activos > 0:
-            st.markdown("---")
-            inf = st.text_area("✍️ INFORME DE CIERRE OPERATIVO")
-            if st.button("FINALIZAR OPERATIVO", use_container_width=True):
+            st.error(f"OBJ: {obj_en_panico}")
+            st.info(f"SUP: {sup_responsable}")
+            inf = st.text_area("INFORME DE CIERRE", placeholder="Escriba aquí...")
+            if st.button("FINALIZAR", use_container_width=True):
                 if inf.strip():
                     actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", alertas_activas.index[-1]+2, "F", inf)
                     st.rerun()
-
-    with t_gestion:
-        st.subheader("📖 LIBRO DE BASE DE NOVEDADES")
-        if not df_emergencias.empty:
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
                     
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
