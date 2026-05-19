@@ -121,7 +121,7 @@ with st.sidebar:
     st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"])
     
     st.write("---")
-    st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
+    st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCY**")
     obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
     
     # LISTA DE SUPERVISORES DE ZONA 
@@ -210,15 +210,33 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=14, tiles="CartoDB dark_matter")
         
-        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.1;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
+        # Efecto CSS Blink inyectado para que el círculo parpadee al activarse
+        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
         m_mon.get_root().header.add_child(folium.Element(map_css))
 
+        # Dibujar todos los puntos como CÍRCULOS (CircleMarker)
         for _, r in df_objetivos.iterrows():
             try:
                 r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
                 es_sos = (r['OBJETIVO'] == obj_en_panico)
-                tooltip_txt = f"OBJ: {r['OBJETIVO']} | SUP: {sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')}"
-                folium.Marker([r_lat, r_lon], tooltip=tooltip_txt, icon=folium.Icon(color="red" if es_sos else "blue", icon="shield", prefix="fa", extraClasses="blink-icon" if es_sos else "")).add_to(m_mon)
+                
+                # Cambia a ROJO si se activó el S.O.S, sino queda en un hermoso Cian OLED
+                color_nodo = "red" if es_sos else "#00E5FF"
+                
+                # Tooltip con la estética solicitada utilizando iconos tácticos y negritas
+                tooltip_html = f"🚨 <b>OBJ:</b> {r['OBJETIVO']}<br>👤 <b>SUP:</b> {sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')}"
+                
+                folium.CircleMarker(
+                    location=[r_lat, r_lon],
+                    radius=10 if es_sos else 6,  # Se agranda notablemente si entra en pánico
+                    color=color_nodo,
+                    fill=True,
+                    fill_color=color_nodo,
+                    fill_opacity=0.4 if es_sos else 0.1,
+                    weight=3,
+                    tooltip=folium.Tooltip(tooltip_html, sticky=True),
+                    className="blink-icon" if es_sos else ""  # TITILA EN ROJO SI S.O.S ES ALTA
+                ).add_to(m_mon)
             except: continue
 
         if sos_activos > 0 and comisaria_cercana is not None:
@@ -248,10 +266,10 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
-            # Mostramos los más recientes primero
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
         else:
             st.info("No hay registros en el historial.")
+
 # B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
 elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
     st.markdown('<div class="radar-box">', unsafe_allow_html=True)
