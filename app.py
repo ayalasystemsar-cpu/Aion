@@ -298,7 +298,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 )
         else:
             st.info("Sin comunicaciones registradas en la bandeja.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.sidebar.markdown('</div>', unsafe_allow_html=True)
         
         with st.expander("📩 REDACTAR COMUNICACIÓN", expanded=True):
             c_para = st.selectbox("Para:", ["TODOS", "BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SUPERVISOR NOCTURNO"])
@@ -312,7 +312,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Comunicación Transmitida con Éxito")
                     st.rerun()
 
-# B. ROL: JEFE DE OPERACIONES (SECCIONES DE INTEGRACIÓN + MAPA PRESERVADO)
+# B. ROL: JEFE DE OPERACIONES (EL MAPA AHORA SOLO ESTÁ DENTRO DE CENTRO DE CRISIS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Indicadores Superiores
     col1, col2, col3, col4 = st.columns(4)
@@ -323,6 +323,21 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
     # Pestañas del Panel de Control de Operaciones
     t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
+    
+    with t_crisis:
+        # --- EL MAPA SOLO SE MUESTRA AQUÍ, EN CENTRO DE CRISIS ---
+        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        for _, r in df_objetivos.iterrows():
+            folium.Marker(
+                [r['LATITUD'], r['LONGITUD']], 
+                tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+                icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+            ).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500, key=f"map_jefe_operaciones_crisis")
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
@@ -340,21 +355,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- MAPA COMPLETAMENTE PRESERVADO EN SU LUGAR ORIGINAL ---
+    # Reporte de movimientos global al final de la pantalla del rol
     st.write("---")
-    st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
-    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker(
-            [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
-    st.markdown('</div>', unsafe_allow_html=True)
-
     st.subheader("📋 REPORTE DE MOVIMIENTOS")
     df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
     if not df_novedades.empty:
