@@ -367,11 +367,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (MODIFICADO: EL MAPA ESTÁ ÚNICAMENTE ADENTRO DE VISITA QR)
+# C. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
     st.subheader("Control de Unidad Móvil")
     
-    # Bloque de Control Logístico de Flota
     st.markdown('<div class="panel-info">', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -384,16 +383,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         s_combustible = st.number_input("Combustible (Lts):", value=0.0, step=0.1, key="sup_combustible")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Fila de botones logísticos y de refresco (Captura 593)
     col_btn1, col_btn2 = st.columns([3, 1])
     with col_btn1:
         st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
     with col_btn2:
-        # Botón REFRESCR SISTEMA con estilo personalizado (btn-refresh definido en CSS)
-        if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
+        if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema"):
             st.rerun()
 
-    # Distribución de Pestañas Operativas
     t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
     
     with t_visita_qr:
@@ -401,7 +397,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
         st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
         
-        # --- EL MAPA AHORA ESTÁ EN ESTA PESTAÑA EXCLUSIVAMENTE ---
         st.write("---")
         st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -432,8 +427,52 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA
+# D. ROL: GERENCIA (MODIFICADO POR COMPLETO: MÉTRICAS SUPERIORES, PESTAÑAS Y MAPA FISCALIZADOR)
 elif st.session_state.rol_sel == "GERENCIA":
+    # 1. Indicadores Superiores (Métricas Financieras y Logísticas - Captura 594)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
+    m2.metric("📊 NIVEL COBERTURA", "47/93")
+    m3.metric("📋 AUDITORIAS", "2")
+    m4.metric("🚗 DESGASTE", "4954 Km")
+
+    # 2. Estructura de Pestañas Directivas
+    t_direccion, t_peticion, t_resumen = st.tabs(["Dirección", "Petición", "Tabla Resumen"])
+    
+    with t_direccion:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("📢 EMISIÓN DE DIRECTIVAS GENERALES")
+        g_asunto = st.text_input("Asunto (Push a Celulares):", value="DIRECTIVA GENERAL", key="ger_push_asunto")
+        g_directiva = st.text_area("Directiva / Instrucción corporativa:", key="ger_text_directiva")
+        
+        if st.button("EJECUTAR DIRECTIVA", key="btn_ejecutar_directiva"):
+            if g_directiva.strip():
+                # Transmite la directiva como mensaje de prioridad ROJA a todos
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_directiva, "ROJA", "TODOS", g_asunto])
+                st.success("✅ Directiva Transmitida con Éxito a Toda la Flota")
+            else:
+                st.error("⚠️ Ingrese el texto de la directiva corporativa antes de transmitir.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with t_peticion:
+        st.subheader("📥 Peticiones de Alta / Baja Recibidas")
+        df_peticiones_ger = leer_matriz_nube("PETICIONES")
+        if not df_peticiones_ger.empty:
+            st.dataframe(df_peticiones_ger.iloc[::-1], use_container_width=True)
+        else:
+            st.info("No se registran peticiones en la matriz central.")
+            
+    with t_resumen:
+        st.subheader("📊 Tabla Resumen de Rentabilidad Operativa")
+        df_actas = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_actas.empty:
+            st.dataframe(df_actas, use_container_width=True)
+        else:
+            st.info("Sin registros en la tabla de flotas.")
+
+    # 3. Mapa Fiscalizador Global de Objetivos
+    st.write("---")
+    st.subheader("📡 RADAR GENERAL Y FISCALIZACIÓN DE INFRAESTRUCTURA")
     st.markdown('<div class="radar-box">', unsafe_allow_html=True)
     centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
     m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
@@ -445,11 +484,6 @@ elif st.session_state.rol_sel == "GERENCIA":
         ).add_to(m_visor)
     st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
     st.markdown('</div>', unsafe_allow_html=True)
-
-    st.subheader("📋 REPORTE DE MOVIMIENTOS")
-    df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-    if not df_novedades.empty:
-        st.dataframe(df_novedades.tail(20), use_container_width=True)
 
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
