@@ -109,7 +109,7 @@ def aplicar_identidad_alfa():
         .message-info-red { color: #ff0000; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
         .message-text { color: #e0e0e0; font-size: 14px; margin-top: 4px; font-family: 'Rajdhani', sans-serif; }
         
-        .panel-info { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 20px; background: rgba(10, 10, 11, 0.9); }
+        .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
         </style>
         """, unsafe_allow_html=True
@@ -324,7 +324,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else -34.6, zoom_start=12, tiles="CartoDB dark_matter")
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         for _, r in df_objetivos.iterrows():
             folium.Marker(
                 [r['LATITUD'], r['LONGITUD']], 
@@ -356,7 +356,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (MODIFICADO EN TOTAL CONFORMIDAD CON LA CAPTURA 593 SIN SOS LOCAL)
+# C. ROL: SUPERVISOR (MODIFICADO: EL MAPA ESTÁ ÚNICAMENTE ADENTRO DE VISITA QR)
 elif st.session_state.rol_sel == "SUPERVISOR":
     st.subheader("Control de Unidad Móvil")
     
@@ -383,6 +383,21 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
         st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
         
+        # --- EL MAPA AHORA ESTÁ EN ESTA PESTAÑA EXCLUSIVAMENTE ---
+        st.write("---")
+        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        for _, r in df_objetivos.iterrows():
+            folium.Marker(
+                [r['LATITUD'], r['LONGITUD']], 
+                tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+                icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+            ).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500, key=f"map_supervisor_exclusivo_visita_qr")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
     with t_carga_tactica:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
@@ -398,21 +413,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         df_chats_sup = leer_matriz_nube("CHATS")
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
-
-    # Conservación del mapa inferior táctico solicitado
-    st.write("---")
-    st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
-    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker(
-            [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # D. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
