@@ -645,4 +645,23 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.write("---")
         st.subheader("📋 REPORTE HISTÓRICO DE MOVIMIENTOS")
         df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades.
+        if not df_novedades.empty:
+            st.dataframe(df_novedades.tail(20), use_container_width=True)
+
+# E. ROL: ADMINISTRADOR
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
+    
+    with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA", expanded=True):
+        u_ing = st.text_input("ADMIN_USER")
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        
+    st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
+    
+    if u_ing == "admin" and p_ing == "aion2026":
+        st.write("---")
+        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nuevo_nombre = st.text_input("Nombre:").upper()
+        if st.button("REGISTRAR"):
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            st.success("Alta Exitosa")
