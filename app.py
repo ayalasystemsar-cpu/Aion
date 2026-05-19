@@ -212,46 +212,59 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (LOGÍSTICA PRECISADA) ---
+# --- 5. SIDEBAR TÁCTICO (ESTRUCTURA DE ACCESOS SEPARADOS) ---
 df_objetivos = cargar_objetivos()
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "AYALA BRIAN"
+if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
 
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
+    st.markdown("<span style='font-size: 11px; color:#A0A5B5; font-family:\"Orbitron\"; font-weight:bold; letter-spacing:0.5px;'>NIVEL DE ACCESO</span>", unsafe_allow_html=True)
     
-    # Menú Principal de Selección de Nivel de Acceso
-    opciones_menu = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"]
-    
-    idx_defecto = opciones_menu.index(st.session_state.rol_sel) if st.session_state.rol_sel in opciones_menu else 0
-    
-    seleccion_principal = st.selectbox(
-        "NIVEL DE ACCESO", 
-        opciones_menu, 
-        index=idx_defecto
-    )
-    
-    # Lógica y despliegue exclusivo con la nómina de supervisores solicitada
-    if seleccion_principal == "SUPERVISORES":
-        st.session_state.rol_sel = "SUPERVISOR"
-        st.session_state.user_sel = st.selectbox(
-            "📋 SELECCIONAR SUPERVISOR ACTIVO", 
-            ["AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"]
+    # 1. MONITOREO (Aparece solo como primera opción)
+    if st.button("🛰️ MONITOREO", use_container_width=True):
+        st.session_state.rol_sel = "MONITOREO"
+        st.session_state.user_sel = "OPERADOR CENTRAL"
+        st.rerun()
+        
+    # 2. JEFE DE OPERACIONES (Independiente)
+    if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
+        st.session_state.rol_sel = "JEFE DE OPERACIONES"
+        st.session_state.user_sel = "SANOJA LUIS"
+        st.rerun()
+        
+    # 3. GERENCIA (Independiente)
+    if st.button("🏢 GERENCIA", use_container_width=True):
+        st.session_state.rol_sel = "GERENCIA"
+        st.session_state.user_sel = "EDGAR VERA"
+        st.rerun()
+
+    # 4. SUPERVISORES (Sección exclusiva con lista desplegable interna de responsables)
+    with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR")):
+        nom_sup = st.selectbox(
+            "RESPONSABLE ACTIVO:", 
+            ["AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"],
+            key="cambio_supervisor_directo"
         )
-    else:
-        st.session_state.rol_sel = seleccion_principal
-        if seleccion_principal == "MONITOREO":
-            st.session_state.user_sel = "OPERADOR CENTRAL"
-        elif seleccion_principal == "JEFE DE OPERACIONES":
-            st.session_state.user_sel = "SANOJA LUIS"
-        elif seleccion_principal == "GERENCIA":
-            st.session_state.user_sel = "EDGAR VERA"
+        if st.button("INGRESAR COMO SUPERVISOR", use_container_width=True):
+            st.session_state.rol_sel = "SUPERVISOR"
+            st.session_state.user_sel = nom_sup
+            st.rerun()
 
     st.write("---")
-    st.markdown("**⚙️ ADMINISTRADOR**")
     
+    # 5. ADMINISTRADOR (Sección separada abajo de todo antes del pánico)
+    st.markdown("**⚙️ ADMINISTRADOR**")
+    if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
+        st.session_state.rol_sel = "ADMINISTRADOR"
+        st.session_state.user_sel = "ADMIN CENTRAL"
+        st.rerun()
+
+    st.write("---")
+    
+    # Sistema de localización para el Botón de Pánico Global
     loc = get_geolocation()
     lat_envio = loc['coords']['latitude'] if loc else 0.0
     lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
@@ -416,7 +429,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if st.button("TRANSMITIR", key="btn_transmitir_mon"):
                 if c_mensaje.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
-                    st.success("✅ Comunicación Transmitida con Éxito")
+                    st.success("✅ Communication Transmitida con Éxito")
                     st.rerun()
 
 # B. ROL: JEFE DE OPERACIONES
@@ -488,9 +501,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
             st.rerun()
 
-    t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
+    t_vis_qr, t_car_tac, t_com_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
     
-    with t_visita_qr:
+    with t_vis_qr:
         opciones_servicios = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
         st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
         st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
@@ -509,7 +522,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st_folium(m_visor, width="100%", height=500, key=f"map_supervisor_exclusivo_visita_qr")
         st.markdown('</div>', unsafe_allow_html=True)
         
-    with t_carga_tactica:
+    with t_car_tac:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
         novedad_sup = st.text_area("Novedad / Registro Operativo:", key="texto_novedad_supervisor")
@@ -519,7 +532,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.success("✅ Registro cargado en la matriz central")
         st.markdown('</div>', unsafe_allow_html=True)
         
-    with t_comunicacion_sup:
+    with t_com_sup:
         st.subheader("Bandeja de Novedades del Sector")
         df_chats_sup = leer_matriz_nube("CHATS")
         if not df_chats_sup.empty:
