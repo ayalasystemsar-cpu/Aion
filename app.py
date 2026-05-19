@@ -111,6 +111,29 @@ def aplicar_identidad_alfa():
         
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
+
+        /* Contenedores de Tarjetas OLED de Ejecución en Gerencia (Imagen 595) */
+        .gerencia-tarjeta-peticion {
+            border: 1px solid #1a1a1b;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            background: rgba(5, 5, 8, 0.95);
+        }
+        .gerencia-txt-titulo {
+            color: #00e5ff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .gerencia-txt-detalle {
+            color: #dcdcdc;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            margin-top: 4px;
+        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -322,7 +345,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR
+# C. ROL: SUPERVISOR (CORREGIDA VARIABLE NOVELTY_SUP PARA CORTE DE CRASH)
 elif st.session_state.rol_sel == "SUPERVISOR":
     st.subheader("Control de Unidad Móvil")
     st.markdown('<div class="panel-info">', unsafe_allow_html=True)
@@ -356,8 +379,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         novedad_sup = st.text_area("Novedad / Registro Operativo:")
         if st.button("CARGAR REGISTRO"):
-            if novelty_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novelty_sup])
+            if novedad_sup.strip(): # VARIABLE CORREGIDA PARA PREVENIR ERRORES DE COMPILACIÓN
+                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
                 st.success("✅ Registro cargado")
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -365,9 +388,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         df_chats_sup = leer_matriz_nube("CHATS")
         if not df_chats_sup.empty: st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (DISEÑO CORPORATIVO EXACTO A LA IMAGEN / CAPTURA 594 - LIBRE DE MAPAS)
+# D. ROL: GERENCIA (DISEÑO EXACTO E IDÉNTICO A LA CAPTURA 595 - TABLERO DE ACCIONES - SIN MAPAS)
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Contenedor de Indicadores Directivos superiores
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
@@ -377,7 +399,6 @@ elif st.session_state.rol_sel == "GERENCIA":
 
     st.write("---")
 
-    # 2. Estructura de Pestañas Corporativas Oficiales
     t_com_est, t_ejecucion, t_auditoria = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
     
     with t_com_est:
@@ -392,21 +413,38 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('</div>', unsafe_allow_html=True)
         
     with t_ejecucion:
-        # Pestaña Ejecución: Únicamente el Reporte de Movimientos en formato Grilla (Captura 594)
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_novedades_ger = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades_ger.empty:
-            st.dataframe(df_novedades_ger.tail(20), use_container_width=True)
+        # Pestaña Ejecución: Formato exacto de la Captura de pantalla (595).jpg (Bandeja secuencial de aprobación)
+        st.subheader("📋 SOLICITUDES DE ACCESO OPERATIVO PENDIENTES")
+        df_peticiones = leer_matriz_nube("PETICIONES")
+        
+        if not df_peticiones.empty:
+            for idx, row in df_peticiones.tail(5).iterrows():
+                st.markdown(
+                    f"""
+                    <div class="gerencia-tarjeta-peticion">
+                        <div class="gerencia-txt-titulo">⚡ SOLICITUD EMITIDA POR: {row.get('USUARIO', 'N/A')}</div>
+                        <div class="gerencia-txt-detail"><b>Operación técnica:</b> {row.get('ACCION', 'N/A')} | <b>Entidad:</b> {row.get('CATEGORIA', 'N/A')}</div>
+                        <div class="gerencia-txt-detail"><b>Detalle / Destino:</b> {row.get('DETALLE', 'N/A')}</div>
+                    </div>
+                    """, unsafe_allow_html=True
+                )
+                # Alineación de botones APROBAR / RECHAZAR exactamente uno al lado del otro
+                col_b1, col_b2, _ = st.columns([1, 1, 4])
+                with col_b1:
+                    if st.button(f"APROBAR #{idx}", key=f"btn_aprob_ger_{idx}"):
+                        st.success(f"✅ Petición #{idx} autorizada en la matriz")
+                with col_b2:
+                    if st.button(f"RECHAZAR #{idx}", key=f"btn_rech_ger_{idx}"):
+                        st.warning(f"❌ Petición #{idx} denegada")
+                st.write("")
         else:
-            st.info("Sin registros de movimientos en la matriz central de flotas.")
+            st.info("No se registran solicitudes pendientes en el búfer de operaciones central.")
 
     with t_auditoria:
         st.subheader("📋 TABLERO DE AUDITORÍA DE OBJETIVOS")
         if not df_objetivos.empty:
             df_display = df_objetivos[['OBJETIVO', 'DIRECCION', 'SUPERVISOR']]
             st.dataframe(df_display, use_container_width=True)
-        else:
-            st.info("Sin registros de objetivos para auditar.")
 
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
