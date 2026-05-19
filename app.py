@@ -101,13 +101,16 @@ def aplicar_identidad_alfa():
             font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
         
-        /* Estilos de la Bandeja de Inteligencia (Captura 590) */
+        /* Estilos de la interfaz */
         .chat-container { border: 1px solid #1a1a1b; border-radius: 8px; padding: 15px; margin-top: 10px; background-color: #030305; }
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
         .message-info-red { color: #ff0000; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
         .message-text { color: #e0e0e0; font-size: 14px; margin-top: 4px; font-family: 'Rajdhani', sans-serif; }
+        
+        .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
+        .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
         </style>
         """, unsafe_allow_html=True
     )
@@ -159,7 +162,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO (CON PESTAÑA DE COMUNICACIÓN ADICIONADA)
+# A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
     from streamlit_folium import st_folium
@@ -177,7 +180,6 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Se definen las 3 pestañas según la Captura (590)
     t_radar, t_gestion, t_comunicacion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN"])
     
     with t_radar:
@@ -277,14 +279,12 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("No hay registros en el historial.")
 
-    # NUEVA PARTE: COMUNICACIÓN COMPLETA (Captura 590)
     with t_comunicacion:
         st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
         df_chats = leer_matriz_nube("CHATS")
         
         st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         if not df_chats.empty:
-            # Mostramos los últimos 10 mensajes del más nuevo al más viejo
             for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
                 es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
                 clase_info = "message-info-red" if es_rojo else "message-info"
@@ -300,7 +300,6 @@ if st.session_state.rol_sel == "MONITOREO":
             st.info("Sin comunicaciones registradas en la bandeja.")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Formulario desplegable "Redactar Comunicación"
         with st.expander("📩 REDACTAR COMUNICACIÓN", expanded=True):
             c_para = st.selectbox("Para:", ["TODOS", "BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SUPERVISOR NOCTURNO"])
             c_asunto = st.text_input("Asunto:")
@@ -309,41 +308,35 @@ if st.session_state.rol_sel == "MONITOREO":
             
             if st.button("TRANSMITIR", key="btn_transmitir_mon"):
                 if c_mensaje.strip():
-                    # Estructura de fila: HORA, USUARIO, TEXTO, PRIORIDAD, DESTINO, ASUNTO
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
                     st.success("✅ Comunicación Transmitida con Éxito")
                     st.rerun()
-                else:
-                    st.error("⚠️ No se puede transmitir un mensaje vacío.")
 
-# B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
-elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
-    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker(
-            [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
-    st.markdown('</div>', unsafe_allow_html=True)
+# B. ROL: JEFE DE OPERACIONES (NUEVO: INDICADORES SUPERIORES, PESTAÑAS COMPLETAS Y MAPA MANTENIDO)
+elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    # 1. Indicadores Superiores (Captura 591)
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🚨 S.O.S ACTIVOS", "0")
+    col2.metric("📡 RED", "OPERATIVA")
+    col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
+    col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades.empty:
-            st.dataframe(df_novedades.tail(20), use_container_width=True)
-
-# C. ROL: ADMINISTRADOR
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.header("⚙️ NÚCLEO MAESTRO")
-    u_ing = st.text_input("ADMIN_USER")
-    p_ing = st.text_input("ADMIN_PASS", type="password")
-    if u_ing == "admin" and p_ing == "aion2026":
-        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nuevo_nombre = st.text_input("Nombre:").upper()
-        if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-            st.success("Alta Exitosa")
+    # 2. Pestañas del Jefe de Operaciones (Captura 591)
+    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
+    
+    with t_ejecucion:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
+        
+        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
+        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
+        o_det = st.text_input("Nombre / Detalle:")
+        
+        if st.button("ELEV AR PETICIÓN"):
+            if o_det.strip():
+                # Registro en la base matriz nube
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
+                st.success("✅ Petición Elevada Exitosamente")
+            else:
+                st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
+        st.markdown('</div>', unsafe_allow_html=True)
