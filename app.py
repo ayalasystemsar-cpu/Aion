@@ -212,7 +212,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (CONTROL CON LOGIN REFORZADO) ---
+# --- 5. SIDEBAR TÁCTICO (CONTROL CON LOGIN REFORZADO POR APELLIDO) ---
 df_objetivos = cargar_objetivos()
 
 # Inicialización de estados de sesión críticos
@@ -254,12 +254,17 @@ with st.sidebar:
             key="cambio_supervisor_directo"
         )
         
-        user_sup = st.text_input("USUARIO RECURSO", key="auth_user_sup")
+        user_sup = st.text_input("USUARIO RECURSO (APELLIDO)", key="auth_user_sup")
         pass_sup = st.text_input("CONTRASEÑA CRÍTICA", type="password", key="auth_pass_sup")
         
         if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
             st.session_state.intentando_sup = True
-            if user_sup.lower() == "supervisor" and pass_sup == "ayala2026":
+            
+            # Lógica dinámica: Extraemos el apellido (primera palabra de la opción elegida)
+            apellido_esperado = nom_sup.split(" ")[0].lower()
+            
+            # Validación estricta: usuario = apellido (minúsculas) y clave = 1234
+            if user_sup.strip().lower() == apellido_esperado and pass_sup == "1234":
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.user_sel = nom_sup
                 st.session_state.sup_autenticado = True
@@ -640,23 +645,4 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.write("---")
         st.subheader("📋 REPORTE HISTÓRICO DE MOVIMIENTOS")
         df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades.empty:
-            st.dataframe(df_novedades.tail(20), use_container_width=True)
-
-# E. ROL: ADMINISTRADOR
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
-    
-    with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA", expanded=True):
-        u_ing = st.text_input("ADMIN_USER")
-        p_ing = st.text_input("ADMIN_PASS", type="password")
-        
-    st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
-    
-    if u_ing == "admin" and p_ing == "aion2026":
-        st.write("---")
-        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nuevo_nombre = st.text_input("Nombre:").upper()
-        if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-            st.success("Alta Exitosa")
+        if not df_novedades.
