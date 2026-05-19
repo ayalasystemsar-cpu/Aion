@@ -60,7 +60,10 @@ def leer_matriz_nube(pestana):
     if gc:
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            return pd.DataFrame(hoja.get_all_records())
+            data = hoja.get_all_records()
+            if not data:
+                return pd.DataFrame()
+            return pd.DataFrame(data)
         except: return pd.DataFrame()
     return pd.DataFrame()
 
@@ -239,10 +242,10 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
         
-   # 3. GERENCIA
+    # 3. GERENCIA
     if st.button("🏢 GERENCIA", use_container_width=True):
         st.session_state.rol_sel = "GERENCIA"
-        st.session_state.user_sel = "DIRECCIÓN GENERAL"  # <-- NOMBRE CORREGIDO AQUÍ
+        st.session_state.user_sel = "DIRECCIÓN GENERAL"
         st.session_state.sup_autenticado = False
         st.rerun()
 
@@ -320,7 +323,19 @@ if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
-    alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+    # --- FORMATEO EXTREMADAMENTE SEGURO CONTRA TABLAS VACÍAS ---
+    if df_emergencias.empty:
+        # Si borraste el historial, forzamos la estructura base en memoria para que no crashee abajo
+        df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
+    else:
+        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
+    
+    # Control estricto de filtrado
+    if 'ESTADO' in df_emergencias.columns:
+        alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+    else:
+        alertas_activas = pd.DataFrame(columns=df_emergencias.columns)
+        
     sos_activos = len(alertas_activas)
     
     c1, c2, c3 = st.columns(3)
@@ -339,7 +354,8 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             datos_sos = alertas_activas.iloc[-1]
             try:
-                partes = datos_sos.get('CARGA_UTIL', '').split("|")
+                carga_util_col = 'CARGA_UTIL' if 'CARGA_UTIL' in alertas_activas.columns else alertas_activas.columns[4]
+                partes = datos_sos.get(carga_util_col, '').split("|")
                 obj_en_panico = partes[2].split(":")[1].strip()
                 sup_responsable = partes[3].split(":")[1].strip()
                 
@@ -574,7 +590,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
 # D. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: {st.session_state.user_sel}</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
     
     m1, m2, m3, m4 = st.columns(4)
