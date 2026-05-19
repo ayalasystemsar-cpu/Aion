@@ -418,7 +418,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
 # D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 594 - LIBRE DE MAPAS)
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Indicadores Superiores Corporativos
+    # 1. Contenedor de Indicadores Superiores (Métricas con recuadros Streamlit)
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
@@ -426,7 +426,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         m3.metric("📋 AUDITORIAS", "2")
         m4.metric("🚗 DESGASTE", "4954 Km")
 
-    # 2. Pestañas Oficiales según Estándar Corporativo
+    # 2. Separador visual y Pestañas organizadas secuencialmente (Captura 594)
     st.write("---")
     t_com_est, t_ejecucion_ger, t_tab_aud = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
     
@@ -461,7 +461,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Grilla inferior de movimientos asociada a la ejecución técnica
+        # Grilla inferior de movimientos asociada a la ejecución táctica (Captura 594)
         st.write("---")
         st.subheader("📋 REPORTE DE MOVIMIENTOS")
         df_novedades_ger = leer_matriz_nube("ACTAS_FLOTAS")
