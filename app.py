@@ -7,6 +7,12 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
 
+# --- IMPORTACIONES CRÍTICAS DE MAPAS (MOVIDAS AL INICIO GLOBAL) ---
+import folium
+from folium.plugins import AntPath
+from streamlit_folium import st_folium
+import math
+
 # Configuración de página OLED
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
@@ -204,7 +210,7 @@ with st.sidebar:
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# Títulos por Rol con Estilo Glow (Modificado Administrador para que coincida con la cabecera central)
+# Títulos por Rol con Estilo Glow
 titulos = {
     "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
     "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
@@ -218,11 +224,6 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
-    from folium.plugins import AntPath
-    from streamlit_folium import st_folium
-    import folium
-    import math
-
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
@@ -491,18 +492,14 @@ elif st.session_state.rol_sel == "GERENCIA":
 
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-    # Cabecera ajustada exactamente con AION-YAROKU
     st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
     
-    # Caja contenedora expandible para las credenciales de infraestructura
     with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA", expanded=True):
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
         
-    # Segundo encabezado inferior del buzón
     st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
     
-    # Procesamiento lógico interno intacto
     if u_ing == "admin" and p_ing == "aion2026":
         st.write("---")
         tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
