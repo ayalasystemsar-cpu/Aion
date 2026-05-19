@@ -66,6 +66,8 @@ def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
+        # Normalizar nombres de columnas comunes para evitar KeyErrors
+        df.columns = df.columns.str.replace('DIRECCIÓN', 'DIRECCION')
         df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df.dropna(subset=['LATITUD', 'LONGITUD'])
@@ -307,7 +309,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if st.button("TRANSMITIR", key="btn_transmitir_mon"):
                 if c_mensaje.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
-                    st.success("✅ Communication Transmitida con Éxito")
+                    st.success("✅ Comunicación Transmitida con Éxito")
                     st.rerun()
 
 # B. ROL: JEFE DE OPERACIONES
@@ -416,7 +418,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA
+# D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 594 - SEGURO CONTRA KEYERRORS)
 elif st.session_state.rol_sel == "GERENCIA":
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
@@ -446,22 +448,29 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
         
-        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
-        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
-        o_det = st.text_input("Nombre / Detalle:")
+        g_accion = st.selectbox("Acción:", ["ALTA", "BAJA"], key="ger_sel_accion_v4")
+        g_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"], key="ger_sel_cat_v4")
+        g_det = st.text_input("Nombre / Detalle:", key="ger_in_det_v4")
         
-        if st.button("ELEV AR PETICIÓN"):
-            if o_det.strip():
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
+        if st.button("ELEV AR PETICIÓN", key="ger_btn_submit_v4"):
+            if g_det.strip():
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, g_accion, g_cat, g_det])
                 st.success("✅ Petición Elevada Exitosamente")
             else:
                 st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
         st.markdown('</div>', unsafe_allow_html=True)
 
+        st.write("---")
+        st.subheader("📋 REPORTE DE MOVIMIENTOS")
+        df_novedades_ger = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_novedades_ger.empty:
+            st.dataframe(df_novedades_ger.tail(20), use_container_width=True)
+
     with t_auditoria:
         st.subheader("📋 TABLERO DE AUDITORÍA CORPORATIVA")
         if not df_objetivos.empty:
-            df_display = df_objetivos[['OBJETIVO', 'DIRECCIÓN', 'SUPERVISOR']]
+            # Usamos la columna normalizada 'DIRECCION' para evitar errores de tildes
+            df_display = df_objetivos[['OBJETIVO', 'DIRECCION', 'SUPERVISOR']]
             st.dataframe(df_display, use_container_width=True)
         else:
             st.info("Sin registros de objetivos para auditar.")
