@@ -7,7 +7,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
 
-# --- IMPORTACIONES CRÍTICAS DE MAPAS (MOVIDAS AL INICIO GLOBAL) ---
+# --- IMPORTACIONES CRÍTICAS DE MAPAS ---
 import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
@@ -98,7 +98,6 @@ def aplicar_identidad_alfa():
             text-transform: uppercase;
         }
         
-        /* Título específico para la sección de Administración estilo Matriz */
         .titulo-seccion-admin {
             color: #00E5FF;
             font-family: 'Orbitron', sans-serif;
@@ -113,14 +112,12 @@ def aplicar_identidad_alfa():
             text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
         }
 
-        /* Contenedor del Expander estilo Infraestructura Oscura */
         .stApp div[data-testid="stExpander"] {
             background-color: #1A1C23 !important;
             border: 1px solid #2D313E !important;
             border-radius: 8px !important;
         }
         
-        /* Texto de cabecera del Expander */
         .stApp div[data-testid="stExpander"] summary p {
             color: #E0E0E0 !important;
             font-size: 14px !important;
@@ -128,7 +125,6 @@ def aplicar_identidad_alfa():
             text-transform: uppercase;
         }
         
-        /* Ajuste de inputs de texto oscuros */
         .stApp input {
             background-color: #252833 !important;
             color: #FFFFFF !important;
@@ -136,7 +132,6 @@ def aplicar_identidad_alfa():
             border-radius: 6px !important;
         }
         
-        /* Ajuste de etiquetas de los inputs */
         .stApp label p {
             color: #A0A5B5 !important;
             font-family: 'Orbitron', sans-serif !important;
@@ -154,7 +149,6 @@ def aplicar_identidad_alfa():
             font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
         
-        /* Estilos de bandeja e interfaz adaptados */
         .chat-container { border: 1px solid #1a1a1b; border-radius: 8px; padding: 15px; margin-top: 10px; background-color: #030305; }
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
@@ -165,7 +159,6 @@ def aplicar_identidad_alfa():
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
 
-        /* Estilo para el botón Refresh */
         .stButton > button.btn-refresh {
             background: #00e5ff !important;
             color: #000 !important;
@@ -176,11 +169,7 @@ def aplicar_identidad_alfa():
             box-shadow: 0 0 10px rgba(0, 229, 255, 0.3) !important;
         }
 
-        /* --- INTEGRACIÓN: ESTILOS TÁCTICOS DE PESTAÑAS Y METRICAS --- */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
-            background-color: transparent;
-        }
+        .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
         .stTabs [data-baseweb="tab"] {
             background-color: rgba(26, 28, 35, 0.4) !important;
             border: 1px solid #2D313E !important;
@@ -191,9 +180,7 @@ def aplicar_identidad_alfa():
             font-size: 11px !important;
             font-weight: bold;
         }
-        .stTabs [data-baseweb="tab"]:hover {
-            color: #00E5FF !important;
-        }
+        .stTabs [data-baseweb="tab"]:hover { color: #00E5FF !important; }
         .stTabs [aria-selected="true"] {
             background-color: #1A1C23 !important;
             border-top: 2px solid #00E5FF !important;
@@ -225,20 +212,19 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (UNIFICADO Y CORREGIDO) ---
+# --- 5. SIDEBAR TÁCTICO (LOGÍSTICA PRECISADA) ---
 df_objetivos = cargar_objetivos()
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
+if 'user_sel' not in st.session_state: st.session_state.user_sel = "AYALA BRIAN"
 
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
     
-    # Menú Principal de Selección de Rol (Orden de Lista Solicitado)
+    # Menú Principal de Selección de Nivel de Acceso
     opciones_menu = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"]
     
-    # Validamos estado previo por si venía de un rol externo
     idx_defecto = opciones_menu.index(st.session_state.rol_sel) if st.session_state.rol_sel in opciones_menu else 0
     
     seleccion_principal = st.selectbox(
@@ -247,16 +233,15 @@ with st.sidebar:
         index=idx_defecto
     )
     
-    # Lógica de asignación y despliegue secundario para SUPERVISORES
+    # Lógica y despliegue exclusivo con la nómina de supervisores solicitada
     if seleccion_principal == "SUPERVISORES":
         st.session_state.rol_sel = "SUPERVISOR"
         st.session_state.user_sel = st.selectbox(
             "📋 SELECCIONAR SUPERVISOR ACTIVO", 
-            ["BRIAN AYALA", "JUAN PÉREZ", "SOFÍA MARTÍNEZ", "CARLOS RUIZ"]
+            ["AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"]
         )
     else:
         st.session_state.rol_sel = seleccion_principal
-        # Identidades operativas por defecto correspondientes a las gerencias/monitoreo
         if seleccion_principal == "MONITOREO":
             st.session_state.user_sel = "OPERADOR CENTRAL"
         elif seleccion_principal == "JEFE DE OPERACIONES":
@@ -267,7 +252,6 @@ with st.sidebar:
     st.write("---")
     st.markdown("**⚙️ ADMINISTRADOR**")
     
-    # Geolocalización para Botón de Pánico
     loc = get_geolocation()
     lat_envio = loc['coords']['latitude'] if loc else 0.0
     lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
@@ -424,7 +408,7 @@ if st.session_state.rol_sel == "MONITOREO":
         st.sidebar.markdown('</div>', unsafe_allow_html=True)
         
         with st.expander("📩 REDACTAR COMUNICACIÓN", expanded=True):
-            c_para = st.selectbox("Para:", ["TODOS", "BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SUPERVISOR NOCTURNO"])
+            c_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"])
             c_asunto = st.text_input("Asunto:")
             c_mensaje = st.text_area("Mensaje:")
             c_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"])
@@ -560,7 +544,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("Transmitir Directiva (Push a Celulares)")
         
-        g_para = st.selectbox("Para:", ["TODOS", "BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"], key="ger_para")
+        g_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"], key="ger_para")
         g_asunto = st.text_input("Asunto:", key="ger_asunto")
         g_orden = st.text_area("Orden:", key="ger_orden")
         g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
@@ -579,7 +563,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
             st.subheader("Alta Servicio")
             g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"], key="ger_alta_asig")
+            g_alta_asig = st.selectbox("Asignar a:", ["AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"], key="ger_alta_asig")
             
             if st.button("Solicitar Alta a Admin", key="btn_ger_alta"):
                 if g_alta_nom.strip():
