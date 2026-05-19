@@ -246,7 +246,7 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-    # 4. SUPERVISORES (Con validación de credenciales integrada)
+    # 4. SUPERVISORES
     with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
         nom_sup = st.selectbox(
             "RESPONSABLE ACTIVO:", 
@@ -254,13 +254,11 @@ with st.sidebar:
             key="cambio_supervisor_directo"
         )
         
-        # Inputs de Credenciales Tácticas obligatorias
         user_sup = st.text_input("USUARIO RECURSO", key="auth_user_sup")
         pass_sup = st.text_input("CONTRASEÑA CRÍTICA", type="password", key="auth_pass_sup")
         
         if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
             st.session_state.intentando_sup = True
-            # Validación estricta del supervisor (Clave maestra operacional de prueba o personalizada)
             if user_sup.lower() == "supervisor" and pass_sup == "ayala2026":
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.user_sel = nom_sup
@@ -361,7 +359,7 @@ if st.session_state.rol_sel == "MONITOREO":
                                 comisaria_cercana = {"NOMBRE": com.iloc[0], "LAT": c_lat, "LON": c_lon}
                         except: continue
                 
-                st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico}")
+                st.error(f"🚨 EMERGENCY EN CURSO: {obj_en_panico}")
             except: pass
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
@@ -433,6 +431,33 @@ if st.session_state.rol_sel == "MONITOREO":
                 clase_info = "message-info-red" if es_rojo else "message-info"
                 clase_box = "message-box-red" if es_rojo else "message-box"
                 
-                st.markdown(
+                # --- AQUÍ ESTÁ EL FIX: Extracción limpia fuera del f-string multilinea ---
+                msg_hora = msg.get("HORA")
+                msg_usuario = msg.get("USUARIO")
+                msg_texto = msg.get("TEXTO")
+                
+                html_msg = (
                     f'<div class="{clase_box}">'
-                    f'<div class="{clase_info}">{
+                    f'<div class="{clase_info}">{msg_hora} De: {msg_usuario}</div>'
+                    f'<div class="message-text">{msg_texto}</div>'
+                    f'</div>'
+                )
+                st.markdown(html_msg, unsafe_allow_html=True)
+        else:
+            st.info("Sin comunicaciones registradas en la bandeja.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        with st.expander("📩 REDACTAR COMUNICACIÓN", expanded=True):
+            c_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"])
+            c_asunto = st.text_input("Asunto:")
+            c_mensaje = st.text_area("Mensaje:")
+            c_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"])
+            
+            if st.button("TRANSMITIR", key="btn_transmitir_mon"):
+                if c_mensaje.strip():
+                    escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
+                    st.success("✅ Comunicación Transmitida con Éxito")
+                    st.rerun()
+
+# B. ROL: JEFE DE OPERACIONES
+elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
