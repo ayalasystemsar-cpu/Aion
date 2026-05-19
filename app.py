@@ -289,7 +289,7 @@ if st.session_state.rol_sel == "MONITOREO":
             st.info("No hay registros en el historial.")
 
     with t_comunicacion:
-        st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
+        st.subheader("📥 BANDEJA DE INTELIGENCIA")
         df_chats = leer_matriz_nube("CHATS")
         
         st.markdown('<div class="chat-container">', unsafe_allow_html=True)
@@ -416,8 +416,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
         novedad_sup = st.text_area("Novedad / Registro Operativo:", key="texto_novedad_supervisor")
         if st.button("CARGAR REGISTRO", key="btn_cargar_registro_sup"):
-            if novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
+            if novelty_sup.strip():
+                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novelty_sup])
                 st.success("✅ Registro cargado en la matriz central")
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -427,16 +427,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (MODIFICADO POR COMPLETO: MÉTRICAS SUPERIORES, PESTAÑAS Y MAPA FISCALIZADOR)
+# D. ROL: GERENCIA (DISEÑO CORPORATIVO SIN MAPAS - CAPTURA 594)
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Indicadores Superiores (Métricas Financieras y Logísticas - Captura 594)
+    # 1. Indicadores Superiores Corporativos
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
     m2.metric("📊 NIVEL COBERTURA", "47/93")
     m3.metric("📋 AUDITORIAS", "2")
     m4.metric("🚗 DESGASTE", "4954 Km")
 
-    # 2. Estructura de Pestañas Directivas
+    # 2. Estructura de Pestañas Corporativas
     t_direccion, t_peticion, t_resumen = st.tabs(["Dirección", "Petición", "Tabla Resumen"])
     
     with t_direccion:
@@ -447,7 +447,6 @@ elif st.session_state.rol_sel == "GERENCIA":
         
         if st.button("EJECUTAR DIRECTIVA", key="btn_ejecutar_directiva"):
             if g_directiva.strip():
-                # Transmite la directiva como mensaje de prioridad ROJA a todos
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_directiva, "ROJA", "TODOS", g_asunto])
                 st.success("✅ Directiva Transmitida con Éxito a Toda la Flota")
             else:
@@ -469,21 +468,6 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.dataframe(df_actas, use_container_width=True)
         else:
             st.info("Sin registros en la tabla de flotas.")
-
-    # 3. Mapa Fiscalizador Global de Objetivos
-    st.write("---")
-    st.subheader("📡 RADAR GENERAL Y FISCALIZACIÓN DE INFRAESTRUCTURA")
-    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker(
-            [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
