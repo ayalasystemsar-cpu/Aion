@@ -111,6 +111,17 @@ def aplicar_identidad_alfa():
         
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
+
+        /* Estilo para el botón Refresh (Captura 593) */
+        .stButton > button.btn-refresh {
+            background: #00e5ff !important;
+            color: #000 !important;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            border-radius: 4px !important;
+            border: 1px solid #00e5ff !important;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.3) !important;
+        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -373,8 +384,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         s_combustible = st.number_input("Combustible (Lts):", value=0.0, step=0.1, key="sup_combustible")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica")
-    
+    # Fila de botones logísticos y de refresco (Captura 593)
+    col_btn1, col_btn2 = st.columns([3, 1])
+    with col_btn1:
+        st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
+    with col_btn2:
+        # Botón REFRESCR SISTEMA con estilo personalizado (btn-refresh definido en CSS)
+        if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
+            st.rerun()
+
     # Distribución de Pestañas Operativas
     t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
     
@@ -403,7 +421,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
         novedad_sup = st.text_area("Novedad / Registro Operativo:", key="texto_novedad_supervisor")
         if st.button("CARGAR REGISTRO", key="btn_cargar_registro_sup"):
-            if novelty_sup.strip():
+            if novedad_sup.strip():
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
                 st.success("✅ Registro cargado en la matriz central")
         st.markdown('</div>', unsafe_allow_html=True)
