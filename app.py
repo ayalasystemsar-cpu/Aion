@@ -139,9 +139,11 @@ def aplicar_identidad_alfa():
         /* Ajuste de etiquetas de los inputs */
         .stApp label p {
             color: #A0A5B5 !important;
+            font-family: 'Orbitron', sans-serif !important;
             font-size: 11px !important;
             font-weight: bold !important;
             letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.9); }
@@ -223,7 +225,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO ---
+# --- 5. SIDEBAR TÁCTICO (UNIFICADO Y CORREGIDO) ---
 df_objetivos = cargar_objetivos()
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -232,24 +234,48 @@ if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
-    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"], index=["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"].index(st.session_state.rol_sel))
     
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"])
+    # Menú Principal de Selección de Rol (Orden de Lista Solicitado)
+    opciones_menu = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"]
     
+    # Validamos estado previo por si venía de un rol externo
+    idx_defecto = opciones_menu.index(st.session_state.rol_sel) if st.session_state.rol_sel in opciones_menu else 0
+    
+    seleccion_principal = st.selectbox(
+        "NIVEL DE ACCESO", 
+        opciones_menu, 
+        index=idx_defecto
+    )
+    
+    # Lógica de asignación y despliegue secundario para SUPERVISORES
+    if seleccion_principal == "SUPERVISORES":
+        st.session_state.rol_sel = "SUPERVISOR"
+        st.session_state.user_sel = st.selectbox(
+            "📋 SELECCIONAR SUPERVISOR ACTIVO", 
+            ["BRIAN AYALA", "JUAN PÉREZ", "SOFÍA MARTÍNEZ", "CARLOS RUIZ"]
+        )
+    else:
+        st.session_state.rol_sel = seleccion_principal
+        # Identidades operativas por defecto correspondientes a las gerencias/monitoreo
+        if seleccion_principal == "MONITOREO":
+            st.session_state.user_sel = "OPERADOR CENTRAL"
+        elif seleccion_principal == "JEFE DE OPERACIONES":
+            st.session_state.user_sel = "SANOJA LUIS"
+        elif seleccion_principal == "GERENCIA":
+            st.session_state.user_sel = "EDGAR VERA"
+
     st.write("---")
-    st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
-    obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
+    st.markdown("**⚙️ ADMINISTRADOR**")
     
-    sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "SUPERVISOR NOCTURNO", "OTRO"])
-    
+    # Geolocalización para Botón de Pánico
     loc = get_geolocation()
     lat_envio = loc['coords']['latitude'] if loc else 0.0
     lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
 
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_panico}|SUP:{sup_panico}"
+        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:ALFAVINIL|SUP:{st.session_state.user_sel}"
         escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-        st.error(f"🚨 S.O.S ENVIADO: {obj_panico}")
+        st.error("🚨 S.O.S ENVIADO DESDE EL PANEL CONTROL DE CENTRAL")
 
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -517,23 +543,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
 # D. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
-    # Encabezado dinámico con el usuario activo en cian
     st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: {st.session_state.user_sel}</h2>', unsafe_allow_html=True)
     st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
     
-    # Fila de Indicadores Clave (Métricas de la captura 594)
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
     m2.metric("Nivel de Cobertura", "47/93")
     m3.metric("Auditorías Físicas (QRs)", "2")
     m4.metric("Desgaste Flota (Km)", "4954 Km")
     
-    st.write("") # Espacio operativo
+    st.write("")
     
-    # Distribución de Pestañas Estratégicas como en la imagen
     t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     
-    # --- PESTAÑA 1: COMUNICACIÓN ESTRATÉGICA ---
     with t_com_est:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("Transmitir Directiva (Push a Celulares)")
@@ -550,7 +572,6 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
         
-    # --- PESTAÑA 2: EJECUCIÓN ---
     with t_ejecucion_ger:
         col_g1, col_g2 = st.columns(2)
         
@@ -558,8 +579,6 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
             st.subheader("Alta Servicio")
             g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            
-            # LISTA OPERATIVA COMPLETA SINCRONIZADA CON TU SIDEBAR
             g_alta_asig = st.selectbox("Asignar a:", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"], key="ger_alta_asig")
             
             if st.button("Solicitar Alta a Admin", key="btn_ger_alta"):
@@ -578,7 +597,6 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición de Baja enviada al Núcleo Maestro")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- PESTAÑA 3: TABLERO DE AUDITORÍA ---
     with t_tab_auditoria:
         st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
