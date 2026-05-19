@@ -1,7 +1,7 @@
 # --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU CORE) ---
-import streamlit as st
-import pandas as pd
-import numpy as np
+import streamlit st
+import pandas pd
+import numpy np
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
@@ -390,7 +390,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema"):
             st.rerun()
 
-    t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
+    t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Communication"])
     
     with t_visita_qr:
         opciones_servicios = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
@@ -427,47 +427,50 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (DISEÑO CORPORATIVO SIN MAPAS - CAPTURA 594)
+# D. ROL: GERENCIA (REDISEÑADO COMPLETAMENTE CON PESTAÑAS INTERACTIVAS Y REGISTROS - CAPTURA 594)
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Indicadores Superiores Corporativos
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
-    m2.metric("📊 NIVEL COBERTURA", "47/93")
-    m3.metric("📋 AUDITORIAS", "2")
-    m4.metric("🚗 DESGASTE", "4954 Km")
+    with st.container():
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
+        m2.metric("📊 NIVEL COBERTURA", "47/93")
+        m3.metric("📋 AUDITORIAS", "2")
+        m4.metric("🚗 DESGASTE", "4954 Km")
 
-    # 2. Estructura de Pestañas Corporativas
+    # 2. Separador visual y Pestañas organizadas con sus módulos internos correspondientes (Captura 594)
+    st.write("---")
     t_direccion, t_peticion, t_resumen = st.tabs(["Dirección", "Petición", "Tabla Resumen"])
     
     with t_direccion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("📢 EMISIÓN DE DIRECTIVAS GENERALES")
-        g_asunto = st.text_input("Asunto (Push a Celulares):", value="DIRECTIVA GENERAL", key="ger_push_asunto")
-        g_directiva = st.text_area("Directiva / Instrucción corporativa:", key="ger_text_directiva")
+        st.subheader("📢 EMISIÓN DE DIRECTIVAS GENERALES CORPORATIVAS")
+        g_asunto = st.text_input("Asunto (Push Informativo Celular):", value="DIRECTIVA GENERAL GENERAL", key="ger_push_asunto")
+        g_directiva = st.text_area("Cuerpo de la Directiva / Instrucción Corporativa:", key="ger_text_directiva")
         
         if st.button("EJECUTAR DIRECTIVA", key="btn_ejecutar_directiva"):
             if g_directiva.strip():
+                # Envía un broadcast con prioridad ROJA a toda la flota en la pestaña CHATS de la base nube
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_directiva, "ROJA", "TODOS", g_asunto])
-                st.success("✅ Directiva Transmitida con Éxito a Toda la Flota")
+                st.success("✅ Directiva Táctica Transmitida con Éxito a Toda la Flota")
             else:
-                st.error("⚠️ Ingrese el texto de la directiva corporativa antes de transmitir.")
+                st.error("⚠️ Ingrese el texto de la instrucción corporativa antes de ejecutar.")
         st.markdown('</div>', unsafe_allow_html=True)
         
     with t_peticion:
-        st.subheader("📥 Peticiones de Alta / Baja Recibidas")
+        st.subheader("📥 BANDEJA DE AUDITORÍA: PETICIONES DE ALTA / BAJA RECIBIDAS")
         df_peticiones_ger = leer_matriz_nube("PETICIONES")
         if not df_peticiones_ger.empty:
             st.dataframe(df_peticiones_ger.iloc[::-1], use_container_width=True)
         else:
-            st.info("No se registran peticiones en la matriz central.")
+            st.info("Sin solicitudes pendientes en la matriz central.")
             
     with t_resumen:
-        st.subheader("📊 Tabla Resumen de Rentabilidad Operativa")
+        st.subheader("📊 CUADRO DE MANDO: RENTABILIDAD OPERATIVA Y FLOTA")
         df_actas = leer_matriz_nube("ACTAS_FLOTAS")
         if not df_actas.empty:
-            st.dataframe(df_actas, use_container_width=True)
+            st.dataframe(df_actas.iloc[::-1], use_container_width=True)
         else:
-            st.info("Sin registros en la tabla de flotas.")
+            st.info("Sin registros auditados de flotas en la base de datos.")
 
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
