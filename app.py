@@ -503,7 +503,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
+    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Audía"])
     
     with t_crisis:
         st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
@@ -541,11 +541,19 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR
+# C. ROL: SUPERVISOR (CON FILTRADO ESTRICTO DE OBJETIVOS ASIGNADOS)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
+        # --- FILTRADO TÁCTICO INDIVIDUAL ---
+        # Se verifica si la columna RESPONSABLES existe en la hoja de objetivos.
+        # Si existe, se aisla dejando únicamente las filas que coincidan con el supervisor logueado (ej: 'SUPERVISOR 1')
+        if not df_objetivos.empty and 'RESPONSABLES' in df_objetivos.columns:
+            df_objetivos_filtrados = df_objetivos[df_objetivos['RESPONSABLES'].astype(str).str.upper() == st.session_state.user_sel.upper()]
+        else:
+            df_objetivos_filtrados = df_objetivos.copy()
+
         st.subheader("Control de Unidad Móvil")
         
         st.markdown('<div class="panel-info">', unsafe_allow_html=True)
@@ -570,19 +578,24 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_car_tac, t_com_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
         
         with t_vis_qr:
-            opciones_servicios = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+            # Dropdown dinámico aislado: solo expone los objetivos del propio supervisor
+            opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS ASIGNADOS"]
             st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
             st.write("---")
-            st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
+            st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+            
+            # Centro del mapa optimizado según los objetivos filtrados
+            centro = [df_objetivos_filtrados['LATITUD'].mean(), df_objetivos_filtrados['LONGITUD'].mean()] if not df_objetivos_filtrados.empty else [-34.6, -58.4]
             m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-            for _, r in df_objetivos.iterrows():
+            
+            # El mapa solo dibuja los pines de su cuadrícula asignada
+            for _, r in df_objetivos_filtrados.iterrows():
                 folium.Marker(
                     [r['LATITUD'], r['LONGITUD']], 
-                    tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+                    tooltip=f"OBJETIVO: {r['OBJETIVO']} | RESPONSABLE: {r.get('RESPONSABLES', st.session_state.user_sel)}", 
                     icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                 ).add_to(m_visor)
             st_folium(m_visor, width="100%", height=500, key=f"map_supervisor_exclusivo_visita_qr")
