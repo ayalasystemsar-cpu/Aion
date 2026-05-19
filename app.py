@@ -1,10 +1,7 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU CORE) ---
 import streamlit as st
-import pandas as pd
-import numpy as np
-import folium
-from streamlit_folium import st_folium
+import datetime
 from datetime import datetime
+import pandas as pd
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -80,6 +77,7 @@ def aplicar_identidad_alfa():
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
+        
         .estacion-titulo {
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important;
@@ -93,6 +91,52 @@ def aplicar_identidad_alfa():
             letter-spacing: 2px;
             text-transform: uppercase;
         }
+        
+        /* Título específico para la sección de Administración estilo Matriz */
+        .titulo-seccion-admin {
+            color: #00E5FF;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* Contenedor del Expander estilo Infraestructura Oscura */
+        .stApp div[data-testid="stExpander"] {
+            background-color: #1A1C23 !important;
+            border: 1px solid #2D313E !important;
+            border-radius: 8px !important;
+        }
+        
+        /* Texto de cabecera del Expander */
+        .stApp div[data-testid="stExpander"] summary p {
+            color: #E0E0E0 !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            text-transform: uppercase;
+        }
+        
+        /* Ajuste de inputs de texto oscuros */
+        .stApp input {
+            background-color: #252833 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #1A1C23 !important;
+            border-radius: 6px !important;
+        }
+        
+        /* Ajuste de etiquetas de los inputs */
+        .stApp label p {
+            color: #A0A5B5 !important;
+            font-size: 11px !important;
+            font-weight: bold !important;
+            letter-spacing: 0.5px;
+        }
+
         .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.9); }
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
@@ -112,7 +156,7 @@ def aplicar_identidad_alfa():
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
 
-        /* Estilo para el botón Refresh (Captura 593) */
+        /* Estilo para el botón Refresh */
         .stButton > button.btn-refresh {
             background: #00e5ff !important;
             color: #000 !important;
@@ -128,7 +172,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (ACTUALIZADO CON SUPERVISOR NOCTURNO) ---
+# --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -139,14 +183,12 @@ with st.sidebar:
     st.subheader("🛡️ PANEL DE CONTROL")
     st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"], index=["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"].index(st.session_state.rol_sel))
     
-    # LISTA DE IDENTIDAD OPERATIVA ACTUALIZADA
     st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"])
     
     st.write("---")
     st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
     obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
     
-    # LISTA DE SUPERVISORES DE ZONA 
     sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "SUPERVISOR NOCTURNO", "OTRO"])
     
     loc = get_geolocation()
@@ -367,11 +409,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (MODIFICADO: EL MAPA ESTÁ ÚNICAMENTE ADENTRO DE VISITA QR)
+# C. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
     st.subheader("Control de Unidad Móvil")
     
-    # Bloque de Control Logístico de Flota
     st.markdown('<div class="panel-info">', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -384,81 +425,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         s_combustible = st.number_input("Combustible (Lts):", value=0.0, step=0.1, key="sup_combustible")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Fila de botones logísticos y de refresco (Captura 593)
     col_btn1, col_btn2 = st.columns([3, 1])
     with col_btn1:
         st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
     with col_btn2:
-        # Botón REFRESCR SISTEMA con estilo personalizado (btn-refresh definido en CSS)
         if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
             st.rerun()
 
-    # Distribución de Pestañas Operativas
     t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
     
     with t_visita_qr:
-        opciones_servicios = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-        st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
-        st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
-        
-        # --- EL MAPA AHORA ESTÁ EN ESTA PESTAÑA EXCLUSIVAMENTE ---
-        st.write("---")
-        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        for _, r in df_objetivos.iterrows():
-            folium.Marker(
-                [r['LATITUD'], r['LONGITUD']], 
-                tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-                icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-            ).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=500, key=f"map_supervisor_exclusivo_visita_qr")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    with t_carga_tactica:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
-        novedad_sup = st.text_area("Novedad / Registro Operativo:", key="texto_novedad_supervisor")
-        if st.button("CARGAR REGISTRO", key="btn_cargar_registro_sup"):
-            if novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
-                st.success("✅ Registro cargado en la matriz central")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    with t_comunicacion_sup:
-        st.subheader("Bandeja de Novedades del Sector")
-        df_chats_sup = leer_matriz_nube("CHATS")
-        if not df_chats_sup.empty:
-            st.dataframe(df_chats_sup.tail(10), use_container_width=True)
-
-# D. ROL: GERENCIA
-elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker(
-            [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.subheader("📋 REPORTE DE MOVIMIENTOS")
-    df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-    if not df_novedades.empty:
-        st.dataframe(df_novedades.tail(20), use_container_width=True)
-
-# E. ROL: ADMINISTRADOR
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.header("⚙️ NÚCLEO MAESTRO")
-    u_ing = st.text_input("ADMIN_USER")
-    p_ing = st.text_input("ADMIN_PASS", type="password")
-    if u_ing == "admin" and p_ing == "aion2026":
-        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nuevo_nombre = st.text_input("Nombre:").upper()
-        if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-            st.success("Alta Exitosa")
+        op
