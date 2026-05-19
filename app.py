@@ -263,10 +263,9 @@ with st.sidebar:
         if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
             st.session_state.intentando_sup = True
             
-            # Lógica dinámica: Extraemos el apellido (primera palabra de la opción elegida)
+            # Lógica dinámica: Extraemos el apellido
             apellido_esperado = nom_sup.split(" ")[0].lower()
             
-            # Validación estricta: usuario = apellido (minúsculas) y clave = 1234
             if user_sup.strip().lower() == apellido_esperado and pass_sup == "1234":
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.user_sel = nom_sup
@@ -295,10 +294,17 @@ with st.sidebar:
     lat_envio = loc['coords']['latitude'] if loc else 0.0
     lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
 
+    # --- ENVIÓ DE PÁNICO DINÁMICO POR OBJETIVO ACTIVO ---
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:ALFAVINIL|SUP:{st.session_state.user_sel}"
+        # Verificamos si el supervisor está activo y tiene un servicio seleccionado en pantalla
+        if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
+            obj_alerta = st.session_state.sup_servicio_actual
+        else:
+            obj_alerta = "CENTRAL BASE"
+            
+        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
         escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-        st.error("🚨 S.O.S ENVIADO DESDE EL PANEL CONTROL DE CENTRAL")
+        st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -323,14 +329,11 @@ if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
-    # --- FORMATEO EXTREMADAMENTE SEGURO CONTRA TABLAS VACÍAS ---
     if df_emergencias.empty:
-        # Si borraste el historial, forzamos la estructura base en memoria para que no crashee abajo
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
     
-    # Control estricto de filtrado
     if 'ESTADO' in df_emergencias.columns:
         alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
     else:
@@ -555,6 +558,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with t_vis_qr:
             opciones_servicios = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+            # Guardamos la selección del objetivo directamente en session_state para engancharla con el pánico
             st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
