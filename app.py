@@ -112,6 +112,29 @@ def aplicar_identidad_alfa():
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
 
+        /* Estilo para las tarjetas OLED de Peticiones en Ejecución Gerencia */
+        .gerencia-tarjeta-peticion {
+            border: 1px solid #1a1a1b;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            background: rgba(5, 5, 8, 0.95);
+        }
+        .gerencia-txt-titulo {
+            color: #00e5ff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .gerencia-txt-detalle {
+            color: #dcdcdc;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
         /* Estilo para el botón Refresh (Captura 593) */
         .stButton > button.btn-refresh {
             background: #00e5ff !important;
@@ -128,8 +151,11 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (ACTUALIZADO CON SUPERVISOR NOCTURNO) ---
+# --- 5. VARIABLES DE IDENTIDAD Y SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
+
+# Declaración global de la lista operativa de supervisores para evitar NameErrors en la app
+lista_sups = ["BRIAN AYALA", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "DIAZ MARCELO", "MAZACOTTE CLAUDIO", "PORZIO GONZALO", "CARRIZO WALTER"]
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
@@ -139,14 +165,20 @@ with st.sidebar:
     st.subheader("🛡️ PANEL DE CONTROL")
     st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"], index=["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"].index(st.session_state.rol_sel))
     
-    # LISTA DE IDENTIDAD OPERATIVA ACTUALIZADA
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"])
+    rol = st.session_state.rol_sel
+    usuario_auth = ""
+    
+    if rol == "SUPERVISOR": 
+        st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups, index=lista_sups.index(st.session_state.user_sel) if st.session_state.user_sel in lista_sups else 0)
+        usuario_auth = st.session_state.user_sel
+    elif rol == "JEFE DE OPERACIONES": usuario_auth = "DARÍO CECILIA"
+    elif rol == "GERENCIA": usuario_auth = "LUIS BONGIORNO"
+    elif rol == "MONITOREO": usuario_auth = "CENTRAL MONITOREO"
+    elif rol == "ADMINISTRADOR": usuario_auth = "ADMINISTRADOR MASTER"
     
     st.write("---")
     st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
     obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
-    
-    # LISTA DE SUPERVISORES DE ZONA 
     sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "SUPERVISOR NOCTURNO", "OTRO"])
     
     loc = get_geolocation()
@@ -161,7 +193,6 @@ with st.sidebar:
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# Títulos por Rol con Estilo Glow
 titulos = {
     "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
     "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
@@ -176,8 +207,6 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     from folium.plugins import AntPath
-    from streamlit_folium import st_folium
-    import folium
     import math
 
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -295,7 +324,8 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         if not df_chats.empty:
             for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
-                es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
+                user_prio = msg.get("PRIORIDAD", "VERDE")
+                es_rojo = user_prio == "ROJA" or user_prio == "ROJO"
                 clase_info = "message-info-red" if es_rojo else "message-info"
                 clase_box = "message-box-red" if es_rojo else "message-box"
                 
@@ -367,11 +397,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (MODIFICADO: EL MAPA ESTÁ ÚNICAMENTE ADENTRO DE VISITA QR)
+# C. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
     st.subheader("Control de Unidad Móvil")
     
-    # Bloque de Control Logístico de Flota
     st.markdown('<div class="panel-info">', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -384,16 +413,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         s_combustible = st.number_input("Combustible (Lts):", value=0.0, step=0.1, key="sup_combustible")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Fila de botones logísticos y de refresco (Captura 593)
     col_btn1, col_btn2 = st.columns([3, 1])
     with col_btn1:
         st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
     with col_btn2:
-        # Botón REFRESCR SISTEMA con estilo personalizado (btn-refresh definido en CSS)
         if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
             st.rerun()
 
-    # Distribución de Pestañas Operativas
     t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
     
     with t_visita_qr:
@@ -401,7 +427,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
         st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
         
-        # --- EL MAPA AHORA ESTÁ EN ESTA PESTAÑA EXCLUSIVAMENTE ---
         st.write("---")
         st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -432,24 +457,89 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA
+# D. ROL: GERENCIA (EXTRAÍDO EXACTO DE CODIGO-4-.TXT CON COMPONENTE SECUENCIAL DE TARJETAS DE ACCIÓN PARALELAS)
 elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker(
-            [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
+        m2.metric("📊 NIVEL COBERTURA", "47/93")
+        m3.metric("📋 AUDITORIAS", "2")
+        m4.metric("🚗 DESGASTE", "4954 Km")
 
-    st.subheader("📋 REPORTE DE MOVIMIENTOS")
-    df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-    if not df_novedades.empty:
-        st.dataframe(df_novedades.tail(20), use_container_width=True)
+    st.write("---")
+
+    t_com_est, t_ejecucion, t_auditoria = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
+    
+    with t_com_est:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("📢 EMISIÓN DE DIRECTIVAS GENERALES")
+        g_asunto = st.text_input("Asunto de la Directiva:", key="ger_asunto_core")
+        g_directiva = st.text_area("Cuerpo de la instrucción corporativa:", key="ger_dir_core")
+        if st.button("TRANSMITIR DIRECTIVA", key="ger_btn_trans_core"):
+            if g_directiva.strip():
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_directiva, "ROJA", "TODOS", g_asunto])
+                st.success("✅ Directiva Transmitida con Éxito")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with t_ejecucion:
+        st.subheader("📋 REPORTE DE MOVIMIENTOS Y PETICIONES OPERATIVAS")
+        
+        # 1. Grilla Interactiva Superior conectada a la tabla Nube
+        df_pet = leer_matriz_nube("PETICIONES")
+        if not df_pet.empty:
+            st.dataframe(df_pet, use_container_width=True)
+            
+            st.markdown("---")
+            st.subheader("⚡ VALIDACIÓN DE SOLICITUDES EN COLA")
+            
+            # 2. Renderizado dinámico de tarjetas OLED negras para aprobaciones / rechazos tácticos directos
+            if 'ESTADO' in df_pet.columns:
+                pendientes_ger = df_pet[df_pet['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE']
+                
+                if pendientes_ger.empty:
+                    st.info("No se registran peticiones pendientes en el búfer operativo.")
+                else:
+                    for idx, row in pendientes_ger.iterrows():
+                        tipo_accion = str(row.get('ACCION', row.get('ACCCIÓN', 'N/A')))
+                        detalle_recurso = str(row.get('DETALLE', 'N/A'))
+                        cat_nodo = str(row.get('CATEGORIA', 'OBJETIVO'))
+                        solicitante = str(row.get('USUARIO', row.get('GERENTE', 'N/A')))
+                        fila_excel_real = idx + 2
+                        
+                        st.markdown(
+                            f"""
+                            <div class="gerencia-tarjeta-peticion">
+                                <div class="gerencia-txt-titulo">⚠️ SOLICITUD DE REVISIÓN: {tipo_accion.upper()}</div>
+                                <div class="gerencia-txt-detalle"><b>Origen / Emisor:</b> {solicitante} | <b>Categoría:</b> {cat_nodo}</div>
+                                <div class="gerencia-txt-detalle"><b>Especificación del Recurso:</b> {detalle_recurso}</div>
+                            </div>
+                            """, unsafe_allow_html=True
+                        )
+                        
+                        # Botones paralelos en línea para manipulación directa del buffer de datos
+                        c_ok, c_no, _ = st.columns([1, 1, 4])
+                        with c_ok:
+                            if st.button(f"✔️ APROBAR SOLICITUD ##{idx}", key=f"ger_approve_{idx}"):
+                                if actualizar_celda("PETICIONES", fila_excel_real, "E", "EJECUTADO"):
+                                    st.success(f"Solicitud #{idx} aprobada y enviada al núcleo maestro.")
+                                    st.cache_data.clear()
+                                    st.rerun()
+                        with c_no:
+                            if st.button(f"❌ RECHAZAR SOLICITUD ##{idx}", key=f"ger_reject_{idx}"):
+                                if actualizar_celda("PETICIONES", fila_excel_real, "E", "RECHAZADO"):
+                                    st.warning(f"Solicitud #{idx} rechazada y archivada.")
+                                    st.cache_data.clear()
+                                    st.rerun()
+            else:
+                st.error("Error estructural: Falta la columna 'ESTADO' en la matriz de destino.")
+        else:
+            st.info("La matriz de peticiones está vacía o no tiene registros de datos.")
+
+    with t_auditoria:
+        st.subheader("📋 TABLERO DE AUDITORÍA DE OBJETIVOS")
+        if not df_objetivos.empty:
+            df_display = df_objetivos[['OBJETIVO', 'DIRECCION', 'SUPERVISOR']]
+            st.dataframe(df_display, use_container_width=True)
 
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
@@ -457,8 +547,13 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026":
-        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nuevo_nombre = st.text_input("Nombre:").upper()
-        if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-            st.success("Alta Exitosa")
+        t_infra, t_estruc = st.tabs(["Infraestructura", "Estructura Base"])
+        with t_infra:
+            st.text_input("GOOGLE SHEET ID MASTER:", value=ID_MAESTRO_DB, disabled=True)
+            st.success("📡 Sincronización en la nube con Google Drive API: ACTIVA")
+        with t_estruc:
+            tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+            nuevo_nombre = st.text_input("Nombre:").upper()
+            if st.button("REGISTRAR"):
+                escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+                st.success("Alta Exitosa")
