@@ -1,7 +1,7 @@
 # --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU CORE) ---
-import streamlit st
-import pandas pd
-import numpy np
+import streamlit as st
+import pandas as pd
+import numpy as np
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
@@ -227,7 +227,7 @@ if st.session_state.rol_sel == "MONITOREO":
                                 comisaria_cercana = {"NOMBRE": com.iloc[0], "LAT": c_lat, "LON": c_lon}
                         except: continue
                 
-                st.error(f"🚨 EMERGENCIA EN CURSO: {obj_en_panico}")
+                st.error(f"🚨 EMERGENCY EN CURSO: {obj_en_panico}")
             except: pass
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
@@ -390,7 +390,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema"):
             st.rerun()
 
-    t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Communication"])
+    t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
     
     with t_visita_qr:
         opciones_servicios = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
@@ -427,9 +427,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (REDISEÑADO COMPLETAMENTE CON PESTAÑAS INTERACTIVAS Y REGISTROS - CAPTURA 594)
+# D. ROL: GERENCIA (DISEÑO CORPORATIVO REFORMADO - CAPTURA 594 - SIN MAPAS)
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Indicadores Superiores Corporativos
+    # 1. Contenedor de Indicadores Superiores
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
@@ -437,19 +437,18 @@ elif st.session_state.rol_sel == "GERENCIA":
         m3.metric("📋 AUDITORIAS", "2")
         m4.metric("🚗 DESGASTE", "4954 Km")
 
-    # 2. Separador visual y Pestañas organizadas con sus módulos internos correspondientes (Captura 594)
+    # 2. Separador visual y Pestañas organizadas con módulos y formularios de control reales
     st.write("---")
     t_direccion, t_peticion, t_resumen = st.tabs(["Dirección", "Petición", "Tabla Resumen"])
     
     with t_direccion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("📢 EMISIÓN DE DIRECTIVAS GENERALES CORPORATIVAS")
-        g_asunto = st.text_input("Asunto (Push Informativo Celular):", value="DIRECTIVA GENERAL GENERAL", key="ger_push_asunto")
+        g_asunto = st.text_input("Asunto (Push Informativo Celular):", value="DIRECTIVA GENERAL", key="ger_push_asunto")
         g_directiva = st.text_area("Cuerpo de la Directiva / Instrucción Corporativa:", key="ger_text_directiva")
         
         if st.button("EJECUTAR DIRECTIVA", key="btn_ejecutar_directiva"):
             if g_directiva.strip():
-                # Envía un broadcast con prioridad ROJA a toda la flota en la pestaña CHATS de la base nube
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_directiva, "ROJA", "TODOS", g_asunto])
                 st.success("✅ Directiva Táctica Transmitida con Éxito a Toda la Flota")
             else:
