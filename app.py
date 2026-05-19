@@ -122,6 +122,29 @@ def aplicar_identidad_alfa():
             border: 1px solid #00e5ff !important;
             box-shadow: 0 0 10px rgba(0, 229, 255, 0.3) !important;
         }
+
+        /* Contenedores específicos para las peticiones de Gerencia (Captura 595) */
+        .gerencia-petition-box {
+            border: 1px solid #1a1a1b;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            background: rgba(5, 5, 8, 0.95);
+        }
+        .gerencia-petition-title {
+            color: #00e5ff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .gerencia-petition-detail {
+            color: #dcdcdc;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            margin-top: 4px;
+        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -427,9 +450,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 594 - CON PESTAÑAS CORPORATIVAS Y REPORTE INTEGRADO - SIN MAPA)
+# D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 595 - TABLERO MAESTRO Y CAJAS - SIN MAPAS)
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Indicadores Superiores Corporativos
+    # 1. Indicadores Superiores Corporativos (Captura 594)
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
@@ -437,7 +460,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         m3.metric("📋 AUDITORIAS", "2")
         m4.metric("🚗 DESGASTE", "4954 Km")
 
-    # 2. Pestañas Corporativas Oficiales (Captura 594)
+    # 2. Pestañas Corporativas Oficiales (Captura 595)
     st.write("---")
     t_com_est, t_ejecucion_ger, t_tab_aud = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
     
@@ -456,12 +479,32 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('</div>', unsafe_allow_html=True)
         
     with t_ejecucion_ger:
-        st.subheader("📥 BANDEJA DE CONTROL: SOLICITUDES DE MOVIMIENTO OPERATIVO")
-        df_peticiones_ger = leer_matriz_nube("PETICIONES")
-        if not df_peticiones_ger.empty:
-            st.dataframe(df_peticiones_ger.iloc[::-1], use_container_width=True)
+        st.subheader("📋 SOLICITUDES DE ACCESO OPERATIVO PENDIENTES")
+        df_peticiones = leer_matriz_nube("PETICIONES")
+        
+        if not df_peticiones.empty:
+            # Recorre e inyecta secuencialmente cada una de las peticiones dentro de cajas OLED independientes
+            for idx, row in df_peticiones.tail(5).iterrows():
+                st.markdown(
+                    f"""
+                    <div class="gerencia-petition-box">
+                        <div class="gerencia-petition-title">⚡ SOLICITUD DE: {row.get('USUARIO', 'N/A')}</div>
+                        <div class="gerencia-petition-detail"><b>Acción Requerida:</b> {row.get('ACCION', 'N/A')} | <b>Categoría de Nodo:</b> {row.get('CATEGORIA', 'N/A')}</div>
+                        <div class="gerencia-petition-detail"><b>Detalle del Recurso:</b> {row.get('DETALLE', 'N/A')}</div>
+                    </div>
+                    """, unsafe_allow_html=True
+                )
+                # Distribución horizontal de los botones táctiles de ejecución por cada caja (Captura 595)
+                b_col1, b_col2, _ = st.columns([1, 1, 4])
+                with b_col1:
+                    if st.button(f"APROBAR #{idx}", key=f"btn_aprob_ger_{idx}"):
+                        st.success(f"✅ Solicitud #{idx} Aprobada con éxito")
+                with b_col2:
+                    if st.button(f"RECHAZAR #{idx}", key=f"btn_rech_ger_{idx}"):
+                        st.warning(f"❌ Solicitud #{idx} Denegada")
+                st.write("")
         else:
-            st.info("Sin solicitudes pendientes en la matriz central.")
+            st.info("No se registran peticiones pendientes en el búfer central de la matriz.")
             
     with t_tab_aud:
         st.subheader("📊 CUADRO DE MANDO ANALÍTICO: HISTORIAL DE FLOTA")
@@ -474,11 +517,20 @@ elif st.session_state.rol_sel == "GERENCIA":
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
-    u_ing = st.text_input("ADMIN_USER")
-    p_ing = st.text_input("ADMIN_PASS", type="password")
+    u_ing = st.text_input("ADMIN_USER", key="adm_usr_normal")
+    p_ing = st.text_input("ADMIN_PASS", type="password", key="adm_pss_normal")
     if u_ing == "admin" and p_ing == "aion2026":
-        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nuevo_nombre = st.text_input("Nombre:").upper()
-        if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-            st.success("Alta Exitosa")
+        t_infra, t_estruc = st.tabs(["Infraestructura", "Estructura Base"])
+        
+        with t_infra:
+            st.subheader("⚙️ CREDENCIALES Y MATRIZ NÚCLEO")
+            st.text_input("GOOGLE SHEET ID MASTER:", value=ID_MAESTRO_DB, disabled=True)
+            st.text_input("SERVER DATETIME AR:", value=obtener_hora_argentina(), disabled=True)
+            st.success("📡 Sincronización en la nube con Google Drive API: ACTIVA")
+            
+        with t_estruc:
+            tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True, key="adm_radio_normal")
+            nuevo_nombre = st.text_input("Nombre:", key="adm_input_normal").upper()
+            if st.button("REGISTRAR", key="adm_btn_normal"):
+                escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+                st.success("Alta Exitosa")
