@@ -320,7 +320,6 @@ st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubus
 if st.session_state.rol_sel == "SUPERVISOR" and not st.session_state.sup_autenticado:
     st.markdown('<div class="estacion-titulo">🔒 ESTACIÓN BLOQUEADA - REQUIERE AUTENTICACIÓN EN SIDEBAR</div>', unsafe_allow_html=True)
 else:
-    # FIX LÍNEA 323: Estructuración y cierre de llaves hermético del diccionario
     titulos = {
         "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
         "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
@@ -491,7 +490,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if st.button("TRANSMITIR", key="btn_transmitir_mon"):
                 if c_mensaje.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
-                    st.success("✅ Comunicación Transmitida con Éxito")
+                    st.success("✅ Communication Transmitida con Éxito")
                     st.rerun()
 
 # B. ROL: JEFE DE OPERACIONES
@@ -542,15 +541,21 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR
+# C. ROL: SUPERVISOR (CON PROTECCIÓN ANTI-ESPACIOS Y COBERTURA ASIGNADA FILTRADA)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
+        # Filtrado estricto para que a cada supervisor le correspondan sus objetivos asignados en base
         if not df_objetivos.empty and 'RESPONSABLES' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[df_objetivos['RESPONSABLES'].astype(str).str.strip().str.upper() == st.session_state.user_sel.strip().upper()]
         else:
-            df_objetivos_filtrados = df_objetivos.copy()
+            # En caso de contingencia o si la columna no se lee, forzamos la lista táctica asignada para SUPERVISOR 1
+            if "SUPERVISOR 1" in st.session_state.user_sel.upper() and not df_objetivos.empty:
+                lista_s1 = ["ALFAVINIL", "BELLA GUATEMALA", "BELLINI ESMERALDA", "PALACIO BELLINI", "JARDINES DEL LIBERTADOR", "CONSORCIO WOW", "TRONADOR", "COLEGIO EL SALVADOR"]
+                df_objetivos_filtrados = df_objetivos[df_objetivos['OBJETIVO'].astype(str).str.strip().str.upper().isin(lista_s1)]
+            else:
+                df_objetivos_filtrados = df_objetivos.copy()
 
         st.subheader("Control de Unidad Móvil")
         
@@ -570,7 +575,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with col_btn1:
             st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
         with col_btn2:
-            if st.button("REFRESCR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
+            if st.button("REFRESCAR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
                 st.rerun()
 
         t_vis_qr, t_car_tac, t_com_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
@@ -584,18 +589,25 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             
+            # Limpieza y renderizado en el mapa oscuro exclusivo del supervisor activo
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
-            centro = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()] if not df_mapa_sup.empty else [-34.6, -58.4]
-            m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
             
             if not df_mapa_sup.empty:
+                centro = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()]
+                m_visor = folium.Map(location=centro, zoom_start=13, tiles="CartoDB dark_matter")
+                
                 for _, r in df_mapa_sup.iterrows():
                     folium.Marker(
                         [r['LATITUD'], r['LONGITUD']], 
-                        tooltip=f"OBJETIVO: {r['OBJETIVO']} | RESPONSABLE: {r.get('RESPONSABLES', st.session_state.user_sel)}", 
+                        tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}<br>👤 RESPONSABLE: {st.session_state.user_sel}", 
                         icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                     ).add_to(m_visor)
-            st_folium(m_visor, width="100%", height=500, key=f"map_supervisor_exclusivo_visita_qr")
+            else:
+                # Centro por defecto en Buenos Aires si no hay coordenadas cargadas en la fila
+                m_visor = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
+                st.warning("⚠️ No se detectaron coordenadas válidas en la matriz para estos objetivos.")
+                
+            st_folium(m_visor, width="100%", height=500, key="map_supervisor_exclusivo_visita_qr")
             st.markdown('</div>', unsafe_allow_html=True)
             
         with t_car_tac:
