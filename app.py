@@ -104,6 +104,7 @@ def aplicar_identidad_alfa():
             align-items: center;
             gap: 10px;
             letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
         }
 
         /* Contenedor del Expander estilo Infraestructura Oscura */
@@ -203,13 +204,13 @@ with st.sidebar:
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# Títulos por Rol con Estilo Glow
+# Títulos por Rol con Estilo Glow (Modificado Administrador para que coincida con la cabecera central)
 titulos = {
     "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
     "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
     "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
     "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
-    "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO"
+    "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
 }
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
@@ -435,4 +436,77 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     t_visita_qr, t_carga_tactica, t_comunicacion_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
     
     with t_visita_qr:
-        op
+        opciones_servicios = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+        st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
+        st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
+        
+        st.write("---")
+        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        for _, r in df_objetivos.iterrows():
+            folium.Marker(
+                [r['LATITUD'], r['LONGITUD']], 
+                tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+                icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+            ).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500, key=f"map_supervisor_exclusivo_visita_qr")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with t_carga_tactica:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
+        novedad_sup = st.text_area("Novedad / Registro Operativo:", key="texto_novedad_supervisor")
+        if st.button("CARGAR REGISTRO", key="btn_cargar_registro_sup"):
+            if novedad_sup.strip():
+                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
+                st.success("✅ Registro cargado en la matriz central")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with t_comunicacion_sup:
+        st.subheader("Bandeja de Novedades del Sector")
+        df_chats_sup = leer_matriz_nube("CHATS")
+        if not df_chats_sup.empty:
+            st.dataframe(df_chats_sup.tail(10), use_container_width=True)
+
+# D. ROL: GERENCIA
+elif st.session_state.rol_sel == "GERENCIA":
+    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+    for _, r in df_objetivos.iterrows():
+        folium.Marker(
+            [r['LATITUD'], r['LONGITUD']], 
+            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+        ).add_to(m_visor)
+    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.subheader("📋 REPORTE DE MOVIMIENTOS")
+    df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
+    if not df_novedades.empty:
+        st.dataframe(df_novedades.tail(20), use_container_width=True)
+
+# E. ROL: ADMINISTRADOR
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    # Cabecera ajustada exactamente con AION-YAROKU
+    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
+    
+    # Caja contenedora expandible para las credenciales de infraestructura
+    with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA", expanded=True):
+        u_ing = st.text_input("ADMIN_USER")
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        
+    # Segundo encabezado inferior del buzón
+    st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
+    
+    # Procesamiento lógico interno intacto
+    if u_ing == "admin" and p_ing == "aion2026":
+        st.write("---")
+        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nuevo_nombre = st.text_input("Nombre:").upper()
+        if st.button("REGISTRAR"):
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            st.success("Alta Exitosa")
