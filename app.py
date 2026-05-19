@@ -249,11 +249,11 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-    # 4. SUPERVISORES
+    # 4. SUPERVISORES (LISTA CORREGIDA)
     with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
         nom_sup = st.selectbox(
             "RESPONSABLE ACTIVO:", 
-            ["AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"],
+            ["AYALA BRIAN", "SERANTES WALTER", "CLAUDIO MAZACOTTE", "PORZIO CARRIZO"],
             key="cambio_supervisor_directo"
         )
         
@@ -423,6 +423,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             except: pass
 
+        st.sidebar.markdown("---")
         st_folium(m_mon, width="100%", height=450, key="mapa_final_corregido_v30")
 
         if sos_activos > 0:
@@ -471,7 +472,7 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('</div>', unsafe_allow_html=True)
         
         with st.expander("📩 REDACTAR COMUNICACIÓN", expanded=True):
-            c_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"])
+            c_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "CLAUDIO MAZACOTTE", "PORZIO CARRIZO"])
             c_asunto = st.text_input("Asunto:")
             c_mensaje = st.text_area("Mensaje:")
             c_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"])
@@ -479,7 +480,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if st.button("TRANSMITIR", key="btn_transmitir_mon"):
                 if c_mensaje.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
-                    st.success("✅ Comunicación Transmitida con Éxito")
+                    st.success("✅ Communication Transmitida con Éxito")
                     st.rerun()
 
 # B. ROL: JEFE DE OPERACIONES
@@ -558,7 +559,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with t_vis_qr:
             opciones_servicios = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-            # Guardamos la selección del objetivo directamente en session_state para engancharla con el pánico
             st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
@@ -611,7 +611,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("Transmitir Directiva (Push a Celulares)")
         
-        g_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"], key="ger_para")
+        g_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "CLAUDIO MAZACOTTE", "PORZIO CARRIZO"], key="ger_para")
         g_asunto = st.text_input("Asunto:", key="ger_asunto")
         g_orden = st.text_area("Orden:", key="ger_orden")
         g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
@@ -630,7 +630,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
             st.subheader("Alta Servicio")
             g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", ["AYALA BRIAN", "SERANTES WALTER", "SANOJA LUIS", "DÍAZ MAZACOTTE", "PORZIO CARRIZO"], key="ger_alta_asig")
+            g_alta_asig = st.selectbox("Asignar a:", ["AYALA BRIAN", "SERANTES WALTER", "CLAUDIO MAZACOTTE", "PORZIO CARRIZO"], key="ger_alta_asig")
             
             if st.button("Solicitar Alta a Admin", key="btn_ger_alta"):
                 if g_alta_nom.strip():
@@ -683,5 +683,5 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
         nuevo_nombre = st.text_input("Nombre:").upper()
         if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentINA(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
             st.success("Alta Exitosa")
