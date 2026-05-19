@@ -1,16 +1,14 @@
-# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU CORE) ---
 import streamlit as st
 import pandas as pd
-import numpy as np
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
-import pytz
+import numpy as np
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
 
-# Configuración de página OLED
+# --- 1. CONFIGURACIÓN E IDENTIDAD VISUAL CORPORATIVA (AION-YAROKU CORE) ---
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
     page_icon="🛡️",
@@ -30,6 +28,7 @@ def conectar_google():
 
 # --- 3. FUNCIONES DE LÓGICA Y DATOS ---
 def obtener_hora_argentina():
+    import pytz
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -112,7 +111,6 @@ def aplicar_identidad_alfa():
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
 
-        /* Contenedores de Tarjetas OLED de Ejecución en Gerencia (Imagen 595) */
         .gerencia-tarjeta-peticion {
             border: 1px solid #1a1a1b;
             border-radius: 6px;
@@ -345,7 +343,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (CORREGIDA VARIABLE NOVELTY_SUP PARA CORTE DE CRASH)
+# C. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
     st.subheader("Control de Unidad Móvil")
     st.markdown('<div class="panel-info">', unsafe_allow_html=True)
@@ -379,7 +377,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         novedad_sup = st.text_area("Novedad / Registro Operativo:")
         if st.button("CARGAR REGISTRO"):
-            if novedad_sup.strip(): # VARIABLE CORREGIDA PARA PREVENIR ERRORES DE COMPILACIÓN
+            if novedad_sup.strip():
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
                 st.success("✅ Registro cargado")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -388,7 +386,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         df_chats_sup = leer_matriz_nube("CHATS")
         if not df_chats_sup.empty: st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (DISEÑO EXACTO E IDÉNTICO A LA CAPTURA 595 - TABLERO DE ACCIONES - SIN MAPAS)
+# D. ROL: GERENCIA (DISEÑO MODIFICADO DE MANERA EXACTA E IDÉNTICA A LA CAPTURA 594)
 elif st.session_state.rol_sel == "GERENCIA":
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
@@ -413,32 +411,33 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('</div>', unsafe_allow_html=True)
         
     with t_ejecucion:
-        # Pestaña Ejecución: Formato exacto de la Captura de pantalla (595).jpg (Bandeja secuencial de aprobación)
-        st.subheader("📋 SOLICITUDES DE ACCESO OPERATIVO PENDIENTES")
-        df_peticiones = leer_matriz_nube("PETICIONES")
-        
-        if not df_peticiones.empty:
-            for idx, row in df_peticiones.tail(5).iterrows():
-                st.markdown(
-                    f"""
-                    <div class="gerencia-tarjeta-peticion">
-                        <div class="gerencia-txt-titulo">⚡ SOLICITUD EMITIDA POR: {row.get('USUARIO', 'N/A')}</div>
-                        <div class="gerencia-txt-detail"><b>Operación técnica:</b> {row.get('ACCION', 'N/A')} | <b>Entidad:</b> {row.get('CATEGORIA', 'N/A')}</div>
-                        <div class="gerencia-txt-detail"><b>Detalle / Destino:</b> {row.get('DETALLE', 'N/A')}</div>
-                    </div>
-                    """, unsafe_allow_html=True
-                )
-                # Alineación de botones APROBAR / RECHAZAR exactamente uno al lado del otro
-                col_b1, col_b2, _ = st.columns([1, 1, 4])
-                with col_b1:
-                    if st.button(f"APROBAR #{idx}", key=f"btn_aprob_ger_{idx}"):
-                        st.success(f"✅ Petición #{idx} autorizada en la matriz")
-                with col_b2:
-                    if st.button(f"RECHAZAR #{idx}", key=f"btn_rech_ger_{idx}"):
-                        st.warning(f"❌ Petición #{idx} denegada")
-                st.write("")
-        else:
-            st.info("No se registran solicitudes pendientes en el búfer de operaciones central.")
+        # Pestaña Ejecución Oficial: Formularios nativos de Alta/Baja y Directivas unificadas (Imagen 594)
+        c1, c2 = st.columns(2)
+        with c1:
+            with st.form("alta_gerencia"):
+                st.write("Alta Servicio")
+                n = st.text_input("Nombre")
+                s = st.selectbox("Asignar a:", lista_sups)
+                if st.form_submit_button("Solicitar Alta a Admin"): 
+                    escribir_registro_nube("PETICIONES", [str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), usuario_auth, "ALTA", f"{n} | {s}", "PENDIENTE", "OBJETIVO"])
+                    st.success("Solicitud de Alta registrada.")
+        with c2:
+            with st.form("baja_gerencia"):
+                st.write("Baja Servicio")
+                rem = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
+                if st.form_submit_button("Solicitar Baja a Admin"): 
+                    escribir_registro_nube("PETICIONES", [str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), usuario_auth, "BAJA", rem, "PENDIENTE", "OBJETIVO"])
+                    st.success("Solicitud de Baja registrada.")
+                    
+        with st.form("orden_gerencia"):
+            st.write("Transmitir Directiva (Push a Celulares)")
+            dest_dir = st.selectbox("Para:", ["TODOS", "LUIS BONGIORNO", "DARÍO CECILIA"] + lista_sups)
+            asunto_dir = st.text_input("Asunto")
+            msg_dir = st.text_area("Orden")
+            prioridad_dir = st.selectbox("Prioridad", ["VERDE", "AMARILLO", "ROJO"])
+            if st.form_submit_button("Ejecutar Directiva"): 
+                escribir_registro_nube("MENSAJERIA", [str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), usuario_auth, dest_dir, asunto_dir, msg_dir, "ENVIADO", prioridad_dir])
+                st.success("Directiva inyectada en la red con éxito.")
 
     with t_auditoria:
         st.subheader("📋 TABLERO DE AUDITORÍA DE OBJETIVOS")
