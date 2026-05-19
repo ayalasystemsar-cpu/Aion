@@ -541,13 +541,15 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR
+# C. ROL: SUPERVISOR (CON PROTECCIÓN ANTI-ESPACIOS EN BLANCO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
+        # --- FIX ABSOLUTO DE FILTRADO TÁCTICO INDIVIDUAL ---
+        # `.str.strip()` limpia cualquier espacio en blanco invisible cargado en tu Google Sheets
         if not df_objetivos.empty and 'RESPONSABLES' in df_objetivos.columns:
-            df_objetivos_filtrados = df_objetivos[df_objetivos['RESPONSABLES'].astype(str).str.upper() == st.session_state.user_sel.upper()]
+            df_objetivos_filtrados = df_objetivos[df_objetivos['RESPONSABLES'].astype(str).str.strip().str.upper() == st.session_state.user_sel.strip().str.upper()]
         else:
             df_objetivos_filtrados = df_objetivos.copy()
 
@@ -580,7 +582,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
             st.write("---")
-            # FIX LINEA 508: String literal unificado sin saltos de línea rotos
             st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             
