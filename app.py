@@ -111,40 +111,6 @@ def aplicar_identidad_alfa():
         
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
-
-        /* Estilo para el botón Refresh (Captura 593) */
-        .stButton > button.btn-refresh {
-            background: #00e5ff !important;
-            color: #000 !important;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: bold;
-            border-radius: 4px !important;
-            border: 1px solid #00e5ff !important;
-            box-shadow: 0 0 10px rgba(0, 229, 255, 0.3) !important;
-        }
-
-        /* Contenedores específicos para las peticiones de Gerencia (Captura 595) */
-        .gerencia-petition-box {
-            border: 1px solid #1a1a1b;
-            border-radius: 6px;
-            padding: 15px;
-            margin-top: 10px;
-            margin-bottom: 5px;
-            background: rgba(5, 5, 8, 0.95);
-        }
-        .gerencia-petition-title {
-            color: #00e5ff;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 14px;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-        .gerencia-petition-detail {
-            color: #dcdcdc;
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 14px;
-            margin-top: 4px;
-        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -450,9 +416,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 595 - TABLERO MAESTRO Y CAJAS - SIN MAPAS)
+# D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 594 - LIBRE DE MAPAS)
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Indicadores Superiores Corporativos (Captura 594)
+    # 1. Indicadores Superiores Corporativos
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
@@ -460,7 +426,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         m3.metric("📋 AUDITORIAS", "2")
         m4.metric("🚗 DESGASTE", "4954 Km")
 
-    # 2. Pestañas Corporativas Oficiales (Captura 595)
+    # 2. Pestañas Oficiales según Estándar Corporativo
     st.write("---")
     t_com_est, t_ejecucion_ger, t_tab_aud = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
     
@@ -479,32 +445,28 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('</div>', unsafe_allow_html=True)
         
     with t_ejecucion_ger:
-        st.subheader("📋 SOLICITUDES DE ACCESO OPERATIVO PENDIENTES")
-        df_peticiones = leer_matriz_nube("PETICIONES")
+        # Formulario de Carga de Peticiones de Alta/Baja idéntico al de la imagen (Captura 594)
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
         
-        if not df_peticiones.empty:
-            # Recorre e inyecta secuencialmente cada una de las peticiones dentro de cajas OLED independientes
-            for idx, row in df_peticiones.tail(5).iterrows():
-                st.markdown(
-                    f"""
-                    <div class="gerencia-petition-box">
-                        <div class="gerencia-petition-title">⚡ SOLICITUD DE: {row.get('USUARIO', 'N/A')}</div>
-                        <div class="gerencia-petition-detail"><b>Acción Requerida:</b> {row.get('ACCION', 'N/A')} | <b>Categoría de Nodo:</b> {row.get('CATEGORIA', 'N/A')}</div>
-                        <div class="gerencia-petition-detail"><b>Detalle del Recurso:</b> {row.get('DETALLE', 'N/A')}</div>
-                    </div>
-                    """, unsafe_allow_html=True
-                )
-                # Distribución horizontal de los botones táctiles de ejecución por cada caja (Captura 595)
-                b_col1, b_col2, _ = st.columns([1, 1, 4])
-                with b_col1:
-                    if st.button(f"APROBAR #{idx}", key=f"btn_aprob_ger_{idx}"):
-                        st.success(f"✅ Solicitud #{idx} Aprobada con éxito")
-                with b_col2:
-                    if st.button(f"RECHAZAR #{idx}", key=f"btn_rech_ger_{idx}"):
-                        st.warning(f"❌ Solicitud #{idx} Denegada")
-                st.write("")
-        else:
-            st.info("No se registran peticiones pendientes en el búfer central de la matriz.")
+        g_accion = st.selectbox("Acción:", ["ALTA", "BAJA"], key="ger_select_accion")
+        g_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"], key="ger_select_cat")
+        g_det = st.text_input("Nombre / Detalle:", key="ger_input_det")
+        
+        if st.button("ELEV AR PETICIÓN", key="ger_btn_elevar"):
+            if g_det.strip():
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, g_accion, g_cat, g_det])
+                st.success("✅ Petición Elevada Exitosamente")
+            else:
+                st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Grilla inferior de movimientos asociada a la ejecución técnica
+        st.write("---")
+        st.subheader("📋 REPORTE DE MOVIMIENTOS")
+        df_novedades_ger = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_novedades_ger.empty:
+            st.dataframe(df_novedades_ger.tail(20), use_container_width=True)
             
     with t_tab_aud:
         st.subheader("📊 CUADRO DE MANDO ANALÍTICO: HISTORIAL DE FLOTA")
