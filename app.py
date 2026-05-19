@@ -538,7 +538,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("Transmitir Directiva (Push a Celulares)")
         
-        g_para = st.selectbox("Para:", ["TODOS", "BRIAN AYALA", "SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES"], key="ger_para")
+        g_para = st.selectbox("Para:", ["TODOS", "BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"], key="ger_para")
         g_asunto = st.text_input("Asunto:", key="ger_asunto")
         g_orden = st.text_area("Orden:", key="ger_orden")
         g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
@@ -558,7 +558,10 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
             st.subheader("Alta Servicio")
             g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", ["AYALA BRIAN", "GONZALO PORZIO", "SUPERVISOR NOCTURNO"], key="ger_alta_asig")
+            
+            # LISTA OPERATIVA COMPLETA SINCRONIZADA CON TU SIDEBAR
+            g_alta_asig = st.selectbox("Asignar a:", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"], key="ger_alta_asig")
+            
             if st.button("Solicitar Alta a Admin", key="btn_ger_alta"):
                 if g_alta_nom.strip():
                     escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
@@ -575,7 +578,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición de Baja enviada al Núcleo Maestro")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- PESTAÑA 3: TABLERO DE AUDITORÍA (Aquí pusimos tu Mapa y Actas) ---
+    # --- PESTAÑA 3: TABLERO DE AUDITORÍA ---
     with t_tab_auditoria:
         st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
