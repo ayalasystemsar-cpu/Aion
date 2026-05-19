@@ -215,10 +215,19 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (CONTROL CON LOGIN REFORZADO POR APELLIDO) ---
+# --- 5. SIDEBAR TÁCTICO (CONTROL CON LOGIN REFORZADO POR ESQUEMA ROBUSTO) ---
 df_objetivos = cargar_objetivos()
 
-# Inicialización de estados de sesión críticos
+# NÓMINA GENERAL REORDENADA A ESQUEMA TÁCTICO GENÉRICO
+LISTA_SUPS_TACTICOS = [
+    "SUPERVISOR 1", 
+    "SUPERVISOR 2", 
+    "SUPERVISOR 3", 
+    "SUPERVISOR 4", 
+    "SUPERVISOR 5", 
+    "SUPERVISOR NOCTURNO"
+]
+
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
@@ -249,11 +258,11 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-    # 4. SUPERVISORES (LISTA CORREGIDA)
+    # 4. SUPERVISORES (NUEVO MENÚ GENÉRICO)
     with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
         nom_sup = st.selectbox(
             "RESPONSABLE ACTIVO:", 
-            ["AYALA BRIAN", "SERANTES WALTER", "CLAUDIO MAZACOTTE", "PORZIO CARRIZO"],
+            LISTA_SUPS_TACTICOS,
             key="cambio_supervisor_directo"
         )
         
@@ -263,10 +272,14 @@ with st.sidebar:
         if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
             st.session_state.intentando_sup = True
             
-            # Lógica dinámica: Extraemos el apellido
-            apellido_esperado = nom_sup.split(" ")[0].lower()
+            # Mapeo inteligente del usuario esperado basado en el número o rol
+            if "NOCTURNO" in nom_sup:
+                usuario_esperado = "nocturno"
+            else:
+                usuario_esperado = nom_sup.split(" ")[1] # Extrae el '1', '2', etc.
             
-            if user_sup.strip().lower() == apellido_esperado and pass_sup == "1234":
+            # Validación robusta: coincide usuario e ingresa la clave 1234
+            if user_sup.strip().lower() == usuario_esperado and pass_sup == "1234":
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.user_sel = nom_sup
                 st.session_state.sup_autenticado = True
@@ -296,7 +309,6 @@ with st.sidebar:
 
     # --- ENVIÓ DE PÁNICO DINÁMICO POR OBJETIVO ACTIVO ---
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        # Verificamos si el supervisor está activo y tiene un servicio seleccionado en pantalla
         if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
             obj_alerta = st.session_state.sup_servicio_actual
         else:
@@ -472,7 +484,7 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('</div>', unsafe_allow_html=True)
         
         with st.expander("📩 REDACTAR COMUNICACIÓN", expanded=True):
-            c_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "CLAUDIO MAZACOTTE", "PORZIO CARRIZO"])
+            c_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS)
             c_asunto = st.text_input("Asunto:")
             c_mensaje = st.text_area("Mensaje:")
             c_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"])
@@ -480,7 +492,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if st.button("TRANSMITIR", key="btn_transmitir_mon"):
                 if c_mensaje.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
-                    st.success("✅ Communication Transmitida con Éxito")
+                    st.success("✅ Comunicación Transmitida con Éxito")
                     st.rerun()
 
 # B. ROL: JEFE DE OPERACIONES
@@ -611,7 +623,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("Transmitir Directiva (Push a Celulares)")
         
-        g_para = st.selectbox("Para:", ["TODOS", "AYALA BRIAN", "SERANTES WALTER", "CLAUDIO MAZACOTTE", "PORZIO CARRIZO"], key="ger_para")
+        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
         g_asunto = st.text_input("Asunto:", key="ger_asunto")
         g_orden = st.text_area("Orden:", key="ger_orden")
         g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
@@ -630,7 +642,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
             st.subheader("Alta Servicio")
             g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", ["AYALA BRIAN", "SERANTES WALTER", "CLAUDIO MAZACOTTE", "PORZIO CARRIZO"], key="ger_alta_asig")
+            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
             
             if st.button("Solicitar Alta a Admin", key="btn_ger_alta"):
                 if g_alta_nom.strip():
@@ -683,5 +695,5 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
         nuevo_nombre = st.text_input("Nombre:").upper()
         if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentINA(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
             st.success("Alta Exitosa")
