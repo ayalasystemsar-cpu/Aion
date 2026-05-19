@@ -113,6 +113,17 @@ def aplicar_identidad_alfa():
         
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
+
+        /* Estilo para el botón Refresh (Captura 593) */
+        .stButton > button.btn-refresh {
+            background: #00e5ff !important;
+            color: #000 !important;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            border-radius: 4px !important;
+            border: 1px solid #00e5ff !important;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.3) !important;
+        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -309,7 +320,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if st.button("TRANSMITIR", key="btn_transmitir_mon"):
                 if c_mensaje.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
-                    st.success("✅ Comunicación Transmitida con Éxito")
+                    st.success("✅ Communication Transmitida con Éxito")
                     st.rerun()
 
 # B. ROL: JEFE DE OPERACIONES
@@ -418,8 +429,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 594 - SEGURO CONTRA KEYERRORS)
+# D. ROL: GERENCIA (DISEÑO CORPORATIVO DIRECTIVO - CAPTURA 596)
 elif st.session_state.rol_sel == "GERENCIA":
+    # 1. Contenedor de Indicadores Directivos (Analítica de la imagen)
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
@@ -427,49 +439,39 @@ elif st.session_state.rol_sel == "GERENCIA":
         m3.metric("📋 AUDITORIAS", "2")
         m4.metric("🚗 DESGASTE", "4954 Km")
 
+    # Separador visual
     st.write("---")
+
+    # 2. Pestañas Directivas (Estándar de la imagen corporativa)
     t_com_est, t_ejecucion, t_auditoria = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
     
     with t_com_est:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("📢 EMISIÓN DE DIRECTIVAS GENERALES CORPORATIVAS")
-        g_asunto = st.text_input("Asunto (Push Informativo Celular):", value="DIRECTIVA GENERAL", key="ger_push_asunto")
-        g_directiva = st.text_area("Cuerpo de la Directiva / Instrucción Corporativa:", key="ger_text_directiva")
+        st.subheader("📢 EMISIÓN DE DIRECTIVAS GENERALES")
+        g_asunto = st.text_input("Asunto de la Directiva:")
+        g_directiva = st.text_area("Cuerpo de la instrucción corporativa:")
         
-        if st.button("EJECUTAR DIRECTIVA", key="btn_ejecutar_directiva"):
+        if st.button("TRANSMITIR DIRECTIVA"):
             if g_directiva.strip():
+                # Envía como broadcast con prioridad ROJA a toda la flota en CHATS
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_directiva, "ROJA", "TODOS", g_asunto])
-                st.success("✅ Directiva Táctica Transmitida con Éxito a Toda la Flota")
+                st.success("✅ Directiva Transmitida con Éxito")
             else:
-                st.error("⚠️ Ingrese el texto de la instrucción corporativa antes de ejecutar.")
+                st.error("⚠️ El cuerpo de la directiva es obligatorio.")
         st.markdown('</div>', unsafe_allow_html=True)
         
     with t_ejecucion:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
-        
-        g_accion = st.selectbox("Acción:", ["ALTA", "BAJA"], key="ger_sel_accion_v4")
-        g_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"], key="ger_sel_cat_v4")
-        g_det = st.text_input("Nombre / Detalle:", key="ger_in_det_v4")
-        
-        if st.button("ELEV AR PETICIÓN", key="ger_btn_submit_v4"):
-            if g_det.strip():
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, g_accion, g_cat, g_det])
-                st.success("✅ Petición Elevada Exitosamente")
-            else:
-                st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.write("---")
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_novedades_ger = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades_ger.empty:
-            st.dataframe(df_novedades_ger.tail(20), use_container_width=True)
+        st.subheader("📋 REPORTE GENERAL DE MOVIMIENTOS")
+        df_actas = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_actas.empty:
+            # Re-invierte para mostrar lo último arriba, estándar OLED
+            st.dataframe(df_actas.iloc[::-1], use_container_width=True)
+        else:
+            st.info("No hay registros en la grilla de movimientos tácticos.")
 
     with t_auditoria:
-        st.subheader("📋 TABLERO DE AUDITORÍA CORPORATIVA")
+        st.subheader("📋 TABLERO DE AUDITORÍA DE OBJETIVOS")
         if not df_objetivos.empty:
-            # Usamos la columna normalizada 'DIRECCION' para evitar errores de tildes
             df_display = df_objetivos[['OBJETIVO', 'DIRECCION', 'SUPERVISOR']]
             st.dataframe(df_display, use_container_width=True)
         else:
