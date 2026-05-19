@@ -101,7 +101,7 @@ def aplicar_identidad_alfa():
             font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
         
-        /* Estilos de la interfaz */
+        /* Estilos de bandeja e interfaz adaptados */
         .chat-container { border: 1px solid #1a1a1b; border-radius: 8px; padding: 15px; margin-top: 10px; background-color: #030305; }
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
@@ -117,7 +117,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (CON ANTIPÁNICO Y LISTA COMPLETA) ---
+# --- 5. SIDEBAR TÁCTICO (ACTUALIZADO CON SUPERVISOR NOCTURNO) ---
 df_objetivos = cargar_objetivos()
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -128,7 +128,7 @@ with st.sidebar:
     st.subheader("🛡️ PANEL DE CONTROL")
     st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"], index=["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"].index(st.session_state.rol_sel))
     
-    # LISTA DE IDENTIDAD OPERATIVA COMPLETA
+    # LISTA DE IDENTIDAD OPERATIVA ACTUALIZADA
     st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"])
     
     st.write("---")
@@ -312,16 +312,16 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Comunicación Transmitida con Éxito")
                     st.rerun()
 
-# B. ROL: JEFE DE OPERACIONES (NUEVO: INDICADORES SUPERIORES, PESTAÑAS COMPLETAS Y MAPA MANTENIDO)
+# B. ROL: JEFE DE OPERACIONES (SECCIONES DE INTEGRACIÓN + MAPA PRESERVADO)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    # 1. Indicadores Superiores (Captura 591)
+    # Indicadores Superiores
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # 2. Pestañas del Jefe de Operaciones (Captura 591)
+    # Pestañas del Panel de Control de Operaciones
     t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
     
     with t_ejecucion:
@@ -334,9 +334,60 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         
         if st.button("ELEV AR PETICIÓN"):
             if o_det.strip():
-                # Registro en la base matriz nube
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
                 st.success("✅ Petición Elevada Exitosamente")
             else:
                 st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
         st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- MAPA COMPLETAMENTE PRESERVADO EN SU LUGAR ORIGINAL ---
+    st.write("---")
+    st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
+    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+    for _, r in df_objetivos.iterrows():
+        folium.Marker(
+            [r['LATITUD'], r['LONGITUD']], 
+            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+        ).add_to(m_visor)
+    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.subheader("📋 REPORTE DE MOVIMIENTOS")
+    df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
+    if not df_novedades.empty:
+        st.dataframe(df_novedades.tail(20), use_container_width=True)
+
+# C. ROL: SUPERVISOR Y GERENCIA
+elif st.session_state.rol_sel in ["SUPERVISOR", "GERENCIA"]:
+    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+    for _, r in df_objetivos.iterrows():
+        folium.Marker(
+            [r['LATITUD'], r['LONGITUD']], 
+            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+        ).add_to(m_visor)
+    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.session_state.rol_sel == "GERENCIA":
+        st.subheader("📋 REPORTE DE MOVIMIENTOS")
+        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_novedades.empty:
+            st.dataframe(df_novedades.tail(20), use_container_width=True)
+
+# D. ROL: ADMINISTRADOR
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    st.header("⚙️ NÚCLEO MAESTRO")
+    u_ing = st.text_input("ADMIN_USER")
+    p_ing = st.text_input("ADMIN_PASS", type="password")
+    if u_ing == "admin" and p_ing == "aion2026":
+        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nuevo_nombre = st.text_input("Nombre:").upper()
+        if st.button("REGISTRAR"):
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            st.success("Alta Exitosa")
