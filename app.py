@@ -239,10 +239,10 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
         
-    # 3. GERENCIA
+   # 3. GERENCIA
     if st.button("🏢 GERENCIA", use_container_width=True):
         st.session_state.rol_sel = "GERENCIA"
-        st.session_state.user_sel = "EDGAR VERA"
+        st.session_state.user_sel = "DIRECCIÓN GENERAL"  # <-- NOMBRE CORREGIDO AQUÍ
         st.session_state.sup_autenticado = False
         st.rerun()
 
