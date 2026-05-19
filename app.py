@@ -173,6 +173,50 @@ def aplicar_identidad_alfa():
             border: 1px solid #00e5ff !important;
             box-shadow: 0 0 10px rgba(0, 229, 255, 0.3) !important;
         }
+
+        /* --- INTEGRACIÓN: ESTILOS TÁCTICOS DE PESTAÑAS Y METRICAS --- */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 10px;
+            background-color: transparent;
+        }
+        .stTabs [data-baseweb="tab"] {
+            background-color: rgba(26, 28, 35, 0.4) !important;
+            border: 1px solid #2D313E !important;
+            color: #A0A5B5 !important;
+            border-radius: 4px 4px 0px 0px !important;
+            padding: 6px 16px !important;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px !important;
+            font-weight: bold;
+        }
+        .stTabs [data-baseweb="tab"]:hover {
+            color: #00E5FF !important;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #1A1C23 !important;
+            border-top: 2px solid #00E5FF !important;
+            color: #00E5FF !important;
+        }
+
+        div[data-testid="stMetric"] {
+            background-color: rgba(10, 11, 15, 0.6) !important;
+            border: 1px solid #1A1C23 !important;
+            border-radius: 6px !important;
+            padding: 12px !important;
+        }
+        div[data-testid="stMetricLabel"] p {
+            color: #00E5FF !important;
+            font-family: 'Rajdhani', sans-serif !important;
+            font-size: 13px !important;
+            font-weight: bold !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        div[data-testid="stMetricValue"] div {
+            color: #FFFFFF !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-size: 22px !important;
+        }
         </style>
         """, unsafe_allow_html=True
     )
