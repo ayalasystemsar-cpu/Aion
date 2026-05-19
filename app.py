@@ -427,9 +427,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (DISEÑO CORPORATIVO REFORMADO - CAPTURA 594 - SIN MAPAS)
+# D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 594 - CON PESTAÑAS CORPORATIVAS Y REPORTE INTEGRADO - SIN MAPA)
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Contenedor de Indicadores Superiores
+    # 1. Indicadores Superiores Corporativos
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
@@ -437,11 +437,11 @@ elif st.session_state.rol_sel == "GERENCIA":
         m3.metric("📋 AUDITORIAS", "2")
         m4.metric("🚗 DESGASTE", "4954 Km")
 
-    # 2. Separador visual y Pestañas organizadas con módulos y formularios de control reales
+    # 2. Pestañas Corporativas Oficiales (Captura 594)
     st.write("---")
-    t_direccion, t_peticion, t_resumen = st.tabs(["Dirección", "Petición", "Tabla Resumen"])
+    t_com_est, t_ejecucion_ger, t_tab_aud = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
     
-    with t_direccion:
+    with t_com_est:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("📢 EMISIÓN DE DIRECTIVAS GENERALES CORPORATIVAS")
         g_asunto = st.text_input("Asunto (Push Informativo Celular):", value="DIRECTIVA GENERAL", key="ger_push_asunto")
@@ -455,16 +455,16 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.error("⚠️ Ingrese el texto de la instrucción corporativa antes de ejecutar.")
         st.markdown('</div>', unsafe_allow_html=True)
         
-    with t_peticion:
-        st.subheader("📥 BANDEJA DE AUDITORÍA: PETICIONES DE ALTA / BAJA RECIBIDAS")
+    with t_ejecucion_ger:
+        st.subheader("📥 BANDEJA DE CONTROL: SOLICITUDES DE MOVIMIENTO OPERATIVO")
         df_peticiones_ger = leer_matriz_nube("PETICIONES")
         if not df_peticiones_ger.empty:
             st.dataframe(df_peticiones_ger.iloc[::-1], use_container_width=True)
         else:
             st.info("Sin solicitudes pendientes en la matriz central.")
             
-    with t_resumen:
-        st.subheader("📊 CUADRO DE MANDO: RENTABILIDAD OPERATIVA Y FLOTA")
+    with t_tab_aud:
+        st.subheader("📊 CUADRO DE MANDO ANALÍTICO: HISTORIAL DE FLOTA")
         df_actas = leer_matriz_nube("ACTAS_FLOTAS")
         if not df_actas.empty:
             st.dataframe(df_actas.iloc[::-1], use_container_width=True)
