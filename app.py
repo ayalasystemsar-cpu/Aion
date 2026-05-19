@@ -473,22 +473,84 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
 # D. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker(
-            [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Encabezado dinámico con el usuario activo en cian
+    st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: {st.session_state.user_sel}</h2>', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
+    
+    # Fila de Indicadores Clave (Métricas de la captura 594)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
+    m2.metric("Nivel de Cobertura", "47/93")
+    m3.metric("Auditorías Físicas (QRs)", "2")
+    m4.metric("Desgaste Flota (Km)", "4954 Km")
+    
+    st.write("") # Espacio operativo
+    
+    # Distribución de Pestañas Estratégicas como en la imagen
+    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+    
+    # --- PESTAÑA 1: COMUNICACIÓN ESTRATÉGICA ---
+    with t_com_est:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("Transmitir Directiva (Push a Celulares)")
+        
+        g_para = st.selectbox("Para:", ["TODOS", "BRIAN AYALA", "SUPERVISOR NOCTURNO", "JEFE DE OPERACIONES"], key="ger_para")
+        g_asunto = st.text_input("Asunto:", key="ger_asunto")
+        g_orden = st.text_area("Orden:", key="ger_orden")
+        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
+        
+        if st.button("Ejecutar Directiva", key="btn_ger_directiva"):
+            if g_orden.strip():
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, g_asunto])
+                st.success("✅ Directiva Transmitida al escalafón operacional")
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    # --- PESTAÑA 2: EJECUCIÓN ---
+    with t_ejecucion_ger:
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+            st.subheader("Alta Servicio")
+            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
+            g_alta_asig = st.selectbox("Asignar a:", ["AYALA BRIAN", "GONZALO PORZIO", "SUPERVISOR NOCTURNO"], key="ger_alta_asig")
+            if st.button("Solicitar Alta a Admin", key="btn_ger_alta"):
+                if g_alta_nom.strip():
+                    escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
+                    st.success("✅ Petición de Alta enviada al Núcleo Maestro")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        with col_g2:
+            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+            st.subheader("Baja Servicio")
+            opciones_baja = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+            g_baja_obj = st.selectbox("Objetivo:", opciones_baja, key="ger_baja_obj")
+            if st.button("Solicitar Baja a Admin", key="btn_ger_baja"):
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
+                st.success("✅ Petición de Baja enviada al Núcleo Maestro")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    st.subheader("📋 REPORTE DE MOVIMIENTOS")
-    df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-    if not df_novedades.empty:
-        st.dataframe(df_novedades.tail(20), use_container_width=True)
+    # --- PESTAÑA 3: TABLERO DE AUDITORÍA (Aquí pusimos tu Mapa y Actas) ---
+    with t_tab_auditoria:
+        st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        for _, r in df_objetivos.iterrows():
+            folium.Marker(
+                [r['LATITUD'], r['LONGITUD']], 
+                tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+                icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+            ).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=450, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.write("---")
+        st.subheader("📋 REPORTE HISTÓRICO DE MOVIMIENTOS")
+        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_novedades.empty:
+            st.dataframe(df_novedades.tail(20), use_container_width=True)
 
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
