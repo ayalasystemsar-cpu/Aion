@@ -307,7 +307,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if st.button("TRANSMITIR", key="btn_transmitir_mon"):
                 if c_mensaje.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, c_mensaje, c_prioridad, c_para, c_asunto])
-                    st.success("✅ Comunicación Transmitida con Éxito")
+                    st.success("✅ Communication Transmitida con Éxito")
                     st.rerun()
 
 # B. ROL: JEFE DE OPERACIONES
@@ -416,9 +416,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_chats_sup.empty:
             st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA (DISEÑO EXACTO A LA CAPTURA 594 - LIBRE DE MAPAS)
+# D. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Contenedor de Indicadores Superiores (Métricas con recuadros Streamlit)
     with st.container():
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("💰 AHORRO RIESGO", "$ 1.200.000")
@@ -426,9 +425,8 @@ elif st.session_state.rol_sel == "GERENCIA":
         m3.metric("📋 AUDITORIAS", "2")
         m4.metric("🚗 DESGASTE", "4954 Km")
 
-    # 2. Separador visual y Pestañas organizadas secuencialmente (Captura 594)
     st.write("---")
-    t_com_est, t_ejecucion_ger, t_tab_aud = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
+    t_com_est, t_ejecucion, t_auditoria = st.tabs(["Comunicación Estratégica", "Ejecución", "Tablero de Auditoría"])
     
     with t_com_est:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
@@ -444,43 +442,35 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.error("⚠️ Ingrese el texto de la instrucción corporativa antes de ejecutar.")
         st.markdown('</div>', unsafe_allow_html=True)
         
-    with t_ejecucion_ger:
-        # Formulario de Carga de Peticiones de Alta/Baja idéntico al de la imagen (Captura 594)
+    with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
         
-        g_accion = st.selectbox("Acción:", ["ALTA", "BAJA"], key="ger_select_accion")
-        g_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"], key="ger_select_cat")
-        g_det = st.text_input("Nombre / Detalle:", key="ger_input_det")
+        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
+        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
+        o_det = st.text_input("Nombre / Detalle:")
         
-        if st.button("ELEV AR PETICIÓN", key="ger_btn_elevar"):
-            if g_det.strip():
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, g_accion, g_cat, g_det])
+        if st.button("ELEV AR PETICIÓN"):
+            if o_det.strip():
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
                 st.success("✅ Petición Elevada Exitosamente")
             else:
                 st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Grilla inferior de movimientos asociada a la ejecución táctica (Captura 594)
-        st.write("---")
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_novedades_ger = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades_ger.empty:
-            st.dataframe(df_novedades_ger.tail(20), use_container_width=True)
-            
-    with t_tab_aud:
-        st.subheader("📊 CUADRO DE MANDO ANALÍTICO: HISTORIAL DE FLOTA")
-        df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_actas.empty:
-            st.dataframe(df_actas.iloc[::-1], use_container_width=True)
+    with t_auditoria:
+        st.subheader("📋 TABLERO DE AUDITORÍA CORPORATIVA")
+        if not df_objetivos.empty:
+            df_display = df_objetivos[['OBJETIVO', 'DIRECCIÓN', 'SUPERVISOR']]
+            st.dataframe(df_display, use_container_width=True)
         else:
-            st.info("Sin registros auditados de flotas en la base de datos.")
+            st.info("Sin registros de objetivos para auditar.")
 
 # E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
-    u_ing = st.text_input("ADMIN_USER", key="adm_usr_normal")
-    p_ing = st.text_input("ADMIN_PASS", type="password", key="adm_pss_normal")
+    u_ing = st.text_input("ADMIN_USER")
+    p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026":
         t_infra, t_estruc = st.tabs(["Infraestructura", "Estructura Base"])
         
@@ -491,8 +481,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             st.success("📡 Sincronización en la nube con Google Drive API: ACTIVA")
             
         with t_estruc:
-            tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True, key="adm_radio_normal")
-            nuevo_nombre = st.text_input("Nombre:", key="adm_input_normal").upper()
-            if st.button("REGISTRAR", key="adm_btn_normal"):
+            tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+            nuevo_nombre = st.text_input("Nombre:").upper()
+            if st.button("REGISTRAR"):
                 escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
                 st.success("Alta Exitosa")
