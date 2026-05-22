@@ -67,14 +67,23 @@ def leer_matriz_nube(pestana):
         except: return pd.DataFrame()
     return pd.DataFrame()
 
+# --- BLINDAJE DE INFRAESTRUCTURA CONTRA FILAS MUERTAS Y COMAS ---
 @st.cache_data(ttl=60)
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
-        # Limpieza profunda de coordenadas numéricas
-        df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        
+        # Filtrado inmediato de filas fantasma que están vacías al fondo del Sheets
+        df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
+        df = df[df['OBJETIVO'].notna()]
+        
+        # Corrección de formato para celdas con comas (Inmunidad para Supervisor 4)
+        df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
+        df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
+        
+        df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
+        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
     return pd.DataFrame()
 
@@ -544,17 +553,15 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (NÚCLEO 100% DINÁMICO RECTIFICADO)
+# C. ROL: SUPERVISOR (NÚCLEO DINÁMICO SANITIZADO SIN SERVICIOS DE MÁS)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
-        # --- FILTRADO DIRECTO Y SANITIZADO ---
-        # Remueve diccionarios fijos. Cruza directamente contra la columna SUPERVISOR del Sheets
+        # --- FILTRADO DIRECTO Y SANITIZADO CONTRA LA COLUMNA SUPERVISOR ---
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
 
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
-            # Filtro dinámico absoluto eliminando espacios en blanco al inicio y al final
             df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
         else:
             df_objetivos_filtrados = df_objetivos.copy()
@@ -583,7 +590,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_car_tac, t_com_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
         
         with t_vis_qr:
-            opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS ASIGNADOS"]
+            # --- PARCHE DE LIMPIEZA TOTAL PARA LOS SELECTORES (EVITA EL "SERVICIOS DE MÁS") ---
+            if not df_objetivos_filtrados.empty:
+                opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique()
+            else:
+                opciones_servicios = []
+
+            if len(opciones_servicios) == 0:
+                opciones_servicios = ["SIN OBJETIVOS ASIGNADOS"]
+            
             st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
@@ -591,8 +606,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             
-            # Limpieza y renderizado de coordenadas sin pérdida de filas por parseo parcial
-            df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
+            # --- PARCHE DE COORDENADAS RECTIFICADAS PARA MAPAS (INCLUYE SUPERVISOR 4 Y NOCTURNO) ---
+            if not df_objetivos_filtrados.empty:
+                df_mapa_sup = df_objetivos_filtrados[
+                    df_objetivos_filtrados['LATITUD'].notna() & 
+                    df_objetivos_filtrados['LONGITUD'].notna()
+                ]
+            else:
+                df_mapa_sup = pd.DataFrame()
             
             if not df_mapa_sup.empty:
                 centro = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()]
