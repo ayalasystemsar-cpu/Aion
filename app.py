@@ -33,7 +33,7 @@ def conectar_google():
 
 # --- 3. FUNCIONES DE LÓGICA Y DATOS ---
 def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    tz = pytz.timezone("America/Argentina/Buenos_ Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
 def actualizar_celda(pestana, fila, columna, valor):
@@ -610,7 +610,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             
             # --- MOTOR DE RENDERIZADO TÁCTICO DE MAPAS REAC-DINA ---
             if not df_objetivos_filtrados.empty:
-                df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
+                df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+                
+                # Desinfectamos de raíz comas por puntos y barremos espacios invisibles en strings de coordenadas
+                df_mapa_sup['LATITUD'] = df_mapa_sup['LATITUD'].astype(str).str.strip().str.replace(',', '.')
+                df_mapa_sup['LONGITUD'] = df_mapa_sup['LONGITUD'].astype(str).str.strip().str.replace(',', '.')
+                
                 df_mapa_sup['LATITUD'] = pd.to_numeric(df_mapa_sup['LATITUD'], errors='coerce')
                 df_mapa_sup['LONGITUD'] = pd.to_numeric(df_mapa_sup['LONGITUD'], errors='coerce')
                 df_mapa_sup = df_mapa_sup.dropna(subset=['LATITUD', 'LONGITUD'])
@@ -623,7 +628,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 m_visor = folium.Map(location=centro_coordenadas, zoom_start=12, tiles="CartoDB dark_matter")
                 
                 for _, r in df_mapa_sup.iterrows():
-                    tooltip_html = f"🎯 <b>OBJETIVO:</b> {r['OBJETIVO']}<br>👤 <b>RESPONSABLE:</b> {sup_activo_normalizado}"
+                    nombre_objetivo = str(r['OBJETIVO']).strip()
+                    tooltip_html = f"🎯 <b>OBJETIVO:</b> {nombre_objetivo}<br>👤 <b>RESPONSABLE:</b> {sup_activo_normalizado}"
                     folium.Marker(
                         [r['LATITUD'], r['LONGITUD']], 
                         tooltip=folium.Tooltip(tooltip_html, sticky=True), 
