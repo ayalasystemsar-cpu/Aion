@@ -67,7 +67,7 @@ def leer_matriz_nube(pestana):
         except: return pd.DataFrame()
     return pd.DataFrame()
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=5)  # Bajamos el TTL a 5 segundos para que impacte el Sheets al instante
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
@@ -77,9 +77,11 @@ def cargar_objetivos():
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
         
-        # 2. Sanitización estricta de la columna SUPERVISOR para evitar herencias falsas o espacios extras
+        # 2. SANITIZACIÓN RADICAL DE COLUMNAS (Evita cualquier cruce de datos)
         if 'SUPERVISOR' in df.columns:
             df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
+        
+        df['OBJETIVO'] = df['OBJETIVO'].astype(str).str.strip().str.upper()
         
         # Corrección automática de comas por puntos en coordenadas
         df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
@@ -556,22 +558,17 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR
+# C. ROL: SUPERVISOR (FILTRADO COMPLETO POR CUADRANTE NORMALIZADO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes.")
     else:
-        # --- FILTRADO PERIMETRAL SEGURO (MÁXIMA PRECISIÓN) ---
+        # Cruce directo normalizado sin residuos de memoria en strings
         sup_activo_normalizado = str(st.session_state.user_sel).strip().upper()
 
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
-            # Forzamos limpieza en caliente de la columna para evitar herencias falsas
-            df_limpio = df_objetivos.copy()
-            df_limpio['SUPERVISOR'] = df_limpio['SUPERVISOR'].astype(str).str.strip().str.upper()
-            df_limpio['OBJETIVO'] = df_limpio['OBJETIVO'].astype(str).str.strip()
-            
-            # Aplicamos el filtro estricto de cuadrante
-            df_objetivos_filtrados = df_limpio[df_limpio['SUPERVISOR'] == sup_activo_normalizado]
+            # Filtramos de forma estricta usando el dataframe ya sanitizado desde el core
+            df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado]
         else:
             df_objetivos_filtrados = pd.DataFrame()
 
