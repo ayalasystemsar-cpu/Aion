@@ -216,10 +216,11 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (CONTROL CON LOGIN REFORZADO POR ESQUEMA ROBUSTO) ---
+# --- 5. SIDEBAR TÁCTICO (NÓMINA DE SUPERVISORES COMPLETA) ---
 df_objetivos = cargar_objetivos()
 
 LISTA_SUPS_TACTICOS = [
+    "AYALA BRIAN",
     "SUPERVISOR 1", 
     "SUPERVISOR 2", 
     "SUPERVISOR 3", 
@@ -274,6 +275,8 @@ with st.sidebar:
             
             if "NOCTURNO" in nom_sup:
                 usuario_esperado = "nocturno"
+            elif "AYALA" in nom_sup:
+                usuario_esperado = "ayala"
             else:
                 usuario_esperado = nom_sup.split(" ")[1]
             
@@ -541,56 +544,60 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (BRINDAJE DE ASIGNACIÓN GEOGRÁFICA HARDCODED PARA TODOS LOS ROLES)
+# C. ROL: SUPERVISOR (SEGMENTACIÓN HARDCODED ABSOLUTA)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
-        # --- MATRIZ MAESTRA TÁCTICA HARDCODED ---
+        # --- MATRIZ MAESTRA TÁCTICA HARDCODED (DISTRITO COMPLETO DE FUERZAS) ---
         MAPA_ASIGNACIONES_MAESTRAS = {
+            "AYALA BRIAN": [
+                "BARRIO EL CAMPO", "BARRIO LA DAMASIA", "BARRIO LA LAGUNA", "B. P. LOS PILARES-BUNKER",
+                "CONSORCIO JARAMILLO 2010", "CONSORCIO MARTINEZ", "PALOPOLI FLORIDA", "OTIS",
+                "JARDINES DEL LIBERTADOR", "CASA GARIN"
+            ],
             "SUPERVISOR 1": [
-                "ALFAVINIL", "BELLA GUATEMALA", "BELLINI ESMERALDA", "PALACIO BELLINI", 
-                "JARDINES DEL LIBERTADOR", "CONSORCIO WOW", "TRONADOR", "COLEGIO EL SALVADOR"
+                "ALFAVINIL", "ALRA S.A", "ALUMINIO AMERICANO", "BELLA GUATEMALA", 
+                "BELLINI ESMERALDA", "PALACIO BELLINI"
             ],
             "SUPERVISOR 2": [
-                "AMCHAM", "AERO PUERTO", "AERO ESTACION", "AERO CARGO", 
-                "BARRANCAS DE RAMSAY", "BRINKMANN", "CABLEVISIÓN RECONQUISTA", "CASA CENTRAL"
+                "CALSA LANUS", "CALSA SUCRE", "CERAMICAS MARTIN", "CEVIG S.A", 
+                "CONSORCIO ARENALES", "CONSORCIO DRAGONES"
             ],
             "SUPERVISOR 3": [
-                "COSTA SALGUERO", "DOMINÓS PIZZA", "EDIFICIO VOLTA", "EMBAJADA SUIZA", 
-                "ESTACIÓN RETIRO", "FÁBRICA ALVEAR", "FRIGORÍFICO PAMPA", "GALERÍAS PACÍFICO"
+                "CONSORCIO LAS HERAS", "CONSORCIO OLAZABAL", "PALACIO AVELLANEDA", 
+                "COLEGIO EL SALVADOR", "CONS. TORRES FLORECIA", "CONSORCIO BUSTAMANTE"
             ],
             "SUPERVISOR 4": [
-                "HOTEL SHERATON", "INDUSTRIA ARGENTINA", "JUMBO PALERMO", "KRAFT FOODS", 
-                "LABORATORIOS ROCHE", "LOGÍSTICA NORTE", "MÁXIMO PAZ", "NÚCLEO ALFA"
+                "HOSPITAL ALEMÁN", "IDT", "CONSORCIO ARCOS", "CONSORCIO CORONADO", 
+                "LOGARTE 1", "LOGARTE 2"
             ],
             "SUPERVISOR 5": [
-                "PORTÓN SUR", "QUÍMICA OESTE", "RETIRO CARGO", "SIDERCA Campana", 
-                "TERMINAL 4", "UNICENTER SHOPPING", "VILLA ASUNCIÓN", "ZONA FRANCA"
+                "FARMACIA TKL", "DEPOSITO AUTOS DEL SOL 1", "PERMAQUIM S.A.", 
+                "DOMUS PARQUE", "CONSORCIO WOW", "TRONADOR"
             ],
             "SUPERVISOR NOCTURNO": [
-                "PATRULLA ALFA", "RONDA NOCTURNA CENTRAL", "PERÍMETRO GLOBAL", "BASE OPERATIVA", 
-                "PUESTO DE CONTROL 1", "PUESTO DE CONTROL 2", "ZONA INDUSTRIAL", "ANEXO LOGÍSTICO"
+                "CONSORCIO GREEN HOUSE", "CONSORCIO ENRIQUE MARTÍNEZ", 
+                "BELLA ORO", "CONSORCIO PARAGUAY"
             ]
         }
 
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
-        # Intentamos buscar el set de objetivos hardcoded correspondiente
+        # Filtramos objetivos autorizados
         lista_objetivos_autorizados = []
         for clave, objetivos in MAPA_ASIGNACIONES_MAESTRAS.items():
             if clave in sup_activo_normalizado:
                 lista_objetivos_autorizados = objetivos
                 break
 
-        # Ejecutamos el filtro sobre el DataFrame global
         if not df_objetivos.empty:
             if lista_objetivos_autorizados:
-                # Si el supervisor está mapeado en nuestro diccionario táctico, filtramos directamente por su lista fija de 8 objetivos
+                # Filtrado estricto por la lista táctica asignada por el comando
                 df_objetivos_filtrados = df_objetivos[df_objetivos['OBJETIVO'].astype(str).str.strip().str.upper().isin([obj.upper() for obj in lista_objetivos_autorizados])]
-            elif 'RESPONSABLES' in df_objetivos.columns:
-                # Si es un supervisor nuevo externo, cae en el filtro dinámico de la columna RESPONSABLES
-                df_objetivos_filtrados = df_objetivos[df_objetivos['RESPONSABLES'].astype(str).str.strip().str.upper() == st.session_state.user_sel.strip().upper()]
+            elif 'SUPERVISOR' in df_objetivos.columns:
+                # Si no está en el mapa estático, busca por coincidencia directa en la columna del Sheets
+                df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == st.session_state.user_sel.strip().upper()]
             else:
                 df_objetivos_filtrados = df_objetivos.copy()
         else:
@@ -642,7 +649,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                     ).add_to(m_visor)
             else:
-                # Centro por defecto en Buenos Aires si no hay coordenadas cargadas en la fila
                 m_visor = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
                 st.warning("⚠️ No se detectaron coordenadas válidas en la matriz para estos objetivos.")
                 
@@ -724,7 +730,7 @@ elif st.session_state.rol_sel == "GERENCIA":
     with t_tab_auditoria:
         st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_ger_maps.empty else pd.DataFrame()
+        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_objetivos.empty else pd.DataFrame()
         centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_ger_maps.empty:
