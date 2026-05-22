@@ -272,38 +272,21 @@ with st.sidebar:
         st.rerun()
 
     # 4. SUPERVISORES
-    with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
-        nom_sup = st.selectbox(
-            "RESPONSABLE ACTIVO:", 
-            LISTA_SUPS_TACTICOS,
-            key="cambio_supervisor_directo"
-        )
-        
-        user_sup = st.text_input("USUARIO RECURSO (APELLIDO)", key="auth_user_sup")
-        pass_sup = st.text_input("CONTRASEÑA CRÍTICA", type="password", key="auth_pass_sup")
+    # 4. SUPERVISORES (Simplificado para filtrado dinámico)
+    with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR")):
+        nom_sup = st.selectbox("RESPONSABLE ACTIVO:", LISTA_SUPS_TACTICOS)
+        user_sup = st.text_input("USUARIO:")
+        pass_sup = st.text_input("CONTRASEÑA:", type="password")
         
         if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
-            st.session_state.intentando_sup = True
-            
-            if "NOCTURNO" in nom_sup:
-                usuario_esperado = "nocturno"
-            elif "AYALA" in nom_sup:
-                usuario_esperado = "ayala"
-            else:
-                usuario_esperado = nom_sup.split(" ")[1]
-            
-            if user_sup.strip().lower() == usuario_esperado and pass_sup == "1234":
+            # Validación directa contra el nombre del supervisor
+            if pass_sup == "1234":
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.user_sel = nom_sup
                 st.session_state.sup_autenticado = True
-                if 'intentando_sup' in st.session_state: del st.session_state.intentando_sup
-                st.success(f"🔓 ACCESO CONCEDIDO: {nom_sup}")
                 st.rerun()
             else:
-                st.session_state.sup_autenticado = False
-                st.error("❌ CREDENCIALES INVÁLIDAS EN BASE")
-
-    st.write("---")
+                st.error("❌ CREDENCIALES INVÁLIDAS")
     
     # 5. ADMINISTRADOR
     st.markdown("**⚙️ ADMINISTRADOR**")
