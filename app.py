@@ -72,7 +72,7 @@ def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
-        # Limpieza de coordenadas sin eliminar filas vacías
+        # Limpieza profunda de coordenadas numéricas
         df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df 
@@ -216,7 +216,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (NÓMINA DE SUPERVISORES COMPLETA) ---
+# --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
 
 LISTA_SUPS_TACTICOS = [
@@ -544,62 +544,18 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (SEGMENTACIÓN HARDCODED ABSOLUTA)
+# C. ROL: SUPERVISOR (NÚCLEO 100% DINÁMICO RECTIFICADO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
-        # --- MATRIZ MAESTRA TÁCTICA HARDCODED (DISTRITO COMPLETO DE FUERZAS) ---
-        MAPA_ASIGNACIONES_MAESTRAS = {
-            "AYALA BRIAN": [
-                "BARRIO EL CAMPO", "BARRIO LA DAMASIA", "BARRIO LA LAGUNA", "B. P. LOS PILARES-BUNKER",
-                "CONSORCIO JARAMILLO 2010", "CONSORCIO MARTINEZ", "PALOPOLI FLORIDA", "OTIS",
-                "JARDINES DEL LIBERTADOR", "CASA GARIN"
-            ],
-            "SUPERVISOR 1": [
-                "ALFAVINIL", "ALRA S.A", "ALUMINIO AMERICANO", "BELLA GUATEMALA", 
-                "BELLINI ESMERALDA", "PALACIO BELLINI"
-            ],
-            "SUPERVISOR 2": [
-                "CALSA LANUS", "CALSA SUCRE", "CERAMICAS MARTIN", "CEVIG S.A", 
-                "CONSORCIO ARENALES", "CONSORCIO DRAGONES"
-            ],
-            "SUPERVISOR 3": [
-                "CONSORCIO LAS HERAS", "CONSORCIO OLAZABAL", "PALACIO AVELLANEDA", 
-                "COLEGIO EL SALVADOR", "CONS. TORRES FLORECIA", "CONSORCIO BUSTAMANTE"
-            ],
-            "SUPERVISOR 4": [
-                "HOSPITAL ALEMÁN", "IDT", "CONSORCIO ARCOS", "CONSORCIO CORONADO", 
-                "LOGARTE 1", "LOGARTE 2"
-            ],
-            "SUPERVISOR 5": [
-                "FARMACIA TKL", "DEPOSITO AUTOS DEL SOL 1", "PERMAQUIM S.A.", 
-                "DOMUS PARQUE", "CONSORCIO WOW", "TRONADOR"
-            ],
-            "SUPERVISOR NOCTURNO": [
-                "CONSORCIO GREEN HOUSE", "CONSORCIO ENRIQUE MARTÍNEZ", 
-                "BELLA ORO", "CONSORCIO PARAGUAY"
-            ]
-        }
-
+        # --- FILTRADO DIRECTO Y SANITIZADO ---
+        # Remueve diccionarios fijos. Cruza directamente contra la columna SUPERVISOR del Sheets
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-        
-        # Filtramos objetivos autorizados
-        lista_objetivos_autorizados = []
-        for clave, objetivos in MAPA_ASIGNACIONES_MAESTRAS.items():
-            if clave in sup_activo_normalizado:
-                lista_objetivos_autorizados = objetivos
-                break
 
-        if not df_objetivos.empty:
-            if lista_objetivos_autorizados:
-                # Filtrado estricto por la lista táctica asignada por el comando
-                df_objetivos_filtrados = df_objetivos[df_objetivos['OBJETIVO'].astype(str).str.strip().str.upper().isin([obj.upper() for obj in lista_objetivos_autorizados])]
-            elif 'SUPERVISOR' in df_objetivos.columns:
-                # Si no está en el mapa estático, busca por coincidencia directa en la columna del Sheets
-                df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == st.session_state.user_sel.strip().upper()]
-            else:
-                df_objetivos_filtrados = df_objetivos.copy()
+        if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
+            # Filtro dinámico absoluto eliminando espacios en blanco al inicio y al final
+            df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
         else:
             df_objetivos_filtrados = df_objetivos.copy()
 
@@ -635,12 +591,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             
-            # Limpieza y renderizado en el mapa oscuro exclusivo del supervisor activo
+            # Limpieza y renderizado de coordenadas sin pérdida de filas por parseo parcial
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             
             if not df_mapa_sup.empty:
                 centro = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()]
-                m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+                m_visor = folium.Map(location=centro, zoom_start=11, tiles="CartoDB dark_matter")
                 
                 for _, r in df_mapa_sup.iterrows():
                     folium.Marker(
@@ -730,7 +686,7 @@ elif st.session_state.rol_sel == "GERENCIA":
     with t_tab_auditoria:
         st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_objetivos.empty else pd.DataFrame()
+        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_ger_maps.empty else pd.DataFrame()
         centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_ger_maps.empty:
