@@ -73,11 +73,11 @@ def cargar_objetivos():
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
         
-        # Filtrado inmediato de filas fantasma
+        # Filtrado inmediato de filas fantasmas al fondo del Sheets
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
         
-        # Corrección de formato para celdas con comas
+        # Corrección automática de comas por puntos en coordenadas
         df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
         df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
         
@@ -224,11 +224,11 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (CORREGIDO TEXTO REAL: AYALA BRAIAN) ---
+# --- 5. SIDEBAR TÁCTICO (SOLO AYALA BRIAN - LÓGICA LIMPIA) ---
 df_objetivos = cargar_objetivos()
 
 LISTA_SUPS_TACTICOS = [
-    "AYALA BRAIAN",
+    "AYALA BRIAN",
     "SUPERVISOR 1", 
     "SUPERVISOR 2", 
     "SUPERVISOR 3", 
@@ -552,12 +552,12 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (NÚCLEO DINÁMICO SANITIZADO SINCRO EXAC TA)
+# C. ROL: SUPERVISOR (FILTRADO DIRECTO 1 A 1 CONTRA EL SIDEBAR - SIN TRADUCCIONES EN COLA)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
-        # --- FILTRADO DIRECTO CONTRA LA COLUMNA EXCEL ---
+        # --- FILTRADO DIRECTO SIN INTERCEPCIÓN ---
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
 
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
