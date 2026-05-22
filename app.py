@@ -77,7 +77,7 @@ def cargar_objetivos():
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
         
-        # 2. Sanitización estricta de la columna SUPERVISOR para evitar herencias falsas
+        # 2. Sanitización estricta de la columna SUPERVISOR para evitar herencias falsas o espacios extras
         if 'SUPERVISOR' in df.columns:
             df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
         
@@ -521,7 +521,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     with t_crisis:
         st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_objetivos.empty else pd.DataFrame()
+        df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_obj_maps_jefe.empty else pd.DataFrame()
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_obj_maps_jefe.empty:
@@ -556,18 +556,18 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (FILTRADO DIRECTO 1 A 1 CONTRA EL SIDEBAR - SIN TRADUCCIONES EN COLA)
+# C. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
-        # --- FILTRADO DIRECTO SIN INTERCEPCIÓN ---
+        # --- FILTRADO DIRECTO 1 A 1 CONTRA EL SIDEBAR ---
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
 
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
         else:
-            df_objetivos_filtrados = df_objetivos.copy()
+            df_objetivos_filtrados = pd.DataFrame()
 
         st.subheader("Control de Unidad Móvil")
         
@@ -593,7 +593,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_car_tac, t_com_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
         
         with t_vis_qr:
-            # Desinfectar opciones muertas para que muestre la cantidad exacta
             if not df_objetivos_filtrados.empty:
                 opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique()
             else:
@@ -609,30 +608,32 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             
-            # El mapa toma filas numéricas válidas
+            # --- MOTOR DE RENDERIZADO TÁCTICO DE MAPAS REAC-DINA ---
             if not df_objetivos_filtrados.empty:
-                df_mapa_sup = df_objetivos_filtrados[
-                    df_objetivos_filtrados['LATITUD'].notna() & 
-                    df_objetivos_filtrados['LONGITUD'].notna()
-                ]
+                df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
+                df_mapa_sup['LATITUD'] = pd.to_numeric(df_mapa_sup['LATITUD'], errors='coerce')
+                df_mapa_sup['LONGITUD'] = pd.to_numeric(df_mapa_sup['LONGITUD'], errors='coerce')
+                df_mapa_sup = df_mapa_sup.dropna(subset=['LATITUD', 'LONGITUD'])
             else:
                 df_mapa_sup = pd.DataFrame()
             
             if not df_mapa_sup.empty:
-                centro = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()]
-                m_visor = folium.Map(location=centro, zoom_start=11, tiles="CartoDB dark_matter")
+                # Centro de masa del vector de los objetivos del supervisor logueado
+                centro_coordenadas = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()]
+                m_visor = folium.Map(location=centro_coordenadas, zoom_start=12, tiles="CartoDB dark_matter")
                 
                 for _, r in df_mapa_sup.iterrows():
+                    tooltip_html = f"🎯 <b>OBJETIVO:</b> {r['OBJETIVO']}<br>👤 <b>RESPONSABLE:</b> {sup_activo_normalizado}"
                     folium.Marker(
                         [r['LATITUD'], r['LONGITUD']], 
-                        tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}<br>👤 RESPONSABLE: {st.session_state.user_sel}", 
+                        tooltip=folium.Tooltip(tooltip_html, sticky=True), 
                         icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                     ).add_to(m_visor)
             else:
-                m_visor = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
+                m_visor = folium.Map(location=[-34.6037, -58.3816], zoom_start=12, tiles="CartoDB dark_matter")
                 st.warning("⚠️ No se detectaron coordenadas válidas en la matriz para estos objetivos.")
                 
-            st_folium(m_visor, width="100%", height=500, key="map_supervisor_exclusivo_visita_qr")
+            st_folium(m_visor, width="100%", height=500, key=f"map_visor_sup_dinamico_{sup_activo_normalizado}")
             st.markdown('</div>', unsafe_allow_html=True)
             
         with t_car_tac:
@@ -744,5 +745,5 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
         nuevo_nombre = st.text_input("Nombre:").upper()
         if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentINA(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
             st.success("Alta Exitosa")
