@@ -67,18 +67,17 @@ def leer_matriz_nube(pestana):
         except: return pd.DataFrame()
     return pd.DataFrame()
 
-# --- BLINDAJE DE INFRAESTRUCTURA CONTRA FILAS MUERTAS Y COMAS ---
 @st.cache_data(ttl=60)
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
         
-        # Filtrado inmediato de filas fantasma que están vacías al fondo del Sheets
+        # Filtrado inmediato de filas fantasma
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
         
-        # Corrección de formato para celdas con comas (Inmunidad para Supervisor 4)
+        # Corrección de formato para celdas con comas
         df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
         df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
         
@@ -225,11 +224,11 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO ---
+# --- 5. SIDEBAR TÁCTICO (CORREGIDO TEXTO REAL: AYALA BRAIAN) ---
 df_objetivos = cargar_objetivos()
 
 LISTA_SUPS_TACTICOS = [
-    "AYALA BRIAN",
+    "AYALA BRAIAN",
     "SUPERVISOR 1", 
     "SUPERVISOR 2", 
     "SUPERVISOR 3", 
@@ -457,7 +456,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     fila_excel = alertas_activas.index[-1] + 2
                     actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
                     actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
-                    st.success("✅ Operativo Finalizado")
+                    st.success("¼ Accesi_concedido: Operativo Finalizado")
                     st.rerun()
 
     with t_gestion:
@@ -553,12 +552,12 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (NÚCLEO DINÁMICO SANITIZADO SIN SERVICIOS DE MÁS)
+# C. ROL: SUPERVISOR (NÚCLEO DINÁMICO SANITIZADO SINCRO EXAC TA)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
-        # --- FILTRADO DIRECTO Y SANITIZADO CONTRA LA COLUMNA SUPERVISOR ---
+        # --- FILTRADO DIRECTO CONTRA LA COLUMNA EXCEL ---
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
 
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
@@ -590,7 +589,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_car_tac, t_com_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación"])
         
         with t_vis_qr:
-            # --- PARCHE DE LIMPIEZA TOTAL PARA LOS SELECTORES (EVITA EL "SERVICIOS DE MÁS") ---
+            # Desinfectar opciones muertas para que muestre la cantidad exacta
             if not df_objetivos_filtrados.empty:
                 opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique()
             else:
@@ -606,7 +605,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             
-            # --- PARCHE DE COORDENADAS RECTIFICADAS PARA MAPAS (INCLUYE SUPERVISOR 4 Y NOCTURNO) ---
+            # El mapa toma filas numéricas válidas
             if not df_objetivos_filtrados.empty:
                 df_mapa_sup = df_objetivos_filtrados[
                     df_objetivos_filtrados['LATITUD'].notna() & 
