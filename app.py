@@ -33,7 +33,7 @@ def conectar_google():
 
 # --- 3. FUNCIONES DE LÓGICA Y DATOS ---
 def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_ Aires")
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
 def actualizar_celda(pestana, fila, columna, valor):
