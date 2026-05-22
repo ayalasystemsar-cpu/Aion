@@ -73,9 +73,13 @@ def cargar_objetivos():
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
         
-        # Filtrado inmediato de filas fantasmas al fondo del Sheets
+        # 1. Filtramos de raíz celdas que visualmente parezcan vacías o tengan puros espacios
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
+        
+        # 2. Sanitización estricta de la columna SUPERVISOR para evitar herencias falsas
+        if 'SUPERVISOR' in df.columns:
+            df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
         
         # Corrección automática de comas por puntos en coordenadas
         df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
@@ -224,7 +228,7 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. SIDEBAR TÁCTICO (SOLO AYALA BRIAN - LÓGICA LIMPIA) ---
+# --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
 
 LISTA_SUPS_TACTICOS = [
@@ -740,5 +744,5 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
         nuevo_nombre = st.text_input("Nombre:").upper()
         if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentINA(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
             st.success("Alta Exitosa")
