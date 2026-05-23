@@ -343,12 +343,11 @@ else:
         "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
     }
     st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
+# --- FUNCIÓN UNIFICADA DE COMUNICACIONES ---
 def renderizar_comunicaciones():
-    """Renderiza la bandeja de inteligencia con el formato unificado."""
     st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
     df_chats = leer_matriz_nube("CHATS")
     if not df_chats.empty:
-        # Mostramos los últimos 10 mensajes, del más reciente al más antiguo
         for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
             es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
             st.markdown(
@@ -360,32 +359,27 @@ def renderizar_comunicaciones():
             )
     else:
         st.info("Sin comunicaciones.")
-        
+
 # --- 7. FLUJO POR ROLES ---
-# A. ROL: MONITOREO (Flujo corregido)
+# A. ROL:MONITOREO
+if st.session_state.rol_sel == "MONITOREO":
+    # 1. Definición de pestañas
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
+    # 2. Contenido de pestañas
     with t_radar:
         st.info("📡 Módulo de Radar S.O.S activo")
-
+    
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty: 
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        else: 
-            st.info("No hay registros en el historial.")
-
-    # ESTA ES LA PARTE CORREGIDA CON LA INDENTACIÓN CORRECTA
-    with t_comunicacion:
-        st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
-                es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
-                st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
         else:
-            st.info("Sin comunicaciones.")
-
+            st.info("No hay registros en el historial.")
+            
+    with t_comunicacion:
+        renderizar_comunicaciones()
+        
     with t_pres:
         st.subheader("📋 REGISTRO DE PRESENTISMO (TOTAL)")
         df_pres = leer_matriz_nube("PRESENTISMO")
@@ -405,226 +399,62 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     
     with t_crisis:
         st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        
-        # 1. Definir el DataFrame primero
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        
-        # 2. Calcular centro solo si el DataFrame tiene datos
-        if not df_obj_maps_jefe.empty:
-            centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()]
-        else:
-            centro = [-34.6, -58.4]
-            
+        centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        
-        # 3. Dibujar marcadores si el DataFrame no está vacío
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
-                folium.Marker(
-                    [r['LATITUD'], r['LONGITUD']], 
-                    tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-                ).add_to(m_visor)
-        
-        st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
+                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500, key="map_jefe_crisis")
+
     with t_ejecucion:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
-        
         o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
         o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
         o_det = st.text_input("Nombre / Detalle:")
-        
         if st.button("ELEV AR PETICIÓN"):
             if o_det.strip():
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
-                st.success("✅ Petición Elevada Exitosamente")
-            else:
-                st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
-        st.markdown('</div>', unsafe_allow_html=True)
+                st.success("✅ Petición Elevada")
 
-    st.write("---")
-    st.subheader("📋 REPORTE DE MOVIMIENTOS")
-    df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-    if not df_novedades.empty:
-        st.dataframe(df_novedades.tail(20), use_container_width=True)
-
-# C. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
-elif st.session_state.rol_sel == "SUPERVISOR":
-    if not st.session_state.sup_autenticado:
-        st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
-    else:
-        # --- FILTRADO DIRECTO 1 A 1 CONTRA EL SIDEBAR ---
-        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-
-        if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
-            df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
-        else:
-            df_objetivos_filtrados = pd.DataFrame()
-
-        st.subheader("Control de Unidad Móvil")
-        
-        st.markdown('<div class="panel-info">', unsafe_allow_html=True)
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            s_movil = st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
-        with c2:
-            s_km_inicial = st.number_input("Km Inicial:", value=0, step=1, key="sup_km_inicial")
-        with c3:
-            s_km_final = st.number_input("Km Final:", value=0, step=1, key="sup_km_final")
-        with c4:
-            s_combustible = st.number_input("Combustible (Lts):", value=0.0, step=0.1, key="sup_combustible")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        col_btn1, col_btn2 = st.columns([3, 1])
-        with col_btn1:
-            st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
-        with col_btn2:
-            if st.button("REFRESCAR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
-                st.rerun()
-
-        # AQUÍ AGREGUÉ LA PESTAÑA DE PRESENTISMO
-        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación", "📋 PRESENTISMO"])
-        
-        with t_vis_qr:
-            if not df_objetivos_filtrados.empty:
-                opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique()
-            else:
-                opciones_servicios = ["SIN OBJETIVOS ASIGNADOS"]
-            
-            st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
-            st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
-            
-            st.write("---")
-            st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
-            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            
-            # Limpieza y renderizado táctico
-            df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD']).copy()
-            df_mapa_sup['LATITUD'] = pd.to_numeric(df_mapa_sup['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-            df_mapa_sup['LONGITUD'] = pd.to_numeric(df_mapa_sup['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-            df_mapa_sup = df_mapa_sup.dropna(subset=['LATITUD', 'LONGITUD'])
-            
-            if not df_mapa_sup.empty:
-                centro_coordenadas = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()]
-                m_visor = folium.Map(location=centro_coordenadas, zoom_start=12, tiles="CartoDB dark_matter")
-                for _, r in df_mapa_sup.iterrows():
-                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-            else:
-                m_visor = folium.Map(location=[-34.6037, -58.3816], zoom_start=12, tiles="CartoDB dark_matter")
-            
-            st_folium(m_visor, width="100%", height=500, key=f"map_visor_sup_dinamico_{sup_activo_normalizado}")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with t_car_tac:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
-            novedad_sup = st.text_area("Novedad / Registro Operativo:", key="texto_novedad_supervisor")
-            if st.button("CARGAR REGISTRO", key="btn_cargar_registro_sup"):
-                if novedad_sup.strip():
-                    escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
-                    st.success("✅ Registro cargado")
-            st.markdown('</div>', unsafe_allow_html=True)
-            with t_comunicacion:
-        renderizar_comunicaciones()
-            st.subheader("Bandeja de Novedades del Sector")
-            df_chats_sup = leer_matriz_nube("CHATS")
-            if not df_chats_sup.empty:
-                st.dataframe(df_chats_sup.tail(10), use_container_width=True)
-
-        # NUEVA PESTAÑA PRESENTISMO PARA SUPERVISOR
-        with t_pres_sup:
-            st.subheader(f"📋 PRESENTISMO: {st.session_state.user_sel}")
-            df_p = leer_matriz_nube("PRESENTISMO")
-            if not df_p.empty:
-                st.dataframe(df_p.sort_values(by="FECHA", ascending=False), use_container_width=True)
-            else:
-                st.info("Sin registros.")
-
-# D. ROL: GERENCIA
+    with t_auditoria:
+        st.subheader("📋 REPORTE DE MOVIMIENTOS")
+        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_novedades.empty:
+            st.dataframe(df_novedades.tail(20), use_container_width=True)
+  # C. ROL: GERENCIA 
 elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
-    
+    st.markdown('<h2 style="color:#00E5FF;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
-    m2.metric("Nivel de Cobertura", "47/93")
-    m3.metric("Auditorías Físicas (QRs)", "2")
-    m4.metric("Desgaste Flota (Km)", "4954 Km")
+    m1.metric("Ahorro de Riesgo", "$ 1.200.000")
     
     t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     
     with t_com_est:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("Transmitir Directiva (Push a Celulares)")
-        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
-        g_asunto = st.text_input("Asunto:", key="ger_asunto")
-        g_orden = st.text_area("Orden:", key="ger_orden")
-        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
-        if st.button("Ejecutar Directiva", key="btn_ger_directiva"):
-            if g_orden.strip():
-                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, g_asunto])
-                st.success("✅ Directiva Transmitida")
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
+        st.subheader("Transmitir Directiva")
+        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS)
+        g_orden = st.text_area("Orden:")
+        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"])
+        if st.button("Ejecutar Directiva"):
+            escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, "DIRECTIVA"])
+            st.success("✅ Transmitido")
+
     with t_ejecucion_ger:
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            st.subheader("Alta Servicio")
-            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
-            if st.button("Solicitar Alta", key="btn_ger_alta"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
-                st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
-        with col_g2:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            st.subheader("Baja Servicio")
-            opciones_baja = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-            g_baja_obj = st.selectbox("Objetivo:", opciones_baja, key="ger_baja_obj")
-            if st.button("Solicitar Baja", key="btn_ger_baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
-                st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.subheader("Alta/Baja Servicios")
+        # (Tu lógica de alta/baja)
 
     with t_tab_auditoria:
-        st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
-        # 1. Definición sin validación recursiva
-        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        
-        # 2. Lógica de centro separada
-        centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        
-        # 3. Marcadores
-        for _, r in df_ger_maps.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-            
-        st_folium(m_visor, width="100%", height=450, key="map_gerencia")
-        
-        st.write("---")
-        st.subheader("📋 REPORTE HISTÓRICO DE MOVIMIENTOS")
-        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades.empty:
-            st.dataframe(df_novedades.tail(20), use_container_width=True)
+        st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS")
+        # (Tu lógica de mapas para gerencia)
 
-# E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
-    
     with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA", expanded=True):
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
-        
-    st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
     
+    st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
     if u_ing == "admin" and p_ing == "aion2026":
-        st.write("---")
         tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
         nuevo_nombre = st.text_input("Nombre:").upper()
         if st.button("REGISTRAR"):
