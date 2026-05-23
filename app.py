@@ -410,8 +410,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.success("Solicitud enviada")
 
 # C. ROL: JEFE DE OPERACIONES
-
-# C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
@@ -472,9 +470,9 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
 
 # D. ROL: SUPERVISOR
-t.session_state.rol_sel == "SUPERVISOR":
+  elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
-        st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
+        st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES."
     else:
         # --- FILTRADO DIRECTO 1 A 1 CONTRA EL SIDEBAR ---
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
