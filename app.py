@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -101,6 +102,12 @@ def aplicar_identidad_alfa():
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
         }
         
+        .titulo-seccion-admin {
+            color: #00E5FF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: bold;
+            margin-top: 25px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;
+            letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+        }
+
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
         .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
@@ -129,6 +136,10 @@ def aplicar_identidad_alfa():
             font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
         .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
+        
+        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
+        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
+        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
         </style>
         """, unsafe_allow_html=True
     )
@@ -206,7 +217,6 @@ with st.sidebar:
         st.rerun()
 
     st.write("---")
-    # ⚡ COMIENZO DE BLINDAJE CONTRA EL ERROR 'coords' (KeyError) ⚡
     lat_envio, lon_envio = 0.0, 0.0
     try:
         loc = get_geolocation()
@@ -462,53 +472,126 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     st.error("❌ ERROR: Complete los campos de personal saliente y entrante.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ⚡ D. RECONSTRUCCIÓN: ROL JEFE DE OPERACIONES ⚡
+# --- 🛰️ D. RESTAURACIÓN ORIGINAL: JEFE DE OPERACIONES ---
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    st.markdown("### 📋 TABLERO TÁCTICO DE SUPERVISIÓN DE CAMPO")
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("MÓVILES EN RUTA", "3 ACTIVOS")
-    col2.metric("EFECTIVIDAD COBERTURA", "100%")
-    col3.metric("ÚLTIMO REPORTE S.O.S", "SIN ALERTAS ACTIVAS")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🚨 S.O.S ACTIVOS", "0")
+    col2.metric("📡 RED", "OPERATIVA")
+    col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
+    col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    st.write("---")
-    st.markdown("#### 🛰️ UBICACIONES GEOGRÁFICAS DE PUESTOS Y MÓVILES")
-    df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-    if not df_obj_maps_jefe.empty:
-        m_visor = folium.Map(location=[df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-        for _, r in df_obj_maps_jefe.iterrows():
-            folium.Marker(
-                [r['LATITUD'], r['LONGITUD']], 
-                tooltip=f"OBJETIVO: {r['OBJETIVO']}",
-                icon=folium.Icon(color="red", icon="shield", prefix="fa")
-            ).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=500, key="mapa_jefe_operaciones_tactico")
+    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
     
-    st.markdown("#### 📑 REGISTROS DE INSPECCIÓN GENERAL")
-    df_novedades_globales = leer_matriz_nube("NOVEDADES_GUARDIA")
-    if not df_novedades_globales.empty:
-        st.dataframe(df_novedades_globales.sort_values(by=df_novedades_globales.columns[0], ascending=False), use_container_width=True)
-
-# ⚡ E. RECONSTRUCCIÓN: ROL GERENCIA ⚡
-elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown("### 🏢 PANEL DE DIRECCIÓN Y FISCALIZACIÓN GENERAL")
-    
-    g1, g2, g3 = st.columns(3)
-    with g1:
-        st.metric(label="📊 ESTADO OPERATIVO DE RED", value="ÓPTIMO", delta="100% CUBIERTO")
-    with g2:
-        df_p = leer_matriz_nube("PRESENTISMO")
-        conteo_presentes = len(df_p) if not df_p.empty else 0
-        st.metric(label="👥 TOTAL ASISTENCIAS HOY", value=f"{conteo_presentes} MARCADAS")
-    with g3:
-        st.metric(label="🔒 COMPLIANCE BIOMÉTRICO", value="ACTIVO")
+    with t_crisis:
+        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
-    st.write("---")
-    st.markdown("#### 📈 AUDITORÍA COMPLETA DE PRESENTISMO MAESTRO")
-    if not df_p.empty:
-        st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
-    else:
-        st.info("Sin registros de presentismo asentados en la jornada.")
+        df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
+        if not df_obj_maps_jefe.empty:
+            centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()]
+        else:
+            centro = [-34.6, -58.4]
+            
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        
+        if not df_obj_maps_jefe.empty:
+            for _, r in df_obj_maps_jefe.iterrows():
+                folium.Marker(
+                    [r['LATITUD'], r['LONGITUD']], 
+                    tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
+                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                ).add_to(m_visor)
+        
+        st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with t_ejecucion:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
+        
+        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
+        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
+        o_det = st.text_input("Nombre / Detalle:")
+        
+        if st.button("ELEV AR PETICIÓN"):
+            if o_det.strip():
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
+                st.success("✅ Petición Elevada Exitosamente")
+            else:
+                st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with t_auditoria:
+        st.subheader("📋 REPORTE DE MOVIMIENTOS")
+        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_novedades.empty:
+            st.dataframe(df_novedades.tail(20), use_container_width=True)
+
+# --- 🏢 E. RESTAURACIÓN ORIGINAL: GERENCIA ---
+elif st.session_state.rol_sel == "GERENCIA":
+    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
+    st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
+    
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
+    m2.metric("Nivel de Cobertura", "47/93")
+    m3.metric("Auditorías Físicas (QRs)", "2")
+    m4.metric("Desgaste Flota (Km)", "4954 Km")
+    
+    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+    
+    with t_com_est:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("Transmitir Directiva (Push a Celulares)")
+        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
+        g_asunto = st.text_input("Asunto:", key="ger_asunto")
+        g_orden = st.text_area("Orden:", key="ger_orden")
+        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
+        if st.button("Ejecutar Directiva", key="btn_ger_directiva"):
+            if g_orden.strip():
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, g_asunto])
+                st.success("✅ Directiva Transmitida")
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with t_ejecucion_ger:
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+            st.subheader("Alta Servicio")
+            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
+            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
+            if st.button("Solicitar Alta", key="btn_ger_alta"):
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
+                st.success("✅ Petición enviada")
+            st.markdown('</div>', unsafe_allow_html=True)
+        with col_g2:
+            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+            st.subheader("Baja Servicio")
+            opciones_baja = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+            g_baja_obj = st.selectbox("Objetivo:", opciones_baja, key="ger_baja_obj")
+            if st.button("Solicitar Baja", key="btn_ger_baja"):
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
+                st.success("✅ Petición enviada")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with t_tab_auditoria:
+        st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
+        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
+        
+        centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        
+        for _, r in df_ger_maps.iterrows():
+            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+            
+        st_folium(m_visor, width="100%", height=450, key="map_gerencia")
+        
+        st.write("---")
+        st.subheader("📋 REPORTE HISTÓRICO DE MOVIMIENTOS")
+        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_novedades.empty:
+            st.dataframe(df_novedades.tail(20), use_container_width=True)
 
 # H. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
