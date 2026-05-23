@@ -415,39 +415,4 @@ elif st.session_state.rol_sel == "GERENCIA":
 
 # F. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
-    
-    # Inicializamos variables para evitar errores
-    if 'auth_admin' not in st.session_state:
-        st.session_state.auth_admin = False
-
-    with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA", expanded=not st.session_state.auth_admin):
-        u_ing = st.text_input("ADMIN_USER", key="admin_user_input")
-        p_ing = st.text_input("ADMIN_PASS", type="password", key="admin_pass_input")
-        
-        if st.button("VALIDAR CREDENCIALES"):
-            if u_ing == "admin" and p_ing == "aion2026":
-                st.session_state.auth_admin = True
-                st.success("Acceso Maestro Concedido")
-            else:
-                st.session_state.auth_admin = False
-                st.error("Credenciales Incorrectas")
-
-    if st.session_state.auth_admin:
-        st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
-        st.write("---")
-        
-        # Formulario de alta
-        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nuevo_nombre = st.text_input("Nombre / Detalle:", key="nuevo_nombre_admin").upper()
-        
-        if st.button("REGISTRAR EN MATRIZ"):
-            if nuevo_nombre.strip():
-                escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-                st.success(f"✅ {tipo} '{nuevo_nombre}' registrado exitosamente.")
-            else:
-                st.warning("⚠️ Debe ingresar un nombre.")
-        
-        if st.button("CERRAR SESIÓN MAESTRA"):
-            st.session_state.auth_admin = False
-            st.rerun()
+    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO</div>', unsafe_allow_html=True)
