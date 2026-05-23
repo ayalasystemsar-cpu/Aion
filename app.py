@@ -1,4 +1,31 @@
+import streamlit as st
+import datetime
+from datetime import datetime
+import pandas as pd
+import pytz
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from streamlit_js_eval import get_geolocation
 
+# --- IMPORTACIONES CRÍTICAS DE MAPAS ---
+import folium
+from folium.plugins import AntPath
+from streamlit_folium import st_folium
+import math
+
+# Configuración de página OLED
+st.set_page_config(
+    page_title="AION-YAROKU | CORE",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
+ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+
+def conectar_google():
+    try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
