@@ -360,6 +360,7 @@ def renderizar_comunicaciones():
             )
     else:
         st.info("Sin comunicaciones.")
+        
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO (Flujo corregido)
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
@@ -392,7 +393,7 @@ def renderizar_comunicaciones():
             st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
             st.info("No hay registros de presentismo.")
-# C. ROL: JEFE DE OPERACIONES
+# B. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
@@ -451,7 +452,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# D. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
+# C. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
@@ -527,8 +528,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
                     st.success("✅ Registro cargado")
             st.markdown('</div>', unsafe_allow_html=True)
-            
-        with t_com_sup:
+            with t_comunicacion:
+        renderizar_comunicaciones()
             st.subheader("Bandeja de Novedades del Sector")
             df_chats_sup = leer_matriz_nube("CHATS")
             if not df_chats_sup.empty:
@@ -543,7 +544,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.info("Sin registros.")
 
-# E. ROL: GERENCIA
+# D. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
