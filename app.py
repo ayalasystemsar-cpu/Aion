@@ -157,7 +157,7 @@ def aplicar_identidad_alfa():
             text-transform: uppercase;
         }
 
-        .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.9); }
+        .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
             color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
@@ -366,8 +366,46 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
     with t_radar:
-        # Aquí va tu lógica actual del radar (m_mon, folium, etc.)
-        st.info("📡 Módulo de Radar S.O.S activo")
+        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        
+        # Filtrado y sanitización de coordenadas para Monitoreo
+        df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        
+        if not df_mapa_monitoreo.empty:
+            # Calcular el centro dinámico de la operación de forma automática
+            centro_monitoreo = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+            
+            # Inicializar mapa táctico oscuro (CartoDB Dark Matter)
+            m_mon = folium.Map(
+                location=centro_monitoreo, 
+                zoom_start=11, 
+                tiles="CartoDB dark_matter",
+                attr="&copy; OpenStreetMap contributors &copy; CartoDB"
+            )
+            
+            # Dibujar cada objetivo con el estilo táctico circular de la captura
+            for _, r in df_mapa_monitoreo.iterrows():
+                # Formateo estricto del Tooltip interactivo al pasar el mouse por encima
+                info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
+                
+                folium.CircleMarker(
+                    location=[r['LATITUD'], r['LONGITUD']],
+                    radius=7,
+                    color="#00E5FF",       # Línea perimetral cian brillante
+                    fill=True,
+                    fill_color="#00E5FF",  # Relleno interno
+                    fill_opacity=0.5,
+                    weight=3,
+                    tooltip=info_hover     # Evento Hover nativo de Folium
+                ).add_to(m_mon)
+        else:
+            # Coordenadas por defecto (Buenos Aires Centro) en caso de que la matriz falle
+            m_mon = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
+            
+        # Renderizar mapa respetando la caja de contención UI
+        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
@@ -489,7 +527,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("REFRESCAR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
                 st.rerun()
 
-        # AQUÍ AGREGUÉ LA PESTAÑA DE PRESENTISMO
+        # Pestañas del Supervisor
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación", "📋 PRESENTISMO"])
         
         with t_vis_qr:
@@ -633,3 +671,4 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         if st.button("REGISTRAR"):
             escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
             st.success("Alta Exitosa")
+
