@@ -143,6 +143,11 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
+        
+        /* PARCHE ALFA: Ocultar cartel de 'empty' en tablas maestras */
+        div[data-testid="stDataFrame"] div[class*="StyledEmptyState"] {
+            display: none !important;
+        }
         </style>
         """, unsafe_allow_html=True
     )
