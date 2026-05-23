@@ -54,7 +54,7 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: return False
 
-@st.cache_data(ttl=5) # 5 segundos de TTL para actualización táctica veloz
+@st.cache_data(ttl=5)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -94,6 +94,39 @@ def cargar_objetivos():
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
     return pd.DataFrame()
+
+# --- NUEVA FUNCIÓN: CÁLCULO TÁCTICO DE COMISARÍA MÁS CERCANA ---
+def obtener_comisaria_mas_cercana(lat_obj, lon_obj):
+    df_comisarias = leer_matriz_nube("COMISARIAS")
+    if df_comisarias.empty:
+        return None
+    
+    df_comisarias.columns = df_comisarias.columns.str.strip().str.upper()
+    df_comisarias['LATITUD'] = pd.to_numeric(df_comisarias['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+    df_comisarias['LONGITUD'] = pd.to_numeric(df_comisarias['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+    df_comisarias = df_comisarias.dropna(subset=['LATITUD', 'LONGITUD'])
+    
+    comisaria_cercana = None
+    distancia_minima = float('inf')
+    
+    for _, c in df_comisarias.iterrows():
+        # Fórmula de Haversine para cálculo de distancia real en la Tierra
+        rad = math.pi / 180
+        dlat = (c['LATITUD'] - lat_obj) * rad
+        dlon = (c['LONGITUD'] - lon_obj) * rad
+        a = math.sin(dlat/2)**2 + math.cos(lat_obj*rad) * math.cos(c['LATITUD']*rad) * math.sin(dlon/2)**2
+        distancia = 2 * 6371 * math.asin(math.sqrt(a)) # Distancia en Km
+        
+        if distancia < distancia_minima:
+            distancia_minima = distancia
+            comisaria_cercana = {
+                "NOMBRE": c['NOMBRE'].strip().upper(),
+                "LATITUD": c['LATITUD'],
+                "LONGITUD": c['LONGITUD'],
+                "DISTANCIA": round(distancia, 2)
+            }
+            
+    return comisaria_cercana
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
 def aplicar_identidad_alfa():
@@ -310,18 +343,74 @@ if st.session_state.rol_sel == "MONITOREO":
                 100% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
             }
             .marker-panic-pulsing { animation: pulse-red-critico 1.1s infinite ease-in-out !important; display: block !important; }
+            .folium-tooltip { background-color: #0c1020 !important; color: #ffffff !important; border: 1px solid #00e5ff !important; border-radius: 4px !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; padding: 8px !important; box-shadow: 0 0 10px rgba(0,229,255,0.4) !important; }
             </style>
             """
             m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
+            
             for _, r in df_mapa_monitoreo.iterrows():
-                info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
-                folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']], radius=7,
-                    color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
-                    tooltip=folium.Tooltip(info_hover, sticky=True),
-                    class_name="marker-panic-pulsing" if r['OBJETIVO'] in lista_objetivos_en_panico else None
-                ).add_to(m_mon)
+                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                sup_resp = r.get('SUPERVISOR', 'NO ASIGNADO')
+                
+                # HTML Tooltip con íconos personalizados para el Hover
+                html_tooltip = f"""
+                <div style='min-width: 180px;'>
+                    <b style='color: #00E5FF;'>🎯 OBJETIVO:</b> {r['OBJETIVO']}<br>
+                    <b style='color: #A0A5B5;'>👤 SUPERVISOR:</b> {sup_resp}
+                </div>
+                """
+                
+                if es_panico:
+                    # Marcador del Objetivo en Alerta Crítica (Rojo e intermitente)
+                    html_tooltip_critico = f"""
+                    <div style='min-width: 180px; border-left: 3px solid #ff0000; padding-left: 4px;'>
+                        <b style='color: #FF0000;'>🚨 ¡S.O.S ACTIVO!</b><br>
+                        <b style='color: #00E5FF;'>🎯 OBJETIVO:</b> {r['OBJETIVO']}<br>
+                        <b style='color: #A0A5B5;'>👤 SUPERVISOR:</b> {sup_resp}
+                    </div>
+                    """
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']], radius=8,
+                        color="#FF0000", fill=True, fill_color="#FF0000",
+                        tooltip=folium.Tooltip(html_tooltip_critico, sticky=True),
+                        class_name="marker-panic-pulsing"
+                    ).add_to(m_mon)
+                    
+                    # Búsqueda matemática real de la Comisaría más cercana en el Excel
+                    comisaria_cercana = obtener_comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'])
+                    
+                    if comisaria_cercana:
+                        # Marcador de la Dependencia Policial Real Encontrada con Hover
+                        html_tooltip_cop = f"""
+                        <div style='min-width: 180px;'>
+                            <b style='color: #3b5998;'>🚓 JURISDICCIÓN POLICIAL:</b><br>{comisaria_cercana['NOMBRE']}<br>
+                            <b style='color: #00E5FF;'>📍 DISTANCIA REAL:</b> {comisaria_cercana['DISTANCIA']} Km
+                        </div>
+                        """
+                        folium.Marker(
+                            location=[comisaria_cercana['LATITUD'], comisaria_cercana['LONGITUD']],
+                            tooltip=folium.Tooltip(html_tooltip_cop, sticky=True),
+                            icon=folium.Icon(color="darkblue", icon="shield-halved", prefix="fa")
+                        ).add_to(m_mon)
+                        
+                        # Trazado de la Ruta de Despliegue de Emergencia con AntPath (Cyan y Rojo)
+                        puntos_ruta = [
+                            [r['LATITUD'], r['LONGITUD']],
+                            [comisaria_cercana['LATITUD'], comisaria_cercana['LONGITUD']]
+                        ]
+                        AntPath(
+                            locations=puntos_ruta, delay=400, weight=4,
+                            color="#00E5FF", pulse_color="#FF0000",
+                            tooltip=f"RUTA ÓPTIMA A {comisaria_cercana['NOMBRE']}"
+                        ).add_to(m_mon)
+                else:
+                    # Marcador Estándar Operativo (Cyan)
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']], radius=6,
+                        color="#00E5FF", fill=True, fill_color="#00E5FF",
+                        tooltip=folium.Tooltip(html_tooltip, sticky=True)
+                    ).add_to(m_mon)
+                    
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -346,7 +435,6 @@ if st.session_state.rol_sel == "MONITOREO":
         df_pres = leer_matriz_nube("PRESENTISMO")
         if df_pres is not None and not df_pres.empty:
             df_pres.columns = df_pres.columns.str.strip().str.upper()
-            # Forzamos mapeo visual alineado estrictamente a la captura 1 del Sheets
             columnas_maestras = ["FECHA", "HORA", "DNI", "NOMBRE Y APE OBJETIVO", "ESTADO", "TIPO DE MARCACION"]
             columnas_validas = [c for c in columnas_maestras if c in df_pres.columns]
             st.dataframe(df_pres[columnas_validas].iloc[::-1], use_container_width=True)
@@ -403,7 +491,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if not df_mapa_sup.empty:
                 m_visor = folium.Map(location=[df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
                 for _, r in df_mapa_sup.iterrows():
-                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+                    html_sup_tooltip = f"<b>🎯 OBJETIVO:</b> {r['OBJETIVO']}<br><b>👤 SUP:</b> {r.get('SUPERVISOR', 'ASIGNADO')}"
+                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=folium.Tooltip(html_sup_tooltip, sticky=True), icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
                 st_folium(m_visor, width="100%", height=400, key=f"map_sup_{sup_activo_normalizado}")
 
         with t_car_tac:
@@ -471,27 +560,16 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
-                    # Separación límpida obligatoria de Fecha y Hora
                     fecha_hora_arg = obtener_hora_argentina()
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     
-                    # Estructura EXACTA según Captura 1 (Pestaña PRESENTISMO):
-                    # FECHA (A) | HORA (B) | DNI (C) | NOMBRE Y APE OBJETIVO (D) | VACIO (E) | ESTADO (F) | TIPO DE MARCACION (G)
                     datos_presentismo = [
-                        fecha_hoy,
-                        hora_hoy,
-                        v_dni,
-                        f"{v_apellido} - {v_obj}",
-                        "",  # Columna E libre requerida
-                        "OK_SISTEMA",
-                        v_tipo_marcacion
+                        fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion
                     ]
                     
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    # Espejo de auditoría unificado y alineado en NOVEDADES_GUARDIA:
-                    # FECHA | OBJETIVO | DNI | TIPO | NOVEDAD | SUPERVISOR
                     escribir_registro_nube("NOVEDADES_GUARDIA", [
                         fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable
                     ])
@@ -516,27 +594,16 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
-                    # Separación límpida obligatoria de Fecha y Hora
                     fecha_hora_arg = obtener_hora_argentina()
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     
-                    # Estructura EXACTA según Captura 2 (Pestaña VIGILADORES):
-                    # FECHA (A) | HORA (B) | OBJETIVO (C) | VIGILADOR_SALIENTE (D) | VIGILADOR_ENTRANTE (E) | SUPERVISOR_ASSIGNADO (F) | ESTADO (G)
                     datos_relevo = [
-                        fecha_hoy,
-                        hora_hoy,
-                        v_obj_relevo,
-                        vig_saliente,
-                        vig_entrante,
-                        sup_responsable,
-                        "RELEVO_EFECTUADO"
+                        fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"
                     ]
                     
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
-                    # Espejo unificado y alineado en NOVEDADES_GUARDIA para que no se corran las celdas:
-                    # FECHA | OBJETIVO | DNI (O IDENTIFICADOR) | TIPO | NOVEDAD | SUPERVISOR
                     escribir_registro_nube("NOVEDADES_GUARDIA", [
                         fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable
                     ])
@@ -567,7 +634,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+                html_jefe_tooltip = f"<b>🎯 OBJETIVO:</b> {r['OBJETIVO']}<br><b>👤 SUP:</b> {r.get('SUPERVISOR', 'ASIGNADO')}"
+                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=folium.Tooltip(html_jefe_tooltip, sticky=True), icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
         st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -634,7 +702,8 @@ elif st.session_state.rol_sel == "GERENCIA":
         centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         for _, r in df_ger_maps.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+            html_ger_tooltip = f"<b>🎯 OBJETIVO:</b> {r['OBJETIVO']}<br><b>👤 SUP:</b> {r.get('SUPERVISOR', 'ASIGNADO')}"
+            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=folium.Tooltip(html_ger_tooltip, sticky=True), icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
         st_folium(m_visor, width="100%", height=450, key="map_gerencia")
 
 # H. ROL: ADMINISTRADOR
@@ -642,4 +711,3 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026": st.success("Núcleo Maestro desbloqueado.")
-
