@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -61,11 +60,21 @@ def leer_matriz_nube(pestana):
     if gc:
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            data = hoja.get_all_records()
-            if not data:
+            todas_filas = hoja.get_all_values()
+            
+            if not todas_filas or len(todas_filas) == 0:
                 return pd.DataFrame()
-            return pd.DataFrame(data)
-        except: return pd.DataFrame()
+                
+            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
+            datos_cuerpo = todas_filas[1:]
+            
+            if len(datos_cuerpo) == 0:
+                return pd.DataFrame(columns=encabezados)
+                
+            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
+            return df
+        except Exception as e: 
+            return pd.DataFrame()
     return pd.DataFrame()
 
 @st.cache_data(ttl=60)
@@ -335,24 +344,21 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_pres:
         st.subheader("📋 TABLA MASTER: PRESENTISMO")
         df_pres = leer_matriz_nube("PRESENTISMO")
-        if not df_pres.empty: 
-            df_pres.columns = df_pres.columns.str.strip().str.upper()
-            # Si existe columna FECHA, ordenamos de forma descendente para ver lo último primero
-            if "FECHA" in df_pres.columns:
-                st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
-            else:
-                st.dataframe(df_pres, use_container_width=True)
+        if df_pres is not None and not df_pres.empty:
+            if "FECHA" in df_pres.columns and len(df_pres) > 0:
+                try: df_pres = df_pres.sort_values(by="FECHA", ascending=False)
+                except: pass
+            st.dataframe(df_pres, use_container_width=True)
         else:
-            st.info("No hay datos cargados en la hoja de Presentismo.")
+            st.dataframe(df_pres, use_container_width=True)
 
     with t_vig:
         st.subheader("👥 TABLA MASTER: VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
-        if not df_padrero.empty: 
-            df_padrero.columns = df_padrero.columns.str.strip().str.upper()
+        if df_padrero is not None:
             st.dataframe(df_padrero, use_container_width=True)
         else:
-            st.info("No hay datos cargados en la hoja de Vigiladores.")
+            st.info("No se pudo conectar con la hoja de Vigiladores.")
 
     with t_guardia:
         st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
@@ -420,7 +426,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
                 
-                # ⚡ FILTRADO BLINDADO CONTRA ESPACIOS Y LETRAS MINÚSCULAS DE TU EXCEL ⚡
                 def fila_pertenece_a_supervisor(row, sup_name):
                     for cell_val in row.values:
                         if str(cell_val).strip().upper() == sup_name:
