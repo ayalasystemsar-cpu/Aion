@@ -470,9 +470,9 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
 
 # D. ROL: SUPERVISOR
-  elif st.session_state.rol_sel == "SUPERVISOR":
+elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
-        st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES."
+        st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
         # --- FILTRADO DIRECTO 1 A 1 CONTRA EL SIDEBAR ---
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -503,15 +503,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             if st.button("REFRESCAR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
                 st.rerun()
 
-        # AQUÍ AGREGUÉ LA PESTAÑA DE PRESENTISMO
+        # Pestañas de Supervisor
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación", "📋 PRESENTISMO"])
         
         with t_vis_qr:
-            if not df_objetivos_filtrados.empty:
-                opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique()
-            else:
-                opciones_servicios = ["SIN OBJETIVOS ASIGNADOS"]
-            
+            opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS ASIGNADOS"]
             st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
@@ -552,15 +548,13 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             if not df_chats_sup.empty:
                 st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-        # NUEVA PESTAÑA PRESENTISMO PARA SUPERVISOR
         with t_pres_sup:
             st.subheader(f"📋 PRESENTISMO: {st.session_state.user_sel}")
             df_p = leer_matriz_nube("PRESENTISMO")
             if not df_p.empty:
-                st.dataframe(df_p.sort_values(by="FECHA", ascending=False), use_container_width=True)
+                st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
             else:
                 st.info("Sin registros.")
-
 
 # E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
