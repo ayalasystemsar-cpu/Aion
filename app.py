@@ -411,7 +411,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
 # C. ROL: JEFE DE OPERACIONES
 
-       elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+# C. ROL: JEFE DE OPERACIONES
+elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
@@ -424,10 +425,10 @@ elif st.session_state.rol_sel == "VIGILADOR":
         st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
-        # 1. Definir el DataFrame primero
+        # 1. Definir el DataFrame
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         
-        # 2. Calcular centro solo si el DataFrame tiene datos
+        # 2. Calcular centro
         if not df_obj_maps_jefe.empty:
             centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()]
         else:
@@ -435,7 +436,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
             
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         
-        # 3. Dibujar marcadores si el DataFrame no está vacío
+        # 3. Dibujar marcadores
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
                 folium.Marker(
@@ -467,7 +468,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     st.subheader("📋 REPORTE DE MOVIMIENTOS")
     df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
     if not df_novedades.empty:
-        st.dataframe(df_novedades.tail(20), use_container_width=True)
+        st.dataframe(df_novedades.iloc[::-1].head(20), use_container_width=True)
 
 
 # D. ROL: SUPERVISOR
