@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -164,7 +162,6 @@ with st.sidebar:
         
     if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
         st.session_state.rol_sel = "JEFE DE OPERACIONES"
-        # ⚡ CORRECCIÓN AQUÍ: Se eliminó el apellido fijo 'SANOJA LUIS'
         st.session_state.user_sel = "JEFE DE OPERACIONES"
         st.session_state.sup_autenticado = False
         st.rerun()
@@ -492,7 +489,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location={centro}, zoom_start=12, tiles="CartoDB dark_matter")
+        # ⚡ SOLUCIONADO: Se quitaron las llaves {} de centro para evitar el TypeError
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
                 folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
@@ -560,6 +558,7 @@ elif st.session_state.rol_sel == "GERENCIA":
     with t_tab_auditoria:
         df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
+        # ⚡ SOLUCIONADO: Se quitaron las llaves {} de centro para evitar el TypeError
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         for _, r in df_ger_maps.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
