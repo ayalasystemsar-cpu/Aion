@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -348,7 +349,7 @@ if st.session_state.rol_sel == "MONITOREO":
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
-# B. ROL: SUPERVISOR
+# B. ROL: SUPERVISOR (SISTEMA DE FILTRADO INTELIGENTE BLINDADO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -407,6 +408,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
                 
+                # ⚡ FILTRADO BLINDADO CONTRA ESPACIOS Y LETRAS MINÚSCULAS DE TU EXCEL ⚡
                 def fila_pertenece_a_supervisor(row, sup_name):
                     for cell_val in row.values:
                         if str(cell_val).strip().upper() == sup_name:
@@ -489,7 +491,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
-        # ⚡ SOLUCIONADO: Se quitaron las llaves {} de centro para evitar el TypeError
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
@@ -558,7 +559,6 @@ elif st.session_state.rol_sel == "GERENCIA":
     with t_tab_auditoria:
         df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
-        # ⚡ SOLUCIONADO: Se quitaron las llaves {} de centro para evitar el TypeError
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         for _, r in df_ger_maps.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
