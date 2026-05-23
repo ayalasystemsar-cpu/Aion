@@ -463,6 +463,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
             v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
             v_dni = st.text_input("DNI / LEGAJO:").strip()
             v_obj = st.selectbox("OBJETIVO DE PRESENTISMO:", opciones_globales_obj, key="obj_pres_vig")
+            v_tipo_marcacion = st.selectbox("TIPO DE MARCACIÓN:", ["INGRESO", "EGRESO"], key="tipo_marc_vig")
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
             btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
             
@@ -470,11 +471,34 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 if v_apellido and img_facial and v_dni:
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-                    escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), v_apellido, v_obj, "PRESENTE"])
+                    
+                    # Separación limpia de Fecha y Hora (Argentina)
+                    fecha_hora_arg = obtener_hora_argentina()
+                    fecha_hoy = fecha_hora_arg.split(" ")[0]
+                    hora_hoy = fecha_hora_arg.split(" ")[1]
+                    
+                    # Estructura Captura 1 (PRESENTISMO): FECHA | HORA | DNI | NOMBRE Y APE OBJETIVO | (Vacío) | ESTADO | TIPO DE MARCACION
+                    datos_presentismo = [
+                        fecha_hoy,
+                        hora_hoy,
+                        v_dni,
+                        f"{v_apellido} - {v_obj}",
+                        "",  # Columna E libre
+                        "OK_SISTEMA",
+                        v_tipo_marcacion
+                    ]
+                    
+                    exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
+                    
+                    # Espejo en NOVEDADES_GUARDIA para auditoría
                     escribir_registro_nube("NOVEDADES_GUARDIA", [
-                        obtener_hora_argentina(), v_obj, v_dni, "SOLICITUD FACIAL", f"INGRESA: {v_apellido}", sup_responsable
+                        fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable
                     ])
-                    st.success(f"🔒 BIOMETRÍA REGISTRADA: Presente guardado en base maestra.")
+                    
+                    if exito_pres:
+                        st.success(f"🔒 BIOMETRÍA REGISTRADA: Marcación de {v_tipo_marcacion} guardada en base maestra.")
+                    else:
+                        st.error("❌ ERROR DE RED: No se pudo impactar en la planilla de Presentismo.")
                 else:
                     st.error("❌ ERROR: Complete todos los campos y la captura facial.")
                     
@@ -490,10 +514,34 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 if vig_saliente and vig_entrante:
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
+                    
+                    # Separación limpia de Fecha y Hora
+                    fecha_hora_arg = obtener_hora_argentina()
+                    fecha_hoy = fecha_hora_arg.split(" ")[0]
+                    hora_hoy = fecha_hora_arg.split(" ")[1]
+                    
+                    # Estructura Captura 2 (VIGILADORES): FECHA | HORA | OBJETIVO | VIGILADOR_SALIENTE | VIGILADOR_ENTRANTE | SUPERVISOR_ASSIGNADO | ESTADO
+                    datos_relevo = [
+                        fecha_hoy,
+                        hora_hoy,
+                        v_obj_relevo,
+                        vig_saliente,
+                        vig_entrante,
+                        sup_responsable,
+                        "RELEVO_EFECTUADO"
+                    ]
+                    
+                    exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
+                    
+                    # Espejo en NOVEDADES_GUARDIA
                     escribir_registro_nube("NOVEDADES_GUARDIA", [
-                        obtener_hora_argentina(), v_obj_relevo, "CAMBIO_GUARDIA", f"SALE: {vig_saliente}", f"ENTRA: {vig_entrante}", sup_responsable
+                        fecha_hora_arg, v_obj_relevo, "RELEVO", f"SALE: {vig_saliente}", f"ENTRA: {vig_entrante}", sup_responsable
                     ])
-                    st.success(f"⚡ RELEVO SANCIONADO con éxito.")
+                    
+                    if exito_relevo:
+                        st.success(f"⚡ RELEVO SANCIONADO: Registro guardado en la pestaña Vigiladores.")
+                    else:
+                        st.error("❌ ERROR DE RED: No se pudo impactar el relevo en la base central.")
                 else:
                     st.error("❌ ERROR: Complete los campos de personal saliente y entrante.")
     st.markdown('</div>', unsafe_allow_html=True)
