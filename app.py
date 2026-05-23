@@ -455,7 +455,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS)
+# ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
