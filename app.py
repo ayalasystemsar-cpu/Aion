@@ -54,7 +54,8 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: return False
 
-@st.cache_data(ttl=5)
+# ESTABILIZACIÓN DE TTL: Cambiado a 20 segundos para evitar que la app se dispare sola en bucle constante
+@st.cache_data(ttl=20)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -95,7 +96,7 @@ def cargar_objetivos():
         return df 
     return pd.DataFrame()
 
-# --- NUEVA FUNCIÓN: CÁLCULO TÁCTICO DE COMISARÍA MÁS CERCANA ---
+# CORRECCIÓN DE COLUMNA: Mapeado estricto a c['NOMBRE'] según tu Excel real
 def obtener_comisaria_mas_cercana(lat_obj, lon_obj):
     df_comisarias = leer_matriz_nube("COMISARIAS")
     if df_comisarias.empty:
@@ -110,17 +111,16 @@ def obtener_comisaria_mas_cercana(lat_obj, lon_obj):
     distancia_minima = float('inf')
     
     for _, c in df_comisarias.iterrows():
-        # Fórmula de Haversine para cálculo de distancia real en la Tierra
         rad = math.pi / 180
         dlat = (c['LATITUD'] - lat_obj) * rad
         dlon = (c['LONGITUD'] - lon_obj) * rad
         a = math.sin(dlat/2)**2 + math.cos(lat_obj*rad) * math.cos(c['LATITUD']*rad) * math.sin(dlon/2)**2
-        distancia = 2 * 6371 * math.asin(math.sqrt(a)) # Distancia en Km
+        distancia = 2 * 6371 * math.asin(math.sqrt(a))
         
         if distancia < distancia_minima:
             distancia_minima = distancia
             comisaria_cercana = {
-                "NOMBRE": c['NOMBRE'].strip().upper(),
+                "NOMBRE": c['NOMBRE'].strip().upper(), # Corregido de 'COMISARIA' a 'NOMBRE'
                 "LATITUD": c['LATITUD'],
                 "LONGITUD": c['LONGITUD'],
                 "DISTANCIA": round(distancia, 2)
@@ -289,21 +289,31 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     
-    if df_emergencias.empty:
-        df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
-    else:
-        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
-    
+    # Detección y parseo dinámico de objetivos e información geoespacial de pánicos activos
     lista_objetivos_en_panico = []
-    if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
-        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
-        sos_activos = len(pendientes)
-        for _, row in pendientes.iterrows():
-            carga = str(row['CARGA_UTIL'])
-            if "OBJ:" in carga:
-                try: lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
-                except: pass
-    else: sos_activos = 0
+    diccionario_coordenadas_panico = {}
+    
+    if not df_emergencias.empty:
+        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
+        if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
+            pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+            sos_activos = len(pendientes)
+            for _, row in pendientes.iterrows():
+                carga = str(row['CARGA_UTIL'])
+                if "OBJ:" in carga:
+                    try:
+                        obj_name = carga.split("OBJ:")[1].split("|")[0].strip().upper()
+                        lista_objetivos_en_panico.append(obj_name)
+                        
+                        # Extraemos lat/lon exactas enviadas en el pánico
+                        lat_p = float(carga.split("LAT:")[1].split("|")[0])
+                        lon_p = float(carga.split("LON:")[1].split("|")[0])
+                        diccionario_coordenadas_panico[obj_name] = (lat_p, lon_p)
+                    except: pass
+        else: sos_activos = 0
+    else:
+        df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'RESOLUCION'])
+        sos_activos = 0
     
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
@@ -352,7 +362,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 sup_resp = r.get('SUPERVISOR', 'NO ASIGNADO')
                 
-                # HTML Tooltip con íconos personalizados para el Hover
+                # HTML Tooltip con íconos para el Hover estándar
                 html_tooltip = f"""
                 <div style='min-width: 180px;'>
                     <b style='color: #00E5FF;'>🎯 OBJETIVO:</b> {r['OBJETIVO']}<br>
@@ -361,7 +371,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 """
                 
                 if es_panico:
-                    # Marcador del Objetivo en Alerta Crítica (Rojo e intermitente)
+                    # Usamos coordenadas reales del pánico (por si está patrullando fuera del objetivo fijo)
+                    lat_actual, lon_actual = diccionario_coordenadas_panico.get(r['OBJETIVO'], (r['LATITUD'], r['LONGITUD']))
+                    
                     html_tooltip_critico = f"""
                     <div style='min-width: 180px; border-left: 3px solid #ff0000; padding-left: 4px;'>
                         <b style='color: #FF0000;'>🚨 ¡S.O.S ACTIVO!</b><br>
@@ -370,21 +382,20 @@ if st.session_state.rol_sel == "MONITOREO":
                     </div>
                     """
                     folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], radius=8,
+                        location=[lat_actual, lon_actual], radius=8,
                         color="#FF0000", fill=True, fill_color="#FF0000",
                         tooltip=folium.Tooltip(html_tooltip_critico, sticky=True),
                         class_name="marker-panic-pulsing"
                     ).add_to(m_mon)
                     
-                    # Búsqueda matemática real de la Comisaría más cercana en el Excel
-                    comisaria_cercana = obtener_comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'])
+                    # Búsqueda geoespacial automatizada contra tu base de comisarías
+                    comisaria_cercana = obtener_comisaria_mas_cercana(lat_actual, lon_actual)
                     
                     if comisaria_cercana:
-                        # Marcador de la Dependencia Policial Real Encontrada con Hover
                         html_tooltip_cop = f"""
                         <div style='min-width: 180px;'>
-                            <b style='color: #3b5998;'>🚓 JURISDICCIÓN POLICIAL:</b><br>{comisaria_cercana['NOMBRE']}<br>
-                            <b style='color: #00E5FF;'>📍 DISTANCIA REAL:</b> {comisaria_cercana['DISTANCIA']} Km
+                            <b style='color: #3b5998;'>🚓 JURISDUC:</b> {comisaria_cercana['NOMBRE']}<br>
+                            <b style='color: #00E5FF;'>📍 DISTANCIA:</b> {comisaria_cercana['DISTANCIA']} Km
                         </div>
                         """
                         folium.Marker(
@@ -393,15 +404,11 @@ if st.session_state.rol_sel == "MONITOREO":
                             icon=folium.Icon(color="darkblue", icon="shield-halved", prefix="fa")
                         ).add_to(m_mon)
                         
-                        # Trazado de la Ruta de Despliegue de Emergencia con AntPath (Cyan y Rojo)
-                        puntos_ruta = [
-                            [r['LATITUD'], r['LONGITUD']],
-                            [comisaria_cercana['LATITUD'], comisaria_cercana['LONGITUD']]
-                        ]
+                        # Trazado e interconexión vectorial dinámica de la Ruta Óptima
                         AntPath(
-                            locations=puntos_ruta, delay=400, weight=4,
-                            color="#00E5FF", pulse_color="#FF0000",
-                            tooltip=f"RUTA ÓPTIMA A {comisaria_cercana['NOMBRE']}"
+                            locations=[[lat_actual, lon_actual], [comisaria_cercana['LATITUD'], comisaria_cercana['LONGITUD']]],
+                            delay=400, weight=4, color="#00E5FF", pulse_color="#FF0000",
+                            tooltip=f"ENTRADA TÁCTICA: RESPUESTA HACIA {comisaria_cercana['NOMBRE']}"
                         ).add_to(m_mon)
                 else:
                     # Marcador Estándar Operativo (Cyan)
