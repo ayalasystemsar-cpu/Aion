@@ -256,22 +256,27 @@ with st.sidebar:
         st.session_state.user_sel = "OPERADOR CENTRAL"
         st.session_state.sup_autenticado = False
         st.rerun()
-        
-    # 2. JEFE DE OPERACIONES
+    # 2.  BOTÓN VIGILADOR  
+    if st.button("👤 VIGILADOR", use_container_width=True):
+        st.session_state.rol_sel = "VIGILADOR"
+        st.session_state.user_sel = "VIGILADOR"
+        st.session_state.sup_autenticado = False
+        st.rerun() 
+    # 3. JEFE DE OPERACIONES
     if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
         st.session_state.rol_sel = "JEFE DE OPERACIONES"
         st.session_state.user_sel = "SANOJA LUIS"
         st.session_state.sup_autenticado = False
         st.rerun()
         
-    # 3. GERENCIA
+    # 4. GERENCIA
     if st.button("🏢 GERENCIA", use_container_width=True):
         st.session_state.rol_sel = "GERENCIA"
         st.session_state.user_sel = "DIRECCIÓN GENERAL"
         st.session_state.sup_autenticado = False
         st.rerun()
 
-    # 4. SUPERVISORES
+    # 5. SUPERVISORES
     with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
         nom_sup = st.selectbox(
             "RESPONSABLE ACTIVO:", 
@@ -305,7 +310,7 @@ with st.sidebar:
 
     st.write("---")
     
-    # 5. ADMINISTRADOR
+    # 6. ADMINISTRADOR
     st.markdown("**⚙️ ADMINISTRADOR**")
     if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
         st.session_state.rol_sel = "ADMINISTRADOR"
