@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -72,19 +73,14 @@ def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
-        
-        # 1. Filtramos de raíz celdas que visualmente parezcan vacías o tengan puros espacios
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
         
-        # 2. Sanitización estricta de la columna SUPERVISOR para evitar herencias falsas o espacios extras
         if 'SUPERVISOR' in df.columns:
             df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
         
-        # Corrección automática de comas por puntos en coordenadas
         df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
         df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
-        
         df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
@@ -101,47 +97,15 @@ def aplicar_identidad_alfa():
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         
         .estacion-titulo {
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important;
-            font-size: 24px;
-            margin-top: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 24px; margin-top: 15px;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
         }
         
-        .stApp div[data-testid="stExpander"] {
-            background-color: #1A1C23 !important;
-            border: 1px solid #2D313E !important;
-            border-radius: 8px !important;
-        }
-        
-        .stApp div[data-testid="stExpander"] summary p {
-            color: #E0E0E0 !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
-            text-transform: uppercase;
-        }
-        
-        .stApp input {
-            background-color: #252833 !important;
-            color: #FFFFFF !important;
-            border: 1px solid #1A1C23 !important;
-            border-radius: 6px !important;
-        }
-        
-        .stApp label p {
-            color: #A0A5B5 !important;
-            font-family: 'Orbitron', sans-serif !important;
-            font-size: 11px !important;
-            font-weight: bold !important;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
+        .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
+        .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
+        .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
+        .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
         .stButton > button[kind="primary"] { 
@@ -161,20 +125,11 @@ def aplicar_identidad_alfa():
 
         .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
         .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.4) !important;
-            border: 1px solid #2D313E !important;
-            color: #A0A5B5 !important;
-            border-radius: 4px 4px 0px 0px !important;
-            padding: 6px 16px !important;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 11px !important;
-            font-weight: bold;
+            background-color: rgba(26, 28, 35, 0.4) !important; border: 1px solid #2D313E !important;
+            color: #A0A5B5 !important; border-radius: 4px 4px 0px 0px !important; padding: 6px 16px !important;
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
-        .stTabs [aria-selected="true"] {
-            background-color: #1A1C23 !important;
-            border-top: 2px solid #00E5FF !important;
-            color: #00E5FF !important;
-        }
+        .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
         </style>
         """, unsafe_allow_html=True
     )
@@ -185,13 +140,7 @@ aplicar_identidad_alfa()
 df_objetivos = cargar_objetivos()
 
 LISTA_SUPS_TACTICOS = [
-    "AYALA BRIAN",
-    "SUPERVISOR 1", 
-    "SUPERVISOR 2", 
-    "SUPERVISOR 3", 
-    "SUPERVISOR 4", 
-    "SUPERVISOR 5", 
-    "SUPERVISOR NOCTURNO"
+    "AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"
 ]
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -285,7 +234,6 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
-# A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     
@@ -377,22 +325,19 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_pres:
         st.subheader("📋 TABLA MASTER: PRESENTISMO")
         df_pres = leer_matriz_nube("PRESENTISMO")
-        if not df_pres.empty: 
-            st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        if not df_pres.empty: st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
     with t_vig:
         st.subheader("👥 TABLA MASTER: VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
-        if not df_padrero.empty: 
-            st.dataframe(df_padrero, use_container_width=True)
+        if not df_padrero.empty: st.dataframe(df_padrero, use_container_width=True)
 
     with t_guardia:
         st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty: 
-            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        if not df_nov_g.empty: st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
-# D. ROL: SUPERVISOR
+# --- ROL: SUPERVISOR ---
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -412,7 +357,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with col_btn2:
             if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
 
-        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
+        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES DEL SECTOR"])
         
         with t_vis_qr:
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
@@ -446,74 +391,77 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
         with t_pres_sup:
-            st.markdown("### 🔄 AUDITORÍA DE RELEVOS EN MI PERÍMETRO")
-            
-            with st.expander("📝 REGISTRAR RELEVO MANUAL", expanded=True):
-                with st.form(key="form_relevo_supervisor"):
-                    obj_relevo = st.selectbox("OBJETIVO BAJO CARGO:", opciones_servicios, key="obj_relevo_sup")
-                    vig_saliente = st.text_input("VIGILADOR SALIENTE (APELLIDO):").upper()
-                    vig_entrante = st.text_input("VIGILADOR ENTRANTE (APELLIDO):").upper()
-                    
-                    if st.form_submit_button("SANCIONAR CAMBIO DE GUARDIA"):
-                        if vig_saliente.strip() and vig_entrante.strip():
-                            # ⚡ ESCRITURA TAL CUAL TU EXCEL: FECHA, HORA (AQUÍ VA OBJETIVO), OBJETIVO (S/D), VIGILADOR_SALIENTE, VIGILADOR_ENTRANTE, SUPERVISOR_ACTIVO
-                            escribir_registro_nube("NOVEDADES_GUARDIA", [
-                                obtener_hora_argentina(), 
-                                obj_relevo, 
-                                "MANUAL", 
-                                f"SALE: {vig_saliente}", 
-                                f"ENTRA: {vig_entrante}",
-                                sup_activo_normalizado
-                            ])
-                            st.success(f"⚡ Relevo guardado en 'NOVEDADES_GUARDIA' para {obj_relevo}.")
-                        else: st.error("Complete ambos campos.")
-            
-            st.write("---")
+            st.markdown("### 📋 HISTORIAL DE NOVEDADES EN MI SECTOR")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
-                # En tu Excel real la columna HORA contiene el nombre del Objetivo (Fila 2: ALFAVINIL)
-                if 'HORA' in df_v_total.columns:
-                    df_v_filtrado = df_v_total[df_v_total['HORA'] == obj_relevo]
-                    if not df_v_filtrado.empty: st.dataframe(df_v_filtrado, use_container_width=True)
+                # Muestra los relevos donde figura este supervisor asignado
+                if 'SUPERVISOR' in df_v_total.columns:
+                    df_v_filtrado = df_v_total[df_v_total['SUPERVISOR'] == sup_activo_normalizado]
+                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
-# E. ROL: VIGILADOR (MOBILE COMPATIBLE DESDE EL CELULAR)
+# --- ROL: VIGILADOR (CON MÓDULOS INDEPENDIENTES DE PRESENTISMO Y RELEVO) ---
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-    st.subheader("📸 ASISTENCIA FACIAL BIOMÉTRICA (PERFIL PERSONAL)")
     
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
     
-    with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-        v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
-        v_dni = st.text_input("DNI / LEGAJO:").strip()
-        v_obj = st.selectbox("OBJETIVO ASIGNADO:", opciones_globales_obj)
-        
-        img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
-        btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
-        
-        if btn_fichar:
-            if v_apellido and img_facial and v_dni:
-                # Buscar supervisor de ese objetivo para que le figure en el panel
-                df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
-                sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "SUPERVISOR 1"
+    # 🗂️ PESTAÑAS EXCLUSIVAS PARA OPERATORIA DEL VIGILADOR
+    tab_presentismo, tab_relevo = st.tabs([
+        "📋 FICHAJE INDIVIDUAL (PRESENTISMO)", 
+        "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"
+    ])
+    
+    # 1. MÓDULO PRESENTISMO (Fichaje Biométrico)
+    with tab_presentismo:
+        st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
+        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
+            v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
+            v_dni = st.text_input("DNI / LEGAJO:").strip()
+            v_obj = st.selectbox("OBJETIVO DE PRESENTISMO:", opciones_globales_obj, key="obj_pres_vig")
+            
+            img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
+            btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
+            
+            if btn_fichar:
+                if v_apellido and img_facial and v_dni:
+                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
+                    sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
 
-                # 1. ⚡ REGISTRO EN PESTAÑA 'PRESENTISMO' [FECHA, NOMBRE, OBJETIVO, ESTADO]
-                escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), v_apellido, v_obj, "PRESENTISMO"])
-                
-                # 2. ⚡ REGISTRO EN PESTAÑA 'NOVEDADES_GUARDIA' [FECHA, HORA, OBJETIVO, VIGILADOR_SALIENTE, VIGILADOR_ENTRANTE, SUPERVISOR_ACTIVO]
-                escribir_registro_nube("NOVEDADES_GUARDIA", [
-                    obtener_hora_argentina(), 
-                    v_obj, 
-                    v_dni, 
-                    "SOLICITUD FACIAL", 
-                    f"INGRESA: {v_apellido}",
-                    sup_responsable
-                ])
-                
-                st.success(f"🔒 BIOMETRÍA PROCESADA. Fichaje guardado con éxito. Datos sincronizados con Central y {sup_responsable}.")
-            else:
-                st.error("❌ ERROR: Complete su nombre, DNI y capture su foto facial obligatoria para abrir servicio.")
+                    # ⚡ ESCRITURA EXCLUSIVA EN 'PRESENTISMO':
+                    escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), f"{v_apellido} (DNI: {v_dni})", v_obj, "PRESENTE"])
+                    st.success(f"🔒 BIOMETRÍA PROCESADA. Tu Presente fue guardado en la base master y notificado a tu Supervisor ({sup_responsable}).")
+                else:
+                    st.error("❌ ERROR: Complete su nombre, DNI y capture su foto facial obligatoria para abrir servicio.")
+                    
+    # 2. MÓDULO RELEVO (Cambio de Guardia)
+    with tab_relevo:
+        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
+        with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
+            v_obj_relevo = st.selectbox("OBJETIVO DEL RELEVO:", opciones_globales_obj, key="obj_relevo_vig")
+            vig_saliente = st.text_input("VIGILADOR QUE ENTREGA (SALE):").upper().strip()
+            vig_entrante = st.text_input("VIGILADOR QUE RECIBE (ENTRA):").upper().strip()
+            
+            btn_relevo = st.form_submit_button("SANCIONAR CAMBIO DE GUARDIA")
+            
+            if btn_relevo:
+                if vig_saliente and vig_entrante:
+                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
+                    sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
+                    
+                    # ⚡ ESCRITURA EXCLUSIVA EN 'NOVEDADES_GUARDIA':
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [
+                        obtener_hora_argentina(), 
+                        v_obj_relevo, 
+                        "CAMBIO_GUARDIA", 
+                        f"SALE: {vig_saliente}", 
+                        f"ENTRA: {vig_entrante}",
+                        sup_responsable
+                    ])
+                    st.success(f"⚡ RELEVO REGISTRADO. Se asentó el cambio de guardia en 'NOVEDADES_GUARDIA' bajo la supervisión de {sup_responsable}.")
+                else:
+                    st.error("❌ ERROR: Debe ingresar tanto el nombre del vigilador saliente como el del entrante.")
+                    
     st.markdown('</div>', unsafe_allow_html=True)
 
 # F. ROL: JEFE DE OPERACIONES
@@ -523,7 +471,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         m_visor = folium.Map(location=[df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
         for _, r in df_obj_maps_jefe.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"OBJ: {r['OBJETIVO']}").add_to(m_visor)
-        st_folium(m_visor, width="100%", height=500, key="map_jefe")
+        st_folium(m_visor, width="100%", height=500, key="mapRef")
 
 # G. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
@@ -535,4 +483,3 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026":
         st.success("Núcleo Maestro desbloqueado.")
-
