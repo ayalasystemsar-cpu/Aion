@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -413,7 +412,7 @@ if st.session_state.rol_sel == "MONITOREO":
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:", placeholder="Escriba un mensaje para la red de supervisores...")
             prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
-            btn_enviar_mon = st.form_submit_form_button("TRANSMITIR A LA RED")
+            btn_enviar_mon = st.form_submit_button("TRANSMITIR A LA RED")
             
             if btn_enviar_mon and txt_mensaje_mon.strip():
                 # Estructura alineada con la Google Sheet: [HORA, USUARIO, TEXTO, PRIORIDAD, DESTINO, ASUNTO]
@@ -576,7 +575,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             with st.form(key="form_chat_supervisor", clear_on_submit=True):
                 txt_mensaje_sup = st.text_input("REPORTE RÁPIDO PARA MONITOREO:", placeholder="Escriba novedad de último momento aquí...")
                 prioridad_sup = st.selectbox("RELEVANCIA:", ["VERDE", "ROJA"], key="prio_sup_select")
-                btn_enviar_sup = st.form_submit_form_button("ENVIAR MENSAJE")
+                btn_enviar_sup = st.form_submit_button("ENVIAR MENSAJE")
                 
                 if btn_enviar_sup and txt_mensaje_sup.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_sup.strip().upper(), prioridad_sup, "MONITOREO", "REPORTE CAMPO"])
@@ -684,4 +683,5 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         if st.button("REGISTRAR"):
             escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
             st.success("Alta Exitosa")
+
 
