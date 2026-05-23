@@ -345,30 +345,18 @@ else:
     st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
+
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
-    if df_emergencias.empty:
-        df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
-    else:
-        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
-    
-    sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if 'ESTADO' in df_emergencias.columns else 0
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
-    c2.metric("📡 RED", "OPERATIVA")
-    c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
-
-    # Se definen las 4 pestañas aquí
+    # ... (aquí van tus métricas y columnas)
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
     with t_radar:
-        # Aquí va tu lógica actual del radar (m_mon, folium, etc.)
         st.info("📡 Módulo de Radar S.O.S activo")
-
+    
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty: 
@@ -376,6 +364,7 @@ if st.session_state.rol_sel == "MONITOREO":
         else: 
             st.info("No hay registros en el historial.")
 
+    # --- AQUÍ VA EL BLOQUE QUE ME PASASTE ---
     with t_comunicacion:
         st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
         df_chats = leer_matriz_nube("CHATS")
@@ -385,7 +374,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
         else:
             st.info("Sin comunicaciones.")
-
+    
+        # ... (aquí va tu lógica de presentismo)
     # NUEVA PESTAÑA DE PRESENTISMO
     with t_pres:
         st.subheader("📋 REGISTRO DE PRESENTISMO (TOTAL)")
