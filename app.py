@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -362,21 +363,17 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Se definen las 4 pestañas aquí
-    t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
+    # Pestañas de Monitoreo
+    t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO"])
     
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
-        # Filtrado y sanitización de coordenadas para Monitoreo
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         
         if not df_mapa_monitoreo.empty:
-            # Calcular el centro dinámico de la operación de forma automática
             centro_monitoreo = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
-            
-            # Inicializar mapa táctico oscuro (CartoDB Dark Matter)
             m_mon = folium.Map(
                 location=centro_monitoreo, 
                 zoom_start=11, 
@@ -384,26 +381,21 @@ if st.session_state.rol_sel == "MONITOREO":
                 attr="&copy; OpenStreetMap contributors &copy; CartoDB"
             )
             
-            # Dibujar cada objetivo con el estilo táctico circular de la captura
             for _, r in df_mapa_monitoreo.iterrows():
-                # Formateo estricto del Tooltip interactivo al pasar el mouse por encima
                 info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
-                
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']],
                     radius=7,
-                    color="#00E5FF",       # Línea perimetral cian brillante
+                    color="#00E5FF",
                     fill=True,
-                    fill_color="#00E5FF",  # Relleno interno
+                    fill_color="#00E5FF",
                     fill_opacity=0.5,
                     weight=3,
-                    tooltip=info_hover     # Evento Hover nativo de Folium
+                    tooltip=info_hover
                 ).add_to(m_mon)
         else:
-            # Coordenadas por defecto (Buenos Aires Centro) en caso de que la matriz falle
             m_mon = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
             
-        # Renderizar mapa respetando la caja de contención UI
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -415,21 +407,33 @@ if st.session_state.rol_sel == "MONITOREO":
             st.info("No hay registros en el historial.")
 
     with t_comunicacion:
-        st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
+        st.markdown('<h3>💬 COMUNICACIÓN CENTRAL DE COMANDO</h3>', unsafe_allow_html=True)
+        
+        # Caja de entrada de texto interactiva para enviar mensajes desde Monitoreo
+        with st.form(key="form_chat_monitoreo", clear_on_submit=True):
+            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:", placeholder="Escriba un mensaje para la red de supervisores...")
+            prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
+            btn_enviar_mon = st.form_submit_form_button("TRANSMITIR A LA RED")
+            
+            if btn_enviar_mon and txt_mensaje_mon.strip():
+                # Estructura alineada con la Google Sheet: [HORA, USUARIO, TEXTO, PRIORIDAD, DESTINO, ASUNTO]
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
+                st.success("⚡ MENSAJE TRANSMITIDO CON ÉXITO")
+                st.rerun()
+
+        st.write("---")
         df_chats = leer_matriz_nube("CHATS")
         if not df_chats.empty:
-            for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
+            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
                 es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
                 st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
         else:
-            st.info("Sin comunicaciones.")
+            st.info("Sin comunicaciones en la red.")
 
-    # NUEVA PESTAÑA DE PRESENTISMO
     with t_pres:
         st.subheader("📋 REGISTRO DE PRESENTISMO (TOTAL)")
         df_pres = leer_matriz_nube("PRESENTISMO")
         if not df_pres.empty:
-            # Mostramos la tabla ordenando por fecha reciente
             st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
             st.info("No hay registros de presentismo.")
@@ -448,10 +452,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
-        # 1. Definir el DataFrame primero
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         
-        # 2. Calcular centro solo si el DataFrame tiene datos
         if not df_obj_maps_jefe.empty:
             centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()]
         else:
@@ -459,7 +461,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         
-        # 3. Dibujar marcadores si el DataFrame no está vacío
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
                 folium.Marker(
@@ -498,7 +499,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
     else:
-        # --- FILTRADO DIRECTO 1 A 1 CONTRA EL SIDEBAR ---
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
 
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
@@ -527,8 +527,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("REFRESCAR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
                 st.rerun()
 
-        # Pestañas del Supervisor
-        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación", "📋 PRESENTISMO"])
+        # Pestañas del Supervisor (Simétricas con Monitoreo)
+        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 PRESENTISMO"])
         
         with t_vis_qr:
             if not df_objetivos_filtrados.empty:
@@ -543,7 +543,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             
-            # Limpieza y renderizado táctico
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD']).copy()
             df_mapa_sup['LATITUD'] = pd.to_numeric(df_mapa_sup['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
             df_mapa_sup['LONGITUD'] = pd.to_numeric(df_mapa_sup['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
@@ -571,19 +570,36 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.markdown('</div>', unsafe_allow_html=True)
             
         with t_com_sup:
-            st.subheader("Bandeja de Novedades del Sector")
+            st.subheader("💬 CHAT OPERATIVO - CONEXIÓN BASE CENTRAL")
+            
+            # Formulario de envío rápido para el Supervisor hacia la Central
+            with st.form(key="form_chat_supervisor", clear_on_submit=True):
+                txt_mensaje_sup = st.text_input("REPORTE RÁPIDO PARA MONITOREO:", placeholder="Escriba novedad de último momento aquí...")
+                prioridad_sup = st.selectbox("RELEVANCIA:", ["VERDE", "ROJA"], key="prio_sup_select")
+                btn_enviar_sup = st.form_submit_form_button("ENVIAR MENSAJE")
+                
+                if btn_enviar_sup and txt_mensaje_sup.strip():
+                    escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_sup.strip().upper(), prioridad_sup, "MONITOREO", "REPORTE CAMPO"])
+                    st.success("⚡ REPORTE ENVIADO A CENTRAL")
+                    st.rerun()
+
+            st.write("---")
             df_chats_sup = leer_matriz_nube("CHATS")
             if not df_chats_sup.empty:
-                st.dataframe(df_chats_sup.tail(10), use_container_width=True)
+                # El supervisor ve los últimos 15 mensajes de la red para mantener conocimiento de situación
+                for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
+                    es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
+                    st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
+            else:
+                st.info("Sin registros en la bandeja de novedades.")
 
-        # NUEVA PESTAÑA PRESENTISMO PARA SUPERVISOR
         with t_pres_sup:
-            st.subheader(f"📋 PRESENTISMO: {st.session_state.user_sel}")
+            st.subheader(f"📋 PRESENTISMO GENERADO EN SISTEMA")
             df_p = leer_matriz_nube("PRESENTISMO")
             if not df_p.empty:
                 st.dataframe(df_p.sort_values(by="FECHA", ascending=False), use_container_width=True)
             else:
-                st.info("Sin registros.")
+                st.info("Sin registros de presentismo cargados en la matriz base.")
 
 # E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
@@ -635,14 +651,11 @@ elif st.session_state.rol_sel == "GERENCIA":
 
     with t_tab_auditoria:
         st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
-        # 1. Definición sin validación recursiva
         df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         
-        # 2. Lógica de centro separada
         centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         
-        # 3. Marcadores
         for _, r in df_ger_maps.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
             
