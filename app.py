@@ -95,8 +95,15 @@ def aplicar_identidad_alfa():
         .estacion-titulo { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 24px; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 12px; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase; }
         .titulo-seccion-admin { color: #00E5FF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: bold; margin-top: 25px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 229, 255, 0.3); }
         .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.9); }
+        .stButton > button[kind="primary"] { background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; }
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
+        .chat-container { border: 1px solid #1a1a1b; border-radius: 8px; padding: 15px; margin-top: 10px; background-color: #030305; }
+        .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
+        .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
+        .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
+        .message-info-red { color: #ff0000; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
+        .message-text { color: #e0e0e0; font-size: 14px; margin-top: 4px; font-family: 'Rajdhani', sans-serif; }
         </style>
         """, unsafe_allow_html=True
     )
@@ -117,8 +124,16 @@ with st.sidebar:
     if st.button("👤 VIGILADOR", use_container_width=True): st.session_state.rol_sel = "VIGILADOR"; st.rerun()
     if st.button("📋 JEFE DE OPERACIONES", use_container_width=True): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
     if st.button("🏢 GERENCIA", use_container_width=True): st.session_state.rol_sel = "GERENCIA"; st.rerun()
-    # ... resto del sidebar ...
     if st.button("⚙️ ADMINISTRADOR", use_container_width=True): st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
+    
+    st.write("---")
+    if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
+        obj = st.session_state.sup_servicio_actual if 'sup_servicio_actual' in st.session_state else "CENTRAL"
+        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj])
+        st.error("🚨 ALERTA EMITIDA")
+
+# --- 6. CABECERA ---
+st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
 
@@ -127,16 +142,13 @@ if st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="estacion-titulo">🛡️ PANEL DE VIGILADOR</div>', unsafe_allow_html=True)
     nombre_v = st.text_input("DNI o Apellido:")
     obj_v = st.selectbox("Objetivo Asignado:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["CARGANDO..."])
-    st.subheader("📷 Presentismo Facial")
-    foto = st.camera_input("Fichar Entrada")
-    if foto:
+    if st.camera_input("Fichar Entrada"):
         escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), nombre_v, obj_v, "PRESENTE"])
         st.success("¡Presentismo registrado!")
     if st.button("🚨 SOLICITAR CAMBIO DE GUARDIA"):
         sup = df_objetivos[df_objetivos['OBJETIVO'] == obj_v]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
         escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_v, nombre_v, "SOLICITUD", sup])
         st.success(f"Solicitud enviada a: {sup}")
-
 # B. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
