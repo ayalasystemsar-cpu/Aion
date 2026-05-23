@@ -222,16 +222,6 @@ def aplicar_identidad_alfa():
             font-family: 'Orbitron', sans-serif !important;
             font-size: 22px !important;
         }
-        
-        /* Animación CSS para que titile el punto de pánico en rojo */
-        @keyframes pulse-red {
-            0% { r: 6px; opacity: 1; fill-opacity: 0.9; }
-            50% { r: 14px; opacity: 0.6; fill-opacity: 0.3; stroke-width: 4; }
-            100% { r: 6px; opacity: 1; fill-opacity: 0.9; }
-        }
-        .marker-panic-pulsing {
-            animation: pulse-red 1.2s infinite ease-in-out;
-        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -400,14 +390,11 @@ if st.session_state.rol_sel == "MONITOREO":
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             st.error(f"🚨 ALERTA CRÍTICA: Se detectaron {sos_activos} señales de pánico pendientes de resolución.")
             
-            # Obtener las filas reales de la Google Sheet que están PENDIENTES
-            # Asumiendo que la fila en df corresponde a la fila en el sheet (sumando 2 por encabezado)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
             
             with st.form(key="form_finalizar_panico", clear_on_submit=True):
                 st.markdown("<b style='color:#FF0000;'>RESOLUCIÓN DE INCIDENTE S.O.S:</b>", unsafe_allow_html=True)
                 
-                # Armar opciones para el selectbox combinando Fecha y Usuario
                 opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
                 alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
                 
@@ -417,9 +404,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 if btn_cerrar_sos:
                     if txt_informe_cierre.strip():
                         idx_df = opciones_alertas[alerta_seleccionada]
-                        nro_fila_gsheet = idx_df + 2 # +2 Ajuste de índice dataframe a fila real de Google Sheets
+                        nro_fila_gsheet = idx_df + 2 
                         
-                        # Columna D es ESTADO, Columna F es INFORME (A: FECHA, B: USUARIO, C: TIPO, D: ESTADO, E: CARGA, F: INFORME)
                         actualizar_celda("ALERTAS", nro_fila_gsheet, "D", "FINALIZADO")
                         actualizar_celda("ALERTAS", nro_fila_gsheet, "F", txt_informe_cierre.strip().upper())
                         
@@ -430,7 +416,7 @@ if st.session_state.rol_sel == "MONITOREO":
             st.markdown('</div>', unsafe_allow_html=True)
             st.write("")
 
-        # --- MAPA CON TITILEO DINÁMICO ---
+        # --- MAPA CON TITILEO DINÁMICO INYECTADO ---
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         
@@ -443,37 +429,53 @@ if st.session_state.rol_sel == "MONITOREO":
                 attr="&copy; OpenStreetMap contributors &copy; CartoDB"
             )
             
+            # Inyección directa de CSS nativo dentro del entorno Leaflet para obligar a titilar la capa vectorial SVG
+            estilo_pulsar_html = """
+            <style>
+            @keyframes pulse-red-critico {
+                0% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
+                50% { r: 15px; fill: #B30000; fill-opacity: 0.4; stroke: #FF0000; stroke-width: 8; stroke-opacity: 0.6; }
+                100% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
+            }
+            .marker-panic-pulsing {
+                animation: pulse-red-critico 1.1s infinite ease-in-out !important;
+                display: block !important;
+            }
+            </style>
+            """
+            m_mon.header.add_child(folium.Element(estilo_pulsar_html))
+            
             for _, r in df_mapa_monitoreo.iterrows():
                 nombre_obj = str(r['OBJETIVO']).strip().upper()
                 supervisor_obj = str(r.get('SUPERVISOR', 'NO ASIGNADO')).strip().upper()
                 
-                # Tooltip interactivo con el ícono y datos estructurados que teníamos
+                # Formato del Tooltip interactivo al pasar el mouse por encima
                 info_hover = f"🎯 OBJETIVO: {nombre_obj} | 👤 SUPERVISOR: {supervisor_obj}"
                 
-                # Si el objetivo actual tiene una alerta pendiente, cambia a Rojo y Titila
                 if nombre_obj in lista_objetivos_en_panico:
+                    # Marcador de pánico: Rojo vivo con animación inyectada
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']],
-                        radius=9,
-                        color="#FF0000",        # Rojo Alerta
+                        radius=8,
+                        color="#FF0000",
                         fill=True,
                         fill_color="#FF0000",
-                        fill_opacity=0.8,
-                        weight=4,
-                        tooltip=info_hover,
-                        class_name="marker-panic-pulsing" # Aplica la animación CSS
+                        fill_opacity=1.0,
+                        weight=2,
+                        tooltip=folium.Tooltip(info_hover, sticky=True),
+                        class_name="marker-panic-pulsing"
                     ).add_to(m_mon)
                 else:
-                    # Punto Operativo normal (Cian Brillante)
+                    # Punto Operativo normal (Cian Estable)
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']],
                         radius=7,
-                        color="#00E5FF",        # Cian
+                        color="#00E5FF",
                         fill=True,
                         fill_color="#00E5FF",
-                        fill_opacity=0.5,
-                        weight=3,
-                        tooltip=info_hover
+                        fill_opacity=0.6,
+                        weight=2,
+                        tooltip=folium.Tooltip(info_hover, sticky=True)
                     ).add_to(m_mon)
         else:
             m_mon = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
