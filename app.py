@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -163,7 +164,8 @@ with st.sidebar:
         
     if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
         st.session_state.rol_sel = "JEFE DE OPERACIONES"
-        st.session_state.user_sel = "SANOJA LUIS"
+        # ⚡ CORRECCIÓN AQUÍ: Se eliminó el apellido fijo 'SANOJA LUIS'
+        st.session_state.user_sel = "JEFE DE OPERACIONES"
         st.session_state.sup_autenticado = False
         st.rerun()
         
@@ -406,10 +408,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
-                # --- ALGORITMO INTEGRAL DE ESCANEO DE COLUMNAS DE SUPERVISOR ---
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
                 
-                # Buscamos en qué columna de la fila se encuentra el nombre del supervisor asignado
                 def fila_pertenece_a_supervisor(row, sup_name):
                     for cell_val in row.values:
                         if str(cell_val).strip().upper() == sup_name:
@@ -492,7 +492,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        m_visor = folium.Map(location={centro}, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
                 folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
@@ -570,4 +570,3 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026": st.success("Núcleo Maestro desbloqueado.")
-
