@@ -356,6 +356,7 @@ else:
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
+    df_comisarias = leer_matriz_nube("COMISARIAS")
     sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns else 0
     
     c1, c2, c3 = st.columns(3)
@@ -366,59 +367,61 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
     with t_radar:
-        st.info("📡 Radar S.O.S desactivado.")
+        df_objetivos_mapa = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_objetivos.empty else pd.DataFrame()
+        m_mon = folium.Map(location=[-34.6, -58.4], zoom_start=13, tiles="CartoDB dark_matter")
+        if not df_objetivos_mapa.empty:
+            for _, r in df_objetivos_mapa.iterrows():
+                folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=6, color="#00E5FF", tooltip=r['OBJETIVO']).add_to(m_mon)
+        st_folium(m_mon, width="100%", height=450)
+        
     with t_gestion:
-        st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty: st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
     with t_comunicacion:
         st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
     with t_pres:
-        st.subheader("📋 REGISTRO DE PRESENTISMO")
         df_pres = leer_matriz_nube("PRESENTISMO")
-        if not df_pres.empty:
-            st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
-        else: st.info("No hay registros.")
+        if not df_pres.empty: st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
 # B. ROL: VIGILADOR
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="estacion-titulo">🛡️ PANEL DE VIGILADOR</div>', unsafe_allow_html=True)
     nombre_v = st.text_input("DNI o Apellido:")
     obj_v = st.selectbox("Objetivo Asignado:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["CARGANDO..."])
-    st.subheader("📷 Presentismo Facial")
     foto = st.camera_input("Fichar Entrada")
-    if foto:
-        escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), nombre_v, obj_v, "PRESENTE"])
-        st.success("¡Presentismo registrado!")
+    if foto: escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), nombre_v, obj_v, "PRESENTE"]); st.success("¡Registrado!")
 
 # C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
-    # Lógica de jefe aquí...
+    t_crisis, t_ejecucion = st.tabs(["Centro de Crisis", "Ejecución"])
+    with t_crisis:
+        df_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
+        centro = [df_maps['LATITUD'].mean(), df_maps['LONGITUD'].mean()] if not df_maps.empty else [-34.6, -58.4]
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        for _, r in df_maps.iterrows():
+            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500)
 
 # D. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
-    t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación", "📋 PRESENTISMO"])
+    t_vis_qr, t_pres_sup = st.tabs(["Visita QR", "📋 PRESENTISMO"])
+    with t_vis_qr:
+        df_sup = df_objetivos[df_objetivos['SUPERVISOR'] == st.session_state.user_sel.strip().upper()]
+        m_sup = folium.Map(location=[-34.6, -58.4], zoom_start=12, tiles="CartoDB dark_matter")
+        for _, r in df_sup.dropna(subset=['LATITUD', 'LONGITUD']).iterrows():
+            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_sup)
+        st_folium(m_sup, width="100%", height=400)
     with t_pres_sup:
-        st.subheader(f"PRESENTISMO: {st.session_state.user_sel}")
         df_pres_sup = leer_matriz_nube("PRESENTISMO")
-        if not df_pres_sup.empty:
-            st.dataframe(df_pres_sup.sort_values(by="FECHA", ascending=False), use_container_width=True)
-        else: st.info("Sin registros.")
+        if not df_pres_sup.empty: st.dataframe(df_pres_sup, use_container_width=True)
 
 # E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<h2 style="color:#00E5FF;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
-    # Definir df_ger_maps ANTES de usarlo en el if
-    df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-    
-    if not df_ger_maps.empty:
-        centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()]
-    else:
-        centro = [-34.6, -58.4]
-    
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    st_folium(m_visor, width="100%", height=450)
+    df_ger = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
+    m_ger = folium.Map(location=[df_ger['LATITUD'].mean() if not df_ger.empty else -34.6, -58.4], zoom_start=12, tiles="CartoDB dark_matter")
+    for _, r in df_ger.iterrows():
+        folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_ger)
+    st_folium(m_ger, width="100%", height=450)
 
 # F. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
+    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO</div>', unsafe_allow_html=True)
