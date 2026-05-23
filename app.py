@@ -416,7 +416,7 @@ if st.session_state.rol_sel == "MONITOREO":
             st.markdown('</div>', unsafe_allow_html=True)
             st.write("")
 
-        # --- MAPA CON TITILEO DINÁMICO INYECTADO ---
+        # --- MAPA CON TITILEO DINÁMICO ---
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         
@@ -429,7 +429,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 attr="&copy; OpenStreetMap contributors &copy; CartoDB"
             )
             
-            # Inyección directa de CSS nativo dentro del entorno Leaflet para obligar a titilar la capa vectorial SVG
+            # ⚡ CORRECCIÓN CRÍTICA: Inyectar CSS usando el nodo raíz correcto para evitar el AttributeError
             estilo_pulsar_html = """
             <style>
             @keyframes pulse-red-critico {
@@ -443,17 +443,15 @@ if st.session_state.rol_sel == "MONITOREO":
             }
             </style>
             """
-            m_mon.header.add_child(folium.Element(estilo_pulsar_html))
+            m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
             
             for _, r in df_mapa_monitoreo.iterrows():
                 nombre_obj = str(r['OBJETIVO']).strip().upper()
                 supervisor_obj = str(r.get('SUPERVISOR', 'NO ASIGNADO')).strip().upper()
                 
-                # Formato del Tooltip interactivo al pasar el mouse por encima
                 info_hover = f"🎯 OBJETIVO: {nombre_obj} | 👤 SUPERVISOR: {supervisor_obj}"
                 
                 if nombre_obj in lista_objetivos_en_panico:
-                    # Marcador de pánico: Rojo vivo con animación inyectada
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']],
                         radius=8,
@@ -466,7 +464,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         class_name="marker-panic-pulsing"
                     ).add_to(m_mon)
                 else:
-                    # Punto Operativo normal (Cian Estable)
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']],
                         radius=7,
@@ -764,5 +761,4 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         if st.button("REGISTRAR"):
             escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
             st.success("Alta Exitosa")
-
 
