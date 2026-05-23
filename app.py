@@ -345,41 +345,56 @@ else:
     st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
-
-     # A. ROL: MONITOREO
+# A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
-    st.markdown('<div class="estacion-titulo">🛰️ CENTRAL DE INTELIGENCIA OPERATIVA</div>', unsafe_allow_html=True)
-    
-    # Lectura de datos necesaria
     df_emergencias = leer_matriz_nube("ALERTAS")
+    df_comisarias = leer_matriz_nube("COMISARIAS")
     
-    # Pestañas incluyendo PRESENTISMO
+    if df_emergencias.empty:
+        df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
+    else:
+        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
+    
+    sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if 'ESTADO' in df_emergencias.columns else 0
+    
+    c1, c2, c3 = st.columns(3)
+    c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
+    c2.metric("📡 RED", "OPERATIVA")
+    c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+
+    # Se definen las 4 pestañas aquí
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
     with t_radar:
-        st.info("📡 Radar activo (Lógica de mapa)")
-        
+        # Aquí va tu lógica actual del radar (m_mon, folium, etc.)
+        st.info("📡 Módulo de Radar S.O.S activo")
+
     with t_gestion:
-        st.subheader("📖 LIBRO DE BASE")
-        if not df_emergencias.empty:
+        st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        if not df_emergencias.empty: 
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        else:
-            st.info("Sin registros.")
-            
+        else: 
+            st.info("No hay registros en el historial.")
+
     with t_comunicacion:
         st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
-        
-    with t_pres:
-        st.subheader("📋 REGISTRO GENERAL DE PRESENTISMO")
-        df_p = leer_matriz_nube("PRESENTISMO")
-        if not df_p.empty:
-            # Usamos una columna conocida de fecha o el índice para ordenar
-            try:
-                st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
-            except:
-                st.dataframe(df_p, use_container_width=True)
+        df_chats = leer_matriz_nube("CHATS")
+        if not df_chats.empty:
+            for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
+                es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
+                st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
         else:
-            st.info("No hay registros de presentismo aún.")
+            st.info("Sin comunicaciones.")
+
+    # NUEVA PESTAÑA DE PRESENTISMO
+    with t_pres:
+        st.subheader("📋 REGISTRO DE PRESENTISMO (TOTAL)")
+        df_pres = leer_matriz_nube("PRESENTISMO")
+        if not df_pres.empty:
+            # Mostramos la tabla ordenando por fecha reciente
+            st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        else:
+            st.info("No hay registros de presentismo.")
 
 # C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
@@ -440,7 +455,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# D. ROL: SUPERVISOR (CORREGIDO: MAPA + PRESENTISMO)
+# D. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
@@ -454,9 +469,27 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_objetivos_filtrados = pd.DataFrame()
 
         st.subheader("Control de Unidad Móvil")
-        # [AQUÍ MANTIENES TU CÓDIGO DE ODOMETRÍA Y LOGÍSTICA]
         
-        # Pestañas incluyendo la de PRESENTISMO y asegurando que el MAPA esté en la primera
+        st.markdown('<div class="panel-info">', unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            s_movil = st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
+        with c2:
+            s_km_inicial = st.number_input("Km Inicial:", value=0, step=1, key="sup_km_inicial")
+        with c3:
+            s_km_final = st.number_input("Km Final:", value=0, step=1, key="sup_km_final")
+        with c4:
+            s_combustible = st.number_input("Combustible (Lts):", value=0.0, step=0.1, key="sup_combustible")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        col_btn1, col_btn2 = st.columns([3, 1])
+        with col_btn1:
+            st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
+        with col_btn2:
+            if st.button("REFRESCAR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
+                st.rerun()
+
+        # AQUÍ AGREGUÉ LA PESTAÑA DE PRESENTISMO
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación", "📋 PRESENTISMO"])
         
         with t_vis_qr:
@@ -472,7 +505,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
             
-            # Motor de renderizado táctico de mapas
+            # Limpieza y renderizado táctico
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD']).copy()
             df_mapa_sup['LATITUD'] = pd.to_numeric(df_mapa_sup['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
             df_mapa_sup['LONGITUD'] = pd.to_numeric(df_mapa_sup['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
@@ -485,25 +518,35 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
             else:
                 m_visor = folium.Map(location=[-34.6037, -58.3816], zoom_start=12, tiles="CartoDB dark_matter")
-                
+            
             st_folium(m_visor, width="100%", height=500, key=f"map_visor_sup_dinamico_{sup_activo_normalizado}")
             st.markdown('</div>', unsafe_allow_html=True)
             
         with t_car_tac:
-            # [TU CÓDIGO DE CARGA TÁCTICA]
-            pass
+            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+            st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
+            novedad_sup = st.text_area("Novedad / Registro Operativo:", key="texto_novedad_supervisor")
+            if st.button("CARGAR REGISTRO", key="btn_cargar_registro_sup"):
+                if novedad_sup.strip():
+                    escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
+                    st.success("✅ Registro cargado")
+            st.markdown('</div>', unsafe_allow_html=True)
             
         with t_com_sup:
-            # [TU CÓDIGO DE COMUNICACIÓN]
-            pass
+            st.subheader("Bandeja de Novedades del Sector")
+            df_chats_sup = leer_matriz_nube("CHATS")
+            if not df_chats_sup.empty:
+                st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
+        # NUEVA PESTAÑA PRESENTISMO PARA SUPERVISOR
         with t_pres_sup:
             st.subheader(f"📋 PRESENTISMO: {st.session_state.user_sel}")
             df_p = leer_matriz_nube("PRESENTISMO")
             if not df_p.empty:
-                st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
+                st.dataframe(df_p.sort_values(by="FECHA", ascending=False), use_container_width=True)
             else:
                 st.info("Sin registros.")
+
 # E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
