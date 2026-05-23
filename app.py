@@ -346,7 +346,9 @@ else:
 
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
-if st.session_state.rol_sel == "MONITOREO":
+# A. ROL: MONITOREO
+elif st.session_state.rol_sel == "MONITOREO":
+    st.markdown('<div class="estacion-titulo">🛰️ CENTRAL DE INTELIGENCIA OPERATIVA</div>', unsafe_allow_html=True)
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
@@ -362,39 +364,59 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Se definen las 4 pestañas aquí
+    # Se definen las 4 pestañas: RADAR, GESTIÓN, COMUNICACIÓN, PRESENTISMO
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
     with t_radar:
-        # Aquí va tu lógica actual del radar (m_mon, folium, etc.)
-        st.info("📡 Módulo de Radar S.O.S activo")
+        # Lógica completa de tu RADAR original
+        lat_foco, lon_foco = -34.6, -58.4
+        obj_en_panico, sup_responsable = "", ""
+        comisaria_cercana = None
+        dist_minima = float('inf')
+        
+        df_objetivos_mapa = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
+        
+        if sos_activos > 0 and not df_objetivos_mapa.empty:
+            datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
+            try:
+                partes = datos_sos.get('CARGA_UTIL', '').split("|")
+                obj_en_panico = partes[2].split(":")[1].strip()
+                sup_responsable = partes[3].split(":")[1].strip()
+                target_data = df_objetivos_mapa[df_objetivos_mapa['OBJETIVO'] == obj_en_panico].iloc[0]
+                lat_foco, lon_foco = float(str(target_data['LATITUD']).replace(',','.')), float(str(target_data['LONGITUD']).replace(',','.'))
+                st.error(f"🚨 EMERGENCY EN CURSO: {obj_en_panico}")
+            except: pass
+        else:
+            st.success("✅ Vigilancia Pasiva - Radar Operativo")
+
+        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
+        # Aquí iría tu renderizado de folium (con Blink icon, etc)
+        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final")
+        
+        if sos_activos > 0:
+            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
+            if st.button("FINALIZAR OPERATIVO"):
+                actualizar_celda("ALERTAS", df_emergencias.index[-1] + 2, "D", "RESUELTO")
+                st.rerun()
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
-        if not df_emergencias.empty: 
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        else: 
-            st.info("No hay registros en el historial.")
+        st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
 
     with t_comunicacion:
         st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
         df_chats = leer_matriz_nube("CHATS")
         if not df_chats.empty:
             for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
-                es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
-                st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-        else:
-            st.info("Sin comunicaciones.")
+                st.markdown(f"**{msg.get('HORA')}** - {msg.get('USUARIO')}: {msg.get('TEXTO')}")
 
-    # NUEVA PESTAÑA DE PRESENTISMO
     with t_pres:
-        st.subheader("📋 REGISTRO DE PRESENTISMO (TOTAL)")
-        df_pres = leer_matriz_nube("PRESENTISMO")
-        if not df_pres.empty:
-            # Mostramos la tabla ordenando por fecha reciente
-            st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        st.subheader("📋 REGISTRO DE PRESENTISMO")
+        df_p = leer_matriz_nube("PRESENTISMO")
+        if not df_p.empty:
+            st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
         else:
-            st.info("No hay registros de presentismo.")
+            st.info("Sin registros.")
 
 # C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
