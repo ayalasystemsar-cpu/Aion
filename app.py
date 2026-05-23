@@ -336,52 +336,40 @@ with st.sidebar:
 
 # --- 7. FLUJO POR ROLES ---
 
+# --- 7. FLUJO POR ROLES ---
+
 # A. ROL: MONITOREO
-    if st.session_state.rol_sel == "MONITOREO":
-        df_emergencias = leer_matriz_nube("ALERTAS")
-        df_comisarias = leer_matriz_nube("COMISARIAS")
-        
-        if df_emergencias.empty:
-            df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
-        else:
-            df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
-        
-        sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if 'ESTADO' in df_emergencias.columns else 0
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
-        c2.metric("📡 RED", "OPERATIVA")
-        c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+if st.session_state.rol_sel == "MONITOREO":
+    df_emergencias = leer_matriz_nube("ALERTAS")
+    df_comisarias = leer_matriz_nube("COMISARIAS")
+    if df_emergencias.empty:
+        df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
+    else:
+        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
+    
+    sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if 'ESTADO' in df_emergencias.columns else 0
+    
+    c1, c2, c3 = st.columns(3)
+    c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
+    c2.metric("📡 RED", "OPERATIVA")
+    c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-        t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
-        
-        with t_radar:
-            st.info("📡 Radar S.O.S desactivado.")
-            
-        with t_gestion:
-            st.subheader("📖 HISTORIAL DE OPERATIVOS")
-            if not df_emergencias.empty: 
-                st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-            else: 
-                st.info("No hay registros en el historial.")
-            
-        with t_comunicacion:
-            st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
-            df_chats = leer_matriz_nube("CHATS")
-            if not df_chats.empty:
-                for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
-                    es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
-                    st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-            else:
-                st.info("Sin comunicaciones.")
+    t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
+    
+    with t_radar:
+        st.write("Radar activo")
+    with t_gestion:
+        st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        if not df_emergencias.empty: st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+    with t_comunicacion:
+        st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
+    with t_pres:
+        st.subheader("📋 REGISTRO DE PRESENTISMO")
+        df_pres = leer_matriz_nube("PRESENTISMO")
+        if not df_pres.empty:
+            st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        else: st.info("No hay registros.")
 
-        with t_pres:
-            st.subheader("📋 REGISTRO DE PRESENTISMO")
-            df_pres = leer_matriz_nube("PRESENTISMO")
-            if not df_pres.empty:
-                st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
-            else: 
-                st.info("No hay registros de presentismo aún.")
 # B. ROL: VIGILADOR
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="estacion-titulo">🛡️ PANEL DE VIGILADOR</div>', unsafe_allow_html=True)
@@ -399,52 +387,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
 # C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🚨 S.O.S ACTIVOS", "0")
-    col2.metric("📡 RED", "OPERATIVA")
-    col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
-    col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
-  
-
-    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
-    
-    with t_crisis:
-        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_obj_maps_jefe.empty else pd.DataFrame()
-        centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        if not df_obj_maps_jefe.empty:
-            for _, r in df_obj_maps_jefe.iterrows():
-                folium.Marker(
-                    [r['LATITUD'], r['LONGITUD']], 
-                    tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-                ).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=500, key=f"map_jefe_operaciones_crisis")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with t_ejecucion:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
-        
-        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
-        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
-        o_det = st.text_input("Nombre / Detalle:")
-        
-        if st.button("ELEV AR PETICIÓN"):
-            if o_det.strip():
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
-                st.success("✅ Petición Elevada Exitosamente")
-            else:
-                st.error("⚠️ El campo Nombre / Detalle es obligatorio.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.write("---")
-    st.subheader("📋 REPORTE DE MOVIMIENTOS")
-    df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-    if not df_novedades.empty:
-        st.dataframe(df_novedades.tail(20), use_container_width=True)
+    st.write("Panel Jefe de Operaciones activo")
 
 # D. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
@@ -458,103 +401,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
 # E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
-    # [TU LÓGICA DE GERENCIA]
-    elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
-    st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
-    
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
-    m2.metric("Nivel de Cobertura", "47/93")
-    m3.metric("Auditorías Físicas (QRs)", "2")
-    m4.metric("Desgaste Flota (Km)", "4954 Km")
-    
-    st.write("")
-    
-    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    
-    with t_com_est:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("Transmitir Directiva (Push a Celulares)")
-        
-        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
-        g_asunto = st.text_input("Asunto:", key="ger_asunto")
-        g_orden = st.text_area("Orden:", key="ger_orden")
-        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
-        
-        if st.button("Ejecutar Directiva", key="btn_ger_directiva"):
-            if g_orden.strip():
-                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, g_asunto])
-                st.success("✅ Directiva Transmitida al escalafón operacional")
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    with t_ejecucion_ger:
-        col_g1, col_g2 = st.columns(2)
-        
-        with col_g1:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            st.subheader("Alta Servicio")
-            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
-            
-            if st.button("Solicitar Alta a Admin", key="btn_ger_alta"):
-                if g_alta_nom.strip():
-                    escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
-                    st.success("✅ Petición de Alta enviada al Núcleo Maestro")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with col_g2:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            st.subheader("Baja Servicio")
-            opciones_baja = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-            g_baja_obj = st.selectbox("Objetivo:", opciones_baja, key="ger_baja_obj")
-            if st.button("Solicitar Baja a Admin", key="btn_ger_baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
-                st.success("✅ Petición de Baja enviada al Núcleo Maestro")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_tab_auditoria:
-        st.subheader("📡 LOCALIZACIÓN DE OBJETIVOS ACTIVOS")
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']) if not df_ger_maps.empty else pd.DataFrame()
-        centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        if not df_ger_maps.empty:
-            for _, r in df_ger_maps.iterrows():
-                folium.Marker(
-                    [r['LATITUD'], r['LONGITUD']], 
-                    tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-                ).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=450, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.write("---")
-        st.subheader("📋 REPORTE HISTÓRICO DE MOVIMIENTOS")
-        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades.empty:
-            st.dataframe(df_novedades.tail(20), use_container_width=True)
-
-    pass
+    st.write("Panel Gerencia activo")
 
 # F. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
-    # [TU LÓGICA DE ADMIN]
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
-    
-    with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA", expanded=True):
-        u_ing = st.text_input("ADMIN_USER")
-        p_ing = st.text_input("ADMIN_PASS", type="password")
-        
-    st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
-    
-    if u_ing == "admin" and p_ing == "aion2026":
-        st.write("---")
-        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nuevo_nombre = st.text_input("Nombre:").upper()
-        if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-            st.success("Alta Exitosa")
+    st.write("Panel Administrador activo")
