@@ -346,8 +346,7 @@ else:
 
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
-# A. ROL: MONITOREO
-elif st.session_state.rol_sel == "MONITOREO":
+if st.session_state.rol_sel == "MONITOREO":
     st.markdown('<div class="estacion-titulo">🛰️ CENTRAL DE INTELIGENCIA OPERATIVA</div>', unsafe_allow_html=True)
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
@@ -364,16 +363,10 @@ elif st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Se definen las 4 pestañas: RADAR, GESTIÓN, COMUNICACIÓN, PRESENTISMO
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
     with t_radar:
-        # Lógica completa de tu RADAR original
         lat_foco, lon_foco = -34.6, -58.4
-        obj_en_panico, sup_responsable = "", ""
-        comisaria_cercana = None
-        dist_minima = float('inf')
-        
         df_objetivos_mapa = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         
         if sos_activos > 0 and not df_objetivos_mapa.empty:
@@ -381,16 +374,15 @@ elif st.session_state.rol_sel == "MONITOREO":
             try:
                 partes = datos_sos.get('CARGA_UTIL', '').split("|")
                 obj_en_panico = partes[2].split(":")[1].strip()
-                sup_responsable = partes[3].split(":")[1].strip()
                 target_data = df_objetivos_mapa[df_objetivos_mapa['OBJETIVO'] == obj_en_panico].iloc[0]
-                lat_foco, lon_foco = float(str(target_data['LATITUD']).replace(',','.')), float(str(target_data['LONGITUD']).replace(',','.'))
+                lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
+                lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
                 st.error(f"🚨 EMERGENCY EN CURSO: {obj_en_panico}")
             except: pass
         else:
             st.success("✅ Vigilancia Pasiva - Radar Operativo")
 
         m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
-        # Aquí iría tu renderizado de folium (con Blink icon, etc)
         st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_final")
         
         if sos_activos > 0:
@@ -417,7 +409,6 @@ elif st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
         else:
             st.info("Sin registros.")
-
 # C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
