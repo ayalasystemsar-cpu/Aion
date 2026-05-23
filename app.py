@@ -54,7 +54,7 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: return False
 
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=5) # 5 segundos de TTL para actualización táctica veloz
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -143,11 +143,6 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
-        
-        /* PARCHE ALFA: Ocultar cartel de 'empty' en tablas maestras */
-        div[data-testid="stDataFrame"] div[class*="StyledEmptyState"] {
-            display: none !important;
-        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -350,20 +345,24 @@ if st.session_state.rol_sel == "MONITOREO":
         st.subheader("📋 TABLA MASTER: PRESENTISMO")
         df_pres = leer_matriz_nube("PRESENTISMO")
         if df_pres is not None and not df_pres.empty:
-            if "FECHA" in df_pres.columns and len(df_pres) > 0:
-                try: df_pres = df_pres.sort_values(by="FECHA", ascending=False)
-                except: pass
-            st.dataframe(df_pres, use_container_width=True)
+            df_pres.columns = df_pres.columns.str.strip().str.upper()
+            # Forzamos mapeo visual alineado estrictamente a la captura 1 del Sheets
+            columnas_maestras = ["FECHA", "HORA", "DNI", "NOMBRE Y APE OBJETIVO", "ESTADO", "TIPO DE MARCACION"]
+            columnas_validas = [c for c in columnas_maestras if c in df_pres.columns]
+            st.dataframe(df_pres[columnas_validas].iloc[::-1], use_container_width=True)
         else:
-            st.dataframe(df_pres, use_container_width=True)
+            st.info("No hay datos de presentismo registrados.")
 
     with t_vig:
-        st.subheader("👥 TABLA MASTER: VIGILADORES")
+        st.subheader("👥 TABLA MASTER: RELEVOS VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
-        if df_padrero is not None:
-            st.dataframe(df_padrero, use_container_width=True)
+        if df_padrero is not None and not df_padrero.empty:
+            df_padrero.columns = df_padrero.columns.str.strip().str.upper()
+            columnas_relevos = ["FECHA", "HORA", "OBJETIVO", "VIGILADOR_SALIENTE", "VIGILADOR_ENTRANTE", "SUPERVISOR_ASIGNADO", "ESTADO"]
+            columnas_validas_rel = [c for c in columnas_relevos if c in df_padrero.columns]
+            st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
         else:
-            st.info("No se pudo conectar con la hoja de Vigiladores.")
+            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
     with t_guardia:
         st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
@@ -472,31 +471,33 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
-                    # Separación limpia de Fecha y Hora (Argentina)
+                    # Separación límpida obligatoria de Fecha y Hora
                     fecha_hora_arg = obtener_hora_argentina()
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     
-                    # Estructura Captura 1 (PRESENTISMO): FECHA | HORA | DNI | NOMBRE Y APE OBJETIVO | (Vacío) | ESTADO | TIPO DE MARCACION
+                    # Estructura EXACTA según Captura 1 (Pestaña PRESENTISMO):
+                    # FECHA (A) | HORA (B) | DNI (C) | NOMBRE Y APE OBJETIVO (D) | VACIO (E) | ESTADO (F) | TIPO DE MARCACION (G)
                     datos_presentismo = [
                         fecha_hoy,
                         hora_hoy,
                         v_dni,
                         f"{v_apellido} - {v_obj}",
-                        "",  # Columna E libre
+                        "",  # Columna E libre requerida
                         "OK_SISTEMA",
                         v_tipo_marcacion
                     ]
                     
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    # Espejo en NOVEDADES_GUARDIA para auditoría
+                    # Espejo de auditoría unificado y alineado en NOVEDADES_GUARDIA:
+                    # FECHA | OBJETIVO | DNI | TIPO | NOVEDAD | SUPERVISOR
                     escribir_registro_nube("NOVEDADES_GUARDIA", [
                         fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable
                     ])
                     
                     if exito_pres:
-                        st.success(f"🔒 BIOMETRÍA REGISTRADA: Marcación de {v_tipo_marcacion} guardada en base maestra.")
+                        st.success(f"🔒 BIOMETRÍA REGISTRADA: Marcación de {v_tipo_marcacion} guardada correctamente.")
                     else:
                         st.error("❌ ERROR DE RED: No se pudo impactar en la planilla de Presentismo.")
                 else:
@@ -515,12 +516,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
-                    # Separación limpia de Fecha y Hora
+                    # Separación límpida obligatoria de Fecha y Hora
                     fecha_hora_arg = obtener_hora_argentina()
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     
-                    # Estructura Captura 2 (VIGILADORES): FECHA | HORA | OBJETIVO | VIGILADOR_SALIENTE | VIGILADOR_ENTRANTE | SUPERVISOR_ASSIGNADO | ESTADO
+                    # Estructura EXACTA según Captura 2 (Pestaña VIGILADORES):
+                    # FECHA (A) | HORA (B) | OBJETIVO (C) | VIGILADOR_SALIENTE (D) | VIGILADOR_ENTRANTE (E) | SUPERVISOR_ASSIGNADO (F) | ESTADO (G)
                     datos_relevo = [
                         fecha_hoy,
                         hora_hoy,
@@ -533,15 +535,16 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
-                    # Espejo en NOVEDADES_GUARDIA
+                    # Espejo unificado y alineado en NOVEDADES_GUARDIA para que no se corran las celdas:
+                    # FECHA | OBJETIVO | DNI (O IDENTIFICADOR) | TIPO | NOVEDAD | SUPERVISOR
                     escribir_registro_nube("NOVEDADES_GUARDIA", [
-                        fecha_hora_arg, v_obj_relevo, "RELEVO", f"SALE: {vig_saliente}", f"ENTRA: {vig_entrante}", sup_responsable
+                        fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable
                     ])
                     
                     if exito_relevo:
                         st.success(f"⚡ RELEVO SANCIONADO: Registro guardado en la pestaña Vigiladores.")
                     else:
-                        st.error("❌ ERROR DE RED: No se pudo impactar el relevo en la base central.")
+                        st.error("❌ ERROR DE RED: No se pudo impactar el relevo.")
                 else:
                     st.error("❌ ERROR: Complete los campos de personal saliente y entrante.")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -639,3 +642,4 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026": st.success("Núcleo Maestro desbloqueado.")
+
