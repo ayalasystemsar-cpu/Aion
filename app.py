@@ -222,6 +222,16 @@ def aplicar_identidad_alfa():
             font-family: 'Orbitron', sans-serif !important;
             font-size: 22px !important;
         }
+        
+        /* Animación CSS para que titile el punto de pánico en rojo */
+        @keyframes pulse-red {
+            0% { r: 6px; opacity: 1; fill-opacity: 0.9; }
+            50% { r: 14px; opacity: 0.6; fill-opacity: 0.3; stroke-width: 4; }
+            100% { r: 6px; opacity: 1; fill-opacity: 0.9; }
+        }
+        .marker-panic-pulsing {
+            animation: pulse-red 1.2s infinite ease-in-out;
+        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -350,12 +360,29 @@ if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
     
+    # Limpieza de dataframe de emergencias
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
     
-    sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if 'ESTADO' in df_emergencias.columns else 0
+    # Identificar objetivos que están bajo pánico pendiente
+    lista_objetivos_en_panico = []
+    if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
+        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+        sos_activos = len(pendientes)
+        
+        # Extraer el nombre del objetivo de la carga útil "OBJ:XXXX|"
+        for _, row in pendientes.iterrows():
+            carga = str(row['CARGA_UTIL'])
+            if "OBJ:" in carga:
+                try:
+                    partes = carga.split("OBJ:")[1].split("|")[0]
+                    lista_objetivos_en_panico.append(partes.strip().upper())
+                except:
+                    pass
+    else:
+        sos_activos = 0
     
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
@@ -367,8 +394,44 @@ if st.session_state.rol_sel == "MONITOREO":
     
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
+        # --- SECCIÓN: DESACTIVAR PÁNICO ---
+        if sos_activos > 0:
+            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
+            st.error(f"🚨 ALERTA CRÍTICA: Se detectaron {sos_activos} señales de pánico pendientes de resolución.")
+            
+            # Obtener las filas reales de la Google Sheet que están PENDIENTES
+            # Asumiendo que la fila en df corresponde a la fila en el sheet (sumando 2 por encabezado)
+            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
+            
+            with st.form(key="form_finalizar_panico", clear_on_submit=True):
+                st.markdown("<b style='color:#FF0000;'>RESOLUCIÓN DE INCIDENTE S.O.S:</b>", unsafe_allow_html=True)
+                
+                # Armar opciones para el selectbox combinando Fecha y Usuario
+                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
+                
+                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE (OBLIGATORIO):", placeholder="Describa la resolución del incidente, novedades y estado del personal...")
+                btn_cerrar_sos = st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR")
+                
+                if btn_cerrar_sos:
+                    if txt_informe_cierre.strip():
+                        idx_df = opciones_alertas[alerta_seleccionada]
+                        nro_fila_gsheet = idx_df + 2 # +2 Ajuste de índice dataframe a fila real de Google Sheets
+                        
+                        # Columna D es ESTADO, Columna F es INFORME (A: FECHA, B: USUARIO, C: TIPO, D: ESTADO, E: CARGA, F: INFORME)
+                        actualizar_celda("ALERTAS", nro_fila_gsheet, "D", "FINALIZADO")
+                        actualizar_celda("ALERTAS", nro_fila_gsheet, "F", txt_informe_cierre.strip().upper())
+                        
+                        st.success("✅ PÁNICO FINALIZADO: Canal normalizado en Matriz Central.")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ Error: Debe redactar un informe de cierre antes de finalizar el pánico.")
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.write("")
+
+        # --- MAPA CON TITILEO DINÁMICO ---
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         
         if not df_mapa_monitoreo.empty:
@@ -381,17 +444,37 @@ if st.session_state.rol_sel == "MONITOREO":
             )
             
             for _, r in df_mapa_monitoreo.iterrows():
-                info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
-                folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']],
-                    radius=7,
-                    color="#00E5FF",
-                    fill=True,
-                    fill_color="#00E5FF",
-                    fill_opacity=0.5,
-                    weight=3,
-                    tooltip=info_hover
-                ).add_to(m_mon)
+                nombre_obj = str(r['OBJETIVO']).strip().upper()
+                supervisor_obj = str(r.get('SUPERVISOR', 'NO ASIGNADO')).strip().upper()
+                
+                # Tooltip interactivo con el ícono y datos estructurados que teníamos
+                info_hover = f"🎯 OBJETIVO: {nombre_obj} | 👤 SUPERVISOR: {supervisor_obj}"
+                
+                # Si el objetivo actual tiene una alerta pendiente, cambia a Rojo y Titila
+                if nombre_obj in lista_objetivos_en_panico:
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']],
+                        radius=9,
+                        color="#FF0000",        # Rojo Alerta
+                        fill=True,
+                        fill_color="#FF0000",
+                        fill_opacity=0.8,
+                        weight=4,
+                        tooltip=info_hover,
+                        class_name="marker-panic-pulsing" # Aplica la animación CSS
+                    ).add_to(m_mon)
+                else:
+                    # Punto Operativo normal (Cian Brillante)
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']],
+                        radius=7,
+                        color="#00E5FF",        # Cian
+                        fill=True,
+                        fill_color="#00E5FF",
+                        fill_opacity=0.5,
+                        weight=3,
+                        tooltip=info_hover
+                    ).add_to(m_mon)
         else:
             m_mon = folium.Map(location=[-34.6037, -58.3816], zoom_start=11, tiles="CartoDB dark_matter")
             
@@ -408,14 +491,12 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_comunicacion:
         st.markdown('<h3>💬 COMUNICACIÓN CENTRAL DE COMANDO</h3>', unsafe_allow_html=True)
         
-        # Caja de entrada de texto interactiva para enviar mensajes desde Monitoreo
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:", placeholder="Escriba un mensaje para la red de supervisores...")
             prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
             btn_enviar_mon = st.form_submit_button("TRANSMITIR A LA RED")
             
             if btn_enviar_mon and txt_mensaje_mon.strip():
-                # Estructura alineada con la Google Sheet: [HORA, USUARIO, TEXTO, PRIORIDAD, DESTINO, ASUNTO]
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
                 st.success("⚡ MENSAJE TRANSMITIDO CON ÉXITO")
                 st.rerun()
@@ -551,7 +632,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 centro_coordenadas = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()]
                 m_visor = folium.Map(location=centro_coordenadas, zoom_start=12, tiles="CartoDB dark_matter")
                 for _, r in df_mapa_sup.iterrows():
-                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
             else:
                 m_visor = folium.Map(location=[-34.6037, -58.3816], zoom_start=12, tiles="CartoDB dark_matter")
             
@@ -571,7 +652,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_com_sup:
             st.subheader("💬 CHAT OPERATIVO - CONEXIÓN BASE CENTRAL")
             
-            # Formulario de envío rápido para el Supervisor hacia la Central
             with st.form(key="form_chat_supervisor", clear_on_submit=True):
                 txt_mensaje_sup = st.text_input("REPORTE RÁPIDO PARA MONITOREO:", placeholder="Escriba novedad de último momento aquí...")
                 prioridad_sup = st.selectbox("RELEVANCIA:", ["VERDE", "ROJA"], key="prio_sup_select")
@@ -585,7 +665,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.write("---")
             df_chats_sup = leer_matriz_nube("CHATS")
             if not df_chats_sup.empty:
-                # El supervisor ve los últimos 15 mensajes de la red para mantener conocimiento de situación
                 for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
                     es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
                     st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
