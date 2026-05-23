@@ -5,11 +5,26 @@ import pandas as pd
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from streamlit_js_eval import get_geolocation
 import folium
 from streamlit_folium import st_folium
+import math
 
-# --- CONFIGURACIÓN ---
+# --- CONFIGURACIÓN E IDENTIDAD ALFA (TU DISEÑO ORIGINAL) ---
 st.set_page_config(page_title="AION-YAROKU | CORE", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+
+def aplicar_identidad_alfa():
+    st.markdown("""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
+        .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; }
+        </style>
+        """, unsafe_allow_html=True)
+
+aplicar_identidad_alfa()
+
+# --- FUNCIONES BASE ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
 def conectar_google():
@@ -29,82 +44,34 @@ def leer_matriz_nube(pestana):
         except: return pd.DataFrame()
     return pd.DataFrame()
 
-def escribir_registro_nube(pestana, datos_fila):
-    gc = conectar_google()
-    if gc:
-        try:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.append_row(datos_fila)
-        except: pass
-
-# --- RADAR TÁCTICO CON ICONOS ---
+# --- RADAR TÁCTICO CON ICONOS RECONOCIBLES ---
 def renderizar_radar():
     df_obj = leer_matriz_nube("OBJETIVOS")
-    df_com = leer_matriz_nube("COMISARIAS ")
+    df_com = leer_matriz_nube("COMISARIAS ") 
     
     m = folium.Map(location=[-34.6, -58.4], zoom_start=11, tiles="CartoDB dark_matter")
     
-    # 1. OBJETIVOS (Escudo Azul)
+    # Marcadores Objetivos (Escudo Azul)
     if not df_obj.empty and 'LATITUD' in df_obj.columns:
-        df_obj['LATITUD'] = pd.to_numeric(df_obj['LATITUD'].str.replace(',', '.'), errors='coerce')
-        df_obj['LONGITUD'] = pd.to_numeric(df_obj['LONGITUD'].str.replace(',', '.'), errors='coerce')
         for _, r in df_obj.dropna(subset=['LATITUD', 'LONGITUD']).iterrows():
             folium.Marker(
-                [r['LATITUD'], r['LONGITUD']],
+                [float(r['LATITUD'].replace(',', '.')), float(r['LONGITUD'].replace(',', '.'))],
                 tooltip=f"🎯 {r['OBJETIVO']} | 👤 {r.get('SUPERVISOR', 'N/A')}",
                 icon=folium.Icon(color="blue", icon="shield", prefix="fa")
             ).add_to(m)
             
-    # 2. COMISARIAS (Edificio Rojo)
+    # Marcadores Comisarías (Edificio Rojo)
     if not df_com.empty and 'LATITUD' in df_com.columns:
-        df_com['LATITUD'] = pd.to_numeric(df_com['LATITUD'].str.replace(',', '.'), errors='coerce')
-        df_com['LONGITUD'] = pd.to_numeric(df_com['LONGITUD'].str.replace(',', '.'), errors='coerce')
         for _, c in df_com.dropna(subset=['LATITUD', 'LONGITUD']).iterrows():
             folium.Marker(
-                [c['LATITUD'], c['LONGITUD']],
-                tooltip=f"🚓 COMISARIA: {c['NOMBRE']}",
+                [float(c['LATITUD'].replace(',', '.')), float(c['LONGITUD'].replace(',', '.'))],
+                tooltip=f"🚓 {c['NOMBRE']}",
                 icon=folium.Icon(color="red", icon="building", prefix="fa")
             ).add_to(m)
+            
     st_folium(m, width="100%", height=500)
 
 # --- FLUJO PRINCIPAL ---
-if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-
-st.sidebar.title("🛡️ AION-YAROKU")
-rol = st.sidebar.radio("SELECCIONAR ROL:", ["MONITOREO", "VIGILADOR", "JEFE", "GERENCIA", "ADMINISTRADOR"])
-
-if rol == "MONITOREO":
-    st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
-    renderizar_radar()
-    t1, t2, t3, t4 = st.tabs(["PRESENTISMO", "VIGILADORES", "NOVEDADES", "ALERTAS"])
-    with t1: st.dataframe(leer_matriz_nube("PRESENTISMO"), use_container_width=True)
-    with t2: st.dataframe(leer_matriz_nube("VIGILADORES"), use_container_width=True)
-    with t3: st.dataframe(leer_matriz_nube("NOVEDADES_GUARDIA"), use_container_width=True)
-    with t4: st.dataframe(leer_matriz_nube("ALERTAS"), use_container_width=True)
-
-elif rol == "VIGILADOR":
-    st.header("👮 FICHAJE")
-    with st.form("fichaje_form"):
-        nombre = st.text_input("Nombre")
-        dni = st.text_input("DNI")
-        obj = st.text_input("Objetivo")
-        if st.form_submit_button("REGISTRAR"):
-            escribir_registro_nube("PRESENTISMO", [datetime.now().strftime("%Y-%m-%d"), datetime.now().strftime("%H:%M:%S"), dni, f"{nombre} - {obj}", obj, "OK", "INGRESO"])
-            st.success("Registrado")
-
-elif rol == "JEFE":
-    st.header("📋 COMANDO DE OPERACIONES")
-    st.dataframe(leer_matriz_nube("NOVEDADES_GUARDIA").tail(20), use_container_width=True)
-
-elif rol == "GERENCIA":
-    st.header("🏢 COMANDO ESTRATÉGICO")
-    st.metric("Total Novedades", len(leer_matriz_nube("NOVEDADES_GUARDIA")))
-    st.dataframe(leer_matriz_nube("PETICIONES"), use_container_width=True)
-
-elif rol == "ADMINISTRADOR":
-    st.header("⚙️ NÚCLEO MAESTRO")
-    pwd = st.text_input("PASSWORD", type="password")
-    if pwd == "aion2026":
-        st.success("Acceso total")
-        st.write(leer_matriz_nube("ALERTAS").tail(10))
+# [AQUÍ MANTIENES TU SIDEBAR, TABS Y ROLES ORIGINALES]
+# Solo cambia la llamada a tu mapa por: renderizar_radar()
 
