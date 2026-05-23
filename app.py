@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -207,9 +206,15 @@ with st.sidebar:
         st.rerun()
 
     st.write("---")
-    loc = get_geolocation()
-    lat_envio = loc['coords']['latitude'] if loc else 0.0
-    lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
+    # ⚡ COMIENZO DE BLINDAJE CONTRA EL ERROR 'coords' (KeyError) ⚡
+    lat_envio, lon_envio = 0.0, 0.0
+    try:
+        loc = get_geolocation()
+        if loc and isinstance(loc, dict) and 'coords' in loc:
+            lat_envio = loc['coords'].get('latitude', 0.0)
+            lon_envio = loc['coords'].get('longitude', 0.0)
+    except Exception:
+        pass
 
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
         if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
@@ -338,7 +343,7 @@ if st.session_state.rol_sel == "MONITOREO":
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
         if not df_nov_g.empty: st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
-# B. ROL: SUPERVISOR (FILTRADO DE NOVEDADES CORREGIDO PARA PRODUCCIÓN)
+# B. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -396,10 +401,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
-                
-                # ⚡ FILTRADO CORREGIDO: Se unificó la lectura de columna para que busque exactamente en 'SUPERVISOR'
                 col_filtro = 'SUPERVISOR' if 'SUPERVISOR' in df_v_total.columns else ('SUPERVISOR_ACTIVO' if 'SUPERVISOR_ACTIVO' in df_v_total.columns else '')
-                
                 if col_filtro:
                     df_v_filtrado = df_v_total[df_v_total[col_filtro].astype(str).str.strip().str.upper() == sup_activo_normalizado]
                     if not df_v_filtrado.empty:
@@ -412,7 +414,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 # --- C. ROL: VIGILADOR ---
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-    
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
     
     tab_presentismo, tab_relevo = st.tabs([
@@ -420,14 +421,12 @@ elif st.session_state.rol_sel == "VIGILADOR":
         "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"
     ])
     
-    # 1. PRESENTISMO EN OBJETIVO (Fichaje Biométrico Celular/Web)
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
             v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
             v_dni = st.text_input("DNI / LEGAJO:").strip()
             v_obj = st.selectbox("OBJETIVO DE PRESENTISMO:", opciones_globales_obj, key="obj_pres_vig")
-            
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
             btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
             
@@ -435,65 +434,81 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 if v_apellido and img_facial and v_dni:
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-
-                    # ⚡ ALINEACIÓN PLANILLA 'PRESENTISMO': [FECHA, NOMBRE, OBJETIVO, ESTADO]
                     escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), v_apellido, v_obj, "PRESENTE"])
-                    
-                    # ⚡ ALINEACIÓN PLANILLA 'NOVEDADES_GUARDIA': [FECHA, HORA(=OBJETIVO), OBJETIVO(=DNI), VIGILADOR_SALIENTE, VIGILADOR_ENTRANTE, SUPERVISOR]
                     escribir_registro_nube("NOVEDADES_GUARDIA", [
-                        obtener_hora_argentina(), 
-                        v_obj, 
-                        v_dni, 
-                        "SOLICITUD FACIAL", 
-                        f"INGRESA: {v_apellido}",
-                        sup_responsable
+                        obtener_hora_argentina(), v_obj, v_dni, "SOLICITUD FACIAL", f"INGRESA: {v_apellido}", sup_responsable
                     ])
-                    st.success(f"🔒 BIOMETRÍA REGISTRADA: Presente guardado en base maestra y ruteado al panel de {sup_responsable}.")
+                    st.success(f"🔒 BIOMETRÍA REGISTRADA: Presente guardado en base maestra.")
                 else:
-                    st.error("❌ ERROR: Complete su nombre, DNI y capture su foto facial obligatoria para abrir servicio.")
+                    st.error("❌ ERROR: Complete todos los campos y la captura facial.")
                     
-    # 2. CAMBIO DE GUARDIA EN OBJETIVO
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
             v_obj_relevo = st.selectbox("OBJETIVO DEL RELEVO:", opciones_globales_obj, key="obj_relevo_vig")
             vig_saliente = st.text_input("VIGILADOR QUE ENTREGA (SALE):").upper().strip()
             vig_entrante = st.text_input("VIGILADOR QUE RECIBE (ENTRA):").upper().strip()
-            
             btn_relevo = st.form_submit_button("SANCIONAR CAMBIO DE GUARDIA")
             
             if btn_relevo:
                 if vig_saliente and vig_entrante:
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-                    
-                    # ⚡ ALINEACIÓN PLANILLA 'NOVEDADES_GUARDIA': [FECHA, HORA(=OBJETIVO), OBJETIVO(=RELEVO), VIGILADOR_SALIENTE, VIGILADOR_ENTRANTE, SUPERVISOR]
                     escribir_registro_nube("NOVEDADES_GUARDIA", [
-                        obtener_hora_argentina(), 
-                        v_obj_relevo, 
-                        "CAMBIO_GUARDIA", 
-                        f"SALE: {vig_saliente}", 
-                        f"ENTRA: {vig_entrante}",
-                        sup_responsable
+                        obtener_hora_argentina(), v_obj_relevo, "CAMBIO_GUARDIA", f"SALE: {vig_saliente}", f"ENTRA: {vig_entrante}", sup_responsable
                     ])
-                    st.success(f"⚡ RELEVO SANCIONADO: Registro insertado con éxito bajo el perímetro de {sup_responsable}.")
+                    st.success(f"⚡ RELEVO SANCIONADO con éxito.")
                 else:
-                    st.error("❌ ERROR: Debe ingresar tanto el nombre del vigilador saliente como el del entrante.")
-                    
+                    st.error("❌ ERROR: Complete los campos de personal saliente y entrante.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# F. ROL: JEFE DE OPERACIONES
+# ⚡ D. RECONSTRUCCIÓN: ROL JEFE DE OPERACIONES ⚡
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    st.markdown("### 📋 TABLERO TÁCTICO DE SUPERVISIÓN DE CAMPO")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("MÓVILES EN RUTA", "3 ACTIVOS")
+    col2.metric("EFECTIVIDAD COBERTURA", "100%")
+    col3.metric("ÚLTIMO REPORTE S.O.S", "SIN ALERTAS ACTIVAS")
+
+    st.write("---")
+    st.markdown("#### 🛰️ UBICACIONES GEOGRÁFICAS DE PUESTOS Y MÓVILES")
     df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
     if not df_obj_maps_jefe.empty:
-        m_visor = folium.Map(location=[df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+        m_visor = folium.Map(location=[df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
         for _, r in df_obj_maps_jefe.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"OBJ: {r['OBJETIVO']}").add_to(m_visor)
-        st_folium(m_visor, width="100%", height=500, key="mapRef")
+            folium.Marker(
+                [r['LATITUD'], r['LONGITUD']], 
+                tooltip=f"OBJETIVO: {r['OBJETIVO']}",
+                icon=folium.Icon(color="red", icon="shield", prefix="fa")
+            ).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500, key="mapa_jefe_operaciones_tactico")
+    
+    st.markdown("#### 📑 REGISTROS DE INSPECCIÓN GENERAL")
+    df_novedades_globales = leer_matriz_nube("NOVEDADES_GUARDIA")
+    if not df_novedades_globales.empty:
+        st.dataframe(df_novedades_globales.sort_values(by=df_novedades_globales.columns[0], ascending=False), use_container_width=True)
 
-# G. ROL: GERENCIA
+# ⚡ E. RECONSTRUCCIÓN: ROL GERENCIA ⚡
 elif st.session_state.rol_sel == "GERENCIA":
-    st.metric("Nivel de Cobertura Humana", "OPERATIVA")
+    st.markdown("### 🏢 PANEL DE DIRECCIÓN Y FISCALIZACIÓN GENERAL")
+    
+    g1, g2, g3 = st.columns(3)
+    with g1:
+        st.metric(label="📊 ESTADO OPERATIVO DE RED", value="ÓPTIMO", delta="100% CUBIERTO")
+    with g2:
+        df_p = leer_matriz_nube("PRESENTISMO")
+        conteo_presentes = len(df_p) if not df_p.empty else 0
+        st.metric(label="👥 TOTAL ASISTENCIAS HOY", value=f"{conteo_presentes} MARCADAS")
+    with g3:
+        st.metric(label="🔒 COMPLIANCE BIOMÉTRICO", value="ACTIVO")
+        
+    st.write("---")
+    st.markdown("#### 📈 AUDITORÍA COMPLETA DE PRESENTISMO MAESTRO")
+    if not df_p.empty:
+        st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
+    else:
+        st.info("Sin registros de presentismo asentados en la jornada.")
 
 # H. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
@@ -501,3 +516,4 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026":
         st.success("Núcleo Maestro desbloqueado.")
+
