@@ -455,7 +455,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# D. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
+. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
@@ -469,83 +469,56 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_objetivos_filtrados = pd.DataFrame()
 
         st.subheader("Control de Unidad Móvil")
-        
         st.markdown('<div class="panel-info">', unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            s_movil = st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
-        with c2:
-            s_km_inicial = st.number_input("Km Inicial:", value=0, step=1, key="sup_km_inicial")
-        with c3:
-            s_km_final = st.number_input("Km Final:", value=0, step=1, key="sup_km_final")
-        with c4:
-            s_combustible = st.number_input("Combustible (Lts):", value=0.0, step=0.1, key="sup_combustible")
+        with c1: st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
+        with c2: st.number_input("Km Inicial:", value=0, step=1, key="sup_km_inicial")
+        with c3: st.number_input("Km Final:", value=0, step=1, key="sup_km_final")
+        with c4: st.number_input("Combustible (Lts):", value=0.0, step=0.1, key="sup_combustible")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        col_btn1, col_btn2 = st.columns([3, 1])
-        with col_btn1:
-            st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
-        with col_btn2:
-            if st.button("REFRESCAR SISTEMA", key="btn_refrescar_sistema", help="Sincronizar matriz central"):
-                st.rerun()
+        if st.button("REFRESCAR SISTEMA", key="btn_refrescar_sistema"): st.rerun()
 
-        # AQUÍ AGREGUÉ LA PESTAÑA DE PRESENTISMO
-        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "Comunicación", "📋 PRESENTISMO"])
+        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
         
         with t_vis_qr:
-            if not df_objetivos_filtrados.empty:
-                opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique()
-            else:
-                opciones_servicios = ["SIN OBJETIVOS ASIGNADOS"]
-            
+            opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS ASIGNADOS"]
             st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
-            st.write("---")
-            st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS ASIGNADOS")
-            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-            
-            # Limpieza y renderizado táctico
+            # Motor de renderizado táctico
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD']).copy()
             df_mapa_sup['LATITUD'] = pd.to_numeric(df_mapa_sup['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
             df_mapa_sup['LONGITUD'] = pd.to_numeric(df_mapa_sup['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
             df_mapa_sup = df_mapa_sup.dropna(subset=['LATITUD', 'LONGITUD'])
             
-            if not df_mapa_sup.empty:
-                centro_coordenadas = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()]
-                m_visor = folium.Map(location=centro_coordenadas, zoom_start=12, tiles="CartoDB dark_matter")
-                for _, r in df_mapa_sup.iterrows():
-                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-            else:
-                m_visor = folium.Map(location=[-34.6037, -58.3816], zoom_start=12, tiles="CartoDB dark_matter")
-            
-            st_folium(m_visor, width="100%", height=500, key=f"map_visor_sup_dinamico_{sup_activo_normalizado}")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
+            centro_coordenadas = [df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()] if not df_mapa_sup.empty else [-34.6037, -58.3816]
+            m_visor = folium.Map(location=centro_coordenadas, zoom_start=12, tiles="CartoDB dark_matter")
+            for _, r in df_mapa_sup.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+            st_folium(m_visor, width="100%", height=500, key=f"map_sup_{sup_activo_normalizado}")
+
         with t_car_tac:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            st.subheader("📋 CARGA DE REGISTROS TÁCTICOS")
             novedad_sup = st.text_area("Novedad / Registro Operativo:", key="texto_novedad_supervisor")
-            if st.button("CARGAR REGISTRO", key="btn_cargar_registro_sup"):
+            if st.button("CARGAR REGISTRO"):
                 if novedad_sup.strip():
                     escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup])
                     st.success("✅ Registro cargado")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
+
         with t_com_sup:
             st.subheader("Bandeja de Novedades del Sector")
             df_chats_sup = leer_matriz_nube("CHATS")
             if not df_chats_sup.empty:
-                st.dataframe(df_chats_sup.tail(10), use_container_width=True)
+                for _, msg in df_chats_sup.tail(10).iloc[::-1].iterrows():
+                    es_rojo = str(msg.get("PRIORIDAD", "")).upper() == "ROJA"
+                    st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}">'
+                                f'<div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} | {msg.get("USUARIO")}</div>'
+                                f'<div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
-        # NUEVA PESTAÑA PRESENTISMO PARA SUPERVISOR
         with t_pres_sup:
-            st.subheader(f"📋 PRESENTISMO: {st.session_state.user_sel}")
             df_p = leer_matriz_nube("PRESENTISMO")
             if not df_p.empty:
-                st.dataframe(df_p.sort_values(by="FECHA", ascending=False), use_container_width=True)
-            else:
-                st.info("Sin registros.")
+                st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
 
 # E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
