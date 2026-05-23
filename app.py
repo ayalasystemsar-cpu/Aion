@@ -362,8 +362,9 @@ if st.session_state.rol_sel == "MONITOREO":
     
     with t_radar:
         # [AQUÍ TU LÓGICA DE RADAR ORIGINAL]
+              st.info("📡 Radar S.O.S desactivado por configuración de usuario.")
         with t_radar:
-        st.info("📡 Radar S.O.S desactivado por configuración de usuario.")
+       
         st.write("Radar activo")
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
