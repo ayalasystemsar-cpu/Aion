@@ -335,7 +335,6 @@ with st.sidebar:
         st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
 # --- 7. FLUJO POR ROLES ---
-# --- 7. FLUJO POR ROLES ---
 
 # A. ROL: MONITOREO
     if st.session_state.rol_sel == "MONITOREO":
