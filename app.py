@@ -346,19 +346,38 @@ else:
 
 # --- 7. FLUJO POR ROLES ---
 
-           # A. ROL: MONITOREO
-elif st.session_state.rol_sel == "MONITOREO":
+     # A. ROL: MONITOREO
+if st.session_state.rol_sel == "MONITOREO":
     st.markdown('<div class="estacion-titulo">🛰️ CENTRAL DE INTELIGENCIA OPERATIVA</div>', unsafe_allow_html=True)
+    
+    # Lectura de datos necesaria
+    df_emergencias = leer_matriz_nube("ALERTAS")
     
     # Pestañas incluyendo PRESENTISMO
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
+    with t_radar:
+        st.info("📡 Radar activo (Lógica de mapa)")
+        
+    with t_gestion:
+        st.subheader("📖 LIBRO DE BASE")
+        if not df_emergencias.empty:
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+        else:
+            st.info("Sin registros.")
+            
+    with t_comunicacion:
+        st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
+        
     with t_pres:
         st.subheader("📋 REGISTRO GENERAL DE PRESENTISMO")
         df_p = leer_matriz_nube("PRESENTISMO")
         if not df_p.empty:
-            # Mostramos el registro ordenado por fecha
-            st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
+            # Usamos una columna conocida de fecha o el índice para ordenar
+            try:
+                st.dataframe(df_p.sort_values(by=df_p.columns[0], ascending=False), use_container_width=True)
+            except:
+                st.dataframe(df_p, use_container_width=True)
         else:
             st.info("No hay registros de presentismo aún.")
 
