@@ -346,46 +346,35 @@ else:
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO
+# --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
+    # 1. CARGA DE DATOS OBLIGATORIA
     df_emergencias = leer_matriz_nube("ALERTAS")
-    df_comisarias = leer_matriz_nube("COMISARIAS")
+    df_obj_mon = cargar_objetivos() # <--- FALTABA ESTO PARA EL MAPA
     
-    # ... (aquí van tus métricas y columnas)
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
     with t_radar:
-        st.info("📡 Módulo de Radar S.O.S activo")
-    
+        st.subheader("📡 RADAR DE OBJETIVOS")
+        if not df_obj_mon.empty:
+            centro = [df_obj_mon['LATITUD'].mean(), df_obj_mon['LONGITUD'].mean()]
+            m_mon = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+            for _, r in df_obj_mon.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m_mon)
+            st_folium(m_mon, width="100%", height=500)
+        else:
+            st.warning("No hay objetivos cargados para mostrar en el mapa.")
+
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty: 
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        else: 
-            st.info("No hay registros en el historial.")
-
-    # --- AQUÍ VA EL BLOQUE QUE ME PASASTE ---
+            
     with t_comunicacion:
-        st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
-                es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
-                st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-        else:
-            st.info("Sin comunicaciones.")
-    
-        # ... (aquí va tu lógica de presentismo)
-    # NUEVA PESTAÑA DE PRESENTISMO
-    with t_pres:
-        st.subheader("📋 REGISTRO DE PRESENTISMO (TOTAL)")
-        df_pres = leer_matriz_nube("PRESENTISMO")
-        if not df_pres.empty:
-            # Mostramos la tabla ordenando por fecha reciente
-            st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
-        else:
-            st.info("No hay registros de presentismo.")
+        renderizar_comunicaciones() # <--- Llamada a la función unificada
 
+    with t_pres:
+        # ... lógica de presentismo
 # C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
