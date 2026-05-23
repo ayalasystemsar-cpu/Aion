@@ -395,40 +395,31 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
             st.info("No hay registros de presentismo.")
-     # B. ROL: VIGILADOR
-elif st.session_state.rol_sel == "VIGILADOR":
-    st.markdown('<div class="estacion-titulo">🛡️ PANEL DE VIGILADOR</div>', unsafe_allow_html=True)
-    
-    # Datos básicos
-    nombre_v = st.text_input("Ingrese DNI o Apellido y Nombre:")
-    obj_v = st.selectbox("Objetivo Asignado:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["CARGANDO..."])
-    
-    # Lógica para obtener el supervisor del servicio seleccionado
-    if not df_objetivos.empty and obj_v != "CARGANDO...":
-        datos_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_v]
-        sup_asociado = datos_obj['SUPERVISOR'].iloc[0] if not datos_obj.empty else "SISTEMA"
-    else:
-        sup_asociado = "SISTEMA"
+  # B. ROL: VIGILADOR
+    elif st.session_state.rol_sel == "VIGILADOR":
+        st.markdown('<div class="estacion-titulo">🛡️ PANEL DE VIGILADOR</div>', unsafe_allow_html=True)
+        
+        # CAMBIO: Ajuste del texto de entrada
+        nombre_v = st.text_input("Ingrese Nombre y Apellido:")
+        obj_v = st.selectbox("Objetivo Asignado:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["CARGANDO..."])
+        
+        st.subheader("📷 Presentismo Facial")
+        foto = st.camera_input("Capturar rostro para registro")
+        
+        if foto:
+            sup_asociado = df_objetivos[df_objetivos['OBJETIVO'] == obj_v]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+            escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), nombre_v, obj_v, sup_asociado, "PRESENTE"])
+            st.success("¡Presentismo registrado!")
 
-    st.subheader("📷 Presentismo Facial")
-    foto = st.camera_input("Capturar rostro para registro")
-    
-    if foto:
-        # Registro detallado: [FECHA/HORA, NOMBRE, SERVICIO, SUPERVISOR]
-        registro = [obtener_hora_argentina(), nombre_v, obj_v, sup_asociado]
-        escribir_registro_nube("PRESENTISMO", registro)
-        st.success(f"¡Presentismo registrado correctamente para {obj_v}!")
-        st.balloons()
-
-    st.write("---")
-    if st.button("🚨 SOLICITAR CAMBIO DE GUARDIA"):
-        if nombre_v.strip():
-            # Registro en NOVEDADES para que el Supervisor lo vea en su bandeja
-            msg_guardia = f"SOLICITUD CAMBIO: {nombre_v} en {obj_v}"
-            escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), "VIGILADOR", msg_guardia, "ROJA", sup_asociado, "CAMBIO"])
-            st.success(f"Solicitud enviada al Supervisor: {sup_asociado}")
-        else:
-            st.error("Por favor, ingrese su nombre/DNI primero.")
+        if st.button("🚨 SOLICITAR CAMBIO DE GUARDIA"):
+            if nombre_v.strip():
+                sup_asociado = df_objetivos[df_objetivos['OBJETIVO'] == obj_v]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                msg = f"SOLICITUD CAMBIO: {nombre_v} en {obj_v}"
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), nombre_v, msg, "ROJA", sup_asociado, "CAMBIO"])
+                st.success(f"Solicitud enviada al supervisor: {sup_asociado}")
+            else:
+                # CAMBIO: Mensaje ajustado
+                st.error("Por favor, ingrese su Nombre y Apellido primero.")
 
 # C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
