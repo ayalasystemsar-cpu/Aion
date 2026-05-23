@@ -8,7 +8,13 @@ from datetime import datetime
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from streamlit_js_eval import get_geolocation
+from supabase import create_client, Client
+
+# ✅ CORRECCIÓN GEOLOCALIZACIÓN
+try:
+    from streamlit_js_eval import get_geolocation
+except ImportError:
+    get_geolocation = None
 
 # Configuración de página OLED
 st.set_page_config(
@@ -18,8 +24,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
+# --- 2. CONEXIONES (SUPABASE & GOOGLE MATRIZ) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+
+@st.cache_resource
+def init_connection():
+    try:
+        url = st.secrets["supabase"]["url"]
+        key = st.secrets["supabase"]["key"]
+        return create_client(url, key)
+    except Exception: return None
+
+supabase = init_connection()
 
 def conectar_google():
     try:
@@ -28,7 +44,7 @@ def conectar_google():
         return gspread.authorize(creds)
     except: return None
 
-# --- 3. FUNCIONES DE LÓGICA Y DATOS ---
+# --- 3. FUNCIONES DE LÓGICA, DATOS Y COMANDOS ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -78,234 +94,187 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
+        [data-testid="stSidebar"] { background-color: #050507 !important; border-right: 1px solid rgba(0, 229, 255, 0.3) !important; }
+        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-top: -10px; margin-bottom: 20px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        .estacion-titulo {
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important;
-            font-size: 24px;
-            margin-top: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-        .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.9); }
+        .panico-container { display: flex !important; justify-content: center !important; align-items: center !important; width: 100% !important; margin: 20px 0 !important; padding: 0 !important; }
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
             color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
             border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; line-height: 1.1; text-transform: uppercase; margin: 0 auto !important; 
         }
+        .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 20px; background: rgba(10, 10, 11, 0.8); }
+        h1, h2, h3, .stSubheader { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
+st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# --- 5. SIDEBAR TÁCTICO (ACTUALIZADO CON SUPERVISOR NOCTURNO) ---
-df_objetivos = cargar_objetivos()
-
-if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
+# --- 5. MEMORIA DE SESIÓN Y SIDEBAR ---
+if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "SUPERVISOR"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "BRIAN AYALA"
 
 with st.sidebar:
-    st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top: 50px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
-    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
-    
-    # LISTA DE IDENTIDAD OPERATIVA ACTUALIZADA
-    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", ["BRIAN AYALA", "SANOJA LUIS", "DARÍO CECILIA", "LUIS BONGIORNO", "SERANTES WALTER", "MAZACOTTE CLAUDIO", "SUPERVISOR NOCTURNO"])
-    
-    st.write("---")
-    st.markdown("**🚨 CONFIGURACIÓN DE EMERGENCIA**")
-    obj_panico = st.selectbox("🎯 SELECCIONAR OBJETIVO", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["N/A"])
-    
-    # LISTA DE SUPERVISORES DE ZONA 
-    sup_panico = st.selectbox("👤 SUPERVISOR DE ZONA", ["BRIAN AYALA", "GONZALO PORZIO", "SUPERVISOR NOCTURNO", "OTRO"])
-    
-    loc = get_geolocation()
-    lat_envio = loc['coords']['latitude'] if loc else 0.0
-    lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
-
+    perfiles = ["SUPERVISOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"]
+    st.session_state.rol_sel = st.selectbox("NIVEL DE ACCESO", perfiles)
+    lista_sups = ["BRIAN AYALA", "DARÍO CECILIA", "LUIS BONGIORNO", "SUPERVISOR NOCTURNO", "SERANTES WALTER", "SANOJA LUIS", "MAZACOTTE CLAUDIO"]
+    st.session_state.user_sel = st.selectbox("IDENTIDAD OPERATIVA", lista_sups)
+    st.markdown("---")
+    st.markdown('<div class="panico-container">', unsafe_allow_html=True)
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_panico}|SUP:{sup_panico}"
-        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-        st.error(f"🚨 S.O.S ENVIADO: {obj_panico}")
-
-# --- 6. CABECERA CENTRAL ---
-st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
-
-# Títulos por Rol con Estilo Glow
-titulos = {
-    "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
-    "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
-    "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
-    "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
-    "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO"
-}
-st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
-
-# --- 7. FLUJO POR ROLES ---
-
-# A. ROL: MONITOREO (RESTAURACIÓN DE PESTAÑAS + RUTA AGRESIVA)
-if st.session_state.rol_sel == "MONITOREO":
-    from folium.plugins import AntPath
-    from streamlit_folium import st_folium
-    import folium
-    import math
-
-    # Carga de datos
-    df_emergencias = leer_matriz_nube("ALERTAS")
-    df_comisarias = leer_matriz_nube("COMISARIAS")
-    
-    alertas_activas = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
-    sos_activos = len(alertas_activas)
-    
-    # Métricas superiores
-    c1, c2, c3 = st.columns(3)
-    c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
-    c2.metric("📡 RED", "OPERATIVA")
-    c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
-
-    # --- PESTAÑAS (RESTAURADAS) ---
-    t_radar, t_gestion = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE"])
-    
-    with t_radar:
-        lat_foco, lon_foco = -34.6, -58.4
-        obj_en_panico, sup_responsable = "", ""
-        comisaria_cercana = None
-        dist_minima = float('inf')
-        
-        if sos_activos > 0:
-            datos_sos = alertas_activas.iloc[-1]
-            try:
-                # Procesar Carga Útil
-                partes = datos_sos.get('CARGA_UTIL', '').split("|")
-                obj_en_panico = partes[2].split(":")[1].strip()
-                sup_responsable = partes[3].split(":")[1].strip()
-                
-                # Coordenadas del Objetivo
-                target_data = df_objetivos[df_objetivos['OBJETIVO'] == obj_en_panico].iloc[0]
-                lat_foco = float(str(target_data['LATITUD']).replace(',','.'))
-                lon_foco = float(str(target_data['LONGITUD']).replace(',','.'))
-
-                # --- BÚSQUEDA POR POSICIÓN (Col 0=Nombre, 1=Lat, 2=Lon) ---
-                if not df_comisarias.empty:
-                    for _, com in df_comisarias.iterrows():
-                        try:
-                            # Forzamos lectura por orden de columna del Excel
-                            c_lat = float(str(com.iloc[1]).replace(',','.'))
-                            c_lon = float(str(com.iloc[2]).replace(',','.'))
-                            
-                            R = 6371.0
-                            phi1, phi2 = math.radians(lat_foco), math.radians(c_lat)
-                            dphi, dlambda = math.radians(c_lat-lat_foco), math.radians(c_lon-lon_foco)
-                            a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-                            d = R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
-                            
-                            if d < dist_minima:
-                                dist_minima = d
-                                comisaria_cercana = {"NOMBRE": com.iloc[0], "LAT": c_lat, "LON": c_lon}
-                        except: continue
-                
-                st.error(f"🚨 EMERGENCIA: {obj_en_panico}")
-            except: pass
-        else:
-            st.success("✅ Vigilancia Pasiva")
-
-        # --- MAPA ---
-        m_mon = folium.Map(location=[lat_foco, lon_foco], zoom_start=13, tiles="CartoDB dark_matter")
-        
-        # Efecto Blink
-        map_css = "<style>@keyframes blink {0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}} .blink-icon {animation: blink 0.8s linear infinite;}</style>"
-        m_mon.get_root().header.add_child(folium.Element(map_css))
-
-        for _, r in df_objetivos.iterrows():
-            try:
-                r_lat, r_lon = float(str(r['LATITUD']).replace(',','.')), float(str(r['LONGITUD']).replace(',','.'))
-                es_sos = (r['OBJETIVO'] == obj_en_panico)
-                color_nodo = "red" if es_sos else "#00E5FF"
-                
-                # Tooltip idéntico a tu captura
-                sup_display = sup_responsable if es_sos else r.get('SUPERVISOR', 'N/A')
-                tooltip_html = f"🚨 <b>OBJ:</b> {r['OBJETIVO']}<br>👤 <b>SUP:</b> {sup_display}"
-
-                folium.CircleMarker(
-                    location=[r_lat, r_lon], radius=8 if es_sos else 6,
-                    color=color_nodo, fill=es_sos, fill_color=color_nodo, weight=3,
-                    tooltip=folium.Tooltip(tooltip_html, sticky=True),
-                    className="blink-icon" if es_sos else ""
-                ).add_to(m_mon)
-            except: continue
-
-        # --- DIBUJAR RUTA ---
-        if sos_activos > 0 and comisaria_cercana:
-            try:
-                folium.Marker([comisaria_cercana['LAT'], comisaria_cercana['LON']], 
-                             tooltip=f"🚓 {comisaria_cercana['NOMBRE']}", 
-                             icon=folium.Icon(color="blue", icon="shield-halved", prefix="fa")).add_to(m_mon)
-                
-                AntPath(locations=[[comisaria_cercana['LAT'], comisaria_cercana['LON']], [lat_foco, lon_foco]], 
-                        color='#FFEB3B', weight=6, delay=600).add_to(m_mon)
-            except: pass
-
-        st_folium(m_mon, width="100%", height=450, key="mapa_monitoreo_v11")
-
-        # --- BOTÓN DE CIERRE ---
-        if sos_activos > 0:
-            st.markdown("---")
-            st.subheader("📝 PROTOCOLO DE CIERRE")
-            inf_neu = st.text_area("INFORME DE NEUTRALIZACIÓN")
-            if st.button("FINALIZAR OPERATIVO", use_container_width=True):
-                if inf_neu.strip():
-                    fila_excel = alertas_activas.index[-1] + 2
-                    actualizar_celda("ALERTAS", fila_excel, "D", "RESUELTO")
-                    actualizar_celda("ALERTAS", fila_excel, "F", inf_neu)
-                    st.success("✅ Operativo Finalizado")
-                    st.rerun()
-                else:
-                    st.warning("⚠️ Escriba el informe.")
-
-    # --- LIBRO DE BASE (RESTAURADO) ---
-    with t_gestion:
-        st.subheader("📖 HISTORIAL DE OPERATIVOS")
-        if not df_emergencias.empty:
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay registros en el historial.")
-                    
-# B. ROL: SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA (MAPA FISCALIZADOR)
-elif st.session_state.rol_sel in ["SUPERVISOR", "JEFE DE OPERACIONES", "GERENCIA"]:
-    st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-    centro = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()] if not df_objetivos.empty else [-34.6, -58.4]
-    m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-    for _, r in df_objetivos.iterrows():
-        folium.Marker(
-            [r['LATITUD'], r['LONGITUD']], 
-            tooltip=f"OBJETIVO: {r['OBJETIVO']} | SUPERVISOR: {r.get('SUPERVISOR', 'N/A')}", 
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m_visor)
-    st_folium(m_visor, width="100%", height=500, key=f"map_fiscalizacion_{st.session_state.rol_sel}")
+        datos_sos = [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE"]
+        if escribir_registro_nube("ALERTAS", datos_sos):
+            st.error("❗ SOS TRANSMITIDO")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades.empty:
-            st.dataframe(df_novedades.tail(20), use_container_width=True)
+# --- 6. FLUJO DE INTERFAZ POR ROLES ---
+df_objetivos = cargar_objetivos()
 
-# C. ROL: ADMINISTRADOR
+# --- A. ROL: SUPERVISOR ---
+if st.session_state.rol_sel == "SUPERVISOR":
+    st.subheader(f"📱 Estación: {st.session_state.user_sel}")
+    apellido = st.session_state.user_sel.split()[-1].upper()
+    df_zona = df_objetivos[df_objetivos['SUPERVISOR'].str.upper().str.contains(apellido, na=False)] if not df_objetivos.empty else pd.DataFrame()
+    if df_zona.empty: df_zona = df_objetivos
+
+    t1, t2, t3 = st.tabs(["📍 RADAR & GPS", "📝 NOVEDADES", "💬 COMUNICACIÓN"])
+    with t1:
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        if not df_zona.empty:
+            m = folium.Map(location=[df_zona['LATITUD'].mean(), df_zona['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+            for _, r in df_zona.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m)
+            st_folium(m, width="100%", height=350)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with t2:
+        st.subheader("📝 REPORTE DE NOVEDADES")
+        with st.form("acta_tactica"):
+            f_dest = st.selectbox("Objetivo:", df_zona['OBJETIVO'].unique()) if not df_zona.empty else "N/A"
+            f_vig = st.text_input("Personal en Puesto")
+            f_nov = st.text_area("Informe de Novedad")
+            gravedad = st.select_slider("GRAVEDAD:", options=["VERDE", "AMARILLO", "ROJO"])
+            if st.form_submit_button("🚀 TRANSMITIR ACTA"):
+                datos = [obtener_hora_argentina(), st.session_state.user_sel, "", "", "", "", f_vig, f_dest, f_nov, gravedad]
+                if escribir_registro_nube("ACTAS_FLOTAS", datos):
+                    st.success("Acta derivada a la matriz.")
+    with t3:
+        st.info("Bandeja de Mensajería Sincronizada con Matriz Nube")
+
+# --- B. ROL: MONITOREO ---
+elif st.session_state.rol_sel == "MONITOREO":
+    st.header("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
+    df_emergencias = leer_matriz_nube("ALERTAS")
+    sos_activos = len(df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']) if not df_emergencias.empty else 0
+    m1, m2, m3 = st.columns(3)
+    m1.metric("🚨 S.O.S ACTIVOS", sos_activos)
+    m2.metric("📡 ESTADO DE RED", "OPERATIVO")
+    m3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+
+    t_radar, t_gestion, t_chat = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN"])
+    with t_radar:
+        if sos_activos > 0:
+            datos_sos = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].iloc[-1]
+            op_en_riesgo = datos_sos['USUARIO']
+            st.error(f"🚨 ALERTA CRÍTICA: {op_en_riesgo}")
+            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+            m_sos = folium.Map(location=[-34.6037, -58.3816], zoom_start=12, tiles="CartoDB dark_matter")
+            folium.Marker([-34.6037, -58.3816], popup=f"SOS: {op_en_riesgo}", icon=folium.Icon(color="red", icon="warning")).add_to(m_sos)
+            st_folium(m_sos, width="100%", height=350, key="mapa_mon_sos")
+            st.markdown('</div>', unsafe_allow_html=True)
+            with st.form("cierre_crisis"):
+                res_acta = st.text_area("Informe de Neutralización")
+                if st.form_submit_button("✅ CERRAR ALERTA"):
+                    fila_real = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'].index[-1] + 2
+                    if actualizar_celda("ALERTAS", fila_real, "D", "RESUELTO"):
+                        actualizar_celda("ALERTAS", fila_real, "E", res_acta)
+                        st.success("Resuelto"); st.cache_data.clear(); st.rerun()
+        else:
+            st.success("✅ Sistema en Vigilancia Pasiva")
+    with t_gestion:
+        with st.form("acta_base"):
+            op_nombre = st.text_input("Operador:", value=st.session_state.user_sel)
+            nov = st.text_area("Novedades")
+            if st.form_submit_button("🔒 SELLAR"):
+                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), op_nombre, "SISTEMA", "LIBRO BASE", nov, "ENVIADO", "VERDE"])
+                st.rerun()
+    with t_chat:
+        st.subheader("📨 CENTRO DE MENSAJERÍA SINCRONIZADO")
+        df_m = leer_matriz_nube("MENSAJERIA")
+        if not df_m.empty:
+            for _, msg in df_m.tail(10).iloc[::-1].iterrows():
+                emisor = msg.get('EMISOR', msg.get('Emisor', 'Desconocido'))
+                contenido = msg.get('CONTENIDO', msg.get('Contenido', 'Sin mensaje'))
+                with st.chat_message("user"):
+                    st.write(f"**{emisor}**: {contenido}")
+        else:
+            st.info("No hay mensajes registrados.")
+
+# --- C. ROL: JEFE DE OPERACIONES (CORREGIDO) ---
+elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    st.subheader("📋 COMANDO DE OPERACIONES TÁCTICAS")
+    df_actas = leer_matriz_nube("ACTAS_FLOTAS")
+    
+    c1, c2, c3 = st.columns(3)
+    c1.metric("REPORTES", len(df_actas) if not df_actas.empty else 0)
+    c2.metric("OBJETIVOS", len(df_objetivos))
+    c3.metric("ESTADO", "SINCRO OK")
+    
+    t_inf, t_mapa = st.tabs(["📄 INFORMES", "🌍 MAPA"])
+    
+    with t_inf:
+        if not df_actas.empty: 
+            st.dataframe(df_actas.tail(15), use_container_width=True)
+            
+    with t_mapa:
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        if not df_objetivos.empty:
+            m_ops = folium.Map(
+                location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], 
+                zoom_start=11, 
+                tiles="CartoDB dark_matter"
+            )
+            
+            for _, r in df_objetivos.iterrows():
+                folium.Marker(
+                    location=[r['LATITUD'], r['LONGITUD']], 
+                    popup=f"OBJETIVO: {r['OBJETIVO']}",
+                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                ).add_to(m_ops)
+            
+            st_folium(m_ops, width="100%", height=400, key="mapa_jefe_ops")
+        else:
+            st.warning("No hay datos de objetivos con coordenadas válidas para mostrar.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# --- D. ROL: GERENCIA ---
+elif st.session_state.rol_sel == "GERENCIA":
+    st.header("📈 DASHBOARD ESTRATÉGICO")
+    col_a, col_b = st.columns([1, 2])
+    with col_a:
+        st.subheader("⚠️ Alertas")
+        df_al = leer_matriz_nube("ALERTAS")
+        if not df_al.empty: st.write(df_al['ESTADO'].value_counts())
+    with col_b:
+        st.subheader("🏢 Estructura")
+        df_est = leer_matriz_nube("ESTRUCTURA")
+        if not df_est.empty: st.dataframe(df_est, use_container_width=True)
+
+# --- E. ROL: ADMINISTRADOR ---
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.header("⚙️ NÚCLEO MAESTRO")
-    u_ing = st.text_input("ADMIN_USER")
-    p_ing = st.text_input("ADMIN_PASS", type="password")
-    if u_ing == "admin" and p_ing == "aion2026":
-        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
-        nuevo_nombre = st.text_input("Nombre:").upper()
-        if st.button("REGISTRAR"):
-            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
-            st.success("Alta Exitosa")
+    with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA"):
+        u_ing = st.text_input("ADMIN_USER").lower()
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        if u_ing == "admin" and p_ing == "aion2026":
+            st.subheader("🏗️ GESTIÓN DE ESTRUCTURA")
+            tipo = st.radio("Categoría:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+            nuevo_nombre = st.text_input(f"Nombre del {tipo}:").upper()
+            if st.button(f"PROCESAR ALTA"):
+                if nuevo_nombre:
+                    escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+                    st.success("Alta Exitosa")
