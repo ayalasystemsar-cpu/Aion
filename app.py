@@ -72,19 +72,12 @@ def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
-        
-        # 1. Filtramos de raíz celdas que visualmente parezcan vacías o tengan puros espacios
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
-        
-        # 2. Sanitización estricta de la columna SUPERVISOR para evitar herencias falsas o espacios extras
         if 'SUPERVISOR' in df.columns:
             df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
-        
-        # Corrección automática de comas por puntos en coordenadas
         df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
         df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
-        
         df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
@@ -99,129 +92,11 @@ def aplicar_identidad_alfa():
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        
-        .estacion-titulo {
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important;
-            font-size: 24px;
-            margin-top: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-        
-        .titulo-seccion-admin {
-            color: #00E5FF;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 22px;
-            font-weight: bold;
-            margin-top: 25px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            letter-spacing: 1px;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
-        }
-
-        .stApp div[data-testid="stExpander"] {
-            background-color: #1A1C23 !important;
-            border: 1px solid #2D313E !important;
-            border-radius: 8px !important;
-        }
-        
-        .stApp div[data-testid="stExpander"] summary p {
-            color: #E0E0E0 !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
-            text-transform: uppercase;
-        }
-        
-        .stApp input {
-            background-color: #252833 !important;
-            color: #FFFFFF !important;
-            border: 1px solid #1A1C23 !important;
-            border-radius: 6px !important;
-        }
-        
-        .stApp label p {
-            color: #A0A5B5 !important;
-            font-family: 'Orbitron', sans-serif !important;
-            font-size: 11px !important;
-            font-weight: bold !important;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-
+        .estacion-titulo { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 24px; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 12px; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase; }
+        .titulo-seccion-admin { color: #00E5FF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: bold; margin-top: 25px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 229, 255, 0.3); }
         .radar-box { border: 1px solid #1A1A1B; border-radius: 12px; padding: 10px; background: rgba(10, 10, 11, 0.9); }
-        .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
-        }
-        
-        .chat-container { border: 1px solid #1a1a1b; border-radius: 8px; padding: 15px; margin-top: 10px; background-color: #030305; }
-        .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
-        .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
-        .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
-        .message-info-red { color: #ff0000; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
-        .message-text { color: #e0e0e0; font-size: 14px; margin-top: 4px; font-family: 'Rajdhani', sans-serif; }
-        
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
-
-        .stButton > button.btn-refresh {
-            background: #00e5ff !important;
-            color: #000 !important;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: bold;
-            border-radius: 4px !important;
-            border: 1px solid #00e5ff !important;
-            box-shadow: 0 0 10px rgba(0, 229, 255, 0.3) !important;
-        }
-
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
-        .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.4) !important;
-            border: 1px solid #2D313E !important;
-            color: #A0A5B5 !important;
-            border-radius: 4px 4px 0px 0px !important;
-            padding: 6px 16px !important;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 11px !important;
-            font-weight: bold;
-        }
-        .stTabs [data-baseweb="tab"]:hover { color: #00E5FF !important; }
-        .stTabs [aria-selected="true"] {
-            background-color: #1A1C23 !important;
-            border-top: 2px solid #00E5FF !important;
-            color: #00E5FF !important;
-        }
-
-        div[data-testid="stMetric"] {
-            background-color: rgba(10, 11, 15, 0.6) !important;
-            border: 1px solid #1A1C23 !important;
-            border-radius: 6px !important;
-            padding: 12px !important;
-        }
-        div[data-testid="stMetricLabel"] p {
-            color: #00E5FF !important;
-            font-family: 'Rajdhani', sans-serif !important;
-            font-size: 13px !important;
-            font-weight: bold !important;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        div[data-testid="stMetricValue"] div {
-            color: #FFFFFF !important;
-            font-family: 'Orbitron', sans-serif !important;
-            font-size: 22px !important;
-        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -230,123 +105,39 @@ aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
-
-LISTA_SUPS_TACTICOS = [
-    "AYALA BRIAN",
-    "SUPERVISOR 1", 
-    "SUPERVISOR 2", 
-    "SUPERVISOR 3", 
-    "SUPERVISOR 4", 
-    "SUPERVISOR 5", 
-    "SUPERVISOR NOCTURNO"
-]
+LISTA_SUPS_TACTICOS = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 
 with st.sidebar:
-    st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
-    st.markdown("<span style='font-size: 11px; color:#A0A5B5; font-family:\"Orbitron\"; font-weight:bold; letter-spacing:0.5px;'>NIVEL DE ACCESO</span>", unsafe_allow_html=True)
-    
-    # 1. MONITOREO
-    if st.button("🛰️ MONITOREO", use_container_width=True):
-        st.session_state.rol_sel = "MONITOREO"
-        st.session_state.user_sel = "OPERADOR CENTRAL"
-        st.session_state.sup_autenticado = False
-        st.rerun()
-        
-    # 2. JEFE DE OPERACIONES
-    if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
-        st.session_state.rol_sel = "JEFE DE OPERACIONES"
-        st.session_state.user_sel = "SANOJA LUIS"
-        st.session_state.sup_autenticado = False
-        st.rerun()
-        
-    # 3. GERENCIA
-    if st.button("🏢 GERENCIA", use_container_width=True):
-        st.session_state.rol_sel = "GERENCIA"
-        st.session_state.user_sel = "DIRECCIÓN GENERAL"
-        st.session_state.sup_autenticado = False
-        st.rerun()
-
-    # 4. SUPERVISORES
-    with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
-        nom_sup = st.selectbox(
-            "RESPONSABLE ACTIVO:", 
-            LISTA_SUPS_TACTICOS,
-            key="cambio_supervisor_directo"
-        )
-        
-        user_sup = st.text_input("USUARIO RECURSO (APELLIDO)", key="auth_user_sup")
-        pass_sup = st.text_input("CONTRASEÑA CRÍTICA", type="password", key="auth_pass_sup")
-        
-        if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
-            st.session_state.intentando_sup = True
-            
-            if "NOCTURNO" in nom_sup:
-                usuario_esperado = "nocturno"
-            elif "AYALA" in nom_sup:
-                usuario_esperado = "ayala"
-            else:
-                usuario_esperado = nom_sup.split(" ")[1]
-            
-            if user_sup.strip().lower() == usuario_esperado and pass_sup == "1234":
-                st.session_state.rol_sel = "SUPERVISOR"
-                st.session_state.user_sel = nom_sup
-                st.session_state.sup_autenticado = True
-                if 'intentando_sup' in st.session_state: del st.session_state.intentando_sup
-                st.success(f"🔓 ACCESO CONCEDIDO: {nom_sup}")
-                st.rerun()
-            else:
-                st.session_state.sup_autenticado = False
-                st.error("❌ CREDENCIALES INVÁLIDAS EN BASE")
-
-    st.write("---")
-    
-    # 5. ADMINISTRADOR
-    st.markdown("**⚙️ ADMINISTRADOR**")
-    if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
-        st.session_state.rol_sel = "ADMINISTRADOR"
-        st.session_state.user_sel = "ADMIN CENTRAL"
-        st.session_state.sup_autenticado = False
-        st.rerun()
-
-    st.write("---")
-    
-    loc = get_geolocation()
-    lat_envio = loc['coords']['latitude'] if loc else 0.0
-    lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
-
-    if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
-            obj_alerta = st.session_state.sup_servicio_actual
-        else:
-            obj_alerta = "CENTRAL BASE"
-            
-        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-        st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
-
-# --- 6. CABECERA CENTRAL ---
-st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
-
-if st.session_state.rol_sel == "SUPERVISOR" and not st.session_state.sup_autenticado:
-    st.markdown('<div class="estacion-titulo">🔒 ESTACIÓN BLOQUEADA - REQUIERE AUTENTICACIÓN EN SIDEBAR</div>', unsafe_allow_html=True)
-else:
-    titulos = {
-        "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
-        "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
-        "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
-        "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
-        "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
-    }
-    st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
+    if st.button("🛰️ MONITOREO", use_container_width=True): st.session_state.rol_sel = "MONITOREO"; st.rerun()
+    if st.button("👤 VIGILADOR", use_container_width=True): st.session_state.rol_sel = "VIGILADOR"; st.rerun()
+    if st.button("📋 JEFE DE OPERACIONES", use_container_width=True): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
+    if st.button("🏢 GERENCIA", use_container_width=True): st.session_state.rol_sel = "GERENCIA"; st.rerun()
+    # ... resto del sidebar ...
+    if st.button("⚙️ ADMINISTRADOR", use_container_width=True): st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
 
 # --- 7. FLUJO POR ROLES ---
 
-# A. ROL: MONITOREO
+# A. ROL: VIGILADOR
+if st.session_state.rol_sel == "VIGILADOR":
+    st.markdown('<div class="estacion-titulo">🛡️ PANEL DE VIGILADOR</div>', unsafe_allow_html=True)
+    nombre_v = st.text_input("DNI o Apellido:")
+    obj_v = st.selectbox("Objetivo Asignado:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["CARGANDO..."])
+    st.subheader("📷 Presentismo Facial")
+    foto = st.camera_input("Fichar Entrada")
+    if foto:
+        escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina(), nombre_v, obj_v, "PRESENTE"])
+        st.success("¡Presentismo registrado!")
+    if st.button("🚨 SOLICITAR CAMBIO DE GUARDIA"):
+        sup = df_objetivos[df_objetivos['OBJETIVO'] == obj_v]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+        escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_v, nombre_v, "SOLICITUD", sup])
+        st.success(f"Solicitud enviada a: {sup}")
+
+# B. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_comisarias = leer_matriz_nube("COMISARIAS")
@@ -508,7 +299,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Communication Transmitida con Éxito")
                     st.rerun()
 
-# B. ROL: JEFE DE OPERACIONES
+# C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
@@ -556,7 +347,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# C. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
+# D. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
@@ -658,7 +449,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if not df_chats_sup.empty:
                 st.dataframe(df_chats_sup.tail(10), use_container_width=True)
 
-# D. ROL: GERENCIA
+# E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
@@ -736,7 +527,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         if not df_novedades.empty:
             st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-# E. ROL: ADMINISTRADOR
+# F. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
     
