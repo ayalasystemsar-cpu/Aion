@@ -438,4 +438,5 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 st.error("Debe ingresar un nombre para registrar.")
     else:
         if u_ing or p_ing:
-            st.warning("Credenciales incorrectas. Acceso denegado al Núcleo Maestro.")OL: ADMINISTRADOR
+           
+            st.warning("Credenciales incorrectas. Acceso denegado al Núcleo Maestro.")
