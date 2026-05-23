@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -334,12 +335,24 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_pres:
         st.subheader("📋 TABLA MASTER: PRESENTISMO")
         df_pres = leer_matriz_nube("PRESENTISMO")
-        if not df_pres.empty: st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        if not df_pres.empty: 
+            df_pres.columns = df_pres.columns.str.strip().str.upper()
+            # Si existe columna FECHA, ordenamos de forma descendente para ver lo último primero
+            if "FECHA" in df_pres.columns:
+                st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
+            else:
+                st.dataframe(df_pres, use_container_width=True)
+        else:
+            st.info("No hay datos cargados en la hoja de Presentismo.")
 
     with t_vig:
         st.subheader("👥 TABLA MASTER: VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
-        if not df_padrero.empty: st.dataframe(df_padrero, use_container_width=True)
+        if not df_padrero.empty: 
+            df_padrero.columns = df_padrero.columns.str.strip().str.upper()
+            st.dataframe(df_padrero, use_container_width=True)
+        else:
+            st.info("No hay datos cargados en la hoja de Vigiladores.")
 
     with t_guardia:
         st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
