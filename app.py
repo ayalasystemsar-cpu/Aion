@@ -343,7 +343,23 @@ else:
         "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
     }
     st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
-
+def renderizar_comunicaciones():
+    """Renderiza la bandeja de inteligencia con el formato unificado."""
+    st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
+    df_chats = leer_matriz_nube("CHATS")
+    if not df_chats.empty:
+        # Mostramos los últimos 10 mensajes, del más reciente al más antiguo
+        for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
+            es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
+            st.markdown(
+                f'<div class="{"message-box-red" if es_rojo else "message-box"}">'
+                f'<div class="{"message-info-red" if es_rojo else "message-info"}">'
+                f'{msg.get("HORA")} De: {msg.get("USUARIO")}</div>'
+                f'<div class="message-text">{msg.get("TEXTO")}</div></div>', 
+                unsafe_allow_html=True
+            )
+    else:
+        st.info("Sin comunicaciones.")
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
@@ -376,7 +392,8 @@ if st.session_state.rol_sel == "MONITOREO":
         else: 
             st.info("No hay registros en el historial.")
 
-    with t_comunicacion:
+  with t_comunicacion:
+        renderizar_comunicaciones()
         st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
         df_chats = leer_matriz_nube("CHATS")
         if not df_chats.empty:
