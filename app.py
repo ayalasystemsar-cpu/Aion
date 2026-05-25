@@ -96,10 +96,21 @@ def aplicar_identidad_alfa():
 
 aplicar_identidad_alfa()
 
-# --- 5. RENDERIZADO MAPA MONITOREO ---
+# --- 5. SIDEBAR TÁCTICO (EL PANEL QUE FALTABA) ---
+LISTA_SUPS_TACTICOS = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2"]
+if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
+
+with st.sidebar:
+    st.title("🛡️ PANEL DE CONTROL")
+    if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
+    if st.button("📋 JEFE DE OPERACIONES"): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
+    if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
+    if st.button("⚙️ ADMINISTRADOR"): st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
+
+# --- 6. RENDERIZADO MAPA MONITOREO ---
 def renderizar_mapa_monitoreo(df_obj, df_com):
     st.markdown('<div class="estacion-titulo">🛡️ ESTACIÓN CENTRAL DE MONITOREO 🚨</div>', unsafe_allow_html=True)
-    obj_critico = st.sidebar.selectbox("SELECCIONAR OBJETIVO", df_obj['OBJETIVO'].tolist() if not df_obj.empty else ["SIN OBJETIVOS"])
+    obj_critico = st.selectbox("SELECCIONAR OBJETIVO", df_obj['OBJETIVO'].tolist() if not df_obj.empty else ["SIN OBJETIVOS"])
     fila = df_obj[df_obj['OBJETIVO'] == obj_critico]
     if not fila.empty:
         lat_c, lon_c = float(fila['LATITUD'].iloc[0]), float(fila['LONGITUD'].iloc[0])
@@ -112,11 +123,7 @@ def renderizar_mapa_monitoreo(df_obj, df_com):
             st.markdown(f'<div class="message-box-red">🚨 ALERTA: <b>{obj_critico}</b> | Dep: <b>{com_c["NOMBRE"]}</b> ({dist:.2f} km)</div>', unsafe_allow_html=True)
         st_folium(m, width="100%", height=400)
 
-# --- 6. FLUJO PRINCIPAL ---
-LISTA_SUPS_TACTICOS = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2"]
-if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
-
+# --- 7. FLUJO PRINCIPAL ---
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_comisarias()
 
@@ -132,11 +139,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL"])
         o_det = st.text_input("Detalle:")
         if st.button("ELEV AR PETICIÓN") and o_det.strip():
-            escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
+            escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "JEFE_OPS", o_accion, o_cat, o_det])
             st.success("✅ Petición Elevada")
         st.markdown('</div>', unsafe_allow_html=True)
     with t_auditoria:
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
         df_n = leer_matriz_nube("ACTAS_FLOTAS")
         if not df_n.empty: st.dataframe(df_n.tail(20), use_container_width=True)
 
@@ -144,33 +150,25 @@ elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     with t_com_est:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS)
         g_asunto = st.text_input("Asunto:")
         g_orden = st.text_area("Orden:")
-        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"])
         if st.button("Ejecutar Directiva"):
-            escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, g_asunto])
+            escribir_registro_nube("CHATS", [obtener_hora_argentina(), "GERENCIA", g_orden, "ROJA", g_para, g_asunto])
             st.success("✅ Directiva Transmitida")
-        st.markdown('</div>', unsafe_allow_html=True)
     with t_ejecucion_ger:
         col_g1, col_g2 = st.columns(2)
         with col_g1:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            g_alta_nom = st.text_input("Nombre:")
-            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS)
+            g_alta_nom = st.text_input("Nombre Alta:")
             if st.button("Solicitar Alta"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "GERENCIA", "ALTA", "OBJETIVO", g_alta_nom])
                 st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
         with col_g2:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
             opciones_baja = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-            g_baja_obj = st.selectbox("Objetivo:", opciones_baja)
+            g_baja_obj = st.selectbox("Objetivo Baja:", opciones_baja)
             if st.button("Solicitar Baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "GERENCIA", "BAJA", "OBJETIVO", g_baja_obj])
                 st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
     with t_tab_auditoria:
         m_v = folium.Map(location=[-34.6, -58.4], zoom_start=11, tiles="CartoDB dark_matter")
         for _, r in df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).iterrows():
@@ -180,3 +178,4 @@ elif st.session_state.rol_sel == "GERENCIA":
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     if st.text_input("ADMIN_USER") == "admin" and st.text_input("ADMIN_PASS", type="password") == "aion2026":
         st.success("Núcleo Maestro desbloqueado.")
+
