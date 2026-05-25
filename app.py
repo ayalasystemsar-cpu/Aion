@@ -300,29 +300,50 @@ if st.session_state.rol_sel == "MONITOREO":
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
-       # --- CARGA SEGURA DE OBJETIVOS ---
-        # Primero, limpiamos los nombres de columnas de df_objetivos para evitar espacios ocultos
+      # --- BLOQUE SEGURO DE MONITOREO ---
+        st.subheader("📡 RADAR GLOBAL")
+        
+        # 1. Normalización estricta de nombres de columnas
         df_objetivos.columns = [str(c).strip().upper() for c in df_objetivos.columns]
         
-        # Verificamos si las columnas existen realmente
-        if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
-            df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
-        else:
-            st.error(f"Error: No se encuentran las columnas de coordenadas. Columnas detectadas: {list(df_objetivos.columns)}")
-            df_mapa_monitoreo = pd.DataFrame()
+        # 2. Validación de columnas obligatorias
+        cols_necesarias = ['LATITUD', 'LONGITUD', 'OBJETIVO']
+        if all(col in df_objetivos.columns for col in cols_necesarias):
+            df_mapa = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
             
-        # --- CARGA Y PROCESAMIENTO DE COMISARÍAS ---
-        df_comisarias_raw = leer_matriz_nube("COMISARIAS")
-        
-        df_comisarias = pd.DataFrame(columns=['NOMBRE', 'LATITUD', 'LONGITUD', 'LOCALIDAD'])
-        if not df_comisarias_raw.empty:
-            df_comisarias = df_comisarias_raw.copy()
-            df_comisarias.columns = [str(c).strip().upper() for c in df_comisarias.columns]
-            # Convertimos a numérico, si falla dejamos NaN
-            df_comisarias['LATITUD'] = pd.to_numeric(df_comisarias['LATITUD'], errors='coerce')
-            df_comisarias['LONGITUD'] = pd.to_numeric(df_comisarias['LONGITUD'], errors='coerce')
-            df_comisarias = df_comisarias.dropna(subset=['LATITUD', 'LONGITUD'])
-
+            if not df_mapa.empty:
+                # Centro del mapa en Avellaneda por defecto
+                lat_centro = df_mapa['LATITUD'].mean()
+                lon_centro = df_mapa['LONGITUD'].mean()
+                
+                m_mon = folium.Map(location=[lat_centro, lon_centro], zoom_start=13, tiles="CartoDB dark_matter")
+                
+                # Dibujar Objetivos
+                for _, r in df_mapa.iterrows():
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']], radius=8,
+                        color="#00E5FF", fill=True, fill_color="#00E5FF",
+                        tooltip=f"🎯 {r['OBJETIVO']}"
+                    ).add_to(m_mon)
+                
+                # Cargar Comisarías (Si falla, no rompe el mapa)
+                try:
+                    df_com = leer_matriz_nube("COMISARIAS")
+                    df_com.columns = [str(c).strip().upper() for c in df_com.columns]
+                    for _, rc in df_com.iterrows():
+                        folium.Marker(
+                            location=[rc['LATITUD'], rc['LONGITUD']],
+                            icon=folium.Icon(color='purple', icon='shield', prefix='fa'),
+                            tooltip=f"👮 {rc['NOMBRE']}"
+                        ).add_to(m_mon)
+                except:
+                    pass # Si hay error en comisarías, el mapa sigue vivo
+                
+                st_folium(m_mon, width="100%", height=500)
+            else:
+                st.warning("⚠️ No hay coordenadas válidas para mostrar.")
+        else:
+            st.error(f"⚠️ Faltan columnas críticas en OBJETIVOS. Columnas actuales: {list(df_objetivos.columns)}")
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty: st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
