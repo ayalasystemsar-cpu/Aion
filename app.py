@@ -238,7 +238,44 @@ with st.sidebar:
         escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
         st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
+
+
 # --- 6. CABECERA CENTRAL ---
+
+# --- ADICIÓN DE SOPORTE POLICIAL COMISARÍAS (COLOCAR ANTES DE CABECERA CENTRAL) ---
+@st.cache_data(ttl=60)
+def cargar_comisarias():
+    df = leer_matriz_nube("COMISARIAS")
+    if not df.empty:
+        df.columns = df.columns.str.strip().str.upper()
+        if 'NOMBRE' in df.columns:
+            df = df[df['NOMBRE'].astype(str).str.strip() != ""]
+            df = df[df['NOMBRE'].notna()]
+        for col in ['LATITUD', 'LONGITUD']:
+            if col in df.columns:
+                df[col] = df[col].astype(str).str.replace(',', '.').str.strip()
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        return df.dropna(subset=['LATITUD', 'LONGITUD'])
+    return pd.DataFrame()
+
+def buscar_comisaria_mas_cercana(obj_lat, obj_lon, df_comisarias):
+    if df_comisarias.empty: return None, 0.0
+    radio_tierra = 6371.0
+    comisaria_optima = None
+    distancia_minima = float('inf')
+    for _, fila in df_comisarias.iterrows():
+        lat2, lon2 = fila['LATITUD'], fila['LONGITUD']
+        phi1, phi2 = math.radians(obj_lat), math.radians(lat2)
+        d_phi = math.radians(lat2 - obj_lat)
+        d_lam = math.radians(lon2 - lon1) if 'lon1' in locals() else math.radians(lon2 - obj_lon)
+        a = math.sin(d_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lam/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        distancia = radio_tierra * c
+        if distancia < distancia_minima:
+            distancia_minima = distancia
+            comisaria_optima = fila
+    return comisaria_optima, distancia_minima
+
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
 titulos = {
@@ -281,8 +318,10 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
     
-    with t_radar:
+       with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
+        df_comisarias = cargar_comisarias() # Carga automática de la hoja COMISARIAS
+        
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -300,8 +339,10 @@ if st.session_state.rol_sel == "MONITOREO":
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            
             estilo_pulsar_html = """
             <style>
             @keyframes pulse-red-critico {
@@ -313,17 +354,52 @@ if st.session_state.rol_sel == "MONITOREO":
             </style>
             """
             m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
+            
+            # Dibujar Objetivos en el mapa base
             for _, r in df_mapa_monitoreo.iterrows():
+                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
+                
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], radius=7,
-                    color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
+                    color="#FF0000" if es_panico else "#00E5FF",
+                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
                     tooltip=folium.Tooltip(info_hover, sticky=True),
-                    class_name="marker-panic-pulsing" if r['OBJETIVO'] in lista_objetivos_en_panico else None
+                    class_name="marker-panic-pulsing" if es_panico else None
                 ).add_to(m_mon)
+                
+                # --- TRAZADO AUTOMÁTICO HACIA LA COMISARÍA MÁS CERCANA SI HAY PÁNICO ---
+                if es_panico and not df_comisarias.empty:
+                    comisaria_cerca, dist_km = buscar_comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'], df_comisarias)
+                    if comisaria_cerca is not None:
+                        c_lat = float(comisaria_cerca['LATITUD'])
+                        c_lon = float(comisaria_cerca['LONGITUD'])
+                        c_nom = comisaria_cerca['NOMBRE']
+                        
+                        # Marcador de la Comisaría asignada
+                        folium.Marker(
+                            location=[c_lat, c_lon],
+                            popup=f"🚔 RESPUESTA: {c_nom} ({dist_km:.2f} km)",
+                            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                        ).add_to(m_mon)
+                        
+                        # Vector Animado en movimiento hacia el objetivo en pánico
+                        AntPath(
+                            locations=[[c_lat, c_lon], [r['LATITUD'], r['LONGITUD']]],
+                            color="#FF0000", pulse_color="#FFFFFF", weight=5, opacity=0.9, delay=600
+                        ).add_to(m_mon)
+                        
+                        # Desplegar alerta de texto arriba del mapa de monitoreo
+                        st.markdown(
+                            f'<div class="message-box-red">'
+                            f'<div class="message-info">🚨 ATENCIÓN OPERADOR: VECTOR DE RESPUESTA ACTIVADO</div>'
+                            f'<div class="message-text">El objetivo <b>{r["OBJETIVO"]}</b> se encuentra a <b>{dist_km:.2f} km</b> de la dependencia: <b>{c_nom}</b>.</div>'
+                            f'</div>', unsafe_allow_html=True
+                        )
+                        
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
+
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
