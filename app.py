@@ -280,41 +280,65 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
-    
     with t_radar:
-        st.subheader("📡 RADAR GLOBAL - MODO TÁCTICO")
+        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        # 1. Carga de datos
-        df_obj = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        df_com = leer_matriz_nube("COMISARIAS")
-        
-        # 2. Limpieza de nombres de comisarías
-        if not df_com.empty:
-            df_com.columns = [str(c).strip().upper() for c in df_com.columns]
-            df_com['LATITUD'] = pd.to_numeric(df_com['LATITUD'], errors='coerce')
-            df_com['LONGITUD'] = pd.to_numeric(df_com['LONGITUD'], errors='coerce')
-            df_com = df_com.dropna(subset=['LATITUD', 'LONGITUD'])
+        # --- CSS PARA EL EFECTO PULSANTE ---
+        estilo_pulsar = """
+        <style>
+        @keyframes pulse-red {
+            0% { fill: #FF0000; fill-opacity: 0.6; stroke-width: 5; }
+            50% { fill: #FF0000; fill-opacity: 0.2; stroke-width: 15; }
+            100% { fill: #FF0000; fill-opacity: 0.6; stroke-width: 5; }
+        }
+        .pulsing-marker { animation: pulse-red 1.5s infinite; }
+        </style>
+        """
+        st.markdown(estilo_pulsar, unsafe_allow_html=True)
 
-        if not df_obj.empty:
-            m = folium.Map(location=[df_obj['LATITUD'].mean(), df_obj['LONGITUD'].mean()], zoom_start=13)
+        # --- LÓGICA DE MAPA ---
+        df_mapa = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
+        
+        if not df_mapa.empty:
+            # tiles="CartoDB dark_matter" asegura el fondo negro
+            m = folium.Map(location=[df_mapa['LATITUD'].mean(), df_mapa['LONGITUD'].mean()], 
+                           zoom_start=13, tiles="CartoDB dark_matter")
             
-            # Dibujar Objetivos
-            for _, r in df_obj.iterrows():
-                folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=8, 
-                                   color="blue", fill=True, tooltip=r['OBJETIVO']).add_to(m)
-            
-            # Dibujar Comisarías y conectar con el objetivo más cercano
-            for _, rc in df_com.iterrows():
-                folium.Marker([rc['LATITUD'], rc['LONGITUD']], 
-                              icon=folium.Icon(color='purple', icon='shield'),
-                              tooltip=f"👮 {rc['NOMBRE']}").add_to(m)
+            for _, r in df_mapa.iterrows():
+                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 
-                # Opcional: Si quieres conectar automáticamente, 
-                # puedes agregar aquí la lógica de PolyLine basada en distancia.
+                if es_panico:
+                    # 1. BUSCAR COMISARIA MÁS CERCANA
+                    df_comisarias['DIST'] = ((df_comisarias['LATITUD']-r['LATITUD'])**2 + 
+                                            (df_comisarias['LONGITUD']-r['LONGITUD'])**2)
+                    cercana = df_comisarias.loc[df_comisarias['DIST'].idxmin()]
+                    
+                    # 2. DIBUJAR RUTA DE EMERGENCIA
+                    folium.PolyLine([[r['LATITUD'], r['LONGITUD']], [cercana['LATITUD'], cercana['LONGITUD']]], 
+                                    color="red", weight=4, dash_array='5').add_to(m)
+                    
+                    # 3. MARCADOR TITILANTE (CSS clase pulsing-marker)
+                    folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=12,
+                                       color="red", fill=True, fill_color="red",
+                                       className="pulsing-marker",
+                                       tooltip=f"🚨 PÁNICO: {r['OBJETIVO']}").add_to(m)
+                    
+                    # 4. MARCADOR DE APOYO EN COMISARÍA
+                    folium.Marker([cercana['LATITUD'], cercana['LONGITUD']], 
+                                  icon=folium.Icon(color='red', icon='exclamation-triangle'),
+                                  tooltip=f"🚨 APOYO: {cercana['NOMBRE']}").add_to(m)
+                else:
+                    # Punto normal
+                    folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=7, 
+                                       color="#00E5FF", fill=True, tooltip=r['OBJETIVO']).add_to(m)
 
-            st_folium(m, width="100%", height=500)
-
-    with t_gestion:
+            # Dibujar resto de comisarías
+            for _, rc in df_comisarias.iterrows():
+                folium.Marker([rc['LATITUD'], rc['LONGITUD']], icon=folium.Icon(color='purple', icon='shield'), 
+                              tooltip=f"👮 {rc['NOMBRE']}").add_to(m)
+            
+            st_folium(m, width="100%", height=550)
+       with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty: st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
 
