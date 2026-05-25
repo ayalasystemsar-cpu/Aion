@@ -307,8 +307,10 @@ if st.session_state.rol_sel == "MONITOREO":
             if "OBJ:" in carga:
                 try: lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
                 except: pass
-    else: sos_activos = 0
-      c1, c2, c3 = st.columns(3)
+    else:
+        sos_activos = 0
+    
+    c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
@@ -316,7 +318,89 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
+    
+    with t_radar:
+        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
+        df_comisarias = cargar_comisarias()
+        
+        if sos_activos > 0:
+            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
+            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
+            with st.form(key="form_finalizar_panico", clear_on_submit=True):
+                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
+                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
+                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
+                    idx_df = opciones_alertas[alerta_seleccionada]
+                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+                    st.success("✅ Normalizado")
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        
+        # Forzar coordenadas negativas para la correcta visualización en Buenos Aires
+        if not df_ger_maps.empty:
+            df_ger_maps['LATITUD'] = df_ger_maps['LATITUD'].apply(lambda x: -abs(x))
+            df_ger_maps['LONGITUD'] = df_ger_maps['LONGITUD'].apply(lambda x: -abs(x))
+            centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()]
+        else:
+            centro = [-34.65, -58.42]
+            
+        m_visor = folium.Map(location=centro, zoom_start=11, tiles="CartoDB dark_matter")
+        
+        # Inyectar estilos CSS para el marcador parpadeante
+        estilo_pulsar_html = """
+        <style>
+        @keyframes pulse-red-critico {
+            0% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
+            50% { r: 15px; fill: #B30000; fill-opacity: 0.4; stroke: #FF0000; stroke-width: 8; stroke-opacity: 0.6; }
+            100% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
+        }
+        .marker-panic-pulsing { animation: pulse-red-critico 1.1s infinite ease-in-out !important; display: block !important; }
+        </style>
+        """
+        m_visor.get_root().header.add_child(folium.Element(estilo_pulsar_html))
+
+        if not df_ger_maps.empty:
+            for _, r in df_ger_maps.iterrows():
+                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
+                
+                # Dibujar círculos de objetivos (Rojo parpadeante si está en pánico, Azul si está operativo)
+                folium.CircleMarker(
+                    location=[r['LATITUD'], r['LONGITUD']], radius=7,
+                    color="#FF0000" if es_panico else "#00E5FF",
+                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
+                    tooltip=folium.Tooltip(info_hover, sticky=True),
+                    class_name="marker-panic-pulsing" if es_panico else None
+                ).add_to(m_visor)
+                
+                # Si este objetivo está en pánico, trazar vector dinámico a su comisaría más cercana
+                if es_panico and not df_comisarias.empty:
+                    comisaria_cerca, dist_km = buscar_comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'], df_comisarias)
+                    if comisaria_cerca is not None:
+                        c_lat = float(comisaria_cerca['LATITUD'])
+                        c_lon = float(comisaria_cerca['LONGITUD'])
+                        c_nom = comisaria_cerca['NOMBRE']
+                        
+                        # Marcador de Comisaría
+                        folium.Marker(
+                            location=[c_lat, c_lon],
+                            popup=f"🚔 SECTOR: {c_nom} ({dist_km:.2f} km)",
+                            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                        ).add_to(m_visor)
+                        
+                        # Línea animada roja fluyendo hacia la emergencia
+                        AntPath(
+                            locations=[[c_lat, c_lon], [r['LATITUD'], r['LONGITUD']]],
+                            color="#FF0000", pulse_color="#FFFFFF", weight=5, opacity=0.9, delay=600
+                        ).add_to(m_visor)
+                        
+        st_folium(m_visor, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     
           with t_radar:
