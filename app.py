@@ -308,15 +308,15 @@ if st.session_state.rol_sel == "MONITOREO":
                 try: lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
                 except: pass
     else: sos_activos = 0
-    
-    c1, c2, c3 = st.columns(3)
+      c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-        t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
+    t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
+
 
     
           with t_radar:
