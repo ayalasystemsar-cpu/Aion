@@ -319,7 +319,7 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
     
-      with t_radar:
+        with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         df_comisarias = cargar_comisarias()
         
@@ -333,8 +333,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 if "OBJ:" in carga:
                     try:
                         # Cortamos de forma segura el nombre del objetivo
-                        parte_obj = carga.split("OBJ:")[1]
-                        objetivo_extraido = parte_obj.split("|")[0].strip().upper()
+                        parte_obj = carga.split("OBJ:")
+                        objetivo_extraido = parte_obj[1].split("|")[0].strip().upper()
                         lista_objetivos_en_panico.append(objetivo_extraido)
                     except Exception:
                         pass
@@ -419,6 +419,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         
         st_folium(m_visor, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
+
 
     with t_pres:
         st.subheader("📋 TABLA MASTER: PRESENTISMO")
