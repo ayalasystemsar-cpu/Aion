@@ -6,22 +6,14 @@ import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
-
-# --- IMPORTACIONES CRÍTICAS DE MAPAS ---
 import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
 
 # Configuración de página OLED
-st.set_page_config(
-    page_title="AION-YAROKU | CORE",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="AION-YAROKU | CORE", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
 def conectar_google():
@@ -31,7 +23,6 @@ def conectar_google():
         return gspread.authorize(creds)
     except: return None
 
-# --- 3. FUNCIONES DE LÓGICA Y DATOS ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -39,116 +30,55 @@ def obtener_hora_argentina():
 def actualizar_celda(pestana, fila, columna, valor):
     try:
         gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.update_acell(f"{columna}{fila}", valor)
-            return True
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+        hoja.update_acell(f"{columna}{fila}", valor)
+        return True
     except: return False
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.append_row(datos_fila)
-            return True
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+        hoja.append_row(datos_fila)
+        return True
     except: return False
 
-@st.cache_data(ttl=5) # 5 segundos de TTL para actualización táctica veloz
+@st.cache_data(ttl=5)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
-    if gc:
-        try:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            todas_filas = hoja.get_all_values()
-            
-            if not todas_filas or len(todas_filas) == 0:
-                return pd.DataFrame()
-                
-            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-            datos_cuerpo = todas_filas[1:]
-            
-            if len(datos_cuerpo) == 0:
-                return pd.DataFrame(columns=encabezados)
-                
-            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
-            return df
-        except Exception as e: 
-            return pd.DataFrame()
-    return pd.DataFrame()
+    try:
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+        todas_filas = hoja.get_all_values()
+        return pd.DataFrame(todas_filas[1:], columns=[str(h).strip().upper() for h in todas_filas[0]]) if todas_filas else pd.DataFrame()
+    except: return pd.DataFrame()
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=5)
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
-        df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
-        df = df[df['OBJETIVO'].notna()]
-        
-        if 'SUPERVISOR' in df.columns:
-            df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
-        
-        df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
-        df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
-        df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
-        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
+        df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df 
     return pd.DataFrame()
 
-# --- 4. DISEÑO E IDENTIDAD VISUAL ---
-def aplicar_identidad_alfa():
-    st.markdown(
-        """
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
-        .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        
-        .estacion-titulo {
-            font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 24px; margin-top: 15px;
-            display: flex; align-items: center; justify-content: center; gap: 12px;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
-        }
+@st.cache_data(ttl=60)
+def cargar_comisarias():
+    df = leer_matriz_nube("COMISARIAS")
+    if not df.empty:
+        df.columns = df.columns.str.strip().str.upper()
+        df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        return df.dropna(subset=['LATITUD', 'LONGITUD'])
+    return pd.DataFrame()
 
-        .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
-        .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
-        .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
-        .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
-
-        .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; 
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
-        }
-        
-        .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
-        .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
-        .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
-        .message-text { color: #e0e0e0; font-size: 14px; margin-top: 4px; font-family: 'Rajdhani', sans-serif; }
-        
-        .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
-        .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
-
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
-        .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.4) !important; border: 1px solid #2D313E !important;
-            color: #A0A5B5 !important; border-radius: 4px 4px 0px 0px !important; padding: 6px 16px !important;
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
-        }
-        .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
-        
-        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
-        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
-        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
-        </style>
-        """, unsafe_allow_html=True
-    )
-
-aplicar_identidad_alfa()
-
+def renderizar_mapa_tactico(df_obj, df_com):
+    m = folium.Map(location=[-34.6, -58.4], zoom_start=12, tiles="CartoDB dark_matter")
+    for _, com in df_com.iterrows():
+        folium.Marker([com['LATITUD'], com['LONGITUD']], popup=f"🚔 {com['COMISARIA']}", tooltip=com['COMISARIA'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m)
+    for _, obj in df_obj.dropna(subset=['LATITUD', 'LONGITUD']).iterrows():
+        folium.Marker([obj['LATITUD'], obj['LONGITUD']], tooltip=obj['OBJETIVO']).add_to(m)
+    st_folium(m, width="100%", height=500)
 # --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
 
@@ -249,8 +179,6 @@ titulos = {
     "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
     "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
 }
-st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
-
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
