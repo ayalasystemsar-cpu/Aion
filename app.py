@@ -319,10 +319,28 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
     
-    with t_radar:
+      with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         df_comisarias = cargar_comisarias()
         
+        # --- EXTRACCIÓN REPARADA Y BLINDADA DE ALERTAS DE PÁNICO ---
+        lista_objetivos_en_panico = []
+        if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
+            pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+            sos_activos = len(pendientes)
+            for _, row in pendientes.iterrows():
+                carga = str(row['CARGA_UTIL'])
+                if "OBJ:" in carga:
+                    try:
+                        # Cortamos de forma segura el nombre del objetivo
+                        parte_obj = carga.split("OBJ:")[1]
+                        objetivo_extraido = parte_obj.split("|")[0].strip().upper()
+                        lista_objetivos_en_panico.append(objetivo_extraido)
+                    except Exception:
+                        pass
+        else:
+            sos_activos = 0
+
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -341,6 +359,7 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         
+        # Forzar coordenadas negativas automáticas para mapear en Argentina
         if not df_ger_maps.empty:
             df_ger_maps['LATITUD'] = df_ger_maps['LATITUD'].apply(lambda x: -abs(x))
             df_ger_maps['LONGITUD'] = df_ger_maps['LONGITUD'].apply(lambda x: -abs(x))
@@ -350,6 +369,7 @@ if st.session_state.rol_sel == "MONITOREO":
             
         m_visor = folium.Map(location=centro, zoom_start=11, tiles="CartoDB dark_matter")
         
+        # Inyectar estilos CSS para el marcador parpadeante
         estilo_pulsar_html = """
         <style>
         @keyframes pulse-red-critico {
@@ -364,9 +384,10 @@ if st.session_state.rol_sel == "MONITOREO":
 
         if not df_ger_maps.empty:
             for _, r in df_ger_maps.iterrows():
-                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                es_panico = r['OBJETIVO'].strip().upper() in lista_objetivos_en_panico
                 info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
                 
+                # Dibujar círculos de objetivos (Rojo parpadeante si está en pánico, Azul si está operativo)
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], radius=7,
                     color="#FF0000" if es_panico else "#00E5FF",
@@ -375,6 +396,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     class_name="marker-panic-pulsing" if es_panico else None
                 ).add_to(m_visor)
                 
+                # --- DETECCIÓN DE COMISARÍA Y TRAZADO DE RUTA CRÍTICA ---
                 if es_panico and not df_comisarias.empty:
                     comisaria_cerca, dist_km = buscar_comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'], df_comisarias)
                     if comisaria_cerca is not None:
@@ -382,36 +404,21 @@ if st.session_state.rol_sel == "MONITOREO":
                         c_lon = float(comisaria_cerca['LONGITUD'])
                         c_nom = comisaria_cerca['NOMBRE']
                         
+                        # Marcador físico de la Comisaría de soporte
                         folium.Marker(
                             location=[c_lat, c_lon],
-                            popup=f"🚔 SECTOR: {c_nom} ({dist_km:.2f} km)",
+                            popup=f"🚔 SECTOR POLICIAL: {c_nom} ({dist_km:.2f} km)",
                             icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                         ).add_to(m_visor)
                         
+                        # Línea animada con flujo vectorial directo al peligro
                         AntPath(
                             locations=[[c_lat, c_lon], [r['LATITUD'], r['LONGITUD']]],
-                            color="#FF0000", pulse_color="#FFFFFF", weight=5, opacity=0.9, delay=600
+                            color="#FF0000", pulse_color="#FFFFFF", weight=6, opacity=0.9, delay=500
                         ).add_to(m_visor)
                         
         st_folium(m_visor, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_gestion:
-        st.subheader("📖 HISTORIAL DE OPERATIVOS")
-        if not df_emergencias.empty: 
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-
-    with t_comunicacion:
-        with st.form(key="form_chat_monitoreo", clear_on_submit=True):
-            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:")
-            prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
-            if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
-                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
-                st.rerun()
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
-                st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
     with t_pres:
         st.subheader("📋 TABLA MASTER: PRESENTISMO")
