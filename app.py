@@ -254,6 +254,15 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
+    from math import radians, cos, sin, asin, sqrt
+
+    def calcular_distancia(lat1, lon1, lat2, lon2):
+        R = 6371
+        dLat = radians(lat2 - lat1)
+        dLon = radians(lon2 - lon1)
+        a = sin(dLat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dLon/2)**2
+        return R * 2 * asin(sqrt(a))
+
     df_emergencias = leer_matriz_nube("ALERTAS")
     
     if df_emergencias.empty:
@@ -299,7 +308,12 @@ if st.session_state.rol_sel == "MONITOREO":
             st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        
+        # --- CARGA DE DATOS MAPA Y COMISARIAS ---
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        df_comisarias = leer_matriz_nube("COMISARIAS")
+        df_comisarias.columns = df_comisarias.columns.str.strip().str.upper()
+
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             estilo_pulsar_html = """
@@ -313,15 +327,43 @@ if st.session_state.rol_sel == "MONITOREO":
             </style>
             """
             m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
+            
+            # 1. Dibujar Comisarías (puntos violetas)
+            if not df_comisarias.empty:
+                for _, r_com in df_comisarias.iterrows():
+                    folium.Marker(
+                        location=[r_com['LATITUD'], r_com['LONGITUD']],
+                        icon=folium.Icon(color='purple', icon='shield', prefix='fa'),
+                        tooltip=f"👮 COMISARÍA: {r_com['NOMBRE']}"
+                    ).add_to(m_mon)
+            
+            # 2. Dibujar Objetivos y Líneas a la comisaría más cercana
             for _, r in df_mapa_monitoreo.iterrows():
-                info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
+                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], radius=7,
-                    color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
-                    tooltip=folium.Tooltip(info_hover, sticky=True),
-                    class_name="marker-panic-pulsing" if r['OBJETIVO'] in lista_objetivos_en_panico else None
+                    color="#FF0000" if es_panico else "#00E5FF",
+                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
+                    tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}",
+                    class_name="marker-panic-pulsing" if es_panico else None
                 ).add_to(m_mon)
+                
+                # Calcular línea a la comisaría más cercana
+                if not df_comisarias.empty:
+                    cercana = None
+                    dist_min = float('inf')
+                    for _, r_c in df_comisarias.iterrows():
+                        d = calcular_distancia(r['LATITUD'], r['LONGITUD'], r_c['LATITUD'], r_c['LONGITUD'])
+                        if d < dist_min:
+                            dist_min = d
+                            cercana = r_c
+                    if cercana is not None:
+                        folium.PolyLine(
+                            [[r['LATITUD'], r['LONGITUD']], [cercana['LATITUD'], cercana['LONGITUD']]],
+                            color="red" if es_panico else "blue",
+                            weight=2, opacity=0.4, dash_array='5, 5'
+                        ).add_to(m_mon)
+
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
