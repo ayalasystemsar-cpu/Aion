@@ -311,61 +311,59 @@ if st.session_state.rol_sel == "MONITOREO":
         
         # --- CARGA DE DATOS MAPA Y COMISARIAS ---
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
-        df_comisarias = leer_matriz_nube("COMISARIAS")
-        df_comisarias.columns = df_comisarias.columns.str.strip().str.upper()
+        
+        # Carga segura: nos aseguramos de que sean cadenas de texto antes de procesar
+        df_comisarias_raw = leer_matriz_nube("COMISARIAS")
+        
+        if not df_comisarias_raw.empty:
+            df_comisarias = df_comisarias_raw.copy()
+            # Limpiamos nombres de columnas y aseguramos que sean strings
+            df_comisarias.columns = [str(c).strip().upper() for c in df_comisarias.columns]
+            # Convertimos coordenadas a numérico forzando errores a NaN
+            df_comisarias['LATITUD'] = pd.to_numeric(df_comisarias['LATITUD'], errors='coerce')
+            df_comisarias['LONGITUD'] = pd.to_numeric(df_comisarias['LONGITUD'], errors='coerce')
+            df_comisarias = df_comisarias.dropna(subset=['LATITUD', 'LONGITUD'])
+        else:
+            df_comisarias = pd.DataFrame(columns=['NOMBRE', 'LATITUD', 'LONGITUD'])
 
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            estilo_pulsar_html = """
-            <style>
-            @keyframes pulse-red-critico {
-                0% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
-                50% { r: 15px; fill: #B30000; fill-opacity: 0.4; stroke: #FF0000; stroke-width: 8; stroke-opacity: 0.6; }
-                100% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
-            }
-            .marker-panic-pulsing { animation: pulse-red-critico 1.1s infinite ease-in-out !important; display: block !important; }
-            </style>
-            """
-            m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
             
-            # 1. Dibujar Comisarías (puntos violetas)
-            if not df_comisarias.empty:
-                for _, r_com in df_comisarias.iterrows():
-                    folium.Marker(
-                        location=[r_com['LATITUD'], r_com['LONGITUD']],
-                        icon=folium.Icon(color='purple', icon='shield', prefix='fa'),
-                        tooltip=f"👮 COMISARÍA: {r_com['NOMBRE']}"
-                    ).add_to(m_mon)
+            # Dibujar Comisarías (puntos violetas)
+            for _, r_com in df_comisarias.iterrows():
+                folium.Marker(
+                    location=[r_com['LATITUD'], r_com['LONGITUD']],
+                    icon=folium.Icon(color='purple', icon='shield', prefix='fa'),
+                    tooltip=f"👮 COMISARÍA: {r_com['NOMBRE']}"
+                ).add_to(m_mon)
             
-            # 2. Dibujar Objetivos y Líneas a la comisaría más cercana
+            # Dibujar Objetivos y Líneas según columna COMISARIA_DESTINO
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                
+                # Pintar objetivo
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], radius=7,
                     color="#FF0000" if es_panico else "#00E5FF",
                     fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
-                    tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}",
+                    tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}",
                     class_name="marker-panic-pulsing" if es_panico else None
                 ).add_to(m_mon)
                 
-                # Calcular línea a la comisaría más cercana
-                if not df_comisarias.empty:
-                    cercana = None
-                    dist_min = float('inf')
-                    for _, r_c in df_comisarias.iterrows():
-                        d = calcular_distancia(r['LATITUD'], r['LONGITUD'], r_c['LATITUD'], r_c['LONGITUD'])
-                        if d < dist_min:
-                            dist_min = d
-                            cercana = r_c
-                    if cercana is not None:
+                # Trazar línea hacia la comisaría definida en la columna COMISARIA_DESTINO
+                destino = str(r.get('COMISARIA_DESTINO', '')).strip().upper()
+                if destino:
+                    match = df_comisarias[df_comisarias['NOMBRE'] == destino]
+                    if not match.empty:
+                        c_lat = match.iloc[0]['LATITUD']
+                        c_lon = match.iloc[0]['LONGITUD']
                         folium.PolyLine(
-                            [[r['LATITUD'], r['LONGITUD']], [cercana['LATITUD'], cercana['LONGITUD']]],
+                            locations=[[r['LATITUD'], r['LONGITUD']], [c_lat, c_lon]],
                             color="red" if es_panico else "blue",
                             weight=2, opacity=0.4, dash_array='5, 5'
                         ).add_to(m_mon)
 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
