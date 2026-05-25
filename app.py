@@ -367,9 +367,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         escribir_registro_nube("NOVEDADES_GUARDIA", [fh, v_obj_rel, "RELEVO", "CAMBIO_GUARDIA", f"S:{v_sal}|E:{v_ent}", sup_resp])
                         st.success("🔄 RELEVO SANCIONADO")
     st.markdown('</div>', unsafe_allow_html=True)
-
-elif st.session_state.rol_sel == "GERENCIA":
-    # E. ROL: GERENCIA
+# E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
@@ -438,8 +436,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         if not df_novedades.empty:
             st.dataframe(df_novedades.tail(20), use_container_width=True)
 
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    # E. ROL: ADMINISTRADOR
+# E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
     
