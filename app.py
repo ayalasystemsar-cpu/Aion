@@ -229,76 +229,127 @@ def aplicar_identidad_alfa():
 aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
+df_objetivos = cargar_objetivos()
+
+LISTA_SUPS_TACTICOS = [
+    "AYALA BRIAN",
+    "SUPERVISOR 1", 
+    "SUPERVISOR 2", 
+    "SUPERVISOR 3", 
+    "SUPERVISOR 4", 
+    "SUPERVISOR 5", 
+    "SUPERVISOR NOCTURNO"
+]
+
+if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
+if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
+if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
+
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
     st.markdown("<span style='font-size: 11px; color:#A0A5B5; font-family:\"Orbitron\"; font-weight:bold; letter-spacing:0.5px;'>NIVEL DE ACCESO</span>", unsafe_allow_html=True)
     
-    # Botones principales de navegación
-    if st.button("🛰️ MONITOREO", use_container_width=True): 
-        st.session_state.rol_sel = "MONITOREO"; st.rerun()
+    # 1. MONITOREO
+    if st.button("🛰️ MONITOREO", use_container_width=True):
+        st.session_state.rol_sel = "MONITOREO"
+        st.session_state.user_sel = "OPERADOR CENTRAL"
+        st.session_state.sup_autenticado = False
+        st.rerun()
         
-    if st.button("📋 JEFE DE OPERACIONES", use_container_width=True): 
-        st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
+    # 2. JEFE DE OPERACIONES
+    if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
+        st.session_state.rol_sel = "JEFE DE OPERACIONES"
+        st.session_state.user_sel = "SANOJA LUIS"
+        st.session_state.sup_autenticado = False
+        st.rerun()
         
-    if st.button("🏢 GERENCIA", use_container_width=True): 
-        st.session_state.rol_sel = "GERENCIA"; st.rerun()
-    
-    # Botón del Vigilador integrado
-    if st.button("🛡️ VIGILADOR", use_container_width=True): 
-        st.session_state.rol_sel = "VIGILADOR"; st.rerun()
+    # 3. GERENCIA
+    if st.button("🏢 GERENCIA", use_container_width=True):
+        st.session_state.rol_sel = "GERENCIA"
+        st.session_state.user_sel = "DIRECCIÓN GENERAL"
+        st.session_state.sup_autenticado = False
+        st.rerun()
 
-    # Expander de Supervisores
-    with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR")):
-        nom_sup = st.selectbox("RESPONSABLE ACTIVO:", LISTA_SUPS_TACTICOS, key="cambio_supervisor_directo")
+    # 4. SUPERVISORES
+    with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
+        nom_sup = st.selectbox(
+            "RESPONSABLE ACTIVO:", 
+            LISTA_SUPS_TACTICOS,
+            key="cambio_supervisor_directo"
+        )
+        
         user_sup = st.text_input("USUARIO RECURSO (APELLIDO)", key="auth_user_sup")
         pass_sup = st.text_input("CONTRASEÑA CRÍTICA", type="password", key="auth_pass_sup")
         
         if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
-            usuario_esperado = "nocturno" if "NOCTURNO" in nom_sup else ("ayala" if "AYALA" in nom_sup else nom_sup.split(" ")[1].lower())
+            st.session_state.intentando_sup = True
+            
+            if "NOCTURNO" in nom_sup:
+                usuario_esperado = "nocturno"
+            elif "AYALA" in nom_sup:
+                usuario_esperado = "ayala"
+            else:
+                usuario_esperado = nom_sup.split(" ")[1]
+            
             if user_sup.strip().lower() == usuario_esperado and pass_sup == "1234":
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.user_sel = nom_sup
                 st.session_state.sup_autenticado = True
+                if 'intentando_sup' in st.session_state: del st.session_state.intentando_sup
+                st.success(f"🔓 ACCESO CONCEDIDO: {nom_sup}")
                 st.rerun()
             else:
-                st.error("❌ CREDENCIALES INVÁLIDAS")
+                st.session_state.sup_autenticado = False
+                st.error("❌ CREDENCIALES INVÁLIDAS EN BASE")
 
     st.write("---")
-    if st.button("⚙️ ADMINISTRADOR", use_container_width=True): 
-        st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
+    
+    # 5. ADMINISTRADOR
+    st.markdown("**⚙️ ADMINISTRADOR**")
+    if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
+        st.session_state.rol_sel = "ADMINISTRADOR"
+        st.session_state.user_sel = "ADMIN CENTRAL"
+        st.session_state.sup_autenticado = False
+        st.rerun()
+
+    st.write("---")
+    
+    loc = get_geolocation()
+    lat_envio = loc['coords']['latitude'] if loc else 0.0
+    lon_envio = loc['coords'].get('longitude', 0.0) if loc else 0.0
+
+    if st.button("ACTIVAR\nPÁNICO", type="primary"):
+        if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
+            obj_alerta = st.session_state.sup_servicio_actual
+        else:
+            obj_alerta = "CENTRAL BASE"
+            
+        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+        st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
 # --- 6. CABECERA CENTRAL ---
-titulos = {
-    "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
-    "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
-    "VIGILADOR": "🛡️ TERMINAL OPERATIVO: VIGILADORES",
-    "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
-    "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
-    "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
-}
-st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO")}</div>', unsafe_allow_html=True)
+st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
+
+if st.session_state.rol_sel == "SUPERVISOR" and not st.session_state.sup_autenticado:
+    st.markdown('<div class="estacion-titulo">🔒 ESTACIÓN BLOQUEADA - REQUIERE AUTENTICACIÓN EN SIDEBAR</div>', unsafe_allow_html=True)
+else:
+    titulos = {
+        "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
+        "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
+        "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
+        "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
+        "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
+    }
+    st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
-if st.session_state.rol_sel == "MONITOREO":
-    df_emergencias = leer_matriz_nube("ALERTAS")
-    t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
-    
-    with t_radar:
-        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        df_mapa = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        if not df_mapa.empty:
-            m_mon = folium.Map(location=[df_mapa['LATITUD'].mean(), df_mapa['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_mapa.iterrows():
-                folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=8, color="#00E5FF", fill=True, tooltip=r['OBJETIVO']).add_to(m_mon)
-            st_folium(m_mon, width="100%", height=550)
-        else: st.warning("⚠️ Sin objetivos con coordenadas.")
-
-# --- 7. FLUJO POR ROLES ---
-
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
+    df_comisarias = leer_matriz_nube("COMISARIAS")
+    
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
@@ -311,14 +362,20 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
+    # Se definen las 4 pestañas aquí
     t_radar, t_gestion, t_comunicacion, t_pres = st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 COMUNICACIÓN", "📋 PRESENTISMO"])
     
     with t_radar:
+        # Aquí va tu lógica actual del radar (m_mon, folium, etc.)
         st.info("📡 Módulo de Radar S.O.S activo")
+
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
-        if not df_emergencias.empty: st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        else: st.info("No hay registros.")
+        if not df_emergencias.empty: 
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+        else: 
+            st.info("No hay registros en el historial.")
+
     with t_comunicacion:
         st.markdown('<h3>📥 BANDEJA DE INTELIGENCIA</h3>', unsafe_allow_html=True)
         df_chats = leer_matriz_nube("CHATS")
@@ -326,12 +383,20 @@ if st.session_state.rol_sel == "MONITOREO":
             for _, msg in df_chats.tail(10).iloc[::-1].iterrows():
                 es_rojo = msg.get("PRIORIDAD", "VERDE") == "ROJA"
                 st.markdown(f'<div class="{"message-box-red" if es_rojo else "message-box"}"><div class="{"message-info-red" if es_rojo else "message-info"}">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-    with t_pres:
-        st.subheader("📋 REGISTRO DE PRESENTISMO")
-        df_pres = leer_matriz_nube("PRESENTISMO")
-        if not df_pres.empty: st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        else:
+            st.info("Sin comunicaciones.")
 
-# B. ROL: JEFE DE OPERACIONES
+    # NUEVA PESTAÑA DE PRESENTISMO
+    with t_pres:
+        st.subheader("📋 REGISTRO DE PRESENTISMO (TOTAL)")
+        df_pres = leer_matriz_nube("PRESENTISMO")
+        if not df_pres.empty:
+            # Mostramos la tabla ordenando por fecha reciente
+            st.dataframe(df_pres.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        else:
+            st.info("No hay registros de presentismo.")
+
+# C. ROL: JEFE DE OPERACIONES
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
@@ -389,7 +454,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
     if not df_novedades.empty:
         st.dataframe(df_novedades.tail(20), use_container_width=True)
-# C. ROL: SUPERVISOR
+
+# D. ROL: SUPERVISOR (FILTRADO PERIMETRAL EXACTO Y MAPAS CON CENTRO DINÁMICO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if not st.session_state.sup_autenticado:
         st.info("🔒 Estación Bloqueada. Ingrese las credenciales correspondientes en la sección lateral de SUPERVISORES.")
@@ -481,50 +547,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.info("Sin registros.")
 
-# D. ROL: VIGILADOR
-elif st.session_state.rol_sel == "VIGILADOR":
-    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-    st.header("🛡️ TERMINAL OPERATIVO: VIGILADOR")
-    
-    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
-    
-    tab_pres, tab_rev = st.tabs(["📍 FICHAJE BIOMÉTRICO", "🔄 CAMBIO DE GUARDIA"])
-    
-    with tab_pres:
-        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_ape = st.text_input("APELLIDO Y NOMBRE:").upper().strip()
-            v_dni = st.text_input("DNI / LEGAJO:").strip()
-            v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            v_tipo = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
-            img = st.camera_input("RECONOCIMIENTO FACIAL")
-            
-            if st.form_submit_button("CONSIGNAR PRESENTE"):
-                if v_ape and img and v_dni:
-                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
-                    sup_resp = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-                    fh = obtener_hora_argentina()
-                    if escribir_registro_nube("PRESENTISMO", [fh.split(" ")[0], fh.split(" ")[1], v_dni, f"{v_ape} - {v_obj}", "", "OK", v_tipo]):
-                        escribir_registro_nube("NOVEDADES_GUARDIA", [fh, v_obj, v_dni, f"FACIAL_{v_tipo}", f"OP: {v_ape}", sup_resp])
-                        st.success("✅ REGISTRADO")
-                else: 
-                    st.warning("⚠️ Faltan datos o captura facial.")
-
-    with tab_rev:
-        with st.form(key="form_relevo", clear_on_submit=True):
-            v_obj_rel = st.selectbox("OBJETIVO RELEVO:", opciones_globales_obj)
-            v_sal = st.text_input("SALE:").upper().strip()
-            v_ent = st.text_input("ENTRA:").upper().strip()
-            
-            if st.form_submit_button("SANCIONAR RELEVO"):
-                if v_sal and v_ent:
-                    fh = obtener_hora_argentina()
-                    sup_resp = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_rel]['SUPERVISOR'].iloc[0] if not df_objetivos[df_objetivos['OBJETIVO'] == v_obj_rel].empty else "NO ASIGNADO"
-                    if escribir_registro_nube("VIGILADORES", [fh.split(" ")[0], fh.split(" ")[1], v_obj_rel, v_sal, v_ent, sup_resp, "RELEVO"]):
-                        escribir_registro_nube("NOVEDADES_GUARDIA", [fh, v_obj_rel, "RELEVO", "CAMBIO_GUARDIA", f"S:{v_sal}|E:{v_ent}", sup_resp])
-                        st.success("🔄 RELEVO SANCIONADO")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # E. ROL: GERENCIA
+# E. ROL: GERENCIA
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     st.markdown('<h3 style="color:#FFFFFF; font-family:\'Rajdhani\', sans-serif; font-size:18px; margin-top:0px; margin-bottom:20px;">Panel de Rentabilidad Operativa</h3>', unsafe_allow_html=True)
@@ -592,14 +615,21 @@ elif st.session_state.rol_sel == "GERENCIA":
         df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
         if not df_novedades.empty:
             st.dataframe(df_novedades.tail(20), use_container_width=True)
-    st.markdown('<h2 class="estacion-titulo">DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
 
-# F. ROL: ADMINISTRADOR
+# E. ROL: ADMINISTRADOR
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.markdown('<div class="titulo-seccion-admin">⚙️ NÚCLEO MAESTRO: AION-YAROKU</div>', unsafe_allow_html=True)
+    
     with st.expander("🔐 CREDENCIALES DE INFRAESTRUCTURA", expanded=True):
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
+        
+    st.markdown('<div class="titulo-seccion-admin">⚖️ BUZÓN DE PETICIONES PENDIENTES</div>', unsafe_allow_html=True)
     
     if u_ing == "admin" and p_ing == "aion2026":
-        st.success("Acceso concedido.")
+        st.write("---")
+        tipo = st.radio("Alta:", ["SUPERVISOR", "SERVICIO"], horizontal=True)
+        nuevo_nombre = st.text_input("Nombre:").upper()
+        if st.button("REGISTRAR"):
+            escribir_registro_nube("ESTRUCTURA", [obtener_hora_argentina(), tipo, nuevo_nombre, "ACTIVO", st.session_state.user_sel])
+            st.success("Alta Exitosa")
