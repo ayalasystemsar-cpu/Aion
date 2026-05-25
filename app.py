@@ -300,46 +300,28 @@ if st.session_state.rol_sel == "MONITOREO":
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
-       # --- CARGA Y PROCESAMIENTO ---
-        df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+       # --- CARGA SEGURA DE OBJETIVOS ---
+        # Primero, limpiamos los nombres de columnas de df_objetivos para evitar espacios ocultos
+        df_objetivos.columns = [str(c).strip().upper() for c in df_objetivos.columns]
+        
+        # Verificamos si las columnas existen realmente
+        if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
+            df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        else:
+            st.error(f"Error: No se encuentran las columnas de coordenadas. Columnas detectadas: {list(df_objetivos.columns)}")
+            df_mapa_monitoreo = pd.DataFrame()
+            
+        # --- CARGA Y PROCESAMIENTO DE COMISARÍAS ---
         df_comisarias_raw = leer_matriz_nube("COMISARIAS")
         
         df_comisarias = pd.DataFrame(columns=['NOMBRE', 'LATITUD', 'LONGITUD', 'LOCALIDAD'])
         if not df_comisarias_raw.empty:
             df_comisarias = df_comisarias_raw.copy()
             df_comisarias.columns = [str(c).strip().upper() for c in df_comisarias.columns]
+            # Convertimos a numérico, si falla dejamos NaN
             df_comisarias['LATITUD'] = pd.to_numeric(df_comisarias['LATITUD'], errors='coerce')
             df_comisarias['LONGITUD'] = pd.to_numeric(df_comisarias['LONGITUD'], errors='coerce')
             df_comisarias = df_comisarias.dropna(subset=['LATITUD', 'LONGITUD'])
-
-        # --- DIBUJO DEL MAPA (CORRECTAMENTE INDENTADO) ---
-        if not df_mapa_monitoreo.empty:
-            m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            
-            # 1. Dibujar Objetivos
-            for _, r in df_mapa_monitoreo.iterrows():
-                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
-                folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']], radius=7,
-                    color="#FF0000" if es_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
-                    tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}",
-                    class_name="marker-panic-pulsing" if es_panico else None
-                ).add_to(m_mon)
-            
-            # 2. Dibujar Comisarías (Círculos violetas)
-            for _, r_com in df_comisarias.iterrows():
-                folium.CircleMarker(
-                    location=[r_com['LATITUD'], r_com['LONGITUD']],
-                    radius=10,
-                    color="#FF00FF",
-                    fill=True,
-                    fill_color="#FF00FF",
-                    fill_opacity=0.7,
-                    tooltip=f"👮 COMISARÍA: {r_com.get('NOMBRE', 'N/A')} | 📍 {r_com.get('LOCALIDAD', 'S/D')}"
-                ).add_to(m_mon)
-            
-            st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
