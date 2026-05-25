@@ -315,7 +315,7 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-      # 1. Declaración limpia de las pestañas tácticas de Monitoreo
+    # 1. Declaración limpia de las pestañas tácticas de Monitoreo
     pestanas_mon = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
@@ -414,10 +414,25 @@ if st.session_state.rol_sel == "MONITOREO":
         st_folium(m_visor, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
     pestanas_mon[0].markdown('</div>', unsafe_allow_html=True)
 
-    # 3. Resto de las pestañas hermanas apuntando a la variable de control indexada
+    # 3. Resto de las pestañas hijas alineadas usando el formato de lista plano
     with pestanas_mon[1]:
+        st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        if not df_emergencias.empty: 
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
 
-    with t_pres:
+    with pestanas_mon[2]:
+        with st.form(key="form_chat_monitoreo", clear_on_submit=True):
+            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:")
+            prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
+            if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
+                st.rerun()
+        df_chats = leer_matriz_nube("CHATS")
+        if not df_chats.empty:
+            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
+                st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
+
+    with pestanas_mon[3]:
         st.subheader("📋 TABLA MASTER: PRESENTISMO")
         df_pres = leer_matriz_nube("PRESENTISMO")
         if df_pres is not None and not df_pres.empty:
@@ -428,7 +443,7 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("No hay datos de presentismo registrados.")
 
-    with t_vig:
+    with pestanas_mon[4]:
         st.subheader("👥 TABLA MASTER: RELEVOS VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
         if df_padrero is not None and not df_padrero.empty:
@@ -439,87 +454,13 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
-    with t_guardia:
+    with pestanas_mon[5]:
         st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
         if not df_nov_g.empty: 
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
-# B. ROL: SUPERVISOR (SISTEMA DE FILTRADO INTELIGENTE BLINDADO)
-elif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado:
-        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-
-        st.subheader("Control de Unidad Móvil")
-        st.markdown('<div class="panel-info">', unsafe_allow_html=True)
-        c1, c2, c3, c4 = st.columns(4)
-        with c1: st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
-        with c2: st.number_input("Km Inicial:", value=0, key="sup_km_inicial")
-        with c3: st.number_input("Km Final:", value=0, key="sup_km_final")
-        with c4: st.number_input("Combustible (Lts):", value=0.0, key="sup_combustible")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        col_btn1, col_btn2 = st.columns([3, 1])
-        with col_btn1: st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
-        with col_btn2:
-            if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
-
-        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
-        
-        with t_vis_qr:
-            opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
-            obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
-            st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
-            
-            st.write("---")
-            df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
-            if not df_mapa_sup.empty:
-                m_visor = folium.Map(location=[df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
-                for _, r in df_mapa_sup.iterrows():
-                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-                st_folium(m_visor, width="100%", height=400, key=f"map_sup_{sup_activo_normalizado}")
-
-        with t_car_tac:
-            novedad_sup = st.text_area("Novedad / Registro Operativo:")
-            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
-                st.success("✅ Cargado")
-
-        with t_com_sup:
-            with st.form(key="form_chat_supervisor", clear_on_submit=True):
-                txt_mensaje_sup = st.text_input("REPORTE RÁPIDO PARA MONITOREO:")
-                prioridad_sup = st.selectbox("RELEVANCIA:", ["VERDE", "ROJA"])
-                if st.form_submit_button("ENVIAR MENSAJE") and txt_mensaje_sup.strip():
-                    escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_sup.strip().upper(), prioridad_sup, "MONITOREO", "REPORTE CAMPO"])
-                    st.rerun()
-            df_chats_sup = leer_matriz_nube("CHATS")
-            if not df_chats_sup.empty:
-                for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
-                    st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-
-        with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
-            df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
-            if not df_v_total.empty:
-                df_v_total.columns = df_v_total.columns.str.strip().str.upper()
-                
-                def fila_pertenece_a_supervisor(row, sup_name):
-                    for cell_val in row.values:
-                        if str(cell_val).strip().upper() == sup_name:
-                            return True
-                    return False
-                
-                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
-                df_v_filtrado = df_v_total[mask_sup]
-                
-                if not df_v_filtrado.empty:
-                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
-                else:
-                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
-            else:
-                st.info("No hay datos registrados en Novedades Guardia.")
 
 # --- C. ROL: VIGILADOR ---
 elif st.session_state.rol_sel == "VIGILADOR":
