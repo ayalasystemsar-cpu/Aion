@@ -316,7 +316,6 @@ if st.session_state.rol_sel == "MONITOREO":
 
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
-    ])
     
        with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
