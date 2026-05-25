@@ -254,96 +254,45 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
+    
+    # 1. CARGA SEGURA DE DATOS (Forzamos a que siempre sean DataFrames)
     df_emergencias = leer_matriz_nube("ALERTAS")
-    
-    if df_emergencias.empty:
-        df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
-    else:
-        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
-    
-    lista_objetivos_en_panico = []
-    if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
-        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
-        sos_activos = len(pendientes)
-        for _, row in pendientes.iterrows():
-            carga = str(row['CARGA_UTIL'])
-            if "OBJ:" in carga:
-                try: lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
-                except: pass
-    else: sos_activos = 0
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
-    c2.metric("📡 RED", "OPERATIVA")
-    c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+    if not isinstance(df_emergencias, pd.DataFrame): df_emergencias = pd.DataFrame()
+        
+    df_comisarias = leer_matriz_nube("COMISARIAS")
+    if not isinstance(df_comisarias, pd.DataFrame): df_comisarias = pd.DataFrame()
 
+    # 2. PROCESAMIENTO DE COMISARIAS (Limpieza de nombres)
+    if not df_comisarias.empty:
+        df_comisarias.columns = [str(c).strip().upper() for c in df_comisarias.columns]
+        df_comisarias = df_comisarias.dropna(subset=['LATITUD', 'LONGITUD'])
+
+    # 3. INTERFAZ TÁCTICA
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
-        "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
+        "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO", "👥 PADRÓN", "🔄 GUARDIA"
     ])
     
     with t_radar:
-        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        if sos_activos > 0:
-            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
-            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
-            with st.form(key="form_finalizar_panico", clear_on_submit=True):
-                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
-                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
-                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    idx_df = opciones_alertas[alerta_seleccionada]
-                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    st.success("✅ Normalizado")
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        st.subheader("📡 RADAR TÁCTICO")
         
-      # --- BLOQUE SEGURO DE MONITOREO ---
-        st.subheader("📡 RADAR GLOBAL")
-        
-        # 1. Normalización estricta de nombres de columnas
-        df_objetivos.columns = [str(c).strip().upper() for c in df_objetivos.columns]
-        
-        # 2. Validación de columnas obligatorias
-        cols_necesarias = ['LATITUD', 'LONGITUD', 'OBJETIVO']
-        if all(col in df_objetivos.columns for col in cols_necesarias):
-            df_mapa = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        # Mapa base
+        if not df_objetivos.empty and 'LATITUD' in df_objetivos.columns:
+            m = folium.Map(location=[df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
             
-            if not df_mapa.empty:
-                # Centro del mapa en Avellaneda por defecto
-                lat_centro = df_mapa['LATITUD'].mean()
-                lon_centro = df_mapa['LONGITUD'].mean()
-                
-                m_mon = folium.Map(location=[lat_centro, lon_centro], zoom_start=13, tiles="CartoDB dark_matter")
-                
-                # Dibujar Objetivos
-                for _, r in df_mapa.iterrows():
-                    folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], radius=8,
-                        color="#00E5FF", fill=True, fill_color="#00E5FF",
-                        tooltip=f"🎯 {r['OBJETIVO']}"
-                    ).add_to(m_mon)
-                
-                # Cargar Comisarías (Si falla, no rompe el mapa)
-                try:
-                    df_com = leer_matriz_nube("COMISARIAS")
-                    df_com.columns = [str(c).strip().upper() for c in df_com.columns]
-                    for _, rc in df_com.iterrows():
-                        folium.Marker(
-                            location=[rc['LATITUD'], rc['LONGITUD']],
-                            icon=folium.Icon(color='purple', icon='shield', prefix='fa'),
-                            tooltip=f"👮 {rc['NOMBRE']}"
-                        ).add_to(m_mon)
-                except:
-                    pass # Si hay error en comisarías, el mapa sigue vivo
-                
-                st_folium(m_mon, width="100%", height=500)
-            else:
-                st.warning("⚠️ No hay coordenadas válidas para mostrar.")
+            # Dibujar Objetivos
+            for _, r in df_objetivos.iterrows():
+                folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", tooltip=f"🎯 {r['OBJETIVO']}").add_to(m)
+            
+            # Dibujar Comisarías
+            if not df_comisarias.empty:
+                for _, r in df_comisarias.iterrows():
+                    folium.Marker([r['LATITUD'], r['LONGITUD']], icon=folium.Icon(color='purple', icon='shield'), tooltip=f"👮 {r['NOMBRE']}").add_to(m)
+            
+            st_folium(m, width="100%", height=500)
         else:
-            st.error(f"⚠️ Faltan columnas críticas en OBJETIVOS. Columnas actuales: {list(df_objetivos.columns)}")
+            st.error("⚠️ No hay datos de objetivos cargados para el mapa.")
+
+    # [El resto de tus pestañas (t_gestion, t_comunicacion, etc.) se mantienen igual debajo de esto]
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty: st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
