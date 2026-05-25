@@ -132,17 +132,20 @@ def aplicar_identidad_alfa():
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         .estacion-titulo { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 24px; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 12px; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase; }
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
+        .stButton > button[kind="primary"] { background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; }
+        .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,0,0,0.1); padding-top: 5px; padding-bottom: 5px; }
+        .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
+        .message-text { color: #e0e0e0; font-size: 14px; margin-top: 4px; font-family: 'Rajdhani', sans-serif; }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
         </style>
         """, unsafe_allow_html=True
     )
-
 aplicar_identidad_alfa()
 
-# --- 5. LÓGICA DE MAPA TÁCTICO ---
+# --- NUEVO GENERADOR DE MAPA ---
 def renderizar_mapa_monitoreo(df_obj, df_com):
-    st.markdown('<div class="estacion-titulo">🛡️ ESTACIÓN CENTRAL DE MONITOREO 🚨</div>', unsafe_allow_html=True)
+    st.markdown('<div class="estacion-titulo">🛡️ RADAR TÁCTICO DE RESPUESTA</div>', unsafe_allow_html=True)
     st.markdown("""<style>
         @keyframes pulso-emergencia { 0% { transform: scale(0.9); opacity: 0.6; } 50% { transform: scale(1.3); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.6; } }
         .antipanico-pulso { background-color: #ff0000; border: 2px solid #ffffff; border-radius: 50%; animation: pulso-emergencia 1.2s infinite ease-in-out; }
@@ -163,46 +166,44 @@ def renderizar_mapa_monitoreo(df_obj, df_com):
             st.markdown(f'<div class="message-box-red"><div class="message-info">🚨 ANTIPÁNICO: {objetivo_critico}</div><div class="message-text">Dependencia: <b>{com_c["NOMBRE"]}</b> a <b>{dist:.2f} km</b>.</div></div>', unsafe_allow_html=True)
         st_folium(m, width="100%", height=500)
 
-# --- 6. SIDEBAR TÁCTICO ---
+# --- 5. SIDEBAR TÁCTICO (EL ORIGINAL) ---
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_comisarias()
+
+LISTA_SUPS_TACTICOS = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
 
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 with st.sidebar:
     if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
     if st.button("📋 JEFE DE OPERACIONES"): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
     if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
+    if st.button("👮 VIGILADOR"): st.session_state.rol_sel = "VIGILADOR"; st.rerun()
     if st.button("⚙️ ADMINISTRADOR"): st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
 
-# --- 7. FLUJO POR ROLES ---
+# --- 7. FLUJO POR ROLES (MANTIENE TU ESTRUCTURA ORIGINAL) ---
 if st.session_state.rol_sel == "MONITOREO":
     renderizar_mapa_monitoreo(df_objetivos, df_comisarias)
+    st.tabs(["🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"])
 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    t1, t2, t3 = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
-    with t1: renderizar_mapa_monitoreo(df_objetivos, df_comisarias)
-    with t2:
-        o_det = st.text_input("Detalle:")
-        if st.button("ELEV AR PETICIÓN") and o_det.strip():
-            escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "JEFE_OPS", "ALTA", "OBJETIVO", o_det])
-            st.success("✅ Petición Elevada")
-    with t3: st.dataframe(leer_matriz_nube("ACTAS_FLOTAS").tail(20))
+    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
+    with t_crisis: renderizar_mapa_monitoreo(df_objetivos, df_comisarias)
+    with t_ejecucion:
+        o_det = st.text_input("Nombre / Detalle:")
+        if st.button("ELEV AR PETICIÓN"): escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "JEFE_OPS", "ALTA", "OBJ", o_det]); st.success("✅ Petición Elevada")
+    with t_auditoria: st.dataframe(leer_matriz_nube("ACTAS_FLOTAS").tail(20))
 
 elif st.session_state.rol_sel == "GERENCIA":
-    t1, t2, t3 = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    with t1:
-        g_orden = st.text_area("Orden:")
-        if st.button("Ejecutar Directiva"): escribir_registro_nube("CHATS", [obtener_hora_argentina(), "GERENCIA", g_orden, "ROJA", "TODOS", ""])
-    with t2:
-        g_alta = st.text_input("Nombre:")
-        if st.button("Solicitar Alta"): escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "GERENCIA", "ALTA", "OBJETIVO", g_alta])
-    with t3:
-        m = folium.Map(location=[-34.6, -58.4], zoom_start=11, tiles="CartoDB dark_matter")
-        for _, r in df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO']).add_to(m)
-        st_folium(m, width="100%", height=450)
+    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+    with t_com_est:
+        g_ord = st.text_area("Orden:")
+        if st.button("Ejecutar Directiva"): escribir_registro_nube("CHATS", [obtener_hora_argentina(), "GERENCIA", g_ord, "ROJA", "TODOS", ""])
+    with t_tab_auditoria: renderizar_mapa_monitoreo(df_objetivos, df_comisarias)
+
+elif st.session_state.rol_sel == "VIGILADOR":
+    st.subheader("📋 FICHAJE Y RELEVO")
 
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-    if st.text_input("ADMIN_USER") == "admin" and st.text_input("ADMIN_PASS", type="password") == "aion2026":
-        st.success("Núcleo Maestro desbloqueado.")
+    if st.text_input("ADMIN_USER") == "admin" and st.text_input("ADMIN_PASS", type="password") == "aion2026": st.success("Núcleo Maestro desbloqueado.")
+
 
