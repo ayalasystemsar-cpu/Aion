@@ -314,14 +314,20 @@ if st.session_state.rol_sel == "MONITOREO":
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
+    "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
+])
 
-    t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
-        "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
-    ])
-   with t_radar:
+with t_radar:
     st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
     col_sel1, col_sel2 = st.columns([1, 3])
+    
     with col_sel1:
+        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
+            st.cache_data.clear()
+            time.sleep(1.5)
+            st.rerun()
+   
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
             st.cache_data.clear()
             time.sleep(1.5)
