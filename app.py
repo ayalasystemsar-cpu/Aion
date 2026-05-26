@@ -322,12 +322,11 @@ if st.session_state.rol_sel == "MONITOREO":
 with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        # Botón de refresco
+        # Botón manual de refresco estratégico
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
-        # Bloque de Pánico
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -349,7 +348,7 @@ with t_radar:
             if not obj_seleccionado and lista_objetivos_en_panico:
                 obj_seleccionado = lista_objetivos_en_panico[0]
 
-            # Centrado del mapa
+            # Lógica de centrado
             if obj_seleccionado:
                 df_filtrado = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.upper() == str(obj_seleccionado).strip().upper()]
                 centro_mapa = [df_filtrado['LATITUD'].iloc[0], df_filtrado['LONGITUD'].iloc[0]] if not df_filtrado.empty else [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
@@ -360,7 +359,7 @@ with t_radar:
 
             m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
             
-            # Cálculo de cercanía
+            # Lógica de cálculo de cercanía
             comisaria_cercana_name = None
             distancia_minima = float('inf')
             if obj_seleccionado:
@@ -374,7 +373,7 @@ with t_radar:
                         if d < distancia_minima:
                             distancia_minima, comisaria_cercana_name = d, com['COMISARIA']
 
-            # Mapeo Visual
+            # Dibujado de objetivos
             for _, r in df_mapa_monitoreo.iterrows():
                 nombre_obj = str(r['OBJETIVO']).strip().upper()
                 es_panico = nombre_obj in lista_objetivos_en_panico
@@ -388,18 +387,17 @@ with t_radar:
                     ).add_to(m_mon)
                 else:
                     folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True, fill_color="#00E5FF", tooltip=f"🎯 {r['OBJETIVO']}").add_to(m_mon)
-
-            # Comisarias
+            
+            # Dibujado de comisarías con estilo neón
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_cercana = (comisaria_cercana_name and c['COMISARIA'] == comisaria_cercana_name)
-                color = "#FF9800" if es_cercana else "#0000FF"
-                size = "26px" if es_cercana else "20px"
-                tooltip_txt = f"👮 {c['COMISARIA']} 🌟 [CERCANA: {distancia_minima:.2f} KM]" if es_cercana else f"👮 {c['COMISARIA']}"
+                color_i, size = ("#FF9800", "26px") if es_cercana else ("#0000FF", "20px")
+                sufijo = f" 🌟 [CERCANA: {distancia_minima:.2f} KM]" if es_cercana else ""
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=tooltip_txt,
-                    icon=folium.DivIcon(html=f'<div style="font-size: {size}; color: {color}; text-shadow: 0 0 10px {color};"><i class="fa fa-shield"></i></div>')
+                    tooltip=f"👮 {c['COMISARIA']}{sufijo}",
+                    icon=folium.DivIcon(html=f'<div style="font-size: {size}; color: {color_i}; text-shadow: 0 0 10px {color_i};"><i class="fa fa-shield"></i></div>')
                 ).add_to(m_mon)
                 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
