@@ -263,15 +263,26 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
+    # 1. CARGA DE DATOS OBLIGATORIA
     df_emergencias = leer_matriz_nube("ALERTAS")
-    
+    df_objetivos = cargar_objetivos() # ¡ESTA LÍNEA ES LA CLAVE!
+
+    # Normalización de alertas
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
-    
+
+    # 2. PREPARACIÓN SEGURA DEL MAPA (Aquí definimos df_mapa_monitoreo)
+    df_mapa_monitoreo = pd.DataFrame()
+    if not df_objetivos.empty:
+        df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
+        if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
+            df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+
+    # Lógica de S.O.S
     lista_objetivos_en_panico = []
-    if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
+    if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
         pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
         sos_activos = len(pendientes)
         for _, row in pendientes.iterrows():
@@ -289,10 +300,10 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
+
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        # CSS para el titileo
         st.markdown("""
         <style>
         @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.1; } 100% { opacity: 1; } }
@@ -300,22 +311,7 @@ if st.session_state.rol_sel == "MONITOREO":
         </style>
         """, unsafe_allow_html=True)
 
-        if sos_activos > 0:
-            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
-            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
-            with st.form(key="form_finalizar_panico", clear_on_submit=True):
-                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
-                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
-                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    idx_df = opciones_alertas[alerta_seleccionada]
-                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    st.success("✅ Normalizado")
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        # Aquí ahora df_mapa_monitoreo YA EXISTE y tendrá datos si los hay
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             
@@ -338,7 +334,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-        st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.info("Cargando radar de objetivos...")
        
 
     with t_gestion:
