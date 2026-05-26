@@ -310,7 +310,6 @@ with t_radar:
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            # ... (código del estilo pulsar aquí)
             estilo_pulsar_html = """<style>@keyframes pulse-red-critico { 0% {r:7px; fill:#FF0000;} 50% {r:15px; fill:#B30000;} 100% {r:7px; fill:#FF0000;} } .marker-panic-pulsing { animation: pulse-red-critico 1.1s infinite; }</style>"""
             m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
             
@@ -336,8 +335,8 @@ with t_radar:
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
-        if not df_emergencias.empty: st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-
+        if not df_emergencias.empty: 
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
     with t_comunicacion:
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:")
