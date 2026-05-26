@@ -291,7 +291,7 @@ if st.session_state.rol_sel == "MONITOREO":
     ])
 with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        if sos_activos > 0:
+         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
             with st.form(key="form_finalizar_panico", clear_on_submit=True):
@@ -310,6 +310,7 @@ with t_radar:
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            # ... (código del estilo pulsar aquí)
             estilo_pulsar_html = """<style>@keyframes pulse-red-critico { 0% {r:7px; fill:#FF0000;} 50% {r:15px; fill:#B30000;} 100% {r:7px; fill:#FF0000;} } .marker-panic-pulsing { animation: pulse-red-critico 1.1s infinite; }</style>"""
             m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
             
@@ -332,7 +333,7 @@ with t_radar:
 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
-
+        
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty: 
