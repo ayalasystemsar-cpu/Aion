@@ -246,32 +246,17 @@ with st.sidebar:
             lon_envio = loc['coords'].get('longitude', 0.0)
     except Exception:
         pass
-if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        # 1. Obtener datos de comisarías
-        df_comis = cargar_datos_comisarias()
-        comisaria_cercana = "N/A"
-        distancia_minima = 99999
-        
-        # 2. Calcular la más cercana
-        if lat_envio != 0 and not df_comis.empty:
-            for _, c in df_comis.iterrows():
-                dist = calcular_distancia(lat_envio, lon_envio, c['LATITUD'], c['LONGITUD'])
-                if dist < distancia_minima:
-                    distancia_minima = dist
-                    comisaria_cercana = c['COMISARIA']
-        
-        # 3. Definir objetivo
+
+    # BOTÓN DE PÁNICO LIMPIO (SIN LÓGICA EXTRA)
+    if st.button("ACTIVAR\nPÁNICO", type="primary"):
         if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
             obj_alerta = st.session_state.sup_servicio_actual
         else: 
             obj_alerta = "CENTRAL BASE"
-        
-        # 4. Registrar en la base con la información de la comisaría
-        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}|COM_CERCANA:{comisaria_cercana}"
+            
+        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
         escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-        
-        st.error(f"🚨 S.O.S ENVIADO. COMISARÍA MÁS CERCANA: {comisaria_cercana}")
-    
+        st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
