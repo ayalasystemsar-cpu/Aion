@@ -327,6 +327,45 @@ if st.session_state.rol_sel == "MONITOREO":
             st.cache_data.clear()
             st.rerun()
 
+        # --- NUEVO: INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        col_sel1, col_sel2 = st.columns([2, 1])
+        
+        with col_sel1:
+            opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
+            obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda)
+        
+        # Lógica para encontrar la comisaría más cercana mediante Haversine
+        comisaria_cercana_name = None
+        distancia_minima = float('inf')
+        
+        if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
+            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+            lat_obj = datos_obj['LATITUD']
+            lon_obj = datos_obj['LONGITUD']
+            
+            # Buscar la más cercana entre las comisarías cargadas
+            for _, com in df_comisarias.iterrows():
+                # Fórmula de Haversine para cálculo de distancia en Km
+                lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
+                dlon = lon2 - lon1
+                dlat = lat2 - lat1
+                a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                c = 2 * math.asin(math.sqrt(a))
+                km = 6371 * c
+                
+                if km < distancia_minima:
+                    distancia_minima = km
+                    comisaria_cercana_name = com['COMISARIA']
+            
+            with col_sel2:
+                st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
+                st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
+        else:
+            with col_sel2:
+                st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -344,16 +383,26 @@ if st.session_state.rol_sel == "MONITOREO":
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
-            m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            # Si hay un objetivo seleccionado, centramos el mapa directamente ahí
+            if obj_seleccionado != "MOSTRAR TODO":
+                datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+                centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
+                zoom_inicial = 14  # Hacemos más zoom táctico para ver la zona
+            else:
+                centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+                zoom_inicial = 11
+
+            m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
             
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
                 
-                # --- AQUÍ LA SOLUCIÓN AL TITILEO USANDO DIVICON EN CASO DE PÁNICO ---
-                if es_panico:
+                # REGLA VISUAL: Si está en pánico general O es el seleccionado manualmente por el operador, TITILA Y SE PONE ROJO
+                if es_panico or es_el_seleccionado:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"🚨 ¡ALERTA PÁNICO! CRÍTICO: {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
+                        tooltip=f"🚨 {'[EN ENFOQUE]' if es_el_seleccionado else '¡ALERTA PÁNICO!'} | {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
                         icon=folium.DivIcon(html='<div class="marcador-panico"></div>')
                     ).add_to(m_mon)
                 else:
@@ -368,11 +417,24 @@ if st.session_state.rol_sel == "MONITOREO":
                     
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
+                # Si esta comisaría es la más cercana al objetivo seleccionado, la destacamos en un color especial (ej. Amarillo/Naranja de alerta o azul con borde rojo)
+                es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
+                
+                if es_la_mas_cercana:
+                    color_icono = "#FF9800"  # Naranja destacado
+                    tamano_fuente = "26px"
+                    sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
+                else:
+                    color_icono = "#0000FF"  # Azul estándar
+                    tamano_fuente = "20px"
+                    sufijo_tooltip = ""
+
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}",
-                    icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
+                    tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
+                    icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
+                
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
