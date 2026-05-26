@@ -172,26 +172,12 @@ def aplicar_identidad_alfa():
             animation: parpadeo-radar 1s infinite;
             display: inline-block;
         }
-
-        /* --- ESTILO DE PARPADEO PARA COMISARÍAS (NUEVO) --- */
-        @keyframes parpadeo-comisaria {
-            0% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(0, 0, 255, 0.7); }
-            70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 10px rgba(0, 0, 255, 0); }
-            100% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(0, 0, 255, 0); }
-        }
-        .marcador-comisaria {
-            background-color: #0000FF;
-            width: 12px; height: 12px;
-            border-radius: 50%;
-            border: 2px solid white;
-            animation: parpadeo-comisaria 1.5s infinite;
-            display: inline-block;
-        }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
+
 # --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
@@ -297,24 +283,20 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
-    # 1. CARGA DE DATOS OBLIGATORIA
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
-    # Normalización de alertas
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
 
-    # 2. PREPARACIÓN SEGURA DEL MAPA
     df_mapa_monitoreo = pd.DataFrame()
     if not df_objetivos.empty:
         df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
         if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
-    # Lógica de S.O.S
     lista_objetivos_en_panico = []
     if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
         pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
@@ -322,7 +304,8 @@ if st.session_state.rol_sel == "MONITOREO":
         for _, row in pendientes.iterrows():
             carga = str(row['CARGA_UTIL'])
             if "OBJ:" in carga:
-                try: lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
+                try: 
+                    lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
                 except: pass
     else: 
         sos_activos = 0
@@ -339,6 +322,7 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
+        # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -362,19 +346,14 @@ if st.session_state.rol_sel == "MONITOREO":
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             
-            # Capturamos el objetivo seleccionado desde el modulo maestro de bajas de gerencia
-            obj_seleccionado = st.session_state.get('ger_baja_obj', '')
-            
             for _, r in df_mapa_monitoreo.iterrows():
-                nombre_objetivo = str(r['OBJETIVO']).strip().upper()
-                es_panico = nombre_objetivo in lista_objetivos_en_panico
-                es_seleccionado = (nombre_objetivo == str(obj_seleccionado).strip().upper())
+                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 
-                # Si está en pánico o el operador lo seleccionó en gerencia, va ROJO parpadeante
-                if es_panico or es_seleccionado:
+                # --- AQUÍ LA SOLUCIÓN AL TITILEO USANDO DIVICON EN CASO DE PÁNICO ---
+                if es_panico:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"🚨 ALERTA CRÍTICA / SELECCIONADO: {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
+                        tooltip=f"🚨 ¡ALERTA PÁNICO! CRÍTICO: {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
                         icon=folium.DivIcon(html='<div class="marcador-panico"></div>')
                     ).add_to(m_mon)
                 else:
@@ -387,13 +366,12 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                     
-            # --- COMISARÍAS EN AZUL INTERMITENTE ---
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}",
-                    icon=folium.DivIcon(html='<div class="marcador-comisaria"></div>')
+                    icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -443,6 +421,7 @@ if st.session_state.rol_sel == "MONITOREO":
         if not df_nov_g.empty: 
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
+
 # Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
