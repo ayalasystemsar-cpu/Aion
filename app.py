@@ -366,26 +366,27 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-      if sos_activos > 0:
-            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
-            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
+    if sos_activos > 0:
+        st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
+        df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
+        
+        with st.form(key="form_finalizar_panico", clear_on_submit=True):
+            opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+            alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
+            txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
             
-            with st.form(key="form_finalizar_panico", clear_on_submit=True):
-                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
-                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
-                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
-                
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR"):
-                    if txt_informe_cierre.strip():
-                        idx_df = opciones_alertas[alerta_seleccionada]
-                        actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                        actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                        st.cache_data.clear()
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ Debe escribir un informe de cierre.")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+            if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR"):
+                if txt_informe_cierre.strip():
+                    idx_df = opciones_alertas[alerta_seleccionada]
+                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Debes completar el informe.")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
        
         if not df_mapa_monitoreo.empty:
             # Si hay un objetivo seleccionado, centramos el mapa directamente ahí
