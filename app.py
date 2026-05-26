@@ -319,13 +319,18 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-    with t_radar:
+   with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
-            # Estas dos líneas deben tener al menos 4 espacios más que el "if"
-            st.cache_data.clear() 
-            time.sleep(1.5)
-            st.rerun()
+        
+        # 1. ESTO ES LO QUE TE FALTA (Define las columnas antes de usarlas)
+        col_sel1, col_sel2 = st.columns(2)
+        
+        # 2. AHORA SÍ PUEDES USARLAS
+        with col_sel1:
+            if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
+                st.cache_data.clear()
+                time.sleep(1.5)
+                st.rerun()
        
         
         with col_sel1:
