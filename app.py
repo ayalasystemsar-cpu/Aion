@@ -33,27 +33,20 @@ def conectar_google():
 def encontrar_comisaria_cercana(lat_obj, lon_obj, df_comisarias):
     if df_comisarias.empty or pd.isna(lat_obj) or pd.isna(lon_obj):
         return None
-    
     comisaria_cercana = None
     distancia_minima = float('inf')
-    
     for _, com in df_comisarias.iterrows():
         try:
-            # Forzamos conversión flotante para evitar errores de tipo string
             c_lat = float(com['LATITUD'])
             c_lon = float(com['LONGITUD'])
             o_lat = float(lat_obj)
             o_lon = float(lon_obj)
-            
-            # Fórmula de Haversine simplificada (distancia euclidiana plana en coordenadas)
             distancia = math.sqrt((c_lat - o_lat)**2 + (c_lon - o_lon)**2)
-            
             if distancia < distancia_minima:
                 distancia_minima = distancia
                 comisaria_cercana = str(com['COMISARIA'])
         except:
             continue
-            
     return comisaria_cercana
 # --- 3. FUNCIONES DE LÓGICA Y DATOS ---
 def obtener_hora_argentina():
