@@ -328,7 +328,7 @@ if st.session_state.rol_sel == "MONITOREO":
             st.cache_data.clear()
             st.write("🔄 Sincronizando con base de datos...")
             time.sleep(2) # Espera 2 segundos para asegurar que Google Sheets confirme el cambio
-            st.rerun()
+            
 
         # --- INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
