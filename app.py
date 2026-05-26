@@ -369,7 +369,7 @@ if st.session_state.rol_sel == "MONITOREO":
             # 3. LÓGICA DE GEOLOCALIZACIÓN TÁCTICA PARA COMISARÍAS (CÁLCULO MATEMÁTICO INTERNO)
             comisaria_cercana_name = None
             distancia_minima = float('inf')
-            
+        
             if obj_seleccionado:
                 df_target = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.upper() == str(obj_seleccionado).strip().upper()]
                 if not df_target.empty:
@@ -423,7 +423,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         )
                     ).add_to(m_mon)
                 else:
-                    # Círculos celestes estándar (los de tu captura)
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], 
                         radius=7,
@@ -452,7 +451,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
-                    icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+                    icon=folium.DivIcon(
+                        html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>"""
+                    )
                 ).add_to(m_mon)
                 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
