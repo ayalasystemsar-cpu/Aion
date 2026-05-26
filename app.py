@@ -333,7 +333,7 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-    with t_radar:
+   with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
         # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
@@ -342,11 +342,25 @@ if st.session_state.rol_sel == "MONITOREO":
             st.rerun()
 
         if sos_activos > 0:
+            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
+            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
+            with st.form(key="form_finalizar_panico", clear_on_submit=True):
+                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
+                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
+                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
+                    idx_df = opciones_alertas[alerta_seleccionada]
+                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+                    st.success("✅ Normalizado")
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+   
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             
-            # Vinculamos con el selector de objetivos de gerencia para capturar cuál hacés click
+            # Capturamos el objetivo seleccionado desde el modulo maestro de bajas de gerencia
             obj_seleccionado = st.session_state.get('ger_baja_obj', '')
             
             for _, r in df_mapa_monitoreo.iterrows():
@@ -354,7 +368,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 es_panico = nombre_objetivo in lista_objetivos_en_panico
                 es_seleccionado = (nombre_objetivo == str(obj_seleccionado).strip().upper())
                 
-                # Si está en pánico o el operador lo seleccionó, va ROJO parpadeante
+                # Si está en pánico o el operador lo seleccionó en gerencia, va ROJO parpadeante
                 if es_panico or es_seleccionado:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
@@ -381,7 +395,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
-
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
