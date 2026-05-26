@@ -322,15 +322,11 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
-    st.cache_data.clear() # Limpia la memoria interna de Streamlit
-    
-    # ESTO ES UN "F5" PROGRAMADO:
-    # Fuerza al navegador a recargar la página completa
-    st.write('<meta http-equiv="refresh" content="0">', unsafe_allow_html=True)
-    
-    # O bien, si eso no funciona, usa este método más robusto:
-    st.rerun()
+       if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
+            # Estas dos líneas deben tener al menos 4 espacios más que el "if"
+            st.cache_data.clear() 
+            time.sleep(1.5)
+            st.rerun()
         
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
