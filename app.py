@@ -271,24 +271,20 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
-    # 1. CARGA DE DATOS OBLIGATORIA
     df_emergencias = leer_matriz_nube("ALERTAS")
-    df_objetivos = cargar_objetivos() # ¡ESTA LÍNEA ES LA CLAVE!
+    df_objetivos = cargar_objetivos()
 
-    # Normalización de alertas
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
 
-    # 2. PREPARACIÓN SEGURA DEL MAPA (Aquí definimos df_mapa_monitoreo)
     df_mapa_monitoreo = pd.DataFrame()
     if not df_objetivos.empty:
         df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
         if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
-    # Lógica de S.O.S
     lista_objetivos_en_panico = []
     if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
         pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
@@ -308,34 +304,9 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
-t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
-        "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
-    ])
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        st.markdown("""
-        <style>
-        @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.1; } 100% { opacity: 1; } }
-        .pulsar { animation: parpadeo 0.6s infinite !important; }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        if sos_activos > 0:
-            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
-            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
-            with st.form(key="form_finalizar_panico", clear_on_submit=True):
-                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
-                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
-                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    idx_df = opciones_alertas[alerta_seleccionada]
-                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    st.success("✅ Normalizado")
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
@@ -370,34 +341,23 @@ t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
             if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
                 st.rerun()
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
-                st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
     with t_pres:
         st.subheader("📋 TABLA MASTER: PRESENTISMO")
         df_pres = leer_matriz_nube("PRESENTISMO")
-        if df_pres is not None and not df_pres.empty:
-            df_pres.columns = df_pres.columns.str.strip().str.upper()
-            columnas_maestras = ["FECHA", "HORA", "DNI", "NOMBRE Y APE OBJETIVO", "ESTADO", "TIPO DE MARCACION"]
-            columnas_validas = [c for c in columnas_maestras if c in df_pres.columns]
-            st.dataframe(df_pres[columnas_validas].iloc[::-1], use_container_width=True)
+        if not df_pres.empty:
+            st.dataframe(df_pres.iloc[::-1], use_container_width=True)
 
     with t_vig:
         st.subheader("👥 TABLA MASTER: RELEVOS VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
-        if df_padrero is not None and not df_padrero.empty:
-            df_padrero.columns = df_padrero.columns.str.strip().str.upper()
-            columnas_relevos = ["FECHA", "HORA", "OBJETIVO", "VIGILADOR_SALIENTE", "VIGILADOR_ENTRANTE", "SUPERVISOR_ASIGNADO", "ESTADO"]
-            columnas_validas_rel = [c for c in columnas_relevos if c in df_padrero.columns]
-            st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
+        if not df_padrero.empty:
+            st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
 
     with t_guardia:
         st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
         if not df_nov_g.empty:
-            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
 # B. ROL: SUPERVISOR (SISTEMA DE FILTRADO INTELIGENTE BLINDADO)
 elif st.session_state.rol_sel == "SUPERVISOR":
