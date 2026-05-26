@@ -366,7 +366,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    if sos_activos > 0:
+ # --- FORMULARIO DE PÁNICO ---
+        if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
             
@@ -375,15 +376,22 @@ if st.session_state.rol_sel == "MONITOREO":
                 alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
                 txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
                 
-                # Botón de guardar (SIN RERUN)
                 if st.form_submit_button("🚨 FINALIZAR PÁNICO"):
                     if txt_informe_cierre.strip():
                         idx_df = opciones_alertas[alerta_seleccionada]
                         actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                         actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                        st.success("✅ Pánico guardado en Nube. Presiona el botón de 'Actualizar Radar' para ver los cambios.")
+                        st.success("✅ Guardado. Presiona 'Actualizar Vista' para refrescar.")
+                    else:
+                        st.warning("⚠️ Debes completar el informe.")
             
             st.markdown('</div>', unsafe_allow_html=True)
+
+        # --- AQUÍ EMPIEZA EL MAPA (ALINEADO IGUAL QUE EL IF SOS_ACTIVOS) ---
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        
+        if not df_mapa_monitoreo.empty:
+            # Tu código del mapa sigue aquí...
         
        
         if not df_mapa_monitoreo.empty:
