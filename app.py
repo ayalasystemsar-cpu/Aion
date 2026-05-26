@@ -290,64 +290,43 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
     
-    with t_radar:
+  with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        if sos_activos > 0:
-            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
-            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
-            with st.form(key="form_finalizar_panico", clear_on_submit=True):
-                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
-                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
-                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    idx_df = opciones_alertas[alerta_seleccionada]
-                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    st.success("✅ Normalizado")
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # --- CARGA DE DATOS ---
+        df_mapa = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        df_com = cargar_datos_comisarias()
 
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
-        if not df_mapa_monitoreo.empty:
-            m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            estilo_pulsar_html = """
-            <style>
-            @keyframes pulse-red-critico {
-                0% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
-                50% { r: 15px; fill: #B30000; fill-opacity: 0.4; stroke: #FF0000; stroke-width: 8; stroke-opacity: 0.6; }
-                100% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
-            }
-            .marker-panic-pulsing { animation: pulse-red-critico 1.1s infinite ease-in-out !important; display: block !important; }
-            </style>
-            """
-            m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
-            
-            # Dibujar Objetivos
-            for _, r in df_mapa_monitoreo.iterrows():
-                info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
+        # --- MAPA TÁCTICO ---
+        if not df_mapa.empty:
+            # Centrar en el promedio de los objetivos
+            centro = [df_mapa['LATITUD'].mean(), df_mapa['LONGITUD'].mean()]
+            m_mon = folium.Map(location=centro, zoom_start=11, tiles="CartoDB dark_matter")
+
+            # 1. Dibujar Objetivos
+            for _, r in df_mapa.iterrows():
+                color_obj = "#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF"
                 folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']], radius=7,
-                    color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
-                    tooltip=folium.Tooltip(info_hover, sticky=True),
-                    class_name="marker-panic-pulsing" if r['OBJETIVO'] in lista_objetivos_en_panico else None
+                    location=[r['LATITUD'], r['LONGITUD']], 
+                    radius=8,
+                    color=color_obj,
+                    fill=True, 
+                    fill_color=color_obj,
+                    tooltip=f"OBJETIVO: {r['OBJETIVO']}"
                 ).add_to(m_mon)
-            
-           # --- DIBUJO DE COMISARÍAS: SOLO ICONO (SIN GOTA) ---
-            df_comisarias = cargar_datos_comisarias()
-            for _, c in df_comisarias.iterrows():
+
+            # 2. Dibujar Comisarías (Escudos)
+            for _, c in df_com.iterrows():
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"COMISARÍA: {c['COMISARIA']}",
-                    icon=folium.DivIcon(
-                        html=f"""
-                        <div style="font-size: 18px; color: #00E5FF; text-shadow: 0 0 5px #000;">
-                            <i class="fa fa-shield"></i>
-                        </div>
-                        """
-                    )
+                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                 ).add_to(m_mon)
+
+            # --- RENDERIZADO FORZADO ---
+            st_folium(m_mon, width=1200, height=600, key="mapa_final")
+        else:
+            st.warning("⚠️ No hay coordenadas cargadas en la base de datos.")
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
