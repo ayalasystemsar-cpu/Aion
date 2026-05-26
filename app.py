@@ -320,16 +320,17 @@ if st.session_state.rol_sel == "MONITOREO":
     ])
 
    with t_radar:
-        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        
-        # Definimos las columnas primero para evitar el NameError
-        col_sel1, col_sel2 = st.columns([1, 3])
-        
-        with col_sel1:
-            if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
-                st.cache_data.clear()
-                time.sleep(1.5)
-                st.rerun()
+    st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
+    
+    # 1. Definimos las columnas (esto evita el NameError anterior)
+    col_sel1, col_sel2 = st.columns([1, 3])
+    
+    # 2. El botón de actualización manual
+    with col_sel1:
+        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
+            st.cache_data.clear()
+            time.sleep(1.5)
+            st.rerun()
         
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
