@@ -55,6 +55,15 @@ def escribir_registro_nube(pestana, datos_fila):
     except: return False
 
 @st.cache_data(ttl=5) # 5 segundos de TTL para actualización táctica veloz
+# --- NUEVA FUNCIÓN PARA COMISARÍAS ---
+@st.cache_data
+def cargar_datos_comisarias():
+    data = {
+        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
+        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
+        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
+    }
+    return pd.DataFrame(data)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -151,7 +160,7 @@ aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
-
+df_comisarias = cargar_datos_comisarias()
 LISTA_SUPS_TACTICOS = [
     "AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"
 ]
@@ -313,6 +322,8 @@ if st.session_state.rol_sel == "MONITOREO":
             </style>
             """
             m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
+            
+            # Dibujar Objetivos
             for _, r in df_mapa_monitoreo.iterrows():
                 info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
                 folium.CircleMarker(
@@ -322,6 +333,16 @@ if st.session_state.rol_sel == "MONITOREO":
                     tooltip=folium.Tooltip(info_hover, sticky=True),
                     class_name="marker-panic-pulsing" if r['OBJETIVO'] in lista_objetivos_en_panico else None
                 ).add_to(m_mon)
+            
+            # Dibujar Comisarías (EL AGREGADO)
+            df_comisarias = cargar_datos_comisarias()
+            for _, c in df_comisarias.iterrows():
+                folium.Marker(
+                    [c['LATITUD'], c['LONGITUD']], 
+                    tooltip=f"COMISARÍA: {c['COMISARIA']}", 
+                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                ).add_to(m_mon)
+
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -642,4 +663,4 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026": st.success("Núcleo Maestro desbloqueado.")
-           
+                
