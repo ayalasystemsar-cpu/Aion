@@ -30,7 +30,31 @@ def conectar_google():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
     except: return None
-
+def encontrar_comisaria_cercana(lat_obj, lon_obj, df_comisarias):
+    if df_comisarias.empty or pd.isna(lat_obj) or pd.isna(lon_obj):
+        return None
+    
+    comisaria_cercana = None
+    distancia_minima = float('inf')
+    
+    for _, com in df_comisarias.iterrows():
+        try:
+            # Forzamos conversión flotante para evitar errores de tipo string
+            c_lat = float(com['LATITUD'])
+            c_lon = float(com['LONGITUD'])
+            o_lat = float(lat_obj)
+            o_lon = float(lon_obj)
+            
+            # Fórmula de Haversine simplificada (distancia euclidiana plana en coordenadas)
+            distancia = math.sqrt((c_lat - o_lat)**2 + (c_lon - o_lon)**2)
+            
+            if distancia < distancia_minima:
+                distancia_minima = distancia
+                comisaria_cercana = str(com['COMISARIA'])
+        except:
+            continue
+            
+    return comisaria_cercana
 # --- 3. FUNCIONES DE LÓGICA Y DATOS ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
@@ -300,7 +324,8 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
-    with t_radar:
+   
+       with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         st.markdown("""
         <style>
@@ -332,20 +357,19 @@ if st.session_state.rol_sel == "MONITOREO":
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             
-            # Lista para capturar qué comisarías deben activarse con la animación
+            # Lista para almacenar las comisarías que deben parpadear
             comisarias_a_titilar = []
             
-            # 1. Despliegue de Objetivos en Radar
+            # 1. BARRIDO DE OBJETIVOS
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 
                 if es_panico:
-                    # Buscamos la comisaría del mapa que esté más cerca
+                    # Pasamos las coordenadas del objetivo y el df global de comisarías
                     com_cercana = encontrar_comisaria_cercana(r['LATITUD'], r['LONGITUD'], df_comisarias)
                     if com_cercana:
                         comisarias_a_titilar.append(com_cercana)
                 
-                # Objetivo atacado: Cambia a ROJO y TITILA (.pulsar)
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], 
                     radius=8,
@@ -356,12 +380,9 @@ if st.session_state.rol_sel == "MONITOREO":
                     className="pulsar" if es_panico else ""
                 ).add_to(m_mon)
             
-            # 2. Despliegue de Comisarías
-            df_com = cargar_datos_comisarias()
-            for _, c in df_com.iterrows():
+            # 2. BARRIDO DE COMISARÍAS
+            for _, c in df_comisarias.iterrows():
                 debe_titilar = c['COMISARIA'] in comisarias_a_titilar
-                
-                # Mantiene estrictamente el color azul (#0000FF), pero inyecta la clase 'pulsar' si corresponde
                 clase_comisaria = "pulsar" if debe_titilar else ""
                 
                 folium.Marker(
