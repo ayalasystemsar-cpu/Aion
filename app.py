@@ -305,18 +305,21 @@ with t_radar:
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
+
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            # ... (código mapa)
+            
+            # Objetivos
             for _, r in df_mapa_monitoreo.iterrows():
                 folium.CircleMarker(
-                    [r['LATITUD'], r['LONGITUD']], radius=7,
+                    location=[r['LATITUD'], r['LONGITUD']], radius=7,
                     color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
                     fill=True, fill_color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
                     tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}"
                 ).add_to(m_mon)
+            
             # Comisarías
             df_comisarias = cargar_datos_comisarias()
             for _, c in df_comisarias.iterrows():
@@ -325,10 +328,14 @@ with t_radar:
                     tooltip=f"COMISARÍA: {c['COMISARIA']}", 
                     icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                 ).add_to(m_mon)
+
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
-    with t_gestion:    
+
+    with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        if not df_emergencias.empty:
+            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
         if not df_emergencias.empty: 
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)    
         if not df_emergencias.empty: 
