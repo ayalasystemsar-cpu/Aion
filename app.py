@@ -373,18 +373,24 @@ if st.session_state.rol_sel == "MONITOREO":
                 opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
                 alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
                 txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
+              if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
+                    # 1. Ejecutamos la actualización
                     idx_df = opciones_alertas[alerta_seleccionada]
-                    
-                    # 1. Actualizamos en la nube
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
                     
-                    # 2. LIMPIAMOS LA CACHÉ
-                    st.cache_data.clear() 
+                    # 2. LIMPIEZA DE DATOS Y FORZADO DE RECARGA
+                    st.cache_data.clear()
                     
-                    # 3. RECARGAMOS
-                    #st.rerun()
+                    # 3. MUESTRA MENSAJE DE ÉXITO
+                    st.success("✅ Pánico finalizado. Recargando radar...")
+                    
+                    # 4. PAUSA DE 1 SEGUNDO (Esto es lo que evita el conflicto de renderizado)
+                    import time
+                    time.sleep(1)
+                    
+                    # 5. RECARGA FINAL
+                    st.rerun() 
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
