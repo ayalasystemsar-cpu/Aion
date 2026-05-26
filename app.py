@@ -337,8 +337,13 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+         # --- BLOQUE CORREGIDO Y COMPLETO ---
+            df_com = cargar_datos_comisarias() # Asegúrate de cargar esto antes del for
+
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                
+                # 1. Dibujar el punto del objetivo
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], radius=8,
                     color="#FF0000" if es_panico else "#00E5FF",
@@ -346,7 +351,19 @@ if st.session_state.rol_sel == "MONITOREO":
                     tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
                     className="pulsar" if es_panico else ""
                 ).add_to(m_mon)
-                f comisaria_cerca is not None:
+
+                # 2. Lógica para encontrar la comisaría más cercana y dibujar la ruta
+                if es_panico and not df_com.empty:
+                    dist_min = 9999
+                    comisaria_cerca = None
+                    for _, c in df_com.iterrows():
+                        d = calcular_distancia(r['LATITUD'], r['LONGITUD'], c['LATITUD'], c['LONGITUD'])
+                        if d < dist_min:
+                            dist_min = d
+                            comisaria_cerca = c
+                    
+                    # 3. Dibujar la ruta (AntPath)
+                    if comisaria_cerca is not None:
                         AntPath(
                             locations=[
                                 [comisaria_cerca['LATITUD'], comisaria_cerca['LONGITUD']], 
@@ -359,15 +376,16 @@ if st.session_state.rol_sel == "MONITOREO":
                             pulse_color="#FFFFFF",
                             delay=500
                         ).add_to(m_mon)
-            df_com = cargar_datos_comisarias()
+
+            # 4. Dibujar los escudos de las comisarías (fuera del primer for)
             for _, c in df_com.iterrows():
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}",
                     icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
-            st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-        st.markdown('</div>', unsafe_allow_html=True)
+            
+            st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")   
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
