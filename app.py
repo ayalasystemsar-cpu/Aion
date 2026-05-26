@@ -308,9 +308,7 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
-
-   
-       with t_radar:
+with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         st.markdown("""
         <style>
@@ -350,25 +348,8 @@ if st.session_state.rol_sel == "MONITOREO":
                     tooltip=f"🎯 {r['OBJETIVO']}",
                     className="pulsar" if esta_en_panico else ""
                 ).add_to(m_mon)
-
-                # Lógica de comisaría más cercana
-                if esta_en_panico and not df_com.empty:
-                    dist_min = 9999
-                    comisaria_cerca = None
-                    for _, c in df_com.iterrows():
-                        d = calcular_distancia(r['LATITUD'], r['LONGITUD'], c['LATITUD'], c['LONGITUD'])
-                        if d < dist_min:
-                            dist_min = d
-                            comisaria_cerca = c
-                    
-                    if comisaria_cerca is not None:
-                        folium.PolyLine(
-                            locations=[[comisaria_cerca['LATITUD'], comisaria_cerca['LONGITUD']], [r['LATITUD'], r['LONGITUD']]],
-                            color="#00FF00", weight=4, dash_array='10, 10', opacity=0.7,
-                            tooltip=f"🚨 RUTA AUXILIO: {comisaria_cerca['COMISARIA']}"
-                        ).add_to(m_mon)
-
-            # Dibujar escudos
+            
+            # Dibujar escudos comisarías (fuera del primer bucle)
             for _, c in df_com.iterrows():
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
