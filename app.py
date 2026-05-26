@@ -401,7 +401,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         )
                     ).add_to(m_mon)
                 else:
-                    # Tus círculos celestes OLED nativos de tu captura
+                    # Círculos celestes estándar (los de tu captura)
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], 
                         radius=7,
