@@ -1,4 +1,5 @@
-import streamlit as st
+
+    import streamlit as st
 import datetime
 from datetime import datetime
 import pandas as pd
@@ -319,10 +320,10 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-  
-with t_radar:
+    with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
+        # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -349,10 +350,11 @@ with t_radar:
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 
+                # --- AQUÍ LA SOLUCIÓN AL TITILEO USANDO DIVICON EN CASO DE PÁNICO ---
                 if es_panico:
-                    # Marcador parpadeante sin tooltip (barra negra)
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
+                        tooltip=f"🚨 ¡ALERTA PÁNICO! CRÍTICO: {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
                         icon=folium.DivIcon(html='<div class="marcador-panico"></div>')
                     ).add_to(m_mon)
                 else:
@@ -379,6 +381,7 @@ with t_radar:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+
     with t_comunicacion:
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:")
