@@ -384,7 +384,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.cache_data.clear() 
                     
                     # 3. RECARGAMOS
-                    st.rerun()
+                    #st.rerun()
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
