@@ -168,7 +168,8 @@ LISTA_SUPS_TACTICOS = [
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
-
+if 'modo_panico_activo' not in st.session_state: st.session_state.modo_panico_activo = False
+    
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
     st.subheader("🛡️ PANEL DE CONTROL")
@@ -238,15 +239,22 @@ with st.sidebar:
     except Exception:
         pass
 
+  # Debes definir el objetivo ANTES de usarlo en el carga_sos
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
+        # Definimos obj_alerta primero
         if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
             obj_alerta = st.session_state.sup_servicio_actual
-        else: obj_alerta = "CENTRAL BASE"
+        else: 
+            obj_alerta = "CENTRAL BASE"
             
+        # Lógica de carga
         carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
         escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+        
+        # ACTIVAMOS EL INTERRUPTOR PARA EL TITILEO
+        st.session_state.modo_panico_activo = True
+        
         st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
-
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
@@ -326,14 +334,16 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_mapa_monitoreo.iterrows():
-                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+          for _, r in df_mapa_monitoreo.iterrows():
+                # Combinamos el estado manual con la detección automática de la base
+                esta_en_panico = st.session_state.modo_panico_activo or (r['OBJETIVO'] in lista_objetivos_en_panico)
+                
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], radius=8,
-                    color="#FF0000" if es_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
-                    tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
-                    className="pulsar" if es_panico else ""
+                    color="#FF0000" if esta_en_panico else "#00E5FF",
+                    fill=True, fill_color="#FF0000" if esta_en_panico else "#00E5FF",
+                    tooltip=f"🎯 {r['OBJETIVO']}",
+                    className="pulsar" if esta_en_panico else ""
                 ).add_to(m_mon)
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
