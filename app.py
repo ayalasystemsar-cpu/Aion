@@ -322,16 +322,14 @@ if st.session_state.rol_sel == "MONITOREO":
    with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        # 1. ESTO ES LO QUE TE FALTA (Define las columnas antes de usarlas)
-        col_sel1, col_sel2 = st.columns(2)
+        # Definimos las columnas primero para evitar el NameError
+        col_sel1, col_sel2 = st.columns([1, 3])
         
-        # 2. AHORA SÍ PUEDES USARLAS
         with col_sel1:
             if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
                 st.cache_data.clear()
                 time.sleep(1.5)
                 st.rerun()
-       
         
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
