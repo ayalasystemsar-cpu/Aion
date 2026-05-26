@@ -328,20 +328,13 @@ if st.session_state.rol_sel == "MONITOREO":
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
-                if es_panico:
-                    folium.Marker(
-                        location=[r['LATITUD'], r['LONGITUD']],
-                        icon=folium.DivIcon(html="""
-                            <div class="pulsar" style="width: 16px; height: 16px; background-color: #FF0000; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #FF0000;"></div>
-                        """),
-                        tooltip=f"🚨 ALERTA: {r['OBJETIVO']}"
-                    ).add_to(m_mon)
-                else:
-                    folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], radius=8,
-                        color="#00E5FF", fill=True, fill_color="#00E5FF",
-                        tooltip=f"🎯 {r['OBJETIVO']}"
-                    ).add_to(m_mon)
+                folium.CircleMarker(
+                    location=[r['LATITUD'], r['LONGITUD']], radius=8,
+                    color="#FF0000" if es_panico else "#00E5FF",
+                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
+                    tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
+                    className="pulsar" if es_panico else ""
+                ).add_to(m_mon)
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 folium.Marker(
