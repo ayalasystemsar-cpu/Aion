@@ -172,12 +172,26 @@ def aplicar_identidad_alfa():
             animation: parpadeo-radar 1s infinite;
             display: inline-block;
         }
+
+        /* --- ESTILO DE PARPADEO PARA COMISARÍAS (NUEVO) --- */
+        @keyframes parpadeo-comisaria {
+            0% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(0, 0, 255, 0.7); }
+            70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 10px rgba(0, 0, 255, 0); }
+            100% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(0, 0, 255, 0); }
+        }
+        .marcador-comisaria {
+            background-color: #0000FF;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            animation: parpadeo-comisaria 1.5s infinite;
+            display: inline-block;
+        }
         </style>
         """, unsafe_allow_html=True
     )
 
 aplicar_identidad_alfa()
-
 # --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
