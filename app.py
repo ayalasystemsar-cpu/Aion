@@ -334,7 +334,6 @@ if st.session_state.rol_sel == "MONITOREO":
     ])
 
      with t_radar:
-        with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
         # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
