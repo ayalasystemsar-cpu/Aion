@@ -319,7 +319,7 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-    with t_radar:
+   with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
         # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
@@ -344,12 +344,13 @@ if st.session_state.rol_sel == "MONITOREO":
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
-            # Captura automática del objetivo interactuado en la base por gerencia/supervisión
-            obj_seleccionado = st.session_state.get('ger_baja_obj', '')
+            # 1. CAPTURA Y NORMALIZACIÓN RIGUROSA DE LA SELECCIÓN DEL SUPERVISOR
+            sesion_obj = st.session_state.get('ger_baja_obj', '')
+            obj_seleccionado = str(sesion_obj).strip().upper() if sesion_obj else ""
 
-            # Centrado automático inteligente en base a si hay un foco de atención activo
+            # 2. CENTRADO AUTOMÁTICO EN EL OBJETIVO REPORTADO POR EL SUPERVISOR
             if obj_seleccionado:
-                df_filtrado = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.upper() == str(obj_seleccionado).strip().upper()]
+                df_filtrado = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.strip().str.upper() == obj_seleccionado]
                 if not df_filtrado.empty:
                     centro_mapa = [df_filtrado['LATITUD'].iloc[0], df_filtrado['LONGITUD'].iloc[0]]
                     zoom_inicial = 14
@@ -362,12 +363,17 @@ if st.session_state.rol_sel == "MONITOREO":
 
             m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
             
+            # Normalización de la lista de pánicos generales
+            lista_panicos_upper = [str(x).strip().upper() for x in lista_objetivos_en_panico]
+            
+            # 3. MAPEADO DE PUNTOS EN MATRIZ DE CONTROL
             for _, r in df_mapa_monitoreo.iterrows():
                 nombre_objetivo = str(r['OBJETIVO']).strip().upper()
-                es_panico = nombre_objetivo in lista_objetivos_en_panico
-                es_el_seleccionado = (obj_seleccionado and nombre_objetivo == str(obj_seleccionado).strip().upper())
                 
-                # REGLA OPERATIVA AUTOMÁTICA: Pánico o Seleccionado cambian a ROJO INTERMITENTE
+                es_panico = nombre_objetivo in lista_panicos_upper
+                es_el_seleccionado = (obj_seleccionado and nombre_objetivo == obj_seleccionado)
+                
+                # REGLA OPERATIVA ABSOLUTA: Si el supervisor lo tiró o está en pánico -> ROJO PULSANTE CON LÓGICA INLINE CSS
                 if es_panico or es_el_seleccionado:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
@@ -395,7 +401,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         )
                     ).add_to(m_mon)
                 else:
-                    # Círculos celestes estándar (los de tu captura)
+                    # Tus círculos celestes OLED nativos de tu captura
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], 
                         radius=7,
@@ -405,7 +411,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                     
-            # --- TUS COMISARÍAS AZULES CON ESCUDO (TAL CUAL LA IMAGEN) ---
+            # --- TUS COMISARÍAS AZULES CON ESCUDO (TAL CUAL TUS IMÁGENES) ---
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 folium.Marker(
