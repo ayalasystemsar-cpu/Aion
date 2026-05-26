@@ -310,35 +310,24 @@ with t_radar:
         df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            estilo_pulsar_html = """
-            <style>
-            @keyframes pulse-red-critico {
-                0% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
-                50% { r: 15px; fill: #B30000; fill-opacity: 0.4; stroke: #FF0000; stroke-width: 8; stroke-opacity: 0.6; }
-                100% { r: 7px; fill: #FF0000; fill-opacity: 1; stroke-width: 2; stroke: #FF3333; }
-            }
-            .marker-panic-pulsing { animation: pulse-red-critico 1.1s infinite ease-in-out !important; display: block !important; }
-            </style>
-            """
+            # ... (código del estilo pulsar aquí)
+            estilo_pulsar_html = """<style>@keyframes pulse-red-critico { 0% {r:7px; fill:#FF0000;} 50% {r:15px; fill:#B30000;} 100% {r:7px; fill:#FF0000;} } .marker-panic-pulsing { animation: pulse-red-critico 1.1s infinite; }</style>"""
             m_mon.get_root().header.add_child(folium.Element(estilo_pulsar_html))
             
-            # Objetivos
             for _, r in df_mapa_monitoreo.iterrows():
-                info_hover = f"🎯 OBJETIVO: {r['OBJETIVO']} | 👤 SUPERVISOR: {r.get('SUPERVISOR', 'NO ASIGNADO')}"
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], radius=7,
                     color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
                     fill=True, fill_color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF",
-                    tooltip=folium.Tooltip(info_hover, sticky=True),
+                    tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}",
                     class_name="marker-panic-pulsing" if r['OBJETIVO'] in lista_objetivos_en_panico else None
                 ).add_to(m_mon)
             
-            # Comisarías
             df_comisarias = cargar_datos_comisarias()
             for _, c in df_comisarias.iterrows():
                 folium.Marker(
-                    location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"COMISARÍA: {c['COMISARIA']}",
+                    [c['LATITUD'], c['LONGITUD']], 
+                    tooltip=f"COMISARÍA: {c['COMISARIA']}", 
                     icon=folium.Icon(color="blue", icon="shield", prefix="fa")
                 ).add_to(m_mon)
 
