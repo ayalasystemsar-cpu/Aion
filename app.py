@@ -301,16 +301,14 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-     with t_radar:
+    with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        
         st.markdown("""
         <style>
         @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.1; } 100% { opacity: 1; } }
         .pulsar { animation: parpadeo 0.6s infinite !important; }
         </style>
         """, unsafe_allow_html=True)
-
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -325,7 +323,6 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
