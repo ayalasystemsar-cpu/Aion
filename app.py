@@ -346,6 +346,19 @@ if st.session_state.rol_sel == "MONITOREO":
                     tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
                     className="pulsar" if es_panico else ""
                 ).add_to(m_mon)
+                f comisaria_cerca is not None:
+                        AntPath(
+                            locations=[
+                                [comisaria_cerca['LATITUD'], comisaria_cerca['LONGITUD']], 
+                                [r['LATITUD'], r['LONGITUD']]
+                            ],
+                            color="#FFD700",
+                            weight=5,
+                            opacity=0.8,
+                            dash_array=[10, 20],
+                            pulse_color="#FFFFFF",
+                            delay=500
+                        ).add_to(m_mon)
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 folium.Marker(
