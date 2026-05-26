@@ -311,20 +311,22 @@ if st.session_state.rol_sel == "MONITOREO":
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             df_com = cargar_datos_comisarias()
-            for _, r in df_mapa_monitoreo.iterrows():
-                esta_en_panico = st.session_state.modo_panico_activo or (r['OBJETIVO'] in lista_objetivos_en_panico)
+           for _, r in df_mapa_monitoreo.iterrows():
+                # LA LÓGICA: Solo es pánico si está en la lista O si activaste el botón manual
+                es_panico_lista = r['OBJETIVO'] in lista_objetivos_en_panico
+                esta_en_panico = es_panico_lista or st.session_state.modo_panico_activo
+                
+                # COLOR DINÁMICO
+                color_actual = "#FF0000" if esta_en_panico else "#00E5FF"
+                
                 folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']], radius=8,
-                    color="#FF0000" if esta_en_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if esta_en_panico else "#00E5FF",
-                    tooltip=f"🎯 {r['OBJETIVO']}",
+                    location=[r['LATITUD'], r['LONGITUD']], 
+                    radius=8,
+                    color=color_actual,
+                    fill=True, 
+                    fill_color=color_actual,
+                    tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
                     className="pulsar" if esta_en_panico else ""
-                ).add_to(m_mon)
-            for _, c in df_com.iterrows():
-                folium.Marker(
-                    location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}",
-                    icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
