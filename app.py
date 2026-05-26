@@ -321,12 +321,12 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        
-       if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
+        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
             # Estas dos líneas deben tener al menos 4 espacios más que el "if"
             st.cache_data.clear() 
             time.sleep(1.5)
             st.rerun()
+       
         
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
