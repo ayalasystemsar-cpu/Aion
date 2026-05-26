@@ -386,13 +386,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         st.warning("⚠️ Debes completar el informe.")
             
             st.markdown('</div>', unsafe_allow_html=True)
-
-        # --- AQUÍ EMPIEZA EL MAPA (ALINEADO IGUAL QUE EL IF SOS_ACTIVOS) ---
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        
-        if not df_mapa_monitoreo.empty:
-            # Tu código del mapa sigue aquí...
-        
        
         if not df_mapa_monitoreo.empty:
             # Si hay un objetivo seleccionado, centramos el mapa directamente ahí
