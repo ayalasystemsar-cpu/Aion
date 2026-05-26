@@ -304,10 +304,14 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        st.markdown("""
+       st.markdown("""
         <style>
-        @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.1; } 100% { opacity: 1; } }
-        .pulsar { animation: parpadeo 0.6s infinite !important; }
+        @keyframes mi-parpadeo {
+            0% { fill-opacity: 1; stroke-width: 4; }
+            50% { fill-opacity: 0.2; stroke-width: 12; }
+            100% { fill-opacity: 1; stroke-width: 4; }
+        }
+        .pulsar { animation: mi-parpadeo 0.8s infinite ease-in-out !important; }
         </style>
         """, unsafe_allow_html=True)
 
