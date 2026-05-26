@@ -315,15 +315,24 @@ if st.session_state.rol_sel == "MONITOREO":
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             df_com = cargar_datos_comisarias()
             
+            # Lógica de dibujo del mapa
             for _, r in df_mapa_monitoreo.iterrows():
-                esta_en_panico = st.session_state.modo_panico_activo or (r['OBJETIVO'] in lista_objetivos_en_panico)
-                color_actual = "#FF0000" if esta_en_panico else "#00E5FF"
+                # ESTA ES LA CLAVE: 
+                # Solo es pánico si el objetivo específico 'r' está en la lista de pánico
+                es_panico_especifico = r['OBJETIVO'] in lista_objetivos_en_panico
+                
+                # Definimos colores: Azul por defecto, Rojo solo si es el objetivo con SOS
+                color_punto = "#FF0000" if es_panico_especifico else "#00E5FF"
                 
                 folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']], radius=8,
-                    color=color_actual, fill=True, fill_color=color_actual,
+                    location=[r['LATITUD'], r['LONGITUD']], 
+                    radius=8,
+                    color=color_punto, 
+                    fill=True, 
+                    fill_color=color_punto,
                     tooltip=f"🎯 {r['OBJETIVO']}",
-                    className="pulsar" if esta_en_panico else ""
+                    # Solo aplica la clase 'pulsar' si este objetivo específico tiene SOS
+                    className="pulsar" if es_panico_especifico else ""
                 ).add_to(m_mon)
 
             for _, c in df_com.iterrows():
