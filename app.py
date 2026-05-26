@@ -369,25 +369,27 @@ if st.session_state.rol_sel == "MONITOREO":
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
-            with st.form(key="form_finalizar_panico", clear_on_submit=True):
-                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
-                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
-                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
-# Línea 376: el IF del botón
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    # Todo lo de abajo DEBE tener un nivel de sangría mayor (4 espacios adicionales)
+           # FORMULARIO DE PÁNICO
+        with st.form(key="form_finalizar_panico", clear_on_submit=True):
+            opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+            alerta_seleccionada = st.selectbox("SELECCIONE EVENTO:", list(opciones_alertas.keys()))
+            txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:")
+            
+            # UN SOLO BOTÓN, CON UN KEY ÚNICO
+            btn_submit = st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR", key="btn_final_panico")
+            
+            if btn_submit:
+                if txt_informe_cierre.strip():
+                    # Lógica de actualización
                     idx_df = opciones_alertas[alerta_seleccionada]
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
                     
-                    # Limpiamos caché para que el radar se refresque
-                    st.cache_data.clear()
-                    st.success("✅ Normalizado")
+                    st.cache_data.clear() # Limpieza obligatoria
+                    st.success("✅ Normalizado. Recargando...")
                     st.rerun()
                 else:
-                    # Opcional: mensaje si el campo está vacío
-                    if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR"):
-                        st.warning("⚠️ El informe de cierre no puede estar vacío.")
+                    st.warning("⚠️ El informe de cierre no puede estar vacío.")
         if not df_mapa_monitoreo.empty:
             # Si hay un objetivo seleccionado, centramos el mapa directamente ahí
             if obj_seleccionado != "MOSTRAR TODO":
