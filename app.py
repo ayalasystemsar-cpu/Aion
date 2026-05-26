@@ -373,18 +373,21 @@ if st.session_state.rol_sel == "MONITOREO":
                 opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
                 alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
                 txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
+# Línea 376: el IF del botón
                 if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-    idx_df = opciones_alertas[alerta_seleccionada]
-    
-    # 1. Actualizar Google Sheets
-    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-    
-    # 2. LIMPIEZA CRÍTICA PARA EL RADAR
-    st.cache_data.clear() # Borra la memoria de todas las funciones @st.cache_data
-    
-    st.success("✅ Normalizado. Recargando sistema...")
-    st.rerun() # Reinicia el script para leer los datos nuevos de la nube
+                    # Todo lo de abajo DEBE tener un nivel de sangría mayor (4 espacios adicionales)
+                    idx_df = opciones_alertas[alerta_seleccionada]
+                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+                    
+                    # Limpiamos caché para que el radar se refresque
+                    st.cache_data.clear()
+                    st.success("✅ Normalizado")
+                    st.rerun()
+                else:
+                    # Opcional: mensaje si el campo está vacío
+                    if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR"):
+                        st.warning("⚠️ El informe de cierre no puede estar vacío.")
         if not df_mapa_monitoreo.empty:
             # Si hay un objetivo seleccionado, centramos el mapa directamente ahí
             if obj_seleccionado != "MOSTRAR TODO":
