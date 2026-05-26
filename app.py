@@ -334,17 +334,20 @@ if st.session_state.rol_sel == "MONITOREO":
                     class_name="marker-panic-pulsing" if r['OBJETIVO'] in lista_objetivos_en_panico else None
                 ).add_to(m_mon)
             
-            # Dibujar Comisarías (EL AGREGADO)
+           # --- DIBUJO DE COMISARÍAS: SOLO ICONO (SIN GOTA) ---
             df_comisarias = cargar_datos_comisarias()
             for _, c in df_comisarias.iterrows():
                 folium.Marker(
-                    [c['LATITUD'], c['LONGITUD']], 
-                    tooltip=f"COMISARÍA: {c['COMISARIA']}", 
-                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                    location=[c['LATITUD'], c['LONGITUD']],
+                    tooltip=f"COMISARÍA: {c['COMISARIA']}",
+                    icon=folium.DivIcon(
+                        html=f"""
+                        <div style="font-size: 18px; color: #00E5FF; text-shadow: 0 0 5px #000;">
+                            <i class="fa fa-shield"></i>
+                        </div>
+                        """
+                    )
                 ).add_to(m_mon)
-
-            st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
