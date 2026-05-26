@@ -320,29 +320,20 @@ if st.session_state.rol_sel == "MONITOREO":
     ])
    with t_radar:
     st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-    
-    # Definimos columnas
     col_sel1, col_sel2 = st.columns([1, 3])
-    
-    # 1. BOTÓN DE ACTUALIZACIÓN
     with col_sel1:
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL"):
             st.cache_data.clear()
             time.sleep(1.5)
             st.rerun()
-            
-        # SELECTOR DE OBJETIVO (Alineado con el botón)
         opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
         obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO:", opciones_busqueda)
     
-    # Lógica de cálculo de comisaría más cercana
     comisaria_cercana_name = None
     distancia_minima = float('inf')
-    
     if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
         datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
         lat_obj, lon_obj = datos_obj['LATITUD'], datos_obj['LONGITUD']
-        
         for _, com in df_comisarias.iterrows():
             lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
             dlon, dlat = lon2 - lon1, lat2 - lat1
@@ -350,15 +341,13 @@ if st.session_state.rol_sel == "MONITOREO":
             km = 6371 * 2 * math.asin(math.sqrt(a))
             if km < distancia_minima:
                 distancia_minima, comisaria_cercana_name = km, com['COMISARIA']
-        
         with col_sel2:
             st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name or "N/A")
             st.caption(f"Distancia: {distancia_minima:.2f} Km")
     else:
         with col_sel2:
-            st.info("Seleccione un objetivo para calcular comisaría cercana.")
+            st.info("Seleccione un objetivo.")
 
-    # 2. FORMULARIO DE PÁNICO (Alineado dentro de t_radar)
     if sos_activos > 0:
         st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
         df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -371,52 +360,28 @@ if st.session_state.rol_sel == "MONITOREO":
                     idx_df = opciones_alertas[alerta_seleccionada]
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe.strip().upper())
-                    st.success("✅ Guardado. Presiona 'Actualizar Radar' para ver cambios.")
+                    st.success("✅ Guardado.")
                 else:
                     st.warning("⚠️ Informe vacío.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-   # 3. MAPA (Continuación del código anterior)
     st.markdown('<div class="radar-box">', unsafe_allow_html=True)
     if not df_mapa_monitoreo.empty:
-        # Lógica de centro del mapa
-        if obj_seleccionado != "MOSTRAR TODO":
-            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
-            centro = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
-            zoom = 14
-        else:
-            centro = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
-            zoom = 11
-
-        m_mon = folium.Map(location=centro, zoom_start=zoom, tiles="CartoDB dark_matter")
-        
-        # Bucle para marcadores de objetivos
+        centro = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()] if obj_seleccionado == "MOSTRAR TODO" else [datos_obj['LATITUD'], datos_obj['LONGITUD']]
+        m_mon = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         for _, r in df_mapa_monitoreo.iterrows():
             es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
             es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
-            
             if es_panico or es_el_seleccionado:
-                folium.Marker(
-                    location=[r['LATITUD'], r['LONGITUD']],
-                    icon=folium.DivIcon(html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #FF0000; animation: pulse 1s infinite alternate;"></div>''')
-                ).add_to(m_mon)
+                folium.Marker(location=[r['LATITUD'], r['LONGITUD']], icon=folium.DivIcon(html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #FF0000; animation: pulse 1s infinite alternate;"></div>''')).add_to(m_mon)
             else:
-                folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True, fill_color="#00E5FF"
-                ).add_to(m_mon)
-                    
-        # Bucle para marcadores de comisarías
+                folium.CircleMarker(location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True, fill_color="#00E5FF").add_to(m_mon)
         df_com = cargar_datos_comisarias()
         for _, c in df_com.iterrows():
             es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
             color_icono = "#FF9800" if es_la_mas_cercana else "#0000FF"
             tamano_fuente = "26px" if es_la_mas_cercana else "20px"
-            
-            folium.Marker(
-                location=[c['LATITUD'], c['LONGITUD']],
-                icon=folium.DivIcon(html=f'''<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>''')
-            ).add_to(m_mon)
-            
+            folium.Marker(location=[c['LATITUD'], c['LONGITUD']], icon=folium.DivIcon(html=f'''<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>''')).add_to(m_mon)
         st_folium(m_mon, width="100%", height=550, key="mapa_radar_tactico")
     st.markdown('</div>', unsafe_allow_html=True)
     with t_gestion:
