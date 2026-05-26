@@ -322,12 +322,10 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
-            import time
-            st.cache_data.clear()
-            st.write("🔄 Sincronizando con base de datos...")
-            time.sleep(2) # Espera 2 segundos para asegurar que Google Sheets confirme el cambio
+        # Este botón es tu "F5 manual"
+        if st.button("🔄 ACTUALIZAR RADAR (REFRESCAR VISTA)"):
+            st.cache_data.clear() # Borra la memoria vieja
+            st.rerun() # Fuerza la recarga (como un F5)
             
 
         # --- INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
