@@ -58,7 +58,7 @@ def escribir_registro_nube(pestana, datos_fila):
         return False
 
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
-@st.cache_data(ttl=0) 
+@st.cache_data(ttl=300) 
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -81,7 +81,7 @@ def leer_matriz_nube(pestana):
             return pd.DataFrame()
     return pd.DataFrame()
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=300)
 def cargar_datos_comisarias():
     data = {
         "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
@@ -90,7 +90,7 @@ def cargar_datos_comisarias():
     }
     return pd.DataFrame(data)
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=300)
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
@@ -367,25 +367,23 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('</div>', unsafe_allow_html=True)
 
     if sos_activos > 0:
-        st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
-        df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
-        
-        with st.form(key="form_finalizar_panico", clear_on_submit=True):
-            opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
-            alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
-            txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
+            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
+            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
             
-            if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR"):
-                if txt_informe_cierre.strip():
-                    idx_df = opciones_alertas[alerta_seleccionada]
-                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    st.cache_data.clear()
-                    st.rerun()
-                else:
-                    st.warning("⚠️ Debes completar el informe.")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+            with st.form(key="form_finalizar_panico", clear_on_submit=True):
+                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
+                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
+                
+                # Botón de guardar (SIN RERUN)
+                if st.form_submit_button("🚨 FINALIZAR PÁNICO"):
+                    if txt_informe_cierre.strip():
+                        idx_df = opciones_alertas[alerta_seleccionada]
+                        actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+                        actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+                        st.success("✅ Pánico guardado en Nube. Presiona el botón de 'Actualizar Radar' para ver los cambios.")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
         
        
         if not df_mapa_monitoreo.empty:
