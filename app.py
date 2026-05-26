@@ -300,15 +300,19 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
-
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         st.markdown("""
         <style>
-        @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.1; } 100% { opacity: 1; } }
+        @keyframes parpadeo { 
+            0% { opacity: 1; } 
+            50% { opacity: 0.1; } 
+            100% { opacity: 1; } 
+        }
         .pulsar { animation: parpadeo 0.6s infinite !important; }
         </style>
         """, unsafe_allow_html=True)
+        
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -323,25 +327,53 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
+   
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            
+            # Lista para capturar qué comisarías deben activarse con la animación
+            comisarias_a_titilar = []
+            
+            # 1. Despliegue de Objetivos en Radar
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                
+                if es_panico:
+                    # Buscamos la comisaría del mapa que esté más cerca
+                    com_cercana = encontrar_comisaria_cercana(r['LATITUD'], r['LONGITUD'], df_comisarias)
+                    if com_cercana:
+                        comisarias_a_titilar.append(com_cercana)
+                
+                # Objetivo atacado: Cambia a ROJO y TITILA (.pulsar)
                 folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']], radius=8,
+                    location=[r['LATITUD'], r['LONGITUD']], 
+                    radius=8,
                     color="#FF0000" if es_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
+                    fill=True, 
+                    fill_color="#FF0000" if es_panico else "#00E5FF",
                     tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
                     className="pulsar" if es_panico else ""
                 ).add_to(m_mon)
+            
+            # 2. Despliegue de Comisarías
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
+                debe_titilar = c['COMISARIA'] in comisarias_a_titilar
+                
+                # Mantiene estrictamente el color azul (#0000FF), pero inyecta la clase 'pulsar' si corresponde
+                clase_comisaria = "pulsar" if debe_titilar else ""
+                
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}",
-                    icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
+                    tooltip=f"👮 {c['COMISARIA']} {'⚠️ [CERCANA A EMERGENCIA]' if debe_titilar else ''}",
+                    icon=folium.DivIcon(html=f"""
+                        <div class="{clase_comisaria}" style="font-size: 20px; color: #0000FF; text-shadow: {'0 0 10px #0000FF' if debe_titilar else 'none'};">
+                            <i class="fa fa-shield"></i>
+                        </div>
+                    """)
                 ).add_to(m_mon)
+                
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
