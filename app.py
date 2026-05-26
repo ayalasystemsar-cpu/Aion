@@ -29,8 +29,7 @@ def conectar_google():
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
-    except: 
-        return None
+    except: return None
 
 # --- 3. FUNCIONES DE LÓGICA Y DATOS ---
 def obtener_hora_argentina():
@@ -44,8 +43,7 @@ def actualizar_celda(pestana, fila, columna, valor):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.update_acell(f"{columna}{fila}", valor)
             return True
-    except: 
-        return False
+    except: return False
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -54,11 +52,19 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
             return True
-    except: 
-        return False
+    except: return False
 
-# --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
-@st.cache_data(ttl=60) 
+@st.cache_data(ttl=5) # 5 segundos de TTL para actualización táctica veloz
+# --- NUEVA FUNCIÓN PARA COMISARÍAS ---
+@st.cache_data
+def cargar_datos_comisarias():
+    data = {
+        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
+        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
+        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
+    }
+    return pd.DataFrame(data)
+
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -80,15 +86,6 @@ def leer_matriz_nube(pestana):
         except Exception as e: 
             return pd.DataFrame()
     return pd.DataFrame()
-
-@st.cache_data(ttl=60)
-def cargar_datos_comisarias():
-    data = {
-        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
-        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
-        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
-    }
-    return pd.DataFrame(data)
 
 @st.cache_data(ttl=60)
 def cargar_objetivos():
@@ -134,7 +131,8 @@ def aplicar_identidad_alfa():
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
+            border: 3px solid #333 !important;
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
             font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
         
@@ -157,21 +155,6 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
-        
-        /* --- ESTILO DE PARPADEO MEJORADO PARA EL RADAR --- */
-        @keyframes parpadeo-radar {
-            0% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-            70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
-            100% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
-        }
-        .marcador-panico {
-            background-color: #FF0000;
-            width: 14px; height: 14px;
-            border-radius: 50%;
-            border: 2px solid white;
-            animation: parpadeo-radar 1s infinite;
-            display: inline-block;
-        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -221,12 +204,13 @@ with st.sidebar:
             if "NOCTURNO" in nom_sup: usuario_esperado = "nocturno"
             elif "AYALA" in nom_sup: usuario_esperado = "ayala"
             else: usuario_esperado = nom_sup.split(" ")[1]
-            
+        
             if user_sup.strip().lower() == usuario_esperado and pass_sup == "1234":
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.user_sel = nom_sup
                 st.session_state.sup_autenticado = True
-                if 'intentando_sup' in st.session_state: del st.session_state.intentando_sup
+                if 'intentando_sup' in st.session_state: 
+                    del st.session_state.intentando_sup
                 st.success(f"🔓 ACCESO CONCEDIDO: {nom_sup}")
                 st.rerun()
             else:
@@ -283,20 +267,24 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
 # A. ROL: MONITOREO
 if st.session_state.rol_sel == "MONITOREO":
+    # 1. CARGA DE DATOS OBLIGATORIA
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
+    # Normalización de alertas
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
 
+    # 2. PREPARACIÓN SEGURA DEL MAPA (Aquí definimos df_mapa_monitoreo)
     df_mapa_monitoreo = pd.DataFrame()
     if not df_objetivos.empty:
         df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
         if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
+    # Lógica de S.O.S
     lista_objetivos_en_panico = []
     if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
         pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
@@ -304,11 +292,9 @@ if st.session_state.rol_sel == "MONITOREO":
         for _, row in pendientes.iterrows():
             carga = str(row['CARGA_UTIL'])
             if "OBJ:" in carga:
-                try: 
-                    lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
+                try: lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
                 except: pass
-    else: 
-        sos_activos = 0
+    else: sos_activos = 0
     
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
@@ -321,12 +307,12 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        
-        # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-
+        st.markdown("""
+        <style>
+        @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.1; } 100% { opacity: 1; } }
+        .pulsar { animation: parpadeo 0.6s infinite !important; }
+        </style>
+        """, unsafe_allow_html=True)
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -345,27 +331,15 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
-                
-                # --- AQUÍ LA SOLUCIÓN AL TITILEO USANDO DIVICON EN CASO DE PÁNICO ---
-                if es_panico:
-                    folium.Marker(
-                        location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"🚨 ¡ALERTA PÁNICO! CRÍTICO: {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
-                        icon=folium.DivIcon(html='<div class="marcador-panico"></div>')
-                    ).add_to(m_mon)
-                else:
-                    folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], 
-                        radius=7,
-                        color="#00E5FF",
-                        fill=True, 
-                        fill_color="#00E5FF",
-                        tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
-                    ).add_to(m_mon)
-                    
+                folium.CircleMarker(
+                    location=[r['LATITUD'], r['LONGITUD']], radius=8,
+                    color="#FF0000" if es_panico else "#00E5FF",
+                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
+                    tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
+                    className="pulsar" if es_panico else ""
+                ).add_to(m_mon)
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 folium.Marker(
@@ -422,7 +396,7 @@ if st.session_state.rol_sel == "MONITOREO":
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
-# Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
+# B. ROL: SUPERVISOR
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -480,12 +454,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
-                
                 def fila_pertenece_a_supervisor(row, sup_name):
                     for cell_val in row.values:
                         if str(cell_val).strip().upper() == sup_name: return True
                     return False
-                
                 mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
                 df_v_filtrado = df_v_total[mask_sup]
                 if not df_v_filtrado.empty:
@@ -495,11 +467,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
 
+# --- C. ROL: VIGILADOR ---
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
-    
-    tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
+    tab_presentismo, tab_relevo = st.tabs([
+        "📋 FICHAJE INDIVIDUAL (PRESENTISMO)", 
+        "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"
+    ])
     
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
@@ -520,13 +495,20 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     
-                    datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
+                    datos_presentismo = [
+                        fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion
+                    ]
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable])
-                    if exito_pres: st.success(f"🔒 BIOMETRÍA REGISTRADA.")
-                    else: st.error("❌ ERROR DE RED")
-                else: st.error("❌ ERROR: Complete todos los campos.")
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [
+                        fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable
+                    ])
+                    if exito_pres:
+                        st.success(f"🔒 BIOMETRÍA REGISTRADA: Marcación de {v_tipo_marcacion} guardada correctamente.")
+                    else:
+                        st.error("❌ ERROR DE RED: No se pudo impactar en la planilla de Presentismo.")
+                else:
+                    st.error("❌ ERROR: Complete todos los campos y la captura facial.")
                     
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
@@ -545,99 +527,18 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     
-                    datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
-                    exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
+                    datos_relevo = [
+                        fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "COMPLETO"
+                    ]
+                    exito_rel = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
-                    if exito_relevo: st.success(f"⚡ RELEVO SANCIONADO.")
-                    else: st.error("❌ ERROR DE RED")
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [
+                        fecha_hora_arg, v_obj_relevo, "0", "RELEVO_GUARDIA", f"ENTREGA: {vig_saliente} -> RECIBE: {vig_entrante}", sup_responsable
+                    ])
+                    if exito_rel:
+                        st.success("🔄 RELEVO SANCIONADO: Novedad e historial de relevo impactados en la matriz.")
+                    else:
+                        st.error("❌ ERROR DE RED: No se pudo impactar el relevo en la nube.")
+                else:
+                    st.error("❌ ERROR: Ingrese tanto el vigilador saliente como el entrante.")
     st.markdown('</div>', unsafe_allow_html=True)
-
-elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🚨 S.O.S ACTIVOS", "0")
-    col2.metric("📡 RED", "OPERATIVA")
-    col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
-    col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
-
-    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
-    with t_crisis:
-        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        if not df_obj_maps_jefe.empty:
-            for _, r in df_obj_maps_jefe.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with t_ejecucion:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
-        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
-        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
-        o_det = st.text_input("Nombre / Detalle:")
-        if st.button("ELEV AR PETICIÓN"):
-            if o_det.strip():
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
-                st.success("✅ Petición Elevada Exitosamente")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_auditoria:
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades.empty: st.dataframe(df_novedades.tail(20), use_container_width=True)
-
-elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
-    m2.metric("Nivel de Cobertura", "47/93")
-    m3.metric("Auditorías Físicas (QRs)", "2")
-    m4.metric("Desgaste Flota (Km)", "4954 Km")
-    
-    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    with t_com_est:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
-        g_asunto = st.text_input("Asunto:", key="ger_asunto")
-        g_orden = st.text_area("Orden:", key="ger_orden")
-        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
-        if st.button("Ejecutar Directiva"):
-            escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, g_asunto])
-            st.success("✅ Directiva Transmitida")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    with t_ejecucion_ger:
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
-            if st.button("Solicitar Alta"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
-                st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
-        with col_g2:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            opciones_baja = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-            g_baja_obj = st.selectbox("Objetivo:", opciones_baja, key="ger_baja_obj")
-            if st.button("Solicitar Baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
-                st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_tab_auditoria:
-        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        for _, r in df_ger_maps.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=450, key="map_gerencia")
-
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    u_ing = st.text_input("ADMIN_USER")
-    p_ing = st.text_input("ADMIN_PASS", type="password")
-    if u_ing == "admin" and p_ing == "aion2026": st.success("Núcleo Maestro desbloqueado.")
