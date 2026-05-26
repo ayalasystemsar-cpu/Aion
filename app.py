@@ -341,19 +341,9 @@ if st.session_state.rol_sel == "MONITOREO":
             df_com = cargar_datos_comisarias() # Asegúrate de cargar esto antes del for
 
             for _, r in df_mapa_monitoreo.iterrows():
-                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
-                
-                # 1. Dibujar el punto del objetivo
-                folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']], radius=8,
-                    color="#FF0000" if es_panico else "#00E5FF",
-                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
-                    tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
-                    className="pulsar" if es_panico else ""
-                ).add_to(m_mon)
-
-                # 2. Lógica para encontrar la comisaría más cercana y dibujar la ruta
+               # --- LÓGICA DE RUTA TÁCTICA ESTILO GOOGLE MAPS ---
                 if es_panico and not df_com.empty:
+                    # 1. Encontrar la comisaría más cercana
                     dist_min = 9999
                     comisaria_cerca = None
                     for _, c in df_com.iterrows():
@@ -361,29 +351,29 @@ if st.session_state.rol_sel == "MONITOREO":
                         if d < dist_min:
                             dist_min = d
                             comisaria_cerca = c
-                    
-                    # 3. Dibujar la ruta (AntPath)
+
+                    # 2. Dibujar ruta estilo Google Maps (Punteada Táctica)
                     if comisaria_cerca is not None:
-                        AntPath(
+                        folium.PolyLine(
                             locations=[
                                 [comisaria_cerca['LATITUD'], comisaria_cerca['LONGITUD']], 
                                 [r['LATITUD'], r['LONGITUD']]
                             ],
-                            color="#FFD700",
-                            weight=5,
-                            opacity=0.8,
-                            dash_array=[10, 20],
-                            pulse_color="#FFFFFF",
-                            delay=500
+                            color="#00FF00",       # Verde para indicar "Respuesta en curso"
+                            weight=4,              # Grosor profesional
+                            opacity=0.7,
+                            dash_array='10, 10',    # Esto crea el efecto punteado (puntos/guiones)
+                            tooltip=f"🚨 RUTA DE AUXILIO: {comisaria_cerca['COMISARIA']} -> {r['OBJETIVO']}"
                         ).add_to(m_mon)
-
-            # 4. Dibujar los escudos de las comisarías (fuera del primer for)
-            for _, c in df_com.iterrows():
-                folium.Marker(
-                    location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}",
-                    icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
-                ).add_to(m_mon)
+                        
+                        # Marcador pequeño en la comisaría que responde
+                        folium.CircleMarker(
+                            location=[comisaria_cerca['LATITUD'], comisaria_cerca['LONGITUD']],
+                            radius=6,
+                            color="#FFFFFF",
+                            fill=True,
+                            fill_color="#00FF00"
+                        ).add_to(m_mon)
             
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")   
 
