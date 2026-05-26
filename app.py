@@ -318,11 +318,11 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
-
-with t_radar:
+# ... código anterior ...
+    with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        
-        # Botón manual de refresco estratégico
+        # [Aquí va todo el código de radar que te pasé antes]
+         # Botón manual de refresco estratégico
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -402,8 +402,13 @@ with t_radar:
                 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
+        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # ESTA LÍNEA DEBE TENER LA MISMA SANGRÍA QUE 'with t_radar:'
     with t_gestion:
-        st.subheader("📖 HISTORIAL DE OPERATIVOS")
+        st.subheader("⚙️ GESTIÓN OPERATIVA")
+        
         if not df_emergencias.empty:
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
 
