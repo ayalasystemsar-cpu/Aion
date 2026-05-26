@@ -319,162 +319,164 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 with t_radar:
-        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        
-        # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+            st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
+            
+            # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
+            if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
+                st.cache_data.clear()
+                st.rerun()
 
-        if sos_activos > 0:
-            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
-            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
-            with st.form(key="form_finalizar_panico", clear_on_submit=True):
-                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
-                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
-                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    idx_df = opciones_alertas[alerta_seleccionada]
-                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    st.success("✅ Normalizado")
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-   
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_mapa_monitoreo.empty:
-            # 1. CAPTURA AUTOMÁTICA DEL OBJETIVO BAJO ALERTA O SELECCIÓN DEL SUPERVISOR
-            obj_seleccionado = st.session_state.get('ger_baja_obj', '')
+            if sos_activos > 0:
+                st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
+                df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
+                with st.form(key="form_finalizar_panico", clear_on_submit=True):
+                    opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+                    alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
+                    txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
+                    if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
+                        idx_df = opciones_alertas[alerta_seleccionada]
+                        actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+                        actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+                        st.success("✅ Normalizado")
+                        st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+       
+            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+            if not df_mapa_monitoreo.empty:
+                # 1. CAPTURA AUTOMÁTICA DEL OBJETIVO SELECCIONADO O ENVIADO
+                obj_seleccionado = st.session_state.get('ger_baja_obj', '')
 
-            # Si no hay selección manual, priorizamos el primer objetivo en pánico activo
-            if not obj_seleccionado and lista_objetivos_en_panico:
-                obj_seleccionado = lista_objetivos_en_panico[0]
+                # Si no hay selección manual en sesión, pero hay una alerta S.O.S activa, priorizamos el primer objetivo en pánico para enfocar el mapa
+                if not obj_seleccionado and lista_objetivos_en_panico:
+                    obj_seleccionado = lista_objetivos_en_panico[0]
 
-            # 2. CENTRADO AUTOMÁTICO EN EL OBJETIVO CRÍTICO
-            if obj_seleccionado:
-                df_filtrado = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.upper() == str(obj_seleccionado).strip().upper()]
-                if not df_filtrado.empty:
-                    centro_mapa = [df_filtrado['LATITUD'].iloc[0], df_filtrado['LONGITUD'].iloc[0]]
-                    zoom_inicial = 14
+                # 2. CENTRADO INTELIGENTE DEL RADAR EN EL PUNTO CRÍTICO
+                if obj_seleccionado:
+                    df_filtrado = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.upper() == str(obj_seleccionado).strip().upper()]
+                    if not df_filtrado.empty:
+                        centro_mapa = [df_filtrado['LATITUD'].iloc[0], df_filtrado['LONGITUD'].iloc[0]]
+                        zoom_inicial = 14
+                    else:
+                        centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+                        zoom_inicial = 11
                 else:
                     centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                     zoom_inicial = 11
-            else:
-                centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
-                zoom_inicial = 11
 
-            m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
-            
-            # 3. LÓGICA DE GEOLOCALIZACIÓN TÁCTICA PARA COMISARÍAS
-            comisaria_cercana_name = None
-            distancia_minima = float('inf')
-        
-            if obj_seleccionado:
-                df_target = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.upper() == str(obj_seleccionado).strip().upper()]
-                if not df_target.empty:
-                    lat_obj = df_target['LATITUD'].iloc[0]
-                    lon_obj = df_target['LONGITUD'].iloc[0]
-                    
-                    df_com_data = cargar_datos_comisarias()
-                    for _, com in df_com_data.iterrows():
-                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
-                        dlon = lon2 - lon1
-                        dlat = lat2 - lat1
-                        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                        c = 2 * math.asin(math.sqrt(a))
-                        km = 6371 * c
-                        
-                        if km < distancia_minima:
-                            distancia_minima = km
-                            comisaria_cercana_name = com['COMISARIA']
-
-            # 4. MAPEO VISUAL DE PUNTOS (CELESTE VS ROJO INTERMITENTE PARA ALERTAS)
-            for _, r in df_mapa_monitoreo.iterrows():
-                nombre_objetivo = str(r['OBJETIVO']).strip().upper()
-                es_panico = nombre_objetivo in lista_objetivos_en_panico
-                es_el_seleccionado = (obj_seleccionado and nombre_objetivo == str(obj_seleccionado).strip().upper())
+                m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
                 
-                if es_panico or es_el_seleccionado:
+                # 3. LÓGICA DE GEOLOCALIZACIÓN TÁCTICA PARA COMISARÍAS (CÁLCULO MATEMÁTICO INTERNO)
+                comisaria_cercana_name = None
+                distancia_minima = float('inf')
+            
+                if obj_seleccionado:
+                    df_target = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.upper() == str(obj_seleccionado).strip().upper()]
+                    if not df_target.empty:
+                        lat_obj = df_target['LATITUD'].iloc[0]
+                        lon_obj = df_target['LONGITUD'].iloc[0]
+                        
+                        df_com_data = cargar_datos_comisarias()
+                        for _, com in df_com_data.iterrows():
+                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
+                            dlon = lon2 - lon1
+                            dlat = lat2 - lat1
+                            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                            c = 2 * math.asin(math.sqrt(a))
+                            km = 6371 * c
+                            
+                            if km < distancia_minima:
+                                distancia_minima = km
+                                comisaria_cercana_name = com['COMISARIA']
+
+                # 4. MAPEO VISUAL DE OBJETIVOS (CELESTE VS ROJO TITILANTE)
+                for _, r in df_mapa_monitoreo.iterrows():
+                    nombre_objetivo = str(r['OBJETIVO']).strip().upper()
+                    es_panico = nombre_objetivo in lista_objetivos_en_panico
+                    es_el_seleccionado = (obj_seleccionado and nombre_objetivo == str(obj_seleccionado).strip().upper())
+                    
+                    # REGLA OPERATIVA AUTOMÁTICA: Si el supervisor lo tiró, pasa a ser ALERTA ROJA PARPADEANTE
+                    if es_panico or es_el_seleccionado:
+                        folium.Marker(
+                            location=[r['LATITUD'], r['LONGITUD']],
+                            tooltip=f"🚨 {'[EN FOQUE DE MONITOREO]' if es_el_seleccionado else '¡ALERTA PÁNICO!'} | {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
+                            icon=folium.DivIcon(
+                                icon_size=(30, 30),
+                                icon_anchor=(15, 15),
+                                html='''
+                                <div style="
+                                    background-color: #FF0000;
+                                    width: 16px;
+                                    height: 16px;
+                                    border-radius: 50%;
+                                    border: 2px solid white;
+                                    box-shadow: 0 0 10px #FF0000;
+                                    animation: pulse 1s infinite alternate;
+                                "></div>
+                                <style>
+                                    @keyframes pulse {
+                                        0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+                                        100% { transform: scale(1.2); box-shadow: 0 0 0 12px rgba(255, 0, 0, 0); }
+                                    }
+                                </style>
+                                '''
+                            )
+                        ).add_to(m_mon)
+                    else:
+                        folium.CircleMarker(
+                            location=[r['LATITUD'], r['LONGITUD']], 
+                            radius=7,
+                            color="#00E5FF",
+                            fill=True, 
+                            fill_color="#00E5FF",
+                            tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
+                        ).add_to(m_mon)
+                        
+                # 5. RENDIMIENTO DE COMISARÍAS CON DETECCIÓN DE CERCANÍA MÁXIMA
+                df_com = cargar_datos_comisarias()
+                for _, c in df_com.iterrows():
+                    es_la_mas_cercana = (comisaria_cercana_name and c['COMISARIA'] == comisaria_cercana_name)
+                    
+                    if es_la_mas_cercana:
+                        # Destacamos con Neón Naranja la comisaría asignada al objetivo crítico
+                        color_icono = "#FF9800"
+                        tamano_fuente = "26px"
+                        sufijo_tooltip = f" 🌟 [MÁS CERCANA A OBJETIVO - DISTANCIA: {distancia_minima:.2f} KM]"
+                    else:
+                        # Tus comisarías originales de color azul puro
+                        color_icono = "#0000FF"
+                        tamano_fuente = "20px"
+                        sufijo_tooltip = ""
+
                     folium.Marker(
-                        location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"🚨 {'[EN FOQUE DE MONITOREO]' if es_el_seleccionado else '¡ALERTA PÁNICO!'} | {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
+                        location=[c['LATITUD'], c['LONGITUD']],
+                        tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
                         icon=folium.DivIcon(
-                            icon_size=(30, 30),
-                            icon_anchor=(15, 15),
-                            html='''
-                            <div style="
-                                background-color: #FF0000;
-                                width: 16px;
-                                height: 16px;
-                                border-radius: 50%;
-                                border: 2px solid white;
-                                box-shadow: 0 0 10px #FF0000;
-                                animation: pulse 1s infinite alternate;
-                            "></div>
-                            <style>
-                                @keyframes pulse {
-                                    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-                                    100% { transform: scale(1.2); box-shadow: 0 0 0 12px rgba(255, 0, 0, 0); }
-                                }
-                            </style>
-                            '''
+                            html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>"""
                         )
                     ).add_to(m_mon)
-                else:
-                    folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], 
-                        radius=7,
-                        color="#00E5FF",
-                        fill=True, 
-                        fill_color="#00E5FF",
-                        tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
-                    ).add_to(m_mon)
                     
-            # 5. RENDIMIENTO DE COMISARÍAS CON DETECCIÓN DE CERCANÍA MÁXIMA (NARANJA NEÓN VS AZUL)
-            df_com = cargar_datos_comisarias()
-            for _, c in df_com.iterrows():
-                es_la_mas_cercana = (comisaria_cercana_name and c['COMISARIA'] == comisaria_cercana_name)
-                
-                if es_la_mas_cercana:
-                    color_icono = "#FF9800"
-                    tamano_fuente = "26px"
-                    sufijo_tooltip = f" 🌟 [MÁS CERCANA A OBJETIVO - DISTANCIA: {distancia_minima:.2f} KM]"
-                else:
-                    color_icono = "#0000FF"
-                    tamano_fuente = "20px"
-                    sufijo_tooltip = ""
-
-                folium.Marker(
-                    location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
-                    icon=folium.DivIcon(
-                        html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>"""
-                    )
-                ).add_to(m_mon)
-                
-            st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_gestion:
-        st.subheader("⚙️ CONTROL OPERATIVO Y ALTAS")
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            st.markdown("### ➕ ALTA DE NUEVO OBJETIVO")
-            with st.form(key="form_alta_objetivo", clear_on_submit=True):
-                g_obj_name = st.text_input("Nombre del Objetivo:").upper()
-                g_obj_lat = st.number_input("Latitud:", format="%.6f", value=-34.6037)
-                g_obj_lon = st.number_input("Longitud:", format="%.6f", value=-58.3816)
-                g_obj_sup = st.text_input("Supervisor Asignado:").upper()
-                if st.form_submit_button("Guardar Objetivo"):
-                    if g_obj_name.strip() and g_obj_sup.strip():
-                        escribir_registro_nube("OBJETIVOS", [g_obj_name.strip(), g_obj_lat, g_obj_lon, g_obj_sup.strip()])
-                        st.success("✅ Objetivo dado de alta exitosamente")
-                        st.rerun()
-                    else:
-                        st.error("⚠️ Complete todos los campos requeridos")
+                st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
             st.markdown('</div>', unsafe_allow_html=True)
 
+        with t_gestion:
+            st.subheader("⚙️ CONTROL OPERATIVO Y ALTAS")
+            col_g1, col_g2 = st.columns(2)
+            with col_g1:
+                st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+                st.markdown("### ➕ ALTA DE NUEVO OBJETIVO")
+                with st.form(key="form_alta_objetivo", clear_on_submit=True):
+                    g_obj_name = st.text_input("Nombre del Objetivo:").upper()
+                    g_obj_lat = st.number_input("Latitud:", format="%.6f", value=-34.6037)
+                    g_obj_lon = st.number_input("Longitud:", format="%.6f", value=-58.3816)
+                    g_obj_sup = st.text_input("Supervisor Asignado:").upper()
+                    if st.form_submit_button("Guardar Objetivo"):
+                        if g_obj_name.strip() and g_obj_sup.strip():
+                            escribir_registro_nube("OBJETIVOS", [g_obj_name.strip(), g_obj_lat, g_obj_lon, g_obj_sup.strip()])
+                            st.success("✅ Objetivo dado de alta exitosamente")
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Complete todos los campos requeridos")
+                st.markdown('</div>', unsafe_allow_html=True)
     with t_comunicacion:
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:")
