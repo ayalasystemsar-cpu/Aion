@@ -308,7 +308,11 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
-with t_radar:
+t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
+        "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
+    ])
+
+    with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         st.markdown("""
         <style>
@@ -335,12 +339,9 @@ with t_radar:
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            
             df_com = cargar_datos_comisarias()
-            
             for _, r in df_mapa_monitoreo.iterrows():
                 esta_en_panico = st.session_state.modo_panico_activo or (r['OBJETIVO'] in lista_objetivos_en_panico)
-                
                 folium.CircleMarker(
                     location=[r['LATITUD'], r['LONGITUD']], radius=8,
                     color="#FF0000" if esta_en_panico else "#00E5FF",
@@ -348,29 +349,20 @@ with t_radar:
                     tooltip=f"🎯 {r['OBJETIVO']}",
                     className="pulsar" if esta_en_panico else ""
                 ).add_to(m_mon)
-            
-            # Dibujar escudos comisarías (fuera del primer bucle)
             for _, c in df_com.iterrows():
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}",
                     icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
-            
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
+
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
             st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        if not df_emergencias.empty:
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        if not df_emergencias.empty:
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
-        if not df_emergencias.empty: 
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)    
-        if not df_emergencias.empty: 
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+
     with t_comunicacion:
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:")
@@ -388,12 +380,9 @@ with t_radar:
         df_pres = leer_matriz_nube("PRESENTISMO")
         if df_pres is not None and not df_pres.empty:
             df_pres.columns = df_pres.columns.str.strip().str.upper()
-            # Forzamos mapeo visual alineado estrictamente a la captura 1 del Sheets
             columnas_maestras = ["FECHA", "HORA", "DNI", "NOMBRE Y APE OBJETIVO", "ESTADO", "TIPO DE MARCACION"]
             columnas_validas = [c for c in columnas_maestras if c in df_pres.columns]
             st.dataframe(df_pres[columnas_validas].iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay datos de presentismo registrados.")
 
     with t_vig:
         st.subheader("👥 TABLA MASTER: RELEVOS VIGILADORES")
@@ -403,16 +392,13 @@ with t_radar:
             columnas_relevos = ["FECHA", "HORA", "OBJETIVO", "VIGILADOR_SALIENTE", "VIGILADOR_ENTRANTE", "SUPERVISOR_ASIGNADO", "ESTADO"]
             columnas_validas_rel = [c for c in columnas_relevos if c in df_padrero.columns]
             st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
     with t_guardia:
         st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty: 
+        if not df_nov_g.empty:
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
-
 # B. ROL: SUPERVISOR (SISTEMA DE FILTRADO INTELIGENTE BLINDADO)
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
