@@ -325,7 +325,7 @@ if st.session_state.rol_sel == "MONITOREO":
         # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
-            st.rerun()
+            
 
         # --- INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
@@ -378,7 +378,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
                     st.success("✅ Normalizado")
-                    st.rerun()
+    
             st.markdown('</div>', unsafe_allow_html=True)
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
