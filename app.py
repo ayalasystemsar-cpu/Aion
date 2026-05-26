@@ -322,7 +322,7 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
+        # Botón manual de refresco estratégico
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -341,38 +341,39 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-   
+    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
-            m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            # MAPA CENTRADO POR DEFECTO EN EL PROMEDIO DE LOS OBJETIVOS
+            centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+            zoom_inicial = 11
+
+            m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
             
+            # 1. Dibujado de objetivos
             for _, r in df_mapa_monitoreo.iterrows():
-                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                nombre_obj = str(r['OBJETIVO']).strip().upper()
+                es_panico = nombre_obj in lista_objetivos_en_panico
                 
-                # --- AQUÍ LA SOLUCIÓN AL TITILEO USANDO DIVICON EN CASO DE PÁNICO ---
                 if es_panico:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"🚨 ¡ALERTA PÁNICO! CRÍTICO: {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
-                        icon=folium.DivIcon(html='<div class="marcador-panico"></div>')
+                        tooltip=f"🚨 ¡ALERTA PÁNICO! | {r['OBJETIVO']}",
+                        icon=folium.DivIcon(html='<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #FF0000; animation: pulse 1s infinite alternate;"></div>')
                     ).add_to(m_mon)
                 else:
-                    folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], 
-                        radius=7,
-                        color="#00E5FF",
-                        fill=True, 
-                        fill_color="#00E5FF",
-                        tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
-                    ).add_to(m_mon)
-                    
+                    folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True, fill_color="#00E5FF", tooltip=f"🎯 {r['OBJETIVO']}").add_to(m_mon)
+            
+            # 2. Dibujado de comisarías con estilo neón
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
+                # Estilo estándar para todas las comisarías
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}",
-                    icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
+                    icon=folium.DivIcon(html='<div style="font-size: 20px; color: #0000FF; text-shadow: 0 0 10px #0000FF;"><i class="fa fa-shield"></i></div>')
                 ).add_to(m_mon)
+                
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
