@@ -309,7 +309,8 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-    with t_radar:
+   
+with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         st.markdown("""
         <style>
@@ -317,6 +318,7 @@ if st.session_state.rol_sel == "MONITOREO":
         .pulsar { animation: parpadeo 0.6s infinite !important; }
         </style>
         """, unsafe_allow_html=True)
+        
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
@@ -331,11 +333,14 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
+
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-          for _, r in df_mapa_monitoreo.iterrows():
-                # Combinamos el estado manual con la detección automática de la base
+            
+            df_com = cargar_datos_comisarias()
+            
+            for _, r in df_mapa_monitoreo.iterrows():
                 esta_en_panico = st.session_state.modo_panico_activo or (r['OBJETIVO'] in lista_objetivos_en_panico)
                 
                 folium.CircleMarker(
@@ -345,16 +350,34 @@ if st.session_state.rol_sel == "MONITOREO":
                     tooltip=f"🎯 {r['OBJETIVO']}",
                     className="pulsar" if esta_en_panico else ""
                 ).add_to(m_mon)
-            df_com = cargar_datos_comisarias()
+
+                # Lógica de comisaría más cercana
+                if esta_en_panico and not df_com.empty:
+                    dist_min = 9999
+                    comisaria_cerca = None
+                    for _, c in df_com.iterrows():
+                        d = calcular_distancia(r['LATITUD'], r['LONGITUD'], c['LATITUD'], c['LONGITUD'])
+                        if d < dist_min:
+                            dist_min = d
+                            comisaria_cerca = c
+                    
+                    if comisaria_cerca is not None:
+                        folium.PolyLine(
+                            locations=[[comisaria_cerca['LATITUD'], comisaria_cerca['LONGITUD']], [r['LATITUD'], r['LONGITUD']]],
+                            color="#00FF00", weight=4, dash_array='10, 10', opacity=0.7,
+                            tooltip=f"🚨 RUTA AUXILIO: {comisaria_cerca['COMISARIA']}"
+                        ).add_to(m_mon)
+
+            # Dibujar escudos
             for _, c in df_com.iterrows():
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}",
                     icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
+            
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
-
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
