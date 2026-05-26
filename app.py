@@ -344,19 +344,58 @@ if st.session_state.rol_sel == "MONITOREO":
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
-            m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
+            # Captura automática del objetivo interactuado en la base por gerencia/supervisión
+            obj_seleccionado = st.session_state.get('ger_baja_obj', '')
+
+            # Centrado automático inteligente en base a si hay un foco de atención activo
+            if obj_seleccionado:
+                df_filtrado = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'].astype(str).str.upper() == str(obj_seleccionado).strip().upper()]
+                if not df_filtrado.empty:
+                    centro_mapa = [df_filtrado['LATITUD'].iloc[0], df_filtrado['LONGITUD'].iloc[0]]
+                    zoom_inicial = 14
+                else:
+                    centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+                    zoom_inicial = 11
+            else:
+                centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+                zoom_inicial = 11
+
+            m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
             
             for _, r in df_mapa_monitoreo.iterrows():
-                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                nombre_objetivo = str(r['OBJETIVO']).strip().upper()
+                es_panico = nombre_objetivo in lista_objetivos_en_panico
+                es_el_seleccionado = (obj_seleccionado and nombre_objetivo == str(obj_seleccionado).strip().upper())
                 
-                # --- AQUÍ LA SOLUCIÓN AL TITILEO USANDO DIVICON EN CASO DE PÁNICO ---
-                if es_panico:
+                # REGLA OPERATIVA AUTOMÁTICA: Pánico o Seleccionado cambian a ROJO INTERMITENTE
+                if es_panico or es_el_seleccionado:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"🚨 ¡ALERTA PÁNICO! CRÍTICO: {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
-                        icon=folium.DivIcon(html='<div class="marcador-panico"></div>')
+                        tooltip=f"🚨 {'[EN FOQUE DE SUPERVISIÓN]' if es_el_seleccionado else '¡ALERTA PÁNICO!'} | {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
+                        icon=folium.DivIcon(
+                            icon_size=(30, 30),
+                            icon_anchor=(15, 15),
+                            html='''
+                            <div style="
+                                background-color: #FF0000;
+                                width: 16px;
+                                height: 16px;
+                                border-radius: 50%;
+                                border: 2px solid white;
+                                box-shadow: 0 0 10px #FF0000;
+                                animation: pulse 1s infinite alternate;
+                            "></div>
+                            <style>
+                                @keyframes pulse {
+                                    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+                                    100% { transform: scale(1.2); box-shadow: 0 0 0 12px rgba(255, 0, 0, 0); }
+                                }
+                            </style>
+                            '''
+                        )
                     ).add_to(m_mon)
                 else:
+                    # Círculos celestes estándar (los de tu captura)
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], 
                         radius=7,
@@ -366,16 +405,17 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                     
+            # --- TUS COMISARÍAS AZULES CON ESCUDO (TAL CUAL LA IMAGEN) ---
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}",
-                    icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>""")
+                    icon=folium.DivIcon(html="""<div style="font-size: 20px; color: #0000FF; text-shadow: 0 0 10px #0000FF;"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
+                
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
-
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
