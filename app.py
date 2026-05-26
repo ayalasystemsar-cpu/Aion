@@ -374,14 +374,26 @@ if st.session_state.rol_sel == "MONITOREO":
                 alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
                 txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
                 if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    idx_df = opciones_alertas[alerta_seleccionada]
-                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    st.success("✅ Normalizado")
+    idx_df = opciones_alertas[alerta_seleccionada]
     
-            st.markdown('</div>', unsafe_allow_html=True)
-   
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+    # 1. Actualizar Google Sheets
+    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+    
+    # 2. LIMPIEZA CRÍTICA PARA EL RADAR
+    st.cache_data.clear() # Borra la memoria de todas las funciones @st.cache_data
+    
+    st.success("✅ Normalizado. Recargando sistema...")
+    st.rerun() # Reinicia el script para leer los datos nuevos de la nube
+    # 1. Actualizar Google Sheets
+    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+    
+    # 2. LIMPIEZA CRÍTICA PARA EL RADAR
+    st.cache_data.clear() # Borra la memoria de todas las funciones @st.cache_data
+    
+    st.success("✅ Normalizado. Recargando sistema...")
+    st.rerun() # Reinicia el script para leer los datos nuevos de la nube
         if not df_mapa_monitoreo.empty:
             # Si hay un objetivo seleccionado, centramos el mapa directamente ahí
             if obj_seleccionado != "MOSTRAR TODO":
