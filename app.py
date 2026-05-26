@@ -289,10 +289,10 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
-     with t_radar:
+    with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        # 1. CSS para el titileo (inyectado una sola vez)
+        # CSS para el titileo
         st.markdown("""
         <style>
         @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.1; } 100% { opacity: 1; } }
@@ -316,27 +316,19 @@ if st.session_state.rol_sel == "MONITOREO":
             st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        
         if not df_mapa_monitoreo.empty:
             m_mon = folium.Map(location=[df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
             
-            # --- DIBUJO DE OBJETIVOS ---
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
-                color_obj = "#FF0000" if es_panico else "#00E5FF"
-                
                 folium.CircleMarker(
-                    location=[r['LATITUD'], r['LONGITUD']],
-                    radius=8,
-                    color=color_obj,
-                    fill=True,
-                    fill_color=color_obj,
-                    fill_opacity=1.0,
+                    location=[r['LATITUD'], r['LONGITUD']], radius=8,
+                    color="#FF0000" if es_panico else "#00E5FF",
+                    fill=True, fill_color="#FF0000" if es_panico else "#00E5FF",
                     tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
                     className="pulsar" if es_panico else ""
                 ).add_to(m_mon)
             
-            # --- DIBUJO DE COMISARÍAS (AZUL PROFUNDO) ---
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 folium.Marker(
