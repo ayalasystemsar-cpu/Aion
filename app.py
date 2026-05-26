@@ -374,15 +374,16 @@ if st.session_state.rol_sel == "MONITOREO":
                 alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
                 txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
                 if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    # 1. Marcamos el trabajo hecho en el Google Sheet
                     idx_df = opciones_alertas[alerta_seleccionada]
+                    
+                    # 1. Actualizamos en la nube
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
                     
-                    # 2. ORDENAMOS TIRAR LA FOTO VIEJA (Limpiar caché)
+                    # 2. LIMPIAMOS LA CACHÉ
                     st.cache_data.clear() 
                     
-                    # 3. ORDENAMOS VOLVER A EMPEZAR (Recargar la página)
+                    # 3. RECARGAMOS
                     st.rerun()
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
