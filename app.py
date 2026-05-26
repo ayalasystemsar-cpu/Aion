@@ -329,14 +329,14 @@ if st.session_state.rol_sel == "MONITOREO":
                     className="marker-panic-pulsing" if es_panico else ""
                 ).add_to(m_mon)
 
-            # Comisarías (Escudo Azul, sin gota)
+            # Comisarías (Escudo Azul Profundo)
             df_comisarias = cargar_datos_comisarias()
             for _, c in df_comisarias.iterrows():
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}",
                     icon=folium.DivIcon(html=f"""
-                        <div style="font-size: 20px; color: #00E5FF; text-shadow: 0 0 5px #000;">
+                        <div style="font-size: 20px; color: #0000FF; text-shadow: 0 0 3px #000;">
                             <i class="fa fa-shield"></i>
                         </div>""")
                 ).add_to(m_mon)
