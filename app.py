@@ -131,18 +131,11 @@ def aplicar_identidad_alfa():
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        .boton-panico-escudo {
-            background: radial-gradient(circle, #8B0000 0%, #330000 100%) !important;
-            color: white !important;
-            border-radius: 50% !important;
-            width: 140px !important;
-            height: 140px !important;
-            border: 4px solid #FF4500 !important;
-            box-shadow: 0 0 40px rgba(255, 0, 0, 0.7), inset 0 0 20px rgba(0,0,0,0.5) !important;
-            font-family: 'Orbitron', sans-serif !important;
-            font-weight: bold !important;
-            text-transform: uppercase !important;
-            margin: 20px auto !important;
+        .stButton > button[kind="primary"] { 
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
+            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
+            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
         
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
@@ -563,55 +556,26 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
                     st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
-    with t_pres_sup:
-        st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
-        df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_v_total.empty:
-            df_v_total.columns = df_v_total.columns.str.strip().str.upper()
-            
-            def fila_pertenece_a_supervisor(row, sup_name):
-                for cell_val in row.values:
-                    if str(cell_val).strip().upper() == sup_name: return True
-                return False
-            
-            mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
-            df_v_filtrado = df_v_total[mask_sup]
-            if not df_v_filtrado.empty:
-                st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
-            else:
-                st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
-        else:
-            st.info("No hay datos registrados en Novedades Guardia.")
-st.markdown("---")
-        st.subheader("⚠️ EMERGENCIA TÁCTICA")
-        
-        # Botón de Pánico Estilizado
-        if st.button("🚨 ANTIPÁNICO", key="btn_panico_escudo"):
-            lat_envio, lon_envio = 0.0, 0.0
-            try:
-                loc = get_geolocation()
-                if loc and isinstance(loc, dict) and 'coords' in loc:
-                    lat_envio = loc['coords'].get('latitude', 0.0)
-                    lon_envio = loc['coords'].get('longitude', 0.0)
-            except:
-                pass
+        with t_pres_sup:
+            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
+            df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
+            if not df_v_total.empty:
+                df_v_total.columns = df_v_total.columns.str.strip().str.upper()
                 
-            obj_alerta = st.session_state.get('sup_servicio_actual', "CENTRAL BASE")
-            carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-            escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-            st.error(f"🚨 S.O.S TRANSMITIDO DESDE {obj_alerta}")
+                def fila_pertenece_a_supervisor(row, sup_name):
+                    for cell_val in row.values:
+                        if str(cell_val).strip().upper() == sup_name: return True
+                    return False
+                
+                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
+                df_v_filtrado = df_v_total[mask_sup]
+                if not df_v_filtrado.empty:
+                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
+                else:
+                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
+            else:
+                st.info("No hay datos registrados en Novedades Guardia.")
 
-        # Forzar el estilo visual
-        st.markdown("""
-            <script>
-            var buttons = window.parent.document.querySelectorAll('button');
-            for (var i = 0; i < buttons.length; i++) {
-                if (buttons[i].innerText.includes('ANTIPÁNICO')) {
-                    buttons[i].className = 'boton-panico-escudo';
-                }
-            }
-            </script>
-        """, unsafe_allow_html=True)
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
