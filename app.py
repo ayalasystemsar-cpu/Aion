@@ -582,7 +582,36 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
+st.markdown("---")
+    st.subheader("⚠️ EMERGENCIA TÁCTICA")
+    
+    # Botón de Pánico Estilizado
+    if st.button("🚨 ANTIPÁNICO", key="btn_panico_escudo"):
+        lat_envio, lon_envio = 0.0, 0.0
+        try:
+            loc = get_geolocation()
+            if loc and isinstance(loc, dict) and 'coords' in loc:
+                lat_envio = loc['coords'].get('latitude', 0.0)
+                lon_envio = loc['coords'].get('longitude', 0.0)
+        except:
+            pass
+            
+        obj_alerta = st.session_state.get('sup_servicio_actual', "CENTRAL BASE")
+        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+        st.error(f"🚨 S.O.S TRANSMITIDO DESDE {obj_alerta}")
 
+    # Forzar el estilo visual (Script para que se vea como la imagen)
+    st.markdown("""
+        <script>
+        var buttons = window.parent.document.querySelectorAll('button');
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].innerText.includes('ANTIPÁNICO')) {
+                buttons[i].className = 'boton-panico-escudo';
+            }
+        }
+        </script>
+    """, unsafe_allow_html=True)
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
