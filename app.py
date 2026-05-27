@@ -131,11 +131,18 @@ def aplicar_identidad_alfa():
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
+        .boton-panico-escudo {
+            background: radial-gradient(circle, #8B0000 0%, #330000 100%) !important;
+            color: white !important;
+            border-radius: 50% !important;
+            width: 140px !important;
+            height: 140px !important;
+            border: 4px solid #FF4500 !important;
+            box-shadow: 0 0 40px rgba(255, 0, 0, 0.7), inset 0 0 20px rgba(0,0,0,0.5) !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            margin: 20px auto !important;
         }
         
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
