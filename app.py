@@ -563,27 +563,27 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
                     st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
-        with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
-            df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
-            if not df_v_total.empty:
-                df_v_total.columns = df_v_total.columns.str.strip().str.upper()
-                
-                def fila_pertenece_a_supervisor(row, sup_name):
-                    for cell_val in row.values:
-                        if str(cell_val).strip().upper() == sup_name: return True
-                    return False
-                
-                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
-                df_v_filtrado = df_v_total[mask_sup]
-                if not df_v_filtrado.empty:
-                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
-                else:
-                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
+    with t_pres_sup:
+        st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
+        df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
+        if not df_v_total.empty:
+            df_v_total.columns = df_v_total.columns.str.strip().str.upper()
+            
+            def fila_pertenece_a_supervisor(row, sup_name):
+                for cell_val in row.values:
+                    if str(cell_val).strip().upper() == sup_name: return True
+                return False
+            
+            mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
+            df_v_filtrado = df_v_total[mask_sup]
+            if not df_v_filtrado.empty:
+                st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
             else:
-                st.info("No hay datos registrados en Novedades Guardia.")
+                st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
+        else:
+            st.info("No hay datos registrados en Novedades Guardia.")
 st.markdown("---")
-    st.subheader("⚠️ EMERGENCIA TÁCTICA")
+st.subheader("⚠️ EMERGENCIA TÁCTICA")
     
     # Botón de Pánico Estilizado
     if st.button("🚨 ANTIPÁNICO", key="btn_panico_escudo"):
