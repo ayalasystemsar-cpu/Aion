@@ -596,10 +596,10 @@ st.subheader("⚠️ EMERGENCIA TÁCTICA")
         except:
             pass
             
-        obj_alerta = st.session_state.get('sup_servicio_actual', "CENTRAL BASE")
-        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-        st.error(f"🚨 S.O.S TRANSMITIDO DESDE {obj_alerta}")
+    obj_alerta = st.session_state.get('sup_servicio_actual', "CENTRAL BASE")
+    carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+    escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+    st.error(f"🚨 S.O.S TRANSMITIDO DESDE {obj_alerta}")
 
     # Forzar el estilo visual (Script para que se vea como la imagen)
     st.markdown("""
