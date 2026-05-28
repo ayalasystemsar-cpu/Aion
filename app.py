@@ -172,20 +172,6 @@ def aplicar_identidad_alfa():
             animation: parpadeo-radar 1s infinite;
             display: inline-block;
         }
-                /* Botón de Pánico Personalizado */
-        .btn-antipanico-custom {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: radial-gradient(circle at 30% 30%, #ff4d4d, #990000);
-            border: 4px solid #b3b3b3; border-radius: 50%;
-            width: 160px; height: 160px; margin: 20px auto;
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.6), inset 0 -10px 20px rgba(0,0,0,0.5);
-            cursor: pointer; text-align: center; color: white;
-            font-family: 'Orbitron', sans-serif; text-transform: uppercase;
-            font-weight: bold; transition: transform 0.2s; text-decoration: none;
-        }
-        .btn-antipanico-custom:hover { transform: scale(1.05); }
-        .btn-antipanico-custom div { font-size: 14px; margin-top: 5px; }
-
         </style>
         """, unsafe_allow_html=True
     )
@@ -559,6 +545,40 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
+                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
+                st.success("✅ Cargado")
+
+        with t_com_sup:
+            with st.form(key="form_chat_supervisor", clear_on_submit=True):
+                txt_mensaje_sup = st.text_input("REPORTE RÁPIDO PARA MONITOREO:")
+                prioridad_sup = st.selectbox("RELEVANCIA:", ["VERDE", "ROJA"])
+                if st.form_submit_button("ENVIAR MENSAJE") and txt_mensaje_sup.strip():
+                    escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_sup.strip().upper(), prioridad_sup, "MONITOREO", "REPORTE CAMPO"])
+                    st.rerun()
+            df_chats_sup = leer_matriz_nube("CHATS")
+            if not df_chats_sup.empty:
+                for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
+                    st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
+
+        with t_pres_sup:
+            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
+            df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
+            if not df_v_total.empty:
+                df_v_total.columns = df_v_total.columns.str.strip().str.upper()
+                
+                def fila_pertenece_a_supervisor(row, sup_name):
+                    for cell_val in row.values:
+                        if str(cell_val).strip().upper() == sup_name: return True
+                    return False
+                
+                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
+                df_v_filtrado = df_v_total[mask_sup]
+                if not df_v_filtrado.empty:
+                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
+                else:
+                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
+            else:
+                st.info("No hay datos registrados en Novedades Guardia.")
 
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
