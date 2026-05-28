@@ -122,7 +122,7 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
-    def aplicar_identidad_alfa():
+def aplicar_identidad_alfa():
     st.markdown(
         """
         <style>
