@@ -56,39 +56,22 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
-# --- LÓGICA DE ALERTA ---
-def render_boton_panico_pro():
-    """Botón de Pánico Estilo Radar/Alerta Industrial."""
-    # CSS personalizado para el look industrial exacto
-    css = """
-    <style>
-        .aion-panico-btn {
-            width: 180px; height: 180px;
-            border-radius: 50%;
-            background: radial-gradient(circle, #ff3333 0%, #8b0000 60%, #4a0000 100%);
-            border: 8px solid #330000;
-            color: white;
-            font-weight: 800;
-            font-size: 14px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.2);
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: transform 0.1s, box-shadow 0.1s;
-        }
-        .aion-panico-btn:active { transform: scale(0.95); box-shadow: 0 0 10px rgba(255, 0, 0, 0.9); }
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
+def accionar_panico_sup():
+    # Obtenemos el objetivo actual
+    obj_alerta = st.session_state.get('sup_servicio_actual', "SIN ASIGNAR")
     
-    # Creamos un botón tipo 'form' para capturar el click en Streamlit
-    with st.form("form_panico"):
-        if st.form_submit_button("🚨 ANTIPÁNICO\nINMEDIATO", use_container_width=True):
-            accionar_panico_sup()
-        accionar_panico_sup()
+    # Preparamos la carga útil
+    carga = f"OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+    
+    # Ejecutamos el registro
+    exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga])
+    
+    # Feedback para el usuario
+    if exito:
+        st.error(f"🚨 ALERTA ENVIADA A CENTRAL DESDE: {obj_alerta}")
+    else:
+        st.warning("⚠️ ERROR DE CONEXIÓN: No se pudo enviar la alerta. Verifique la red.")
+# --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
 def leer_matriz_nube(pestana):
     gc = conectar_google()
@@ -539,16 +522,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
 
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
-       
+        
         with t_vis_qr:
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
-            
-            # --- LLAMADO AL BOTÓN DE DISEÑO INDUSTRIAL ---
-            st.markdown("<br>", unsafe_allow_html=True)
-            render_boton_panico_pro()
-        
+           # --- AQUÍ VA EL BOTÓN DE PÁNICO ---
+            st.write("---") # Una línea divisoria para separar visualmente
+            if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
+                accionar_panico_sup()
+            # ---------------------------------
             st.write("---")
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
