@@ -122,12 +122,27 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
-def aplicar_identidad_alfa():
+    def aplicar_identidad_alfa():
     st.markdown(
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
+        
+        /* --- NUEVO ESTILO PARA EL BOTÓN DE PÁNICO --- */
+        .boton-panico-tactico > button { 
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
+            color: white !important; 
+            border-radius: 50% !important; 
+            width: 105px !important; 
+            height: 105px !important; 
+            border: 3px solid #333 !important; 
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
+            font-family: 'Orbitron', sans-serif !important; 
+            font-size: 11px !important; 
+            font-weight: bold !important;
+        }
+
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         
@@ -144,12 +159,6 @@ def aplicar_identidad_alfa():
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
-        }
         
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
@@ -171,7 +180,6 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
         
-        /* --- ESTILO DE PARPADEO MEJORADO PARA EL RADAR --- */
         @keyframes parpadeo-radar {
             0% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
             70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
@@ -545,12 +553,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
         
         with t_vis_qr:
-            # --- BOTÓN DE PÁNICO TÁCTICO PARA SUPERVISOR ---
-            st.markdown('<div class="message-box-red" style="text-align:center;">', unsafe_allow_html=True)
-            if st.button("🚨 ACTIVAR PÁNICO TÁCTICO (S.O.S)", use_container_width=True):
+            # --- BOTÓN DE PÁNICO TÁCTICO CON CLASE ESPECIAL ---
+            st.markdown('<div style="display: flex; justify-content: center; margin-bottom: 20px;" class="boton-panico-tactico">', unsafe_allow_html=True)
+            
+            if st.button("ACTIVAR\nPÁNICO", key="btn_panico_sup"):
                 obj_actual = st.session_state.get('sup_servicio_actual', 'SIN_OBJ_ASIGNADO')
                 if activar_panico_sistema(obj_actual):
                     st.toast("🚨 Alerta enviada a Central", icon="🚨")
+            
             st.markdown('</div>', unsafe_allow_html=True)
             
             # --- SELECCIÓN DE SERVICIO Y MAPA ---
