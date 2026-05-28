@@ -262,24 +262,6 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-    st.write("---")
-    lat_envio, lon_envio = 0.0, 0.0
-    try:
-        loc = get_geolocation()
-        if loc and isinstance(loc, dict) and 'coords' in loc:
-            lat_envio = loc['coords'].get('latitude', 0.0)
-            lon_envio = loc['coords'].get('longitude', 0.0)
-    except Exception:
-        pass
-
-    if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
-            obj_alerta = st.session_state.sup_servicio_actual
-        else: obj_alerta = "CENTRAL BASE"
-            
-        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-        st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
