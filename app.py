@@ -504,8 +504,28 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
 
 # Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
+
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
+        
+        # --- BOTÓN DE PÁNICO IDENTICO AL SIDEBAR ---
+        col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
+        with col_p2:
+            if st.button("ACTIVAR\nPÁNICO", type="primary", use_container_width=True):
+                lat_envio, lon_envio = 0.0, 0.0
+                try:
+                    loc = get_geolocation()
+                    if loc and isinstance(loc, dict) and 'coords' in loc:
+                        lat_envio = loc['coords'].get('latitude', 0.0)
+                        lon_envio = loc['coords'].get('longitude', 0.0)
+                except: pass
+                
+                obj_alerta = st.session_state.sup_servicio_actual if 'sup_servicio_actual' in st.session_state else "SUPERVISOR"
+                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+                st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
+
+        # --- LÓGICA DE CONTROL ---
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
 
