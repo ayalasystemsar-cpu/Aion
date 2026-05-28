@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -56,19 +57,6 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
-def activar_panico_sistema(origen_alerta):
-    lat_envio, lon_envio = 0.0, 0.0
-    try:
-        loc = get_geolocation()
-        if loc and isinstance(loc, dict) and 'coords' in loc:
-            lat_envio = loc['coords'].get('latitude', 0.0)
-            lon_envio = loc['coords'].get('longitude', 0.0)
-    except Exception:
-        pass
-        
-    carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{origen_alerta}|SUP:{st.session_state.user_sel}"
-    exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-    return exito
 
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
@@ -128,33 +116,6 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
-        
-                /* --- ESTILO FORZADO PARA BOTÓN CIRCULAR --- */
-        div.boton-panico-tactico > button { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important; 
-            border-radius: 50% !important; 
-            width: 105px !important; 
-            height: 105px !important; 
-            border: 4px solid #FF0000 !important; 
-            box-shadow: 0 0 20px #FF0000 !important; 
-            font-family: 'Orbitron', sans-serif !important; 
-            font-size: 12px !important; 
-            font-weight: bold !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            text-align: center !important;
-            margin: 0 auto !important;
-        }
-        
-        /* Efecto de presionado */
-        div.boton-panico-tactico > button:active {
-            transform: scale(0.95);
-        }
-
-        
-
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         
@@ -171,6 +132,12 @@ def aplicar_identidad_alfa():
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
+        .stButton > button[kind="primary"] { 
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
+            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
+            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
+        }
         
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
@@ -192,6 +159,7 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
         
+        /* --- ESTILO DE PARPADEO MEJORADO PARA EL RADAR --- */
         @keyframes parpadeo-radar {
             0% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
             70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
@@ -281,31 +249,25 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-        st.write("---")
+    st.write("---")
+    lat_envio, lon_envio = 0.0, 0.0
+    try:
+        loc = get_geolocation()
+        if loc and isinstance(loc, dict) and 'coords' in loc:
+            lat_envio = loc['coords'].get('latitude', 0.0)
+            lon_envio = loc['coords'].get('longitude', 0.0)
+    except Exception:
+        pass
 
-    # Botón Pánico Integrado
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        # 1. Obtenemos la ubicación
-        lat_envio, lon_envio = 0.0, 0.0
-        try:
-            loc = get_geolocation()
-            if loc and isinstance(loc, dict) and 'coords' in loc:
-                lat_envio = loc['coords'].get('latitude', 0.0)
-                lon_envio = loc['coords'].get('longitude', 0.0)
-        except Exception:
-            pass
-
-        # 2. Determinamos el objetivo
-        obj_alerta = st.session_state.sup_servicio_actual if (st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state) else "CENTRAL BASE"
-        
-        # 3. Guardamos en la nube
+        if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
+            obj_alerta = st.session_state.sup_servicio_actual
+        else: obj_alerta = "CENTRAL BASE"
+            
         carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-        if escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos]):
-            st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
-        else:
-            st.warning("⚠️ ERROR AL ENVIAR S.O.S")
+        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+        st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
-    
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
@@ -426,7 +388,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if obj_seleccionado != "MOSTRAR TODO":
                 datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
                 centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
-                zoom_inicial = 14  # Hacemos zoom táctico sobre el objetivo
+                zoom_inicial = 14 # Hacemos zoom táctico sobre el objetivo
             else:
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
@@ -480,11 +442,11 @@ if st.session_state.rol_sel == "MONITOREO":
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
                 
                 if es_la_mas_cercana:
-                    color_icono = "#FF9800"  # Naranja para la comisaría más cercana
+                    color_icono = "#FF9800" # Naranja para la comisaría más cercana
                     tamano_fuente = "26px"
                     sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
                 else:
-                    color_icono = "#0000FF"  # Tu azul original para las comisarías comunes
+                    color_icono = "#0000FF" # Tu azul original para las comisarías comunes
                     tamano_fuente = "20px"
                     sufijo_tooltip = ""
 
@@ -564,27 +526,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
         
-        
         with t_vis_qr:
-            # --- BOTÓN DE PÁNICO TÁCTICO (CÍRCULO ROJO) ---
-            st.markdown("""
-                <div style="display: flex; justify-content: center; margin-top: 10px; margin-bottom: 20px;">
-                    <div class="boton-panico-tactico">
-            """, unsafe_allow_html=True)
-            
-            # El botón NO debe tener use_container_width=True para que respete el tamaño del CSS
-            if st.button("ACTIVAR\nPÁNICO", key="btn_panico_sup"):
-                obj_actual = st.session_state.get('sup_servicio_actual', 'SIN_OBJ_ASIGNADO')
-                if activar_panico_sistema(obj_actual):
-                    st.toast("🚨 Alerta enviada a Central", icon="🚨")
-            
-            st.markdown("</div></div>", unsafe_allow_html=True)
-
-            # --- SELECCIÓN DE SERVICIO Y MAPA ---
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
-
+            
             st.write("---")
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
