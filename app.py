@@ -71,6 +71,26 @@ def accionar_panico_sup():
         st.error(f"🚨 ALERTA ENVIADA A CENTRAL DESDE: {obj_alerta}")
     else:
         st.warning("⚠️ ERROR DE CONEXIÓN: No se pudo enviar la alerta. Verifique la red.")
+        # Pega esto con tus otras funciones al principio del archivo:
+
+def render_boton_panico_estilo_aion():
+    """Botón de Pánico Estilo Industrial Aion-Yaroku."""
+    st.markdown("""
+        <style>
+        .aion-panico-container { display: flex; justify-content: center; margin: 20px 0; }
+        div[data-testid="stButton"] > button#btn_aion_panico {
+            width: 180px; height: 180px; border-radius: 50%;
+            background: radial-gradient(circle, #ff0000 0%, #660000 100%);
+            color: white; font-weight: 900; font-size: 16px;
+            border: 4px solid #cc0000; box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
+            transition: all 0.2s ease;
+        }
+        div[data-testid="stButton"] > button#btn_aion_panico:active { transform: scale(0.95); background: #ff3333; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    if st.button("🚨\nANTIPÁNICO\nINMEDIATO", key="btn_aion_panico"):
+        accionar_panico_sup()
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
 def leer_matriz_nube(pestana):
@@ -532,6 +552,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
                 accionar_panico_sup()
             # ---------------------------------
+            # --- AQUÍ LLAMAS A LA FUNCIÓN QUE PUSISTE ARRIBA ---
+            st.markdown('<div class="aion-panico-container">', unsafe_allow_html=True)
+            render_boton_panico_estilo_aion()
+            st.markdown('</div>', unsafe_allow_html=True)
+            # ----------------------------------------------------
             st.write("---")
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
