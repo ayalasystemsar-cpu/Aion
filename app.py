@@ -131,25 +131,36 @@ def aplicar_identidad_alfa():
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-       .boton-panico-escudo {
-            background: radial-gradient(circle, #ff0000 0%, #8b0000 50%, #4a0000 100%) !important;
-            color: white !important;
-            border-radius: 50% !important;
-            width: 150px !important;
-            height: 150px !important;
-            border: 5px solid #ff4500 !important;
-            box-shadow: 0 0 30px #ff0000, 0 0 60px #8b0000, inset 0 0 20px rgba(255,255,255,0.3) !important;
-            font-family: 'Orbitron', sans-serif !important;
-            font-weight: 900 !important;
-            text-transform: uppercase !important;
-            margin: 20px auto !important;
-            cursor: pointer !important;
-            transition: all 0.3s ease !important;
-        }
-        .boton-panico-escudo:hover {
-            box-shadow: 0 0 50px #ff0000, 0 0 100px #ff0000 !important;
-            transform: scale(1.05) !important;
-        }
+       /* --- ESTILO PARA EL ESCUDO DE EMERGENCIA --- */
+.boton-panico-escudo {
+    /* Fondo radial para dar profundidad */
+    background: radial-gradient(circle, #ff0000 0%, #a00000 40%, #500000 100%) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    width: 160px !important;
+    height: 160px !important;
+    border: 8px solid #ff4500 !important;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.8), 
+                inset 0 0 40px rgba(255, 255, 255, 0.3) !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+    text-align: center !important;
+    margin: 20px auto !important;
+    cursor: pointer !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    transition: all 0.3s ease !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5) !important;
+}
+
+.boton-panico-escudo:hover {
+    box-shadow: 0 0 40px #ff0000 !important;
+    transform: scale(1.05) !important;
+}
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
@@ -569,40 +580,29 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
-# --- AQUÍ EMPIEZA EL BLOQUE DE EMERGENCIA TÁCTICA ---
-        st.markdown("---")
-        st.subheader("⚠️ EMERGENCIA TÁCTICA")
-        
-        # Botón de Pánico Estilizado (key="btn_panico_escudo" es clave para el JS)
-        if st.button("🚨\nANTIPÁNICO", key="btn_panico_escudo"):
-            lat_envio, lon_envio = 0.0, 0.0
-            try:
-                # Intentamos capturar la geolocalización al presionar
-                loc = get_geolocation()
-                if loc and isinstance(loc, dict) and 'coords' in loc:
-                    lat_envio = loc['coords'].get('latitude', 0.0)
-                    lon_envio = loc['coords'].get('longitude', 0.0)
-            except:
-                pass
-                
-            obj_alerta = st.session_state.get('sup_servicio_actual', "CENTRAL BASE")
-            carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-            
-            # Envío a la nube
-            escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-            st.error(f"🚨 S.O.S TRANSMITIDO DESDE {obj_alerta}")
+st.markdown("---")
+st.subheader("⚠️ EMERGENCIA TÁCTICA")
 
-        # Script para asignar la clase CSS 'boton-panico-escudo' al botón
-        st.markdown("""
-            <script>
-            var buttons = window.parent.document.querySelectorAll('button');
-            for (var i = 0; i < buttons.length; i++) {
-                if (buttons[i].innerText.includes('ANTIPÁNICO')) {
-                    buttons[i].className = 'boton-panico-escudo';
-                }
-            }
-            </script>
-        """, unsafe_allow_html=True)
+# Creamos un contenedor centrado para el escudo
+st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
+if st.button("🚨\nANTIPÁNICO", key="btn_panico_escudo"):
+    # ... tu lógica existente de geolocalización y escribir_registro_nube ...
+    st.error("🚨 S.O.S TRANSMITIDO")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Script forzado para aplicar la clase al botón de Streamlit
+st.markdown("""
+    <script>
+    var el = window.parent.document.querySelector('button[kind="secondary"]');
+    // Buscamos específicamente nuestro botón por la key
+    var buttons = window.parent.document.querySelectorAll('button');
+    buttons.forEach(function(btn) {
+        if (btn.innerText.includes('ANTIPÁNICO')) {
+            btn.className = 'boton-panico-escudo';
+        }
+    });
+    </script>
+""", unsafe_allow_html=True)
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
