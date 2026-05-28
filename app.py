@@ -498,7 +498,7 @@ if st.session_state.rol_sel == "MONITOREO":
             columnas_relevos = ["FECHA", "HORA", "OBJETIVO", "VIGILADOR_SALIENTE", "VIGILADOR_ENTRANTE", "SUPERVISOR_ASIGNADO", "ESTADO"]
             columnas_validas_rel = [c for c in columnas_relevos if c in df_padrero.columns]
         st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
-            else:
+        else:
                 st.info("No hay datos en la pestaña de relevos (Vigiladores).")
     
         with t_guardia:
