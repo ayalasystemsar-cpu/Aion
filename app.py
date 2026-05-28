@@ -145,12 +145,7 @@ def aplicar_identidad_alfa():
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
-        }
+        
         
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
@@ -551,37 +546,25 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
-            # --- BOTÓN DE PÁNICO CIRCULAR (SIN USE_CONTAINER_WIDTH) ---
             st.write("---")
-            st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
             
-            # NOTA: Quité 'use_container_width=True' para permitir la forma circular
-            if st.button("🚨\nANTIPÁNICO", key="btn_antipanico_circular"):
+            # 1. El botón (sin usar use_container_width=True)
+            if st.button("🚨 ANTIPÁNICO", key="btn_panico_final"):
                 accionar_panico_sup()
             
+            # 2. Inyección para aplicar el estilo al botón específico
             st.markdown('''
-                <style>
-                button[key="btn_antipanico_circular"] {
-                    border-radius: 50% !important;
-                    width: 140px !important;
-                    height: 140px !important;
-                    background: radial-gradient(circle at 30% 30%, #ff8080, #cc0000, #8b0000) !important;
-                    color: white !important;
-                    font-weight: 800 !important;
-                    border: 8px solid #4a4a4a !important;
-                    box-shadow: 0 10px 15px rgba(0,0,0,0.6), inset 0 3px 5px rgba(255,255,255,0.4) !important;
-                    transition: all 0.2s ease !important;
-                    display: flex !important;
-                    flex-direction: column !important;
-                    justify-content: center !important;
-                    align-items: center !important;
-                }
-                button[key="btn_antipanico_circular"]:active {
-                    transform: scale(0.92) !important;
-                }
-                </style>
+                <script>
+                    var buttons = window.parent.document.querySelectorAll('button');
+                    for (var i = 0; i < buttons.length; i++) {
+                        // Buscamos específicamente el botón que tiene nuestra clave
+                        if (buttons[i].getAttribute('key') === 'btn_panico_final') {
+                            buttons[i].className = "btn-antipanico";
+                        }
+                    }
+                </script>
             ''', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            
             st.write("---")
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
