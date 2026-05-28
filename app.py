@@ -71,36 +71,6 @@ def accionar_panico_sup():
         st.error(f"🚨 ALERTA ENVIADA A CENTRAL DESDE: {obj_alerta}")
     else:
         st.warning("⚠️ ERROR DE CONEXIÓN: No se pudo enviar la alerta. Verifique la red.")
-        # Pega esto con tus otras funciones al principio del archivo:
-def render_boton_panico_estilo_aion():
-    """Botón de Pánico Estilo Industrial Forzado."""
-    st.markdown("""
-        <style>
-        /* Forzamos el diseño ignorando los estilos predeterminados de Streamlit */
-        div[data-testid="stButton"] button {
-            border-radius: 50% !important;
-            width: 180px !important;
-            height: 180px !important;
-            background: radial-gradient(circle, #ff0000 0%, #660000 100%) !important;
-            color: white !important;
-            font-weight: 900 !important;
-            font-size: 16px !important;
-            border: 4px solid #cc0000 !important;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
-            transition: all 0.3s ease !important;
-            text-transform: uppercase;
-        }
-        div[data-testid="stButton"] button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 40px rgba(255, 0, 0, 0.8) !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Esto llama a la acción. 
-    # ¡IMPORTANTE!: Solo debe haber un botón en esta vista para que el CSS no se aplique a otros.
-    if st.button("🚨 ANTIPÁNICO\nINMEDIATO"):
-        accionar_panico_sup()
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
 def leer_matriz_nube(pestana):
@@ -562,11 +532,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
                 accionar_panico_sup()
             # ---------------------------------
-            # --- AQUÍ LLAMAS A LA FUNCIÓN QUE PUSISTE ARRIBA ---
-            st.markdown('<div class="aion-panico-container">', unsafe_allow_html=True)
-            render_boton_panico_estilo_aion()
-            st.markdown('</div>', unsafe_allow_html=True)
-            # ----------------------------------------------------
             st.write("---")
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
