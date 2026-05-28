@@ -547,7 +547,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
-            
+            # --- BOTÓN DE PÁNICO INTEGRADO ---
+        if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
+            accionar_panico_sup()
+        # ---------------------------------
             st.write("---")
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
