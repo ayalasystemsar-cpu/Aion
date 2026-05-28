@@ -56,7 +56,21 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
-
+def accionar_panico_sup():
+    # Obtenemos el objetivo actual
+    obj_alerta = st.session_state.get('sup_servicio_actual', "SIN ASIGNAR")
+    
+    # Preparamos la carga útil
+    carga = f"OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+    
+    # Ejecutamos el registro
+    exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga])
+    
+    # Feedback para el usuario
+    if exito:
+        st.error(f"🚨 ALERTA ENVIADA A CENTRAL DESDE: {obj_alerta}")
+    else:
+        st.warning("⚠️ ERROR DE CONEXIÓN: No se pudo enviar la alerta. Verifique la red.")
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
 def leer_matriz_nube(pestana):
@@ -510,6 +524,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
 
         st.subheader("Control de Unidad Móvil")
+        # --- BOTÓN DE PÁNICO INTEGRADO ---
+        if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
+            accionar_panico_sup()
+        # ---------------------------------
         st.markdown('<div class="panel-info">', unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
         with c1: st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
