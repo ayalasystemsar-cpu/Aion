@@ -524,10 +524,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
 
         st.subheader("Control de Unidad Móvil")
-        # --- BOTÓN DE PÁNICO INTEGRADO ---
-        if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
-            accionar_panico_sup()
-        # ---------------------------------
+    
         st.markdown('<div class="panel-info">', unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
         with c1: st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
@@ -535,7 +532,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with c3: st.number_input("Km Final:", value=0, key="sup_km_final")
         with c4: st.number_input("Combustible (Lts):", value=0.0, key="sup_combustible")
         st.markdown('</div>', unsafe_allow_html=True)
-        
+         # --- BOTÓN DE PÁNICO INTEGRADO ---
+        if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
+            accionar_panico_sup()
+        # ---------------------------------
         col_btn1, col_btn2 = st.columns([3, 1])
         with col_btn1: st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
         with col_btn2:
