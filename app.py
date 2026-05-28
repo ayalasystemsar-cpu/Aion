@@ -178,6 +178,7 @@ def aplicar_identidad_alfa():
             70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
             100% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
         }
+        /* ... tu código anterior ... */
         .marcador-panico {
             background-color: #FF0000;
             width: 14px; height: 14px;
@@ -186,9 +187,32 @@ def aplicar_identidad_alfa():
             animation: parpadeo-radar 1s infinite;
             display: inline-block;
         }
+
+        /* --- NUEVO BOTÓN ANTIPÁNICO --- */
+        .btn-antipanico {
+            background: radial-gradient(circle, #ff0000 0%, #8b0000 100%) !important;
+            color: white !important;
+            border-radius: 50% !important;
+            width: 200px !important;
+            height: 200px !important;
+            border: 5px solid #ff4d4d !important;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.7) !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-size: 18px !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            margin: 20px auto !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            cursor: pointer !important;
+        }
         </style>
         """, unsafe_allow_html=True
     )
+
+      
+    
 
 aplicar_identidad_alfa()
 
