@@ -129,19 +129,31 @@ def aplicar_identidad_alfa():
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         
-        /* --- NUEVO ESTILO PARA EL BOTÓN DE PÁNICO --- */
-        .boton-panico-tactico > button { 
+                /* --- ESTILO FORZADO PARA BOTÓN CIRCULAR --- */
+        div.boton-panico-tactico > button { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important; 
             border-radius: 50% !important; 
             width: 105px !important; 
             height: 105px !important; 
-            border: 3px solid #333 !important; 
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
+            border: 4px solid #FF0000 !important; 
+            box-shadow: 0 0 20px #FF0000 !important; 
             font-family: 'Orbitron', sans-serif !important; 
-            font-size: 11px !important; 
+            font-size: 12px !important; 
             font-weight: bold !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            margin: 0 auto !important;
         }
+        
+        /* Efecto de presionado */
+        div.boton-panico-tactico > button:active {
+            transform: scale(0.95);
+        }
+
+        
 
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
         .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
@@ -552,17 +564,21 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
         
-        with t_vis_qr:
-            # --- BOTÓN DE PÁNICO TÁCTICO CON CLASE ESPECIAL ---
-            st.markdown('<div style="display: flex; justify-content: center; margin-bottom: 20px;" class="boton-panico-tactico">', unsafe_allow_html=True)
+         with t_vis_qr:
+                        # --- BOTÓN DE PÁNICO TÁCTICO (CÍRCULO ROJO) ---
+            st.markdown("""
+                <div style="display: flex; justify-content: center; margin-top: 10px; margin-bottom: 20px;">
+                    <div class="boton-panico-tactico">
+            """, unsafe_allow_html=True)
             
+            # El botón NO debe tener use_container_width=True para que respete el tamaño del CSS
             if st.button("ACTIVAR\nPÁNICO", key="btn_panico_sup"):
                 obj_actual = st.session_state.get('sup_servicio_actual', 'SIN_OBJ_ASIGNADO')
                 if activar_panico_sistema(obj_actual):
                     st.toast("🚨 Alerta enviada a Central", icon="🚨")
             
-            st.markdown('</div>', unsafe_allow_html=True)
-            
+            st.markdown("</div></div>", unsafe_allow_html=True)
+
             # --- SELECCIÓN DE SERVICIO Y MAPA ---
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
