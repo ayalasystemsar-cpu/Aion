@@ -551,70 +551,45 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
-            # --- BOTÓN DE PÁNICO ESTILIZADO ---
+            # --- BOTÓN DE PÁNICO CIRCULAR ---
             st.write("---")
-            st.markdown('<div style="text-align: center;">', unsafe_allow_html=True)
+            st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
             
-            if st.button("🚨 ANTIPÁNICO", key="btn_antipanico_ejecutor", use_container_width=True):
+            if st.button("🚨\nPANIC", key="btn_antipanico_circular"):
                 accionar_panico_sup()
             
             st.markdown('''
                 <style>
-                div[data-testid="stVerticalBlock"] button[key="btn_antipanico_ejecutor"] {
-                    background-color: #ff4b4b !important;
+                /* Botón circular */
+                div[data-testid="stVerticalBlock"] button[key="btn_antipanico_circular"] {
+                    background-color: #ff0000 !important;
                     color: white !important;
+                    border-radius: 50% !important;
+                    width: 120px !important;
+                    height: 120px !important;
+                    font-size: 16px !important;
                     font-weight: bold !important;
-                    border: 2px solid #ff0000 !important;
+                    border: 6px solid #8b0000 !important;
+                    box-shadow: 0 4px 15px rgba(255,0,0,0.5) !important;
+                    transition: transform 0.2s !important;
+                }
+                /* Efecto hover */
+                div[data-testid="stVerticalBlock"] button[key="btn_antipanico_circular"]:hover {
+                    transform: scale(1.05) !important;
+                    background-color: #ff4545 !important;
                 }
                 </style>
             ''', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
+            st.write("---")
             # ---------------------------------
             
-            st.write("---")
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
                 m_visor = folium.Map(location=[df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
                 for _, r in df_mapa_sup.iterrows():
                     folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
                 st_folium(m_visor, width="100%", height=400, key=f"map_sup_{sup_activo_normalizado}")
-         
-
-        with t_car_tac:
-            novedad_sup = st.text_area("Novedad / Registro Operativo:")
-            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
-                st.success("✅ Cargado")
-
-        with t_com_sup:
-            with st.form(key="form_chat_supervisor", clear_on_submit=True):
-                txt_mensaje_sup = st.text_input("REPORTE RÁPIDO PARA MONITOREO:")
-                prioridad_sup = st.selectbox("RELEVANCIA:", ["VERDE", "ROJA"])
-                if st.form_submit_button("ENVIAR MENSAJE") and txt_mensaje_sup.strip():
-                    escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_sup.strip().upper(), prioridad_sup, "MONITOREO", "REPORTE CAMPO"])
-                    st.rerun()
-            df_chats_sup = leer_matriz_nube("CHATS")
-            if not df_chats_sup.empty:
-                for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
-                    st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-
-        with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
-            df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
-            if not df_v_total.empty:
-                df_v_total.columns = df_v_total.columns.str.strip().str.upper()
-                
-                def fila_pertenece_a_supervisor(row, sup_name):
-                    for cell_val in row.values:
-                        if str(cell_val).strip().upper() == sup_name: return True
-                    return False
-                
-                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
-                df_v_filtrado = df_v_total[mask_sup]
-                if not df_v_filtrado.empty:
-                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
-                else:
-                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
 
