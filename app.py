@@ -593,10 +593,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
-# --- BOTÓN DE PÁNICO INTEGRADO ---
-        if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
-            accionar_panico_sup()
-        # ---------------------------------
+
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
