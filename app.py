@@ -547,15 +547,32 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
         
-        with t_vis_qr:
+       with t_vis_qr:
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
-           # --- AQUÍ VA EL BOTÓN DE PÁNICO ---
-            st.write("---") # Una línea divisoria para separar visualmente
-            if st.button("🚨 ACTIVAR PÁNICO", use_container_width=True):
+            
+            # --- BOTÓN DE PÁNICO ESTILIZADO ---
+            st.write("---")
+            st.markdown('<div style="text-align: center;">', unsafe_allow_html=True)
+            
+            if st.button("🚨 ANTIPÁNICO", key="btn_antipanico_ejecutor", use_container_width=True):
                 accionar_panico_sup()
+            
+            # Inyección de estilo para que el botón sea rojo
+            st.markdown('''
+                <style>
+                div[data-testid="stVerticalBlock"] button[key="btn_antipanico_ejecutor"] {
+                    background-color: #ff4b4b !important;
+                    color: white !important;
+                    font-weight: bold !important;
+                    border: 2px solid #ff0000 !important;
+                }
+                </style>
+            ''', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             # ---------------------------------
+            
             st.write("---")
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
