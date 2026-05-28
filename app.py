@@ -497,36 +497,36 @@ if st.session_state.rol_sel == "MONITOREO":
             df_padrero.columns = df_padrero.columns.str.strip().str.upper()
             columnas_relevos = ["FECHA", "HORA", "OBJETIVO", "VIGILADOR_SALIENTE", "VIGILADOR_ENTRANTE", "SUPERVISOR_ASIGNADO", "ESTADO"]
             columnas_validas_rel = [c for c in columnas_relevos if c in df_padrero.columns]
-            st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
-
-    with t_guardia:
-        st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
-        df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty: 
-            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
-
-# Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
-    elif st.session_state.rol_sel == "SUPERVISOR":
-if st.session_state.sup_autenticado:
-    sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-    df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-
-    st.subheader("Control de Unidad Móvil")
-    st.markdown('<div class="panel-info">', unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
-    with c2: st.number_input("Km Inicial:", value=0, key="sup_km_inicial")
-    with c3: st.number_input("Km Final:", value=0, key="sup_km_final")
-    with c4: st.number_input("Combustible (Lts):", value=0.0, key="sup_combustible")
-    st.markdown('</div>', unsafe_allow_html=True)
+                st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
+            else:
+                st.info("No hay datos en la pestaña de relevos (Vigiladores).")
     
-    col_btn1, col_btn2 = st.columns([3, 1])
-    with col_btn1: st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
-    with col_btn2:
-        if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
+        with t_guardia:
+            st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
+            df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
+            if not df_nov_g.empty: 
+                df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
+                st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
+    
+    # Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
+        elif st.session_state.rol_sel == "SUPERVISOR":
+    if st.session_state.sup_autenticado:
+        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+    
+        st.subheader("Control de Unidad Móvil")
+        st.markdown('<div class="panel-info">', unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
+        with c2: st.number_input("Km Inicial:", value=0, key="sup_km_inicial")
+        with c3: st.number_input("Km Final:", value=0, key="sup_km_final")
+        with c4: st.number_input("Combustible (Lts):", value=0.0, key="sup_combustible")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        col_btn1, col_btn2 = st.columns([3, 1])
+        with col_btn1: st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
+        with col_btn2:
+            if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
 
     t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
     
