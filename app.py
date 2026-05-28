@@ -131,36 +131,13 @@ def aplicar_identidad_alfa():
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-       /* --- ESTILO PARA EL ESCUDO DE EMERGENCIA --- */
-.boton-panico-escudo {
-    /* Fondo radial para dar profundidad */
-    background: radial-gradient(circle, #ff0000 0%, #a00000 40%, #500000 100%) !important;
-    color: white !important;
-    border-radius: 50% !important;
-    width: 160px !important;
-    height: 160px !important;
-    border: 8px solid #ff4500 !important;
-    box-shadow: 0 0 20px rgba(255, 0, 0, 0.8), 
-                inset 0 0 40px rgba(255, 255, 255, 0.3) !important;
-    font-family: 'Orbitron', sans-serif !important;
-    font-size: 16px !important;
-    font-weight: 900 !important;
-    text-transform: uppercase !important;
-    text-align: center !important;
-    margin: 20px auto !important;
-    cursor: pointer !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    transition: all 0.3s ease !important;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5) !important;
-}
-
-.boton-panico-escudo:hover {
-    box-shadow: 0 0 40px #ff0000 !important;
-    transform: scale(1.05) !important;
-}
+        .stButton > button[kind="primary"] { 
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
+            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
+            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
+        }
+        
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
@@ -271,7 +248,25 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-   
+    st.write("---")
+    lat_envio, lon_envio = 0.0, 0.0
+    try:
+        loc = get_geolocation()
+        if loc and isinstance(loc, dict) and 'coords' in loc:
+            lat_envio = loc['coords'].get('latitude', 0.0)
+            lon_envio = loc['coords'].get('longitude', 0.0)
+    except Exception:
+        pass
+
+    if st.button("ACTIVAR\nPÁNICO", type="primary"):
+        if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
+            obj_alerta = st.session_state.sup_servicio_actual
+        else: obj_alerta = "CENTRAL BASE"
+            
+        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+        st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
+
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
@@ -497,20 +492,18 @@ if st.session_state.rol_sel == "MONITOREO":
             df_padrero.columns = df_padrero.columns.str.strip().str.upper()
             columnas_relevos = ["FECHA", "HORA", "OBJETIVO", "VIGILADOR_SALIENTE", "VIGILADOR_ENTRANTE", "SUPERVISOR_ASIGNADO", "ESTADO"]
             columnas_validas_rel = [c for c in columnas_relevos if c in df_padrero.columns]
-        st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
+            st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
         else:
-                st.info("No hay datos en la pestaña de relevos (Vigiladores).")
-    
-        with t_guardia:
-            st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
-            df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-            if not df_nov_g.empty: 
-                df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-                st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
-    
-    # Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
-    # ... (CÓDIGO ANTERIOR: FIN DE LA PESTAÑA T_GUARDIA DENTRO DE MONITOREO)
+            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
+    with t_guardia:
+        st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
+        df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
+        if not df_nov_g.empty: 
+            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
+            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
+
+# Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -558,7 +551,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if st.form_submit_button("ENVIAR MENSAJE") and txt_mensaje_sup.strip():
                     escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_sup.strip().upper(), prioridad_sup, "MONITOREO", "REPORTE CAMPO"])
                     st.rerun()
-            
             df_chats_sup = leer_matriz_nube("CHATS")
             if not df_chats_sup.empty:
                 for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
@@ -569,29 +561,27 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
+                
                 def fila_pertenece_a_supervisor(row, sup_name):
                     for cell_val in row.values:
                         if str(cell_val).strip().upper() == sup_name: return True
                     return False
+                
                 mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
                 df_v_filtrado = df_v_total[mask_sup]
                 if not df_v_filtrado.empty:
                     st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
                 else:
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
-        
-        st.markdown("---")
-        st.subheader("⚠️ EMERGENCIA TÁCTICA")
-        st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
-        if st.button("🚨\nANTIPÁNICO", key="btn_panico_escudo"):
-            st.error("🚨 S.O.S TRANSMITIDO")
-        st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.info("No hay datos registrados en Novedades Guardia.")
 
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
+    
     tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
-
+    
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
@@ -601,9 +591,24 @@ elif st.session_state.rol_sel == "VIGILADOR":
             v_tipo_marcacion = st.selectbox("TIPO DE MARCACIÓN:", ["INGRESO", "EGRESO"], key="tipo_marc_vig")
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
             btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
+            
             if btn_fichar:
-                st.success("✅ Procesando...")
-
+                if v_apellido and img_facial and v_dni:
+                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
+                    sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
+                    
+                    fecha_hora_arg = obtener_hora_argentina()
+                    fecha_hoy = fecha_hora_arg.split(" ")[0]
+                    hora_hoy = fecha_hora_arg.split(" ")[1]
+                    
+                    datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
+                    exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
+                    
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable])
+                    if exito_pres: st.success(f"🔒 BIOMETRÍA REGISTRADA.")
+                    else: st.error("❌ ERROR DE RED")
+                else: st.error("❌ ERROR: Complete todos los campos.")
+                    
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
@@ -616,14 +621,15 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 if vig_saliente and vig_entrante:
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
+                    
                     fecha_hora_arg = obtener_hora_argentina()
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     
                     datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
                     
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
                     if exito_relevo: st.success(f"⚡ RELEVO SANCIONADO.")
                     else: st.error("❌ ERROR DE RED")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -647,7 +653,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
         st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
-
+    
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
@@ -672,7 +678,7 @@ elif st.session_state.rol_sel == "GERENCIA":
     m2.metric("Nivel de Cobertura", "47/93")
     m3.metric("Auditorías Físicas (QRs)", "2")
     m4.metric("Desgaste Flota (Km)", "4954 Km")
-
+    
     t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     with t_com_est:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
