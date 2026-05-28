@@ -551,38 +551,51 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
-            # --- BOTÓN DE PÁNICO CIRCULAR ---
+           # --- BOTÓN DE PÁNICO CIRCULAR ESTILO EMERGENCIA ---
             st.write("---")
             st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
             
-            if st.button("🚨\nPANIC", key="btn_antipanico_circular"):
+            if st.button("🚨 ANTIPÁNICO", key="btn_antipanico_circular"):
                 accionar_panico_sup()
             
             st.markdown('''
                 <style>
-                /* Botón circular */
+                /* Botón con estilo de componente físico de emergencia */
                 div[data-testid="stVerticalBlock"] button[key="btn_antipanico_circular"] {
-                    background-color: #ff0000 !important;
-                    color: white !important;
+                    /* Forma circular */
                     border-radius: 50% !important;
-                    width: 120px !important;
-                    height: 120px !important;
+                    width: 150px !important;
+                    height: 150px !important;
+                    
+                    /* Gradiente rojo para efecto de superficie curva */
+                    background: radial-gradient(circle at 30% 30%, #ff8080, #cc0000, #8b0000) !important;
+                    
+                    /* Tipografía y color */
+                    color: white !important;
                     font-size: 16px !important;
-                    font-weight: bold !important;
-                    border: 6px solid #8b0000 !important;
-                    box-shadow: 0 4px 15px rgba(255,0,0,0.5) !important;
-                    transition: transform 0.2s !important;
+                    font-weight: 800 !important;
+                    text-transform: uppercase !important;
+                    
+                    /* Borde metálico exterior */
+                    border: 8px solid #4a4a4a !important;
+                    
+                    /* Sombra para dar profundidad física */
+                    box-shadow: 0 10px 15px rgba(0,0,0,0.6), inset 0 3px 5px rgba(255,255,255,0.4) !important;
+                    
+                    /* Transición suave */
+                    transition: all 0.2s ease !important;
                 }
-                /* Efecto hover */
-                div[data-testid="stVerticalBlock"] button[key="btn_antipanico_circular"]:hover {
-                    transform: scale(1.05) !important;
-                    background-color: #ff4545 !important;
+                
+                /* Efecto de presionado (hundido) */
+                div[data-testid="stVerticalBlock"] button[key="btn_antipanico_circular"]:active {
+                    transform: scale(0.92) !important;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.4), inset 0 2px 10px rgba(0,0,0,0.6) !important;
+                    background: #8b0000 !important;
                 }
                 </style>
             ''', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
             st.write("---")
-            # ---------------------------------
             
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
