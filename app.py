@@ -56,6 +56,19 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
+def activar_panico_sistema(origen_alerta):
+    lat_envio, lon_envio = 0.0, 0.0
+    try:
+        loc = get_geolocation()
+        if loc and isinstance(loc, dict) and 'coords' in loc:
+            lat_envio = loc['coords'].get('latitude', 0.0)
+            lon_envio = loc['coords'].get('longitude', 0.0)
+    except Exception:
+        pass
+        
+    carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{origen_alerta}|SUP:{st.session_state.user_sel}"
+    exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+    return exito
 
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
@@ -248,25 +261,31 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-    st.write("---")
-    lat_envio, lon_envio = 0.0, 0.0
-    try:
-        loc = get_geolocation()
-        if loc and isinstance(loc, dict) and 'coords' in loc:
-            lat_envio = loc['coords'].get('latitude', 0.0)
-            lon_envio = loc['coords'].get('longitude', 0.0)
-    except Exception:
-        pass
+        st.write("---")
 
+    # Botón Pánico Integrado
     if st.button("ACTIVAR\nPÁNICO", type="primary"):
-        if st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state:
-            obj_alerta = st.session_state.sup_servicio_actual
-        else: obj_alerta = "CENTRAL BASE"
-            
-        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-        escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-        st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
+        # 1. Obtenemos la ubicación
+        lat_envio, lon_envio = 0.0, 0.0
+        try:
+            loc = get_geolocation()
+            if loc and isinstance(loc, dict) and 'coords' in loc:
+                lat_envio = loc['coords'].get('latitude', 0.0)
+                lon_envio = loc['coords'].get('longitude', 0.0)
+        except Exception:
+            pass
 
+        # 2. Determinamos el objetivo
+        obj_alerta = st.session_state.sup_servicio_actual if (st.session_state.rol_sel == "SUPERVISOR" and 'sup_servicio_actual' in st.session_state) else "CENTRAL BASE"
+        
+        # 3. Guardamos en la nube
+        carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+        if escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos]):
+            st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
+        else:
+            st.warning("⚠️ ERROR AL ENVIAR S.O.S")
+
+    
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
@@ -526,6 +545,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
         
         with t_vis_qr:
+            # --- BOTÓN DE PÁNICO TÁCTICO PARA SUPERVISOR ---
+            st.markdown('<div class="message-box-red" style="text-align:center;">', unsafe_allow_html=True)
+            if st.button("🚨 ACTIVAR PÁNICO TÁCTICO (S.O.S)", use_container_width=True):
+                obj_actual = st.session_state.get('sup_servicio_actual', 'SIN_OBJ_ASIGNADO')
+                if activar_panico_sistema(obj_actual):
+                    st.toast("🚨 Alerta enviada a Central", icon="🚨")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # --- SELECCIÓN DE SERVICIO Y MAPA ---
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
