@@ -551,52 +551,41 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
             
-           # --- BOTÓN DE PÁNICO CIRCULAR ESTILO EMERGENCIA ---
+         with t_vis_qr:
+            # ... tus otros elementos ...
+            
+            # --- BOTÓN DE PÁNICO CIRCULAR (SIN USE_CONTAINER_WIDTH) ---
             st.write("---")
             st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
             
-            if st.button("🚨 ANTIPÁNICO", key="btn_antipanico_circular"):
+            # NOTA: Quité 'use_container_width=True' para permitir la forma circular
+            if st.button("🚨\nANTIPÁNICO", key="btn_antipanico_circular"):
                 accionar_panico_sup()
             
             st.markdown('''
                 <style>
-                /* Botón con estilo de componente físico de emergencia */
-                div[data-testid="stVerticalBlock"] button[key="btn_antipanico_circular"] {
-                    /* Forma circular */
+                button[key="btn_antipanico_circular"] {
                     border-radius: 50% !important;
-                    width: 150px !important;
-                    height: 150px !important;
-                    
-                    /* Gradiente rojo para efecto de superficie curva */
+                    width: 140px !important;
+                    height: 140px !important;
                     background: radial-gradient(circle at 30% 30%, #ff8080, #cc0000, #8b0000) !important;
-                    
-                    /* Tipografía y color */
                     color: white !important;
-                    font-size: 16px !important;
                     font-weight: 800 !important;
-                    text-transform: uppercase !important;
-                    
-                    /* Borde metálico exterior */
                     border: 8px solid #4a4a4a !important;
-                    
-                    /* Sombra para dar profundidad física */
                     box-shadow: 0 10px 15px rgba(0,0,0,0.6), inset 0 3px 5px rgba(255,255,255,0.4) !important;
-                    
-                    /* Transición suave */
                     transition: all 0.2s ease !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    justify-content: center !important;
+                    align-items: center !important;
                 }
-                
-                /* Efecto de presionado (hundido) */
-                div[data-testid="stVerticalBlock"] button[key="btn_antipanico_circular"]:active {
+                button[key="btn_antipanico_circular"]:active {
                     transform: scale(0.92) !important;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.4), inset 0 2px 10px rgba(0,0,0,0.6) !important;
-                    background: #8b0000 !important;
                 }
                 </style>
             ''', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
             st.write("---")
-            
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
                 m_visor = folium.Map(location=[df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
