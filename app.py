@@ -564,6 +564,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
         
+
+            
          with t_vis_qr:
                         # --- BOTÓN DE PÁNICO TÁCTICO (CÍRCULO ROJO) ---
             st.markdown("""
@@ -577,9 +579,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if activar_panico_sistema(obj_actual):
                     st.toast("🚨 Alerta enviada a Central", icon="🚨")
             
-            st.markdown("</div></div>", unsafe_allow_html=True)
-
-            # --- SELECCIÓN DE SERVICIO Y MAPA ---
+            st.markdown("</div></div>", unsafe_allow_html=True) --- SELECCIÓN DE SERVICIO Y MAPA ---
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
             st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
