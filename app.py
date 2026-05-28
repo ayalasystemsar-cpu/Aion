@@ -56,22 +56,37 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
+# --- LÓGICA DE ALERTA ---
 def accionar_panico_sup():
-    # Obtenemos el objetivo actual
     obj_alerta = st.session_state.get('sup_servicio_actual', "SIN ASIGNAR")
-    
-    # Preparamos la carga útil
     carga = f"OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-    
-    # Ejecutamos el registro
     exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga])
     
-    # Feedback para el usuario
     if exito:
         st.error(f"🚨 ALERTA ENVIADA A CENTRAL DESDE: {obj_alerta}")
     else:
-        st.warning("⚠️ ERROR DE CONEXIÓN: No se pudo enviar la alerta. Verifique la red.")
-# --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
+        st.warning("⚠️ ERROR DE CONEXIÓN: No se pudo enviar la alerta.")
+
+# --- INTERFAZ DEL BOTÓN (FUERA de la función anterior) ---
+def render_boton_panico_estilo_aion():
+    """Botón de Pánico Estilo Industrial (Aion-Yaroku)."""
+    btn_html = """
+    <div style="display: flex; justify-content: center; align-items: center; margin: 30px;">
+        <button id="btn-panico" onclick="window.location.reload();" 
+            style="width: 180px; height: 180px; border-radius: 50%; 
+            background: radial-gradient(circle, #ff0000 0%, #8b0000 100%);
+            color: white; font-size: 16px; font-weight: bold; border: 6px solid #4a0000;
+            box-shadow: 0 0 40px #ff0000; cursor: pointer; text-transform: uppercase;">
+            🚨 ANTIPÁNICO<br>INMEDIATO
+        </button>
+    </div>
+    """
+    st.components.v1.html(btn_html, height=250)
+    
+    # Esta parte detecta si hubo un clic (usando un truco de parámetros)
+    # Para que funcione sin complicaciones:
+    if st.button("CONFIRMAR PÁNICO"):
+        accionar_panico_sup()
 @st.cache_data(ttl=60) 
 def leer_matriz_nube(pestana):
     gc = conectar_google()
