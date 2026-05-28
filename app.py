@@ -565,7 +565,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
         
         
-                    with t_vis_qr:
+        with t_vis_qr:
             # --- BOTÓN DE PÁNICO TÁCTICO (CÍRCULO ROJO) ---
             st.markdown("""
                 <div style="display: flex; justify-content: center; margin-top: 10px; margin-bottom: 20px;">
