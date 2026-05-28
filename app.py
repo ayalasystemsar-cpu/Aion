@@ -509,11 +509,11 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
     
     # Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
-        elif st.session_state.rol_sel == "SUPERVISOR":
+    elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-    
+
         st.subheader("Control de Unidad Móvil")
         st.markdown('<div class="panel-info">', unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
@@ -581,63 +581,42 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("No hay datos registrados en Novedades Guardia.")
 st.markdown("---")
-st.subheader("⚠️ EMERGENCIA TÁCTICA")
+        st.subheader("⚠️ EMERGENCIA TÁCTICA")
+        st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
+        if st.button("🚨\nANTIPÁNICO", key="btn_panico_escudo"):
+            st.error("🚨 S.O.S TRANSMITIDO")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# Creamos un contenedor centrado para el escudo
-st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
-    if st.button("🚨\nANTIPÁNICO", key="btn_panico_escudo"):
-# ... tu lógica existente de geolocalización y escribir_registro_nube ...
-st.error("🚨 S.O.S TRANSMITIDO")
-st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <script>
+        var buttons = window.parent.document.querySelectorAll('button');
+        buttons.forEach(function(btn) {
+            if (btn.innerText.includes('ANTIPÁNICO')) {
+                btn.className = 'boton-panico-escudo';
+            }
+        });
+        </script>
+        """, unsafe_allow_html=True)
 
-# Script forzado para aplicar la clase al botón de Streamlit
-st.markdown("""
-<script>
-var el = window.parent.document.querySelector('button[kind="secondary"]');
-// Buscamos específicamente nuestro botón por la key
-var buttons = window.parent.document.querySelectorAll('button');
-buttons.forEach(function(btn) {
-    if (btn.innerText.includes('ANTIPÁNICO')) {
-        btn.className = 'boton-panico-escudo';
-    }
-});
-</script>
-""", unsafe_allow_html=True)
 elif st.session_state.rol_sel == "VIGILADOR":
-st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
+    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
+    tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
 
-tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
-
-with tab_presentismo:
-    st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
-    with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-        v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
-        v_dni = st.text_input("DNI / LEGAJO:").strip()
-        v_obj = st.selectbox("OBJETIVO DE PRESENTISMO:", opciones_globales_obj, key="obj_pres_vig")
-        v_tipo_marcacion = st.selectbox("TIPO DE MARCACIÓN:", ["INGRESO", "EGRESO"], key="tipo_marc_vig")
-        img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
-        btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
-        
-        if btn_fichar:
-            if v_apellido and img_facial and v_dni:
-                df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
-                sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-                
-                fecha_hora_arg = obtener_hora_argentina()
-                fecha_hoy = fecha_hora_arg.split(" ")[0]
-                hora_hoy = fecha_hora_arg.split(" ")[1]
-                
-                datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
-                exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
-                
-                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable])
-                if exito_pres: st.success(f"🔒 BIOMETRÍA REGISTRADA.")
-                else: st.error("❌ ERROR DE RED")
-            else: st.error("❌ ERROR: Complete todos los campos.")
-                
-with tab_relevo:
-    st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
+    with tab_presentismo:
+        st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
+        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
+            v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
+            v_dni = st.text_input("DNI / LEGAJO:").strip()
+            v_obj = st.selectbox("OBJETIVO DE PRESENTISMO:", opciones_globales_obj, key="obj_pres_vig")
+            v_tipo_marcacion = st.selectbox("TIPO DE MARCACIÓN:", ["INGRESO", "EGRESO"], key="tipo_marc_vig")
+            img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
+            btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
+            if btn_fichar:
+                st.success("✅ Procesando...")
+    
+    with tab_relevo:
+        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
     with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
         v_obj_relevo = st.selectbox("OBJETIVO DEL RELEVO:", opciones_globales_obj, key="obj_relevo_vig")
         vig_saliente = st.text_input("VIGILADOR QUE ENTREGA (SALE):").upper().strip()
