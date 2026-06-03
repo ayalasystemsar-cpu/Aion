@@ -55,6 +55,31 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
+        
+@st.cache_resource
+def obtener_grafo_zona(lat, lon):
+    try:
+        # Aumentamos el radio a 5000m para asegurar cobertura entre puntos
+        return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
+    except:
+        return None
+
+def calcular_ruta_real(orig, dest):
+    # Intentamos obtener el grafo basado en el punto medio
+    mid_lat = (orig[0] + dest[0]) / 2
+    mid_lon = (orig[1] + dest[1]) / 2
+    G = obtener_grafo_zona(mid_lat, mid_lon)
+    
+    if G is None: 
+        return [orig, dest] # Si falla, devuelve línea recta como seguridad
+        
+    try:
+        orig_node = ox.distance.nearest_nodes(G, X=orig[1], Y=orig[0])
+        dest_node = ox.distance.nearest_nodes(G, X=dest[1], Y=dest[0])
+        ruta = nx.shortest_path(G, orig_node, dest_node, weight='length')
+        return [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta]
+    except:
+        return [orig, dest]
 
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
