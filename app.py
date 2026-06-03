@@ -64,9 +64,6 @@ def obtener_grafo_zona(lat_centro, lon_centro):
     # Asegúrate de que esta línea tenga exactamente 4 espacios de sangría
     return ox.graph_from_point((lat_centro, lon_centro), dist=5000, network_type='drive')
 
-        
-
-
 def calcular_ruta_folium(orig, dest):
     try:
         # Obtener el grafo (esto se cachea)
