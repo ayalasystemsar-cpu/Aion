@@ -8,23 +8,17 @@ from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
 import osmnx as ox
 import networkx as nx
-
-# --- IMPORTACIONES CRÍTICAS DE MAPAS ---
 import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
 
-# Configuración de página OLED
-st.set_page_config(
-    page_title="AION-YAROKU | CORE",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="AION-YAROKU | CORE", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+
+# --- FUNCIONES ---
 
 def conectar_google():
     try:
@@ -34,21 +28,9 @@ def conectar_google():
     except: 
         return None
 
-# --- 3. FUNCIONES DE LÓGICA Y DATOS ---
-
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
-def actualizar_celda(pestana, fila, columna, valor):
-    try:
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.update_acell(f"{columna}{fila}", valor)
-            return True
-    except: 
-        return False
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -58,28 +40,20 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja.append_row(datos_fila)
             return True
     except: 
-        return 
-        @st.cache_resource
+        return False
+
+@st.cache_resource
 def obtener_grafo_zona(lat_centro, lon_centro):
-    # Asegúrate de que esta línea tenga exactamente 4 espacios de sangría
     return ox.graph_from_point((lat_centro, lon_centro), dist=5000, network_type='drive')
 
 def calcular_ruta_folium(orig, dest):
     try:
-        # Obtener el grafo (esto se cachea)
         G = obtener_grafo_zona(orig[0], orig[1])
-
-        # Encontrar los nodos más cercanos a las coordenadas
-        orig_node = ox.distance.nearest_nodes(G, orig[1], orig[0])
-        dest_node = ox.distance.nearest_nodes(G, dest[1], dest[0])
-
-        # Calcular la ruta más corta
+        orig_node = ox.distance.nearest_nodes(G, X=orig[1], Y=orig[0])
+        dest_node = ox.distance.nearest_nodes(G, X=dest[1], Y=dest[0])
         ruta = nx.shortest_path(G, orig_node, dest_node, weight='length')
-
-        # Convertir a formato de lista de coordenadas para folium
         return [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta]
     except Exception as e:
-        # Si falla (ej. sin conexión), devuelve línea recta
         return [orig, dest]
 
 
