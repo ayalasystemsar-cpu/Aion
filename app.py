@@ -404,23 +404,27 @@ if st.session_state.rol_sel == "MONITOREO":
             m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
             
             # --- INTEGRACIÓN: Trazado de ruta real ---
-            if obj_seleccionado != "MOSTRAR TODO" and comisaria_cercana_name:
-                datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
-                datos_com = df_comisarias[df_comisarias['COMISARIA'] == comisaria_cercana_name].iloc[0]
-                
-                ruta_real = calcular_ruta_folium(
-                    (datos_obj['LATITUD'], datos_obj['LONGITUD']), 
-                    (datos_com['LATITUD'], datos_com['LONGITUD'])
-                )
-                
-                folium.PolyLine(
-                    locations=ruta_real, 
-                    color="#FF0000", 
-                    weight=6, 
-                    opacity=0.8,
-                    tooltip="Ruta de respuesta táctica"
-                ).add_to(m_mon)
+                    # --- AQUÍ ESTÁ EL BLOQUE DE LA RUTA ---
+        if obj_seleccionado != "MOSTRAR TODO" and comisaria_cercana_name:
+            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+            datos_com = df_comisarias[df_comisarias['COMISARIA'] == comisaria_cercana_name].iloc[0]
             
+            punto_orig = (datos_obj['LATITUD'], datos_obj['LONGITUD'])
+            punto_dest = (datos_com['LATITUD'], datos_com['LONGITUD'])
+            
+            # Calculamos la ruta real usando tu función
+            ruta_real = calcular_ruta_folium(punto_orig, punto_dest)
+            
+            # --- CAMBIOS AQUÍ: Color verde claro y trazado ---
+            folium.PolyLine(
+                locations=ruta_real, 
+                color="#32CD32",       # Color Verde Claro (LimeGreen)
+                weight=6,              # Grosor de la línea
+                opacity=0.9,           # Opacidad alta
+                tooltip="Ruta de respuesta táctica"
+            ).add_to(m_mon)
+
+                
             # Marcadores de objetivos
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
