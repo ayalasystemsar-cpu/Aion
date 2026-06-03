@@ -58,13 +58,13 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja.append_row(datos_fila)
             return True
     except: 
-        return False
-
-    @st.cache_resource
-    def obtener_grafo_zona(lat_centro, lon_centro):
-    # Aumenta el dist a 5000 (5km) para asegurar que el grafo contenga 
-    # tanto el objetivo como la comisaría y las calles intermedias.
+        return 
+        @st.cache_resource
+def obtener_grafo_zona(lat_centro, lon_centro):
+    # Asegúrate de que esta línea tenga exactamente 4 espacios de sangría
     return ox.graph_from_point((lat_centro, lon_centro), dist=5000, network_type='drive')
+
+        
 
 
 def calcular_ruta_folium(orig, dest):
