@@ -351,7 +351,7 @@ if st.session_state.rol_sel == "MONITOREO":
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
             obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda)
         
-        # Lógica para encontrar la comisaría más cercana
+      # Lógica para encontrar la comisaría más cercana
         comisaria_cercana_name = None
         distancia_minima = float('inf')
         
