@@ -326,10 +326,6 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
-        "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
-    ])
-    
            # Definición de pestañas (Asegúrate de que no tengan espacios extra al inicio)
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
@@ -465,10 +461,6 @@ if st.session_state.rol_sel == "MONITOREO":
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
 
-                    
-
-        
-         if es_el_seleccionado else 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
