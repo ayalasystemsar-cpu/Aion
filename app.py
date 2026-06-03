@@ -60,10 +60,12 @@ def escribir_registro_nube(pestana, datos_fila):
     except: 
         return False
 
-@st.cache_resource
-def obtener_grafo_zona(lat_centro, lon_centro):
-    # Descarga la red de calles alrededor del punto de pánico
-    return ox.graph_from_point((lat_centro, lon_centro), dist=2000, network_type='drive')
+    @st.cache_resource
+    def obtener_grafo_zona(lat_centro, lon_centro):
+    # Aumenta el dist a 5000 (5km) para asegurar que el grafo contenga 
+    # tanto el objetivo como la comisaría y las calles intermedias.
+    return ox.graph_from_point((lat_centro, lon_centro), dist=5000, network_type='drive')
+
 
 def calcular_ruta_folium(orig, dest):
     try:
