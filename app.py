@@ -330,7 +330,7 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-         with t_radar:
+             with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
@@ -418,8 +418,8 @@ if st.session_state.rol_sel == "MONITOREO":
                     opacity=0.8,
                     tooltip="Ruta de respuesta táctica"
                 ).add_to(m_mon)
-            # --- FIN INTEGRACIÓN ---
-
+            
+            # Marcadores de objetivos
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
@@ -431,23 +431,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         icon=folium.DivIcon(
                             icon_size=(30, 30),
                             icon_anchor=(15, 15),
-                            html='''
-                            <div style="
-                                background-color: #FF0000;
-                                width: 16px;
-                                height: 16px;
-                                border-radius: 50%;
-                                border: 2px solid white;
-                                box-shadow: 0 0 10px #FF0000;
-                                animation: pulse 1s infinite alternate;
-                            "></div>
-                            <style>
-                                @keyframes pulse {
-                                    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-                                    100% { transform: scale(1.2); box-shadow: 0 0 0 12px rgba(255, 0, 0, 0); }
-                                }
-                            </style>
-                            '''
+                            html='<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #FF0000;"></div>'
                         )
                     ).add_to(m_mon)
                 else:
@@ -460,27 +444,22 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                     
+            # Marcadores de comisarías
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
-                
-                if es_la_mas_cercana:
-                    color_icono = "#FF9800"
-                    tamano_fuente = "26px"
-                    sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
-                else:
-                    color_icono = "#0000FF"
-                    tamano_fuente = "20px"
-                    sufijo_tooltip = ""
-
+                color_icono = "#FF9800" if es_la_mas_cercana else "#0000FF"
+                tamano_fuente = "26px" if es_la_mas_cercana else "20px"
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
-                    icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+                    tooltip=f"👮 {c['COMISARIA']}",
+                    icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
                 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
+
+                    
 
         
          if es_el_seleccionado else 
