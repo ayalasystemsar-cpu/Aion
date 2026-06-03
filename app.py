@@ -12,13 +12,16 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
+# Configuración de página OLED
+st.set_page_config(
+    page_title="AION-YAROKU | CORE",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="AION-YAROKU | CORE", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
-
+# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-
-# --- FUNCIONES ---
 
 def conectar_google():
     try:
@@ -28,9 +31,20 @@ def conectar_google():
     except: 
         return None
 
+# --- 3. FUNCIONES DE LÓGICA Y DATOS ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
+def actualizar_celda(pestana, fila, columna, valor):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            hoja.update_acell(f"{columna}{fila}", valor)
+            return True
+    except: 
+        return False
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -41,21 +55,6 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
-
-@st.cache_resource
-def obtener_grafo_zona(lat_centro, lon_centro):
-    return ox.graph_from_point((lat_centro, lon_centro), dist=5000, network_type='drive')
-
-def calcular_ruta_folium(orig, dest):
-    try:
-        G = obtener_grafo_zona(orig[0], orig[1])
-        orig_node = ox.distance.nearest_nodes(G, X=orig[1], Y=orig[0])
-        dest_node = ox.distance.nearest_nodes(G, X=dest[1], Y=dest[0])
-        ruta = nx.shortest_path(G, orig_node, dest_node, weight='length')
-        return [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta]
-    except Exception as e:
-        return [orig, dest]
-
 
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
@@ -299,15 +298,14 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-           # Definición de pestañas (Asegúrate de que no tengan espacios extra al inicio)
     t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-    # El bloque 'with' debe tener una indentación exacta de 4 espacios
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
+        # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -320,7 +318,7 @@ if st.session_state.rol_sel == "MONITOREO":
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
             obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda)
         
-      # Lógica para encontrar la comisaría más cercana
+        # Lógica para encontrar la comisaría más cercana mediante Haversine
         comisaria_cercana_name = None
         distancia_minima = float('inf')
         
@@ -329,7 +327,9 @@ if st.session_state.rol_sel == "MONITOREO":
             lat_obj = datos_obj['LATITUD']
             lon_obj = datos_obj['LONGITUD']
             
+            # Buscar la más cercana entre las comisarías cargadas
             for _, com in df_comisarias.iterrows():
+                # Fórmula de Haversine para cálculo de distancia en Km
                 lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
                 dlon = lon2 - lon1
                 dlat = lat2 - lat1
@@ -366,43 +366,22 @@ if st.session_state.rol_sel == "MONITOREO":
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
+            # Si hay un objetivo seleccionado, centramos el mapa directamente ahí
             if obj_seleccionado != "MOSTRAR TODO":
                 datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
                 centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
-                zoom_inicial = 14
+                zoom_inicial = 14 # Hacemos zoom táctico sobre el objetivo
             else:
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
 
             m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
             
-            # --- INTEGRACIÓN: Trazado de ruta real ---
-                    # --- AQUÍ ESTÁ EL BLOQUE DE LA RUTA ---
-        if obj_seleccionado != "MOSTRAR TODO" and comisaria_cercana_name:
-            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
-            datos_com = df_comisarias[df_comisarias['COMISARIA'] == comisaria_cercana_name].iloc[0]
-            
-            punto_orig = (datos_obj['LATITUD'], datos_obj['LONGITUD'])
-            punto_dest = (datos_com['LATITUD'], datos_com['LONGITUD'])
-            
-            # Calculamos la ruta real usando tu función
-            ruta_real = calcular_ruta_folium(punto_orig, punto_dest)
-            
-            # --- CAMBIOS AQUÍ: Color verde claro y trazado ---
-            folium.PolyLine(
-                locations=ruta_real, 
-                color="#32CD32",       # Color Verde Claro (LimeGreen)
-                weight=6,              # Grosor de la línea
-                opacity=0.9,           # Opacidad alta
-                tooltip="Ruta de respuesta táctica"
-            ).add_to(m_mon)
-
-                
-            # Marcadores de objetivos
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
                 
+                # REGLA VISUAL: Si está en pánico O es el seleccionado en el buscador -> ROJO TITILANDO CON REGLA CSS INJECT
                 if es_panico or es_el_seleccionado:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
@@ -410,10 +389,27 @@ if st.session_state.rol_sel == "MONITOREO":
                         icon=folium.DivIcon(
                             icon_size=(30, 30),
                             icon_anchor=(15, 15),
-                            html='<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #FF0000;"></div>'
+                            html='''
+                            <div style="
+                                background-color: #FF0000;
+                                width: 16px;
+                                height: 16px;
+                                border-radius: 50%;
+                                border: 2px solid white;
+                                box-shadow: 0 0 10px #FF0000;
+                                animation: pulse 1s infinite alternate;
+                            "></div>
+                            <style>
+                                @keyframes pulse {
+                                    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+                                    100% { transform: scale(1.2); box-shadow: 0 0 0 12px rgba(255, 0, 0, 0); }
+                                }
+                            </style>
+                            '''
                         )
                     ).add_to(m_mon)
                 else:
+                    # Tus círculos celestes normales de siempre
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], 
                         radius=7,
@@ -423,21 +419,27 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                     
-            # Marcadores de comisarías
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
-                color_icono = "#FF9800" if es_la_mas_cercana else "#0000FF"
-                tamano_fuente = "26px" if es_la_mas_cercana else "20px"
+                
+                if es_la_mas_cercana:
+                    color_icono = "#FF9800" # Naranja para la comisaría más cercana
+                    tamano_fuente = "26px"
+                    sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
+                else:
+                    color_icono = "#0000FF" # Tu azul original para las comisarías comunes
+                    tamano_fuente = "20px"
+                    sufijo_tooltip = ""
+
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}",
-                    icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono};"><i class="fa fa-shield"></i></div>""")
+                    tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
+                    icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
                 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
-
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
