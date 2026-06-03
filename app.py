@@ -6,6 +6,8 @@ import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
+import osmnx as ox
+import networkx as nx
 
 # --- IMPORTACIONES CRÍTICAS DE MAPAS ---
 import folium
@@ -33,6 +35,7 @@ def conectar_google():
         return None
 
 # --- 3. FUNCIONES DE LÓGICA Y DATOS ---
+
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -56,6 +59,30 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
+
+@st.cache_resource
+def obtener_grafo_zona(lat_centro, lon_centro):
+    # Descarga la red de calles alrededor del punto de pánico
+    return ox.graph_from_point((lat_centro, lon_centro), dist=2000, network_type='drive')
+
+def calcular_ruta_folium(orig, dest):
+    try:
+        # Obtener el grafo (esto se cachea)
+        G = obtener_grafo_zona(orig[0], orig[1])
+
+        # Encontrar los nodos más cercanos a las coordenadas
+        orig_node = ox.distance.nearest_nodes(G, orig[1], orig[0])
+        dest_node = ox.distance.nearest_nodes(G, dest[1], dest[0])
+
+        # Calcular la ruta más corta
+        ruta = nx.shortest_path(G, orig_node, dest_node, weight='length')
+
+        # Convertir a formato de lista de coordenadas para folium
+        return [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta]
+    except Exception as e:
+        # Si falla (ej. sin conexión), devuelve línea recta
+        return [orig, dest]
+
 
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
 @st.cache_data(ttl=60) 
@@ -303,10 +330,9 @@ if st.session_state.rol_sel == "MONITOREO":
         "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
     ])
 
-    with t_radar:
+         with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         
-        # Botón manual de refresco estratégico para control del operador sin interrupciones arbitrarias
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -319,7 +345,7 @@ if st.session_state.rol_sel == "MONITOREO":
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
             obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda)
         
-        # Lógica para encontrar la comisaría más cercana mediante Haversine
+        # Lógica para encontrar la comisaría más cercana
         comisaria_cercana_name = None
         distancia_minima = float('inf')
         
@@ -328,9 +354,7 @@ if st.session_state.rol_sel == "MONITOREO":
             lat_obj = datos_obj['LATITUD']
             lon_obj = datos_obj['LONGITUD']
             
-            # Buscar la más cercana entre las comisarías cargadas
             for _, com in df_comisarias.iterrows():
-                # Fórmula de Haversine para cálculo de distancia en Km
                 lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
                 dlon = lon2 - lon1
                 dlat = lat2 - lat1
@@ -367,22 +391,39 @@ if st.session_state.rol_sel == "MONITOREO":
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
-            # Si hay un objetivo seleccionado, centramos el mapa directamente ahí
             if obj_seleccionado != "MOSTRAR TODO":
                 datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
                 centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
-                zoom_inicial = 14 # Hacemos zoom táctico sobre el objetivo
+                zoom_inicial = 14
             else:
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
 
             m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
             
+            # --- INTEGRACIÓN: Trazado de ruta real ---
+            if obj_seleccionado != "MOSTRAR TODO" and comisaria_cercana_name:
+                datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+                datos_com = df_comisarias[df_comisarias['COMISARIA'] == comisaria_cercana_name].iloc[0]
+                
+                ruta_real = calcular_ruta_folium(
+                    (datos_obj['LATITUD'], datos_obj['LONGITUD']), 
+                    (datos_com['LATITUD'], datos_com['LONGITUD'])
+                )
+                
+                folium.PolyLine(
+                    locations=ruta_real, 
+                    color="#FF0000", 
+                    weight=6, 
+                    opacity=0.8,
+                    tooltip="Ruta de respuesta táctica"
+                ).add_to(m_mon)
+            # --- FIN INTEGRACIÓN ---
+
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
                 
-                # REGLA VISUAL: Si está en pánico O es el seleccionado en el buscador -> ROJO TITILANDO CON REGLA CSS INJECT
                 if es_panico or es_el_seleccionado:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
@@ -410,7 +451,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         )
                     ).add_to(m_mon)
                 else:
-                    # Tus círculos celestes normales de siempre
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], 
                         radius=7,
@@ -425,11 +465,11 @@ if st.session_state.rol_sel == "MONITOREO":
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
                 
                 if es_la_mas_cercana:
-                    color_icono = "#FF9800" # Naranja para la comisaría más cercana
+                    color_icono = "#FF9800"
                     tamano_fuente = "26px"
                     sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
                 else:
-                    color_icono = "#0000FF" # Tu azul original para las comisarías comunes
+                    color_icono = "#0000FF"
                     tamano_fuente = "20px"
                     sufijo_tooltip = ""
 
@@ -441,6 +481,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
+
+        
+         if es_el_seleccionado else 
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
