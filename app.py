@@ -478,6 +478,7 @@ if 'obj_seleccionado' in locals() and obj_seleccionado != "MOSTRAR TODO":
 
 # Renderizado final del mapa DENTRO de la pestaña
 st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
