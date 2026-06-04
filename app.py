@@ -444,44 +444,27 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                     
-# Asegúrate de que este if esté alineado con el código anterior
-        if obj_seleccionado != "MOSTRAR TODO": 
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
                 
                 if es_la_mas_cercana:
-                    color_icono = "#FF9800"
+                    color_icono = "#FF9800" # Naranja para la comisaría más cercana
                     tamano_fuente = "26px"
                     sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
-                    
-                    # --- RUTA REAL ---
-                    # Añadimos una verificación para evitar líneas rectas extrañas
-                    ruta = calcular_ruta_real([lat_obj, lon_obj], [c['LATITUD'], c['LONGITUD']])
-                    
-                    if ruta and len(ruta) > 1:
-                        folium.PolyLine(
-                            locations=ruta,
-                            color="#7CFC00", # Verde cálido
-                            weight=6,
-                            opacity=0.8
-                        ).add_to(m_mon)
                 else:
-                    color_icono = "#0000FF"
+                    color_icono = "#0000FF" # Tu azul original para las comisarías comunes
                     tamano_fuente = "20px"
                     sufijo_tooltip = ""
 
-                # --- MARCADOR ---
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
                     icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
-
-            # --- RENDERIZADO DEL MAPA ---
-            # Si el mapa no sale, a veces es porque m_mon se corrompe en el bucle.
-            # Asegúrate de usar st_folium aquí:
-            st_folium(m_mon, width=None, height=550, key="mapa_monitoreo_radar_tactico")
+                
+            st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+        st.markdown('</div>', unsafe_allow_html=True)
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
