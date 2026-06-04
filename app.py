@@ -443,17 +443,39 @@ if st.session_state.rol_sel == "MONITOREO":
                         fill_color="#00E5FF",
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
-                    
-            df_com = cargar_datos_comisarias()
+df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
                 
                 if es_la_mas_cercana:
-                    color_icono = "#FF9800" # Naranja para la comisaría más cercana
+                    color_icono = "#FF9800"
                     tamano_fuente = "26px"
                     sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
+                    
+                    # --- RUTA REAL (NO RECTA) EN VERDE OSCURO ---
+                    try:
+                        # Obtenemos el grafo de calles del área
+                        G = ox.graph_from_point((lat_obj, lon_obj), dist=2000, network_type='drive')
+                        origen = ox.distance.nearest_nodes(G, lon_obj, lat_obj)
+                        destino = ox.distance.nearest_nodes(G, c['LONGITUD'], c['LATITUD'])
+                        
+                        # Calculamos el camino real
+                        ruta_nodos = nx.shortest_path(G, origen, destino, weight='length')
+                        coordenadas_ruta = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta_nodos]
+                        
+                        # Dibujamos la línea verde oscuro
+                        folium.PolyLine(
+                            locations=coordenadas_ruta,
+                            color="#006400", 
+                            weight=5,
+                            opacity=0.8
+                        ).add_to(m_mon)
+                    except:
+                        # Si no hay red de calles, dibujamos una línea recta de respaldo
+                        folium.PolyLine([[lat_obj, lon_obj], [c['LATITUD'], c['LONGITUD']]], 
+                                        color="#006400", weight=5).add_to(m_mon)
                 else:
-                    color_icono = "#0000FF" # Tu azul original para las comisarías comunes
+                    color_icono = "#0000FF"
                     tamano_fuente = "20px"
                     sufijo_tooltip = ""
 
@@ -462,7 +484,8 @@ if st.session_state.rol_sel == "MONITOREO":
                     tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
                     icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
-                
+            
+            # El mapa se renderiza al terminar el bucle
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
     with t_gestion:
