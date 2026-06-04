@@ -444,7 +444,10 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                     
-           df_com = cargar_datos_comisarias()
+# Asegúrate de que este if esté alineado con el código anterior
+        if obj_seleccionado != "MOSTRAR TODO": 
+            # El for debe estar un nivel a la derecha
+            df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
                 
@@ -453,7 +456,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     tamano_fuente = "26px"
                     sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
                     
-                    # CÁLCULO DE LA RUTA (Solo para la comisaría más cercana)
+                    # Cálculo de la ruta
                     coordenadas_ruta = calcular_ruta_real([lat_obj, lon_obj], [c['LATITUD'], c['LONGITUD']])
                     
                     folium.PolyLine(
@@ -467,14 +470,14 @@ if st.session_state.rol_sel == "MONITOREO":
                     tamano_fuente = "20px"
                     sufijo_tooltip = ""
 
-                # Dibujar el marcador de la comisaría
+                # Marcador de la comisaría
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
                     tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
                     icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
             
-            # Esto va al final, fuera del for
+            # st_folium debe estar al mismo nivel que el for
             st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
