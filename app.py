@@ -443,7 +443,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         fill_color="#00E5FF",
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
-df_com = cargar_datos_comisarias()
+            df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
                 
