@@ -446,7 +446,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     
 # Asegúrate de que este if esté alineado con el código anterior
         if obj_seleccionado != "MOSTRAR TODO": 
-df_com = cargar_datos_comisarias()
+            df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
                 
