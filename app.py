@@ -444,27 +444,40 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                     
-            df_com = cargar_datos_comisarias()
-            for _, c in df_com.iterrows():
-                es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
-                
-                if es_la_mas_cercana:
-                    color_icono = "#FF9800" # Naranja para la comisaría más cercana
-                    tamano_fuente = "26px"
-                    sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
-                else:
-                    color_icono = "#0000FF" # Tu azul original para las comisarías comunes
-                    tamano_fuente = "20px"
-                    sufijo_tooltip = ""
+# Asegúrate de que este bloque esté dentro de tu pestaña de monitoreo (ej: with t_radar:)
 
-                folium.Marker(
-                    location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
-                    icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+df_com = cargar_datos_comisarias()
+
+# Si obj_seleccionado es válido, calculamos y dibujamos
+if 'obj_seleccionado' in locals() and obj_seleccionado != "MOSTRAR TODO":
+    for _, c in df_com.iterrows():
+        es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
+        
+        if es_la_mas_cercana:
+            # 1. Calcular ruta
+            ruta = calcular_ruta_real([lat_obj, lon_obj], [c['LATITUD'], c['LONGITUD']])
+            # 2. Dibujar línea (Verde cálido)
+            if ruta and len(ruta) > 1:
+                folium.PolyLine(
+                    locations=ruta,
+                    color="#7CFC00", 
+                    weight=5,
+                    opacity=0.7
                 ).add_to(m_mon)
-                
-            st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-        st.markdown('</div>', unsafe_allow_html=True)
+            
+            color_icono, tamano_fuente, sufijo = "#FF9800", "26px", " 🌟 [MÁS CERCANA]"
+        else:
+            color_icono, tamano_fuente, sufijo = "#0000FF", "20px", ""
+
+        # 3. Dibujar marcador
+        folium.Marker(
+            location=[c['LATITUD'], c['LONGITUD']],
+            tooltip=f"👮 {c['COMISARIA']}{sufijo}",
+            icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono};"><i class="fa fa-shield"></i></div>""")
+        ).add_to(m_mon)
+
+# Renderizado final del mapa DENTRO de la pestaña
+st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
