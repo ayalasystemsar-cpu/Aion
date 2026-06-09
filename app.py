@@ -445,10 +445,10 @@ if st.session_state.rol_sel == "MONITOREO":
                     ).add_to(m_mon)
             
            # Este 'df_com' debe estar alineado debajo del 'with t_radar:' (o donde estés trabajando)
-        df_com = cargar_datos_comisarias()
+     df_com = cargar_datos_comisarias()
         for _, c in df_com.iterrows():
         # Este 'df_com' debe estar alineado debajo del 'with t_radar:'
-        df_com = cargar_datos_comisarias()
+     df_com = cargar_datos_comisarias()
         for _, c in df_com.iterrows():
             es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
             
