@@ -443,12 +443,12 @@ if st.session_state.rol_sel == "MONITOREO":
                         fill_color="#00E5FF",
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
-            
-           # Este 'df_com' debe estar alineado debajo del 'with t_radar:' (o donde estés trabajando)
-     df_com = cargar_datos_comisarias()
-        for _, c in df_com.iterrows():
-        # Este 'df_com' debe estar alineado debajo del 'with t_radar:'
-     df_com = cargar_datos_comisarias()
+            # --- FIN DEL BUCLE DE OBJETIVOS ---
+
+        # CARGA DE COMISARIAS ALINEADA CORRECTAMENTE
+        df_com = cargar_datos_comisarias()
+        
+        # BUCLE DE COMISARIAS
         for _, c in df_com.iterrows():
             es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
             
@@ -459,30 +459,23 @@ if st.session_state.rol_sel == "MONITOREO":
                 
                 # --- LÓGICA DE RUTEO POR CALLES (SIN LÍNEA RECTA) ---
                 try:
-                    # Aumentamos el radio a 5000m para garantizar la conexión del grafo
-                    # network_type='drive' asegura que siga el sentido de las calles
-                    G = ox.graph_from_point((lat_obj, lon_obj), dist=5000, network_type='drive')
-                    
-                    # Encontramos los nodos más cercanos al objetivo y a la comisaría
-                    origen = ox.distance.nearest_nodes(G, lon_obj, lat_obj)
-                    destino = ox.distance.nearest_nodes(G, c['LONGITUD'], c['LATITUD'])
-                    
-                    # Calculamos la ruta real por calles
-                    ruta_nodos = nx.shortest_path(G, origen, destino, weight='length')
-                    coordenadas_ruta = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta_nodos]
-                    
-                    # Dibujamos exclusivamente la ruta por calles en verde oscuro
-                    folium.PolyLine(
-                        locations=coordenadas_ruta,
-                        color="#006400", 
-                        weight=5,
-                        opacity=0.8
-                    ).add_to(m_mon)
-                    
-                except Exception as e:
-                    # Si no hay ruta posible por calles, no se dibuja nada.
-                    # No hay respaldo de línea recta.
-                    pass 
+                    # Buscamos el grafo solo si tenemos un objetivo seleccionado
+                    if obj_seleccionado != "MOSTRAR TODO":
+                        G = ox.graph_from_point((lat_obj, lon_obj), dist=5000, network_type='drive')
+                        origen = ox.distance.nearest_nodes(G, lon_obj, lat_obj)
+                        destino = ox.distance.nearest_nodes(G, c['LONGITUD'], c['LATITUD'])
+                        
+                        ruta_nodos = nx.shortest_path(G, origen, destino, weight='length')
+                        coordenadas_ruta = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta_nodos]
+                        
+                        folium.PolyLine(
+                            locations=coordenadas_ruta,
+                            color="#006400", 
+                            weight=5,
+                            opacity=0.8
+                        ).add_to(m_mon)
+                except Exception:
+                    pass # Si no hay ruta por calles, no dibuja nada
             else:
                 color_icono = "#0000FF"
                 tamano_fuente = "20px"
@@ -495,8 +488,10 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        # st_folium al final del bucle
-        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
+        # FINALIZACIÓN DEL RADAR
+        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+        st.markdown('</div>', unsafe_allow_html=True)
+     
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
