@@ -55,18 +55,16 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except: 
         return False
-        
-
-   @st.cache_resource
-   def obtener_grafo_zona(lat, lon):
+ @st.cache_resource
+def obtener_grafo_zona(lat, lon):
     try:
         return ox.graph_from_point(
             (lat, lon),
             dist=25000,
-            network_type='drive'
+            network_type="drive"
         )
-    except:
-        return None
+    except Exception:
+        return None       
 
 def calcular_ruta_real(orig, dest):
     # Intentamos obtener el grafo basado en el punto medio
