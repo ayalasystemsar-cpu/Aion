@@ -56,7 +56,7 @@ def escribir_registro_nube(pestana, datos_fila):
     except: 
         return False
         @st.cache_resource
-def obtener_grafo_zona(lat, lon):
+        def obtener_grafo_zona(lat, lon):
     try:
         return ox.graph_from_point(
             (lat, lon),
