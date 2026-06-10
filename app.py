@@ -45,7 +45,7 @@ def actualizar_celda(pestana, fila, columna, valor):
             return True
     except: 
         return False
-
+        
 def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
@@ -53,9 +53,11 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
             return True
-    except: 
+    except:
         return False
- @st.cache_resource
+
+
+@st.cache_resource
 def obtener_grafo_zona(lat, lon):
     try:
         return ox.graph_from_point(
@@ -64,8 +66,7 @@ def obtener_grafo_zona(lat, lon):
             network_type="drive"
         )
     except Exception:
-        return None       
-
+        return None
 def calcular_ruta_real(orig, dest):
     # Intentamos obtener el grafo basado en el punto medio
     mid_lat = (orig[0] + dest[0]) / 2
