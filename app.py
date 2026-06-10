@@ -488,10 +488,66 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        # FINALIZACIÓN DEL RADAR
-        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-        st.markdown('</div>', unsafe_allow_html=True)
-     
+       # --- LÓGICA DE RADAR Y RUTEO ---
+st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+if not df_mapa_monitoreo.empty:
+    # 1. Centrado del mapa
+    if obj_seleccionado != "MOSTRAR TODO":
+        datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+        centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
+        zoom_inicial = 14
+    else:
+        centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+        zoom_inicial = 11
+
+    m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
+    
+    # 2. Dibujar Objetivos
+    for _, r in df_mapa_monitoreo.iterrows():
+        es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+        es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
+        
+        if es_panico or es_el_seleccionado:
+            folium.Marker(
+                location=[r['LATITUD'], r['LONGITUD']],
+                icon=folium.DivIcon(html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #FF0000; animation: pulse 1s infinite alternate;"></div>''')
+            ).add_to(m_mon)
+        else:
+            folium.CircleMarker(
+                location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True, fill_color="#00E5FF"
+            ).add_to(m_mon)
+
+    # 3. Calcular y dibujar RUTA REAL (Fuera del bucle de comisarías)
+    df_com = cargar_datos_comisarias()
+    if obj_seleccionado != "MOSTRAR TODO" and comisaria_cercana_name:
+        try:
+            datos_com = df_com[df_com['COMISARIA'] == comisaria_cercana_name].iloc[0]
+            # Usamos un radio amplio para asegurar conectividad
+            G = ox.graph_from_point((lat_obj, lon_obj), dist=15000, network_type='drive')
+            origen = ox.distance.nearest_nodes(G, lon_obj, lat_obj)
+            destino = ox.distance.nearest_nodes(G, datos_com['LONGITUD'], datos_com['LATITUD'])
+            
+            ruta_nodos = nx.shortest_path(G, origen, destino, weight='length')
+            coordenadas_ruta = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta_nodos]
+            
+            folium.PolyLine(locations=coordenadas_ruta, color="#006400", weight=5, opacity=0.8).add_to(m_mon)
+        except Exception as e:
+            st.sidebar.warning(f"No se pudo trazar la ruta: {e}")
+
+    # 4. Dibujar Comisarías
+    for _, c in df_com.iterrows():
+        es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
+        color_icono = "#FF9800" if es_la_mas_cercana else "#0000FF"
+        tamano_fuente = "26px" if es_la_mas_cercana else "20px"
+        
+        folium.Marker(
+            location=[c['LATITUD'], c['LONGITUD']],
+            tooltip=f"👮 {c['COMISARIA']}",
+            icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+        ).add_to(m_mon)
+
+    st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+st.markdown('</div>', unsafe_allow_html=True)
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
         if not df_emergencias.empty:
