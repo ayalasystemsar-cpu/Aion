@@ -265,7 +265,7 @@ with st.sidebar:
         st.rerun()
 
     st.write("---")
-    st.markdown("*⚙️ ADMINISTRADOR*")
+    st.markdown("**⚙️ ADMINISTRADOR**")
     if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
         st.session_state.rol_sel = "ADMINISTRADOR"
         st.session_state.user_sel = "ADMIN CENTRAL"
@@ -358,7 +358,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
                 dlon = lon2 - lon1
                 dlat = lat2 - lat1
-                a = math.sin(dlat/2)*2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)*2
+                a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
                 c = 2 * math.asin(math.sqrt(a))
                 km = 6371 * c
                 
