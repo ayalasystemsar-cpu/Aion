@@ -56,11 +56,15 @@ def escribir_registro_nube(pestana, datos_fila):
     except: 
         return False
         
-@st.cache_resource
+
+   @st.cache_resource
 def obtener_grafo_zona(lat, lon):
     try:
-        # Aumentamos el radio a 5000m para asegurar cobertura entre puntos
-        return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
+        return ox.graph_from_point(
+            (lat, lon),
+            dist=25000,
+            network_type='drive'
+        )
     except:
         return None
 
@@ -346,34 +350,33 @@ if st.session_state.rol_sel == "MONITOREO":
         # Lógica para encontrar la comisaría más cercana mediante Haversine
         comisaria_cercana_name = None
         distancia_minima = float('inf')
-        
-        if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
-            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
-            lat_obj = datos_obj['LATITUD']
-            lon_obj = datos_obj['LONGITUD']
-            
-            # Buscar la más cercana entre las comisarías cargadas
-            for _, com in df_comisarias.iterrows():
-                # Fórmula de Haversine para cálculo de distancia en Km
-                lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
-                dlon = lon2 - lon1
-                dlat = lat2 - lat1
-                a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                c = 2 * math.asin(math.sqrt(a))
-                km = 6371 * c
-                
-                if km < distancia_minima:
-                    distancia_minima = km
-                    comisaria_cercana_name = com['COMISARIA']
-            
-            with col_sel2:
-                st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
-                st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
-        else:
-            with col_sel2:
-                st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
-        st.markdown('</div>', unsafe_allow_html=True)
+       if obj_seleccionado != "MOSTRAR TODO":
 
+    origen = (
+        lat_obj,
+        lon_obj
+    )
+
+    destino = (
+        c['LATITUD'],
+        c['LONGITUD']
+    )
+
+    ruta_real = calcular_ruta_real(
+        origen,
+        destino
+    )
+
+    if ruta_real and len(ruta_real) > 1:
+
+        AntPath(
+            locations=ruta_real,
+            color="#00FF00",
+            pulse_color="#FFFFFF",
+            weight=6,
+            delay=800,
+            dash_array=[10, 20]
+        ).add_to(m_mon)
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
