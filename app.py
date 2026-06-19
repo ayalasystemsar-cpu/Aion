@@ -706,7 +706,7 @@ with t_pres_sup:
                 mask_sup = df_v_total.apply(lambda r: sup_activo_normalizado in [str(cell).strip().upper() for cell in r.values], axis=1)
                 df_v_filtrado = df_v_total[mask_sup].copy()
                 
-                if not df_v_filtrado.empty:
+            if not df_v_filtrado.empty:
                     # 2. DEFINIMOS EL ORDEN CORRECTO DE COLUMNAS
                     # Ajusta estos nombres según los encabezados reales de tu Google Sheet
                     cols_ordenadas = ["FECHA", "HORA", "OBJETIVO", "VIGILADOR_SALIENTE", "VIGILADOR_ENTRANTE", "SUPERVISOR_ASIGNADO"]
