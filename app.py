@@ -391,10 +391,11 @@ if st.session_state.rol_sel == "MONITOREO":
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
 
-            # 1. Inicializamos el mapa con la versión de fondo SIN ETIQUETAS
+            # 1. Inicializamos el mapa permitiendo súper zoom táctico (Hasta nivel 21)
             m_mon = folium.Map(
                 location=centro_mapa, 
                 zoom_start=zoom_inicial, 
+                max_zoom=21,  # Permite al operador aproximarse mucho más
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
                 attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             )
@@ -470,11 +471,13 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        # 3. INYECCIÓN FINAL: Capa de solo etiquetas flotando sobre el trazo cian
+        # 3. INYECCIÓN FINAL SÚPER ZOOM: Forzamos el estiramiento de etiquetas en alta resolución
         folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
             attr='&copy; <a href="https://carto.com/attributions">CARTO</a>',
             name="Etiquetas de Calles",
+            max_zoom=21,         # Permite romper la barrera del nivel 18 en el renderizador
+            max_native_zoom=20,  # Le dice a CartoDB que estire digitalmente las letras si se excede el tilemap nativo
             overlay=True,
             control=False
         ).add_to(m_mon)
