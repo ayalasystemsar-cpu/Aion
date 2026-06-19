@@ -331,9 +331,13 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_radar, t_gestion, t_comunicacion, t_pres, t_vig, t_guardia = st.tabs([
-        "🚨 RADAR S.O.S", "📖 LIBRO DE BASE", "💬 CHAT OPERATIVO", "📋 PRESENTISMO GENERAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES GUARDIA"
-    ])
+   # Definimos las pestañas reducidas
+t_radar, t_chat, t_vig, t_nov = st.tabs([
+    "🚨 RADAR S.O.S", 
+    "💬 CHAT OPERATIVO", 
+    "👥 PADRÓN VIGILADORES", 
+    "🔄 NOVEDADES Y FICHAJES"
+])
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
@@ -537,10 +541,7 @@ if st.session_state.rol_sel == "MONITOREO":
         m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
-    with t_gestion:
-        st.subheader("📖 HISTORIAL DE OPERATIVOS")
-        if not df_emergencias.empty:
-            st.dataframe(df_emergencias.iloc[::-1], use_container_width=True)
+   
 
     with t_comunicacion:
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
@@ -554,34 +555,24 @@ if st.session_state.rol_sel == "MONITOREO":
             for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
                 st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
-    with t_pres:
-        st.subheader("📋 TABLA MASTER: PRESENTISMO")
-        df_pres = leer_matriz_nube("PRESENTISMO")
-        if df_pres is not None and not df_pres.empty:
-            df_pres.columns = df_pres.columns.str.strip().str.upper()
-            columnas_maestras = ["FECHA", "HORA", "DNI", "NOMBRE Y APE OBJETIVO", "ESTADO", "TIPO DE MARCACION"]
-            columnas_validas = [c for c in columnas_maestras if c in df_pres.columns]
-            st.dataframe(df_pres[columnas_validas].iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay datos de presentismo registrados.")
 
-    with t_vig:
-        st.subheader("👥 TABLA MASTER: RELEVOS VIGILADORES")
-        df_padrero = leer_matriz_nube("VIGILADORES")
-        if df_padrero is not None and not df_padrero.empty:
-            df_padrero.columns = df_padrero.columns.str.strip().str.upper()
-            columnas_relevos = ["FECHA", "HORA", "OBJETIVO", "VIGILADOR_SALIENTE", "VIGILADOR_ENTRANTE", "SUPERVISOR_ASIGNADO", "ESTADO"]
-            columnas_validas_rel = [c for c in columnas_relevos if c in df_padrero.columns]
-            st.dataframe(df_padrero[columnas_validas_rel].iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
+   # 3. PADRÓN VIGILADORES (Consulta rápida)
+with t_vig:
+    st.subheader("👥 PERSONAL ACTIVO")
+    df_vig = leer_matriz_nube("PADRON_VIGILADORES")
+    st.dataframe(df_vig, use_container_width=True)
 
-    with t_guardia:
-        st.subheader("🔄 TABLA MASTER: NOVEDADES_GUARDIA")
-        df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty: 
-            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
+# 4. NOVEDADES Y FICHAJES (Centralización total)
+with t_nov:
+    st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
+    df_nov = leer_matriz_nube("NOVEDADES_GUARDIA")
+    
+    if not df_nov.empty:
+        # Aseguramos formato limpio y orden cronológico
+        df_nov.columns = df_nov.columns.str.strip().str.upper()
+        st.dataframe(df_nov.sort_values(by="FECHA", ascending=False), use_container_width=True)
+    else:
+        st.info("Sin registros cargados aún.")
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
