@@ -12,6 +12,7 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
+
 # Configuración de página OLED
 st.set_page_config(
     page_title="AION-YAROKU | CORE",
@@ -434,7 +435,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         )
                     ).add_to(m_mon)
                 else:
-                    # Tus círculos celestes normales de siempre
+                    # Círculos celestes normales
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], 
                         radius=7,
@@ -444,7 +445,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
             
-           # Este 'df_com' debe estar alineado debajo del 'with t_radar:' (o donde estés trabajando)
         df_com = cargar_datos_comisarias()
         for _, c in df_com.iterrows():
             es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
@@ -454,7 +454,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 tamano_fuente = "26px"
                 sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
                 
-                # Cálculo de ruta (no recta)
+                # Cálculo de ruta real por calles
                 try:
                     G = ox.graph_from_point((lat_obj, lon_obj), dist=2000, network_type='drive')
                     origen = ox.distance.nearest_nodes(G, lon_obj, lat_obj)
@@ -462,15 +462,24 @@ if st.session_state.rol_sel == "MONITOREO":
                     ruta_nodos = nx.shortest_path(G, origen, destino, weight='length')
                     coordenadas_ruta = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta_nodos]
                     
-                    folium.PolyLine(
+                    # ESTILO GOOGLE MAPS: Línea azul de alta visibilidad con estela de dirección
+                    AntPath(
                         locations=coordenadas_ruta,
-                        color="#006400",  # Verde oscuro
-                        weight=5,
-                        opacity=0.8
+                        color="#1A73E8",       # Azul clásico de Google Maps
+                        pulse_color="#8AB4F8", # Brillo celeste de guía activa
+                        weight=6,              # Grosor remarcado para visualización táctica
+                        opacity=0.9,
+                        delay=400              # Movimiento fluido tipo GPS
                     ).add_to(m_mon)
                 except:
-                    # Respaldo a línea recta
-                    folium.PolyLine([[lat_obj, lon_obj], [c['LATITUD'], c['LONGITUD']]], color="#006400", weight=5).add_to(m_mon)
+                    # Respaldo en línea recta estilo ruta Google Maps si falla ruteo por nodos
+                    AntPath(
+                        locations=[[lat_obj, lon_obj], [c['LATITUD'], c['LONGITUD']]], 
+                        color="#1A73E8", 
+                        pulse_color="#8AB4F8", 
+                        weight=6, 
+                        opacity=0.9
+                    ).add_to(m_mon)
             else:
                 color_icono = "#0000FF"
                 tamano_fuente = "20px"
@@ -483,7 +492,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        # st_folium debe estar al mismo nivel que el 'for'
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
     with t_gestion:
         st.subheader("📖 HISTORIAL DE OPERATIVOS")
@@ -492,7 +500,7 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_comunicacion:
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
-            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO GENERAL:")
+            txt_mensaje_mon = st.text_input("ESCRIBIR MENSARES TÁCTICO GENERAL:")
             prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
             if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
@@ -530,8 +538,6 @@ if st.session_state.rol_sel == "MONITOREO":
         if not df_nov_g.empty: 
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
-
-# Resto de los roles mapeados de forma regular para mantener la integridad exacta del sistema...
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
