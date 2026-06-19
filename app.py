@@ -437,7 +437,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
             )
             
-            # --- CREACIÓN DE PANEL PROTEGIDO SUPERIOR PARA LAS TIPOGRAFÍAS DE CALLES ---
             m_mon.create_pane('capa_etiquetas_superior', z_index=650)
             
             for _, r in df_mapa_monitoreo.iterrows():
@@ -492,7 +491,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 com_lat, com_lon = c['LATITUD'], c['LONGITUD']
                 coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
                 
-                # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO AJUSTADO ---
+                # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO ---
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#000000",
@@ -503,7 +502,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#39FF14",       
-                    weight=4,              # Calibración a grosor 4 para no asfixiar el texto de la calle
+                    weight=4,              
                     opacity=0.25           
                 ).add_to(m_mon)
             else:
@@ -527,7 +526,7 @@ if st.session_state.rol_sel == "MONITOREO":
             max_native_zoom=20,  
             overlay=True,
             control=False,
-            pane='capa_etiquetas_superior' # Forzamos que se dibuje arriba de la ruta
+            pane='capa_etiquetas_superior'
         ).add_to(m_mon)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
@@ -649,7 +648,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ln1, lt1, ln2, lt2 = map(math.radians, [lon_target, lat_target, com['LONGITUD'], com['LATITUD']])
                     dln = ln2 - ln1
                     dlt = lt2 - lt1
-                    a = math.sin(dlt/2)**2 + math.cos(lt1) * math.cos(lt2) * math.sin(dlon/2)**2
+                    # CORRECCIÓN DE ERROR EN LA VARIABLE DEL HAVERSINE: dlon -> dln
+                    a = math.sin(dlt/2)**2 + math.cos(lt1) * math.cos(lt2) * math.sin(dln/2)**2
                     c = 2 * math.asin(math.sqrt(a))
                     km = 6371 * c
                     
