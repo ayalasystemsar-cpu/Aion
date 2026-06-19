@@ -13,6 +13,7 @@ from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
 import requests  # Importante para conectar con el servidor de mapas de calles
+from branca.element import Element # Para inyección de z-index nativo seguro
 
 # Configuración de página OLED
 st.set_page_config(
@@ -414,7 +415,6 @@ if st.session_state.rol_sel == "MONITOREO":
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
                     
-                    # ELIMINADO EL CAMBIO DIRECTO DE KEY DEL COMPONENTE VINCULADO
                     st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
                     st.success("✅ Normalizado")
                     st.rerun()
@@ -437,8 +437,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
                 attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
             )
-            
-            m_mon.create_pane('capa_etiquetas_superior', z_index=650)
             
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
@@ -518,17 +516,28 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        # 3. INYECCIÓN DE ETIQUETAS FORZADA AL MÁXIMO NIVEL (PANE SUPERIOR COBERTURA)
-        folium.TileLayer(
+        # --- SOLUCIÓN TÁCTICA PARA TRAER LAS ETIQUETAS DE CALLES ARRIBA DE TODO SIN ATRIBUTO DE PANEL VIEJO ---
+        capa_etiquetas = folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
             attr='© <a href="https://carto.com/attributions">CARTO</a>',
             name="Etiquetas de Calles",
             max_zoom=21,         
             max_native_zoom=20,  
             overlay=True,
-            control=False,
-            pane='capa_etiquetas_superior'
-        ).add_to(m_mon)
+            control=False
+        )
+        capa_etiquetas.add_to(m_mon)
+        
+        # Inyección forzada de CSS al mapa mediante un MacroElement nativo de Branca para priorizar el z-index de las tipografías
+        script_z_index = Element("""
+            <style>
+                .leaflet-pane.leaflet-overlay-pane { z-index: 400 !important; }
+                .leaflet-pane.leaflet-tile-pane { z-index: 200 !important; }
+                /* Forzar que las capas superiores añadidas floten a nivel de interfaz */
+                .leaflet-layer:nth-last-child(1) { z-index: 500 !important; pointer-events: none; }
+            </style>
+        """)
+        m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
     with t_gestion:
