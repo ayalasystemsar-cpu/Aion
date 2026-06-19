@@ -536,8 +536,8 @@ if st.session_state.rol_sel == "MONITOREO":
         """)
         m_mon.get_root().header.add_child(script_z_index)
         
-        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
-        with t_comunicacion:
+        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+    with t_comunicacion:
         st.subheader("💬 CHAT OPERATIVO")
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
