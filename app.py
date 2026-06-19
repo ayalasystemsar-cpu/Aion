@@ -820,26 +820,38 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             
             with pan1:
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                # Corrección: Uso de comillas dobles escapadas para atributos HTML
                 st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
                 st.write("---")
                 
-                # 2. Extraer el último relevo de la pestaña VIGILADORES
                 st.markdown("**🔄 ÚLTIMO RELEVO REGISTRADO:**", unsafe_allow_html=True)
-                df_relevos_base = leer_matriz_nube("VIGILADORES")
-                if not df_relevos_base.empty:
-                    df_relevos_base.columns = df_relevos_base.columns.str.strip().str.upper()
-                    df_rel_obj = df_relevos_base[df_relevos_base['OBJETIVO'] == objetivo_cliqueado]
+                df_rel = leer_matriz_nube("VIGILADORES")
+                
+                if not df_rel.empty:
+                    df_rel.columns = df_rel.columns.str.strip().str.upper()
+                    df_rel_obj = df_rel[df_rel['OBJETIVO'] == objetivo_cliqueado]
+                    
                     if not df_rel_obj.empty:
-                        ultimo_rel = df_rel_obj.iloc[-1]
-                        st.write(f"📅 **Fecha/Hora:** {ultimo_rel.get('FECHA')} {ultimo_rel.get('HORA')}")
-                        st.write(f"🛑 **Sale:** {ultimo_rel.get('VIGILADOR_SALIENTE')}")
-                        st.write(f"🟢 **Entra:** {ultimo_rel.get('VIGILADOR_ENTRANTE')}")
-                        st.write(f"📊 **Estado:** {ultimo_rel.get('ESTADO')}")
+                        rel = df_rel_obj.iloc[-1]
+                        hora_relevo = rel.get('HORA', 'N/A')
+                        
+                        # Mostramos los datos con la hora integrada
+                        st.write(f"📅 **Fecha:** {rel.get('FECHA', 'N/A')}")
+                        st.write(f"🛑 **Sale:** {rel.get('VIGILADOR_SALIENTE', 'N/A')} ({hora_relevo})")
+                        st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')} ({hora_relevo})")
+                        st.write(f"📊 **Estado:** {rel.get('ESTADO', 'N/A')}")
+                        
+                        # Lógica Antipánico (Sí/No)
+                        df_alt = leer_matriz_nube("ALERTAS")
+                        if not df_alt.empty:
+                            df_alt.columns = df_alt.columns.str.strip().str.upper()
+                            hay_panico = df_alt[df_alt['CARGA_UTIL'].str.contains(objetivo_cliqueado, na=False) & (df_alt['ESTADO'] == 'PENDIENTE')]
+                            
+                            if not hay_panico.empty:
+                                st.error("🚨 **ANTIPÁNICO:** SÍ (ACTIVADO)")
+                            else:
+                                st.success("✅ **ANTIPÁNICO:** NO")
                     else:
-                        st.info("Sin registros de relevo de guardia en esta pestaña.")
-                else:
-                    st.info("No se pudo conectar a la base de Relevos.")
+                        st.info("Sin registros de relevo en este objetivo.")
                 st.markdown('</div>', unsafe_allow_html=True)
                 
             with pan2:
