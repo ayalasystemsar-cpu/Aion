@@ -804,6 +804,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
         
+       
         # --- LÓGICA DE DETECCIÓN DE CLIC EN OBJETIVO ---
         objetivo_cliqueado = None
         if mapa_retorno and mapa_retorno.get("last_object_clicked_popup"):
@@ -853,8 +854,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     df_nov.columns = df_nov.columns.str.strip().str.upper()
                     st.dataframe(df_nov[df_nov['OBJETIVO'] == objetivo_cliqueado].tail(5), use_container_width=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-                
-       
+        
         else:
             st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
     
