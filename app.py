@@ -756,36 +756,41 @@ elif st.session_state.rol_sel == "VIGILADOR":
             vig_saliente = st.text_input("VIGILADOR QUE ENTREGA (SALE):").upper().strip()
             vig_entrante = st.text_input("VIGILADOR QUE RECIBE (ENTRA):").upper().strip()
             btn_relevo = st.form_submit_button("SANCIONAR CAMBIO DE GUARDIA")
-           if btn_relevo:
+           btn_relevo = st.form_submit_button("SANCIONAR CAMBIO DE GUARDIA")
+            
+            if btn_relevo:
                 if vig_saliente and vig_entrante:
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
                     fecha_hora_arg = obtener_hora_argentina()
                     
-                    # AQUÍ ESTÁ EL CAMBIO:
-                    # 1. Ajustamos a 8 columnas para que encajen en tu Google Sheet
-                    # 2. Separamos SALE y ENTRA para que el monitoreo sea limpio
                     datos_novedad = [
-                        fecha_hora_arg,           # Columna A: FECHA
-                        v_obj_relevo,             # Columna B: OBJETIVO
-                        "RELEVO_S/D",             # Columna C: DETALLE_ID
-                        "CAMBIO_GUARDIA",         # Columna D: TIPO_EVENTO
-                        vig_saliente.upper(),     # Columna E: VIGILADOR_SALE
-                        vig_entrante.upper(),     # Columna F: VIGILADOR_ENTRA
-                        "PROCESADO",              # Columna G: ESTADO
-                        sup_responsable           # Columna H: SUPERVISOR_ASIGNADO
+                        fecha_hora_arg,           # A: FECHA
+                        v_obj_relevo,             # B: OBJETIVO
+                        "RELEVO_S/D",             # C: DETALLE_ID
+                        "CAMBIO_GUARDIA",         # D: TIPO_EVENTO
+                        vig_saliente.upper(),     # E: VIGILADOR_SALE
+                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA
+                        "PROCESADO",              # G: ESTADO
+                        sup_responsable           # H: SUPERVISOR_ASIGNADO
                     ]
                     
                     # Registramos en la hoja que ves en Monitoreo
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
                     
-                    # Registramos también en la hoja VIGILADORES
-                    datos_relevo = [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
+                    # Registramos en la hoja VIGILADORES
+                    fecha_hoy = fecha_hora_arg.split(" ")[0]
+                    hora_hoy = fecha_hora_arg.split(" ")[1]
+                    datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
-                    if exito_relevo: st.success("🔒 RELEVO EXITOSO.")
-                    else: st.error("❌ ERROR DE RED")
+                    if exito_relevo: 
+                        st.success("🔒 RELEVO REGISTRADO Y SANEADO")
+                    else: 
+                        st.error("❌ ERROR DE RED AL REGISTRAR")
+                else:
+                    st.error("❌ Por favor, completa los nombres de los vigiladores")
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
