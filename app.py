@@ -820,7 +820,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             
             with pan1:
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style='color:#00E5FF; font-family:\'Orbitron\'; font-size:16px;'>{sup_resp}</span>", unsafe_allow_html=True)
+                # Corrección: Uso de comillas dobles escapadas para atributos HTML
+                st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
                 st.write("---")
                 
                 # 2. Extraer el último relevo de la pestaña VIGILADORES
