@@ -88,7 +88,6 @@ def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
         response = requests.get(url, timeout=5).json()
         if response.get("code") == "Ok":
             coordenadas = response["routes"][0]["geometry"]["coordinates"]
-            # OSRM devuelve [lon, lat], folium necesita [lat, lon]
             return [[point[1], point[0]] for point in coordenadas]
     except:
         pass
@@ -443,16 +442,15 @@ if st.session_state.rol_sel == "MONITOREO":
                 tamano_fuente = "26px"
                 sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
                 
-                # --- SISTEMA DE RUTEO REAL VÍA SERVIDOR OSRM (CALLE POR CALLE SEGURO) ---
                 com_lat, com_lon = c['LATITUD'], c['LONGITUD']
                 coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
                 
-                # Dibujamos el camino real exacto en el mapa en verde oscuro firme continuo
+                # CIAN NEÓN TRANSLÚCIDO: Resalta en el mapa oscuro y deja leer el texto de las calles debajo
                 folium.PolyLine(
                     locations=coordenadas_ruta,
-                    color="#006400",       # Verde Oscuro Firme
-                    weight=6,              # Grosor táctico legible
-                    opacity=0.95
+                    color="#00E5FF",       # Cian neón de alta definición
+                    weight=5,              # Espesor óptimo para no tapar por completo las letras
+                    opacity=0.75           # Opacidad balanceada (75%) que permite la lectura del mapa base
                 ).add_to(m_mon)
             else:
                 color_icono = "#0000FF"
@@ -656,7 +654,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
                     escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
-                    if exito_relevo: st.success(f"⚡ RELEVO SANCIONADO.")
+                    if exito_relevo: st.success(f"🔒 RELEVO SANCIONADO.")
                     else: st.error("❌ ERROR DE RED")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -686,7 +684,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
         o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
         o_det = st.text_input("Nombre / Detalle:")
-        if st.button("ELEV AR PETICIÓN"):
+        if st.button("ELEVAR PETICIÓN"):
             if o_det.strip():
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
                 st.success("✅ Petición Elevada Exitosamente")
