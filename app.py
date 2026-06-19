@@ -336,7 +336,8 @@ if st.session_state.rol_sel == "MONITOREO":
         
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
-            obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda)
+            # Añadimos un KEY para poder controlar y limpiar la selección desde código
+            obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda, key="buscador_radar_master")
         
         comisaria_cercana_name = None
         distancia_minima = float('inf')
@@ -377,6 +378,10 @@ if st.session_state.rol_sel == "MONITOREO":
                     idx_df = opciones_alertas[alerta_seleccionada]
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+                    
+                    # CORRECCIÓN CLAVE: Reseteamos el buscador al mapa original master al finalizar la alerta
+                    st.session_state["buscador_radar_master"] = "MOSTRAR TODO"
+                    
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -395,7 +400,7 @@ if st.session_state.rol_sel == "MONITOREO":
             m_mon = folium.Map(
                 location=centro_mapa, 
                 zoom_start=zoom_inicial, 
-                max_zoom=21,  # Permite aproximarse al máximo nivel de detalle de las manzanas
+                max_zoom=21,
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
                 attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             )
@@ -444,7 +449,7 @@ if st.session_state.rol_sel == "MONITOREO":
         for _, c in df_com.iterrows():
             es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
             
-            if es_la_mas_cercana:
+            if es_la_mas_cercana and obj_seleccionado != "MOSTRAR TODO":
                 color_icono = "#FF9800"
                 tamano_fuente = "26px"
                 sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
@@ -453,8 +458,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
                 
                 # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO (ESTILO RESALTADOR) ---
-                
-                # Capa de Fondo del Trazo: Una guía negra muy fina para dar contraste nítido a los bordes de la calle
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#000000",
@@ -462,12 +465,11 @@ if st.session_state.rol_sel == "MONITOREO":
                     opacity=0.4
                 ).add_to(m_mon)
 
-                # Capa Principal del Trazo: Verde Lima Fluorescente SÚPER TRANSLÚCIDO (Opacidad al 25%)
                 folium.PolyLine(
                     locations=coordenadas_ruta,
-                    color="#39FF14",       # Verde Lima Fluo puro
-                    weight=5,              # Grosor ideal calibrado para la calle
-                    opacity=0.25           # Permite pintar el mapa sin saturar ni encandilar las letras grises
+                    color="#39FF14",       
+                    weight=5,              
+                    opacity=0.25           
                 ).add_to(m_mon)
             else:
                 color_icono = "#0000FF"
@@ -486,8 +488,8 @@ if st.session_state.rol_sel == "MONITOREO":
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
             attr='&copy; <a href="https://carto.com/attributions">CARTO</a>',
             name="Etiquetas de Calles",
-            max_zoom=21,         # Libera los controles hasta nivel 21
-            max_native_zoom=20,  # Estira digitalmente las tipografías de CartoDB si pasás el límite
+            max_zoom=21,         
+            max_native_zoom=20,  
             overlay=True,
             control=False
         ).add_to(m_mon)
