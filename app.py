@@ -546,7 +546,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
                 st.rerun()
         
-        # Estas líneas deben estar indentadas a 8 espacios para pertenecer al 'with t_comunicacion'
         df_chats = leer_matriz_nube("CHATS")
         if not df_chats.empty:
             for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
