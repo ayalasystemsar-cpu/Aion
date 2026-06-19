@@ -829,7 +829,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             if not hay_panico.empty: st.error("🚨 ¡ANTIPÁNICO ACTIVADO!")
                             else: st.success("✅ SISTEMA NORMAL")
                 st.markdown('</div>', unsafe_allow_html=True)
-
             with pan2:
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
                 st.markdown("**🔄 HISTORIAL RECIENTE:**", unsafe_allow_html=True)
