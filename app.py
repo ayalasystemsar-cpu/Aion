@@ -749,14 +749,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     else: st.error("❌ ERROR DE RED")
                 else: st.error("❌ ERROR: Complete todos los campos.")
                     
-    with tab_relevo:
+   with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
             v_obj_relevo = st.selectbox("OBJETIVO DEL RELEVO:", opciones_globales_obj, key="obj_relevo_vig")
             vig_saliente = st.text_input("VIGILADOR QUE ENTREGA (SALE):").upper().strip()
             vig_entrante = st.text_input("VIGILADOR QUE RECIBE (ENTRA):").upper().strip()
             btn_relevo = st.form_submit_button("SANCIONAR CAMBIO DE GUARDIA")
-           btn_relevo = st.form_submit_button("SANCIONAR CAMBIO DE GUARDIA")
             
             if btn_relevo:
                 if vig_saliente and vig_entrante:
@@ -765,6 +764,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     fecha_hora_arg = obtener_hora_argentina()
                     
+                    # Registro para la tabla de monitoreo (8 columnas)
                     datos_novedad = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj_relevo,             # B: OBJETIVO
@@ -776,10 +776,9 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         sup_responsable           # H: SUPERVISOR_ASIGNADO
                     ]
                     
-                    # Registramos en la hoja que ves en Monitoreo
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
                     
-                    # Registramos en la hoja VIGILADORES
+                    # Registro para la tabla de relevos
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
@@ -791,6 +790,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         st.error("❌ ERROR DE RED AL REGISTRAR")
                 else:
                     st.error("❌ Por favor, completa los nombres de los vigiladores")
+    st.markdown('</div>', unsafe_allow_html=True)  
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
