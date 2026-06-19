@@ -12,6 +12,7 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
+import requests  # Importante para conectar con el servidor de mapas de calles
 
 # Configuración de página OLED
 st.set_page_config(
@@ -32,7 +33,7 @@ def conectar_google():
     except: 
         return None
 
-# --- 3. FUNCIONES DE LÓGICA Y DATOS ---
+# --- 3. FUNCIONES DE LÓGICA E DATOS ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -79,6 +80,19 @@ def calcular_ruta_real(orig, dest):
         return [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta]
     except:
         return [orig, dest]
+
+# Función dedicada a obtener el trazado exacto calle por calle vía OSRM (Estilo GPS)
+def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
+    try:
+        url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson"
+        response = requests.get(url, timeout=5).json()
+        if response.get("code") == "Ok":
+            coordenadas = response["routes"][0]["geometry"]["coordinates"]
+            # OSRM devuelve [lon, lat], folium necesita [lat, lon]
+            return [[point[1], point[0]] for point in coordenadas]
+    except:
+        pass
+    return [[lat1, lon1], [lat2, lon2]]
 
 @st.cache_data(ttl=60) 
 def leer_matriz_nube(pestana):
@@ -179,20 +193,6 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
-        
-        @keyframes parpadeo-radar {
-            0% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-            70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
-            100% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
-        }
-        .marcador-panico {
-            background-color: #FF0000;
-            width: 14px; height: 14px;
-            border-radius: 50%;
-            border: 2px solid white;
-            animation: parpadeo-radar 1s infinite;
-            display: inline-block;
-        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -443,38 +443,17 @@ if st.session_state.rol_sel == "MONITOREO":
                 tamano_fuente = "26px"
                 sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
                 
-                # --- SISTEMA DE ENCUADRE POR CAJA DELIMITADORA (BBOX) ---
-                try:
-                    com_lat, com_lon = c['LATITUD'], c['LONGITUD']
-                    
-                    # Generamos un área rectangular (caja) que contenga holgadamente ambos puntos
-                    norte = max(lat_obj, com_lat) + 0.02
-                    sur = min(lat_obj, com_lat) - 0.02
-                    este = max(lon_obj, com_lon) + 0.02
-                    oeste = min(lon_obj, com_lon) - 0.02
-                    
-                    # Descargamos la red vial completa contenida en esa caja para trazar calle por calle
-                    G = ox.graph_from_bbox(bbox=(norte, sur, este, oeste), network_type='drive')
-                    
-                    origen = ox.distance.nearest_nodes(G, lon_obj, lat_obj)
-                    destino = ox.distance.nearest_nodes(G, com_lon, com_lat)
-                    ruta_nodos = nx.shortest_path(G, origen, destino, weight='length')
-                    coordenadas_ruta = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta_nodos]
-                    
-                    folium.PolyLine(
-                        locations=coordenadas_ruta,
-                        color="#006400",       
-                        weight=6,              
-                        opacity=0.9
-                    ).add_to(m_mon)
-                except Exception as e:
-                    # Respaldo físico
-                    folium.PolyLine(
-                        locations=[[lat_obj, lon_obj], [c['LATITUD'], c['LONGITUD']]], 
-                        color="#006400", 
-                        weight=6, 
-                        opacity=0.9
-                    ).add_to(m_mon)
+                # --- SISTEMA DE RUTEO REAL VÍA SERVIDOR OSRM (CALLE POR CALLE SEGURO) ---
+                com_lat, com_lon = c['LATITUD'], c['LONGITUD']
+                coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
+                
+                # Dibujamos el camino real exacto en el mapa en verde oscuro firme continuo
+                folium.PolyLine(
+                    locations=coordenadas_ruta,
+                    color="#006400",       # Verde Oscuro Firme
+                    weight=6,              # Grosor táctico legible
+                    opacity=0.95
+                ).add_to(m_mon)
             else:
                 color_icono = "#0000FF"
                 tamano_fuente = "20px"
