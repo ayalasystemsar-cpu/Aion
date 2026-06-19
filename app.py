@@ -717,17 +717,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.info("No hay datos registrados en Novedades Guardia.")
 
 elif st.session_state.rol_sel == "VIGILADOR":
-   # CAMBIO EN EL CÓDIGO (Línea aprox. 535)
-# En lugar de una sola celda con "SALE... | ENTRA...", separamos las columnas:
-escribir_registro_nube("NOVEDADES_GUARDIA", [
-    fecha_hora_arg, 
-    v_obj_relevo, 
-    "RELEVO_S/D", 
-    "CAMBIO_GUARDIA", 
-    vig_saliente,     # Solo el nombre que sale
-    vig_entrante,     # Solo el nombre que entra
-    sup_responsable
-])
+    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
+    
+    tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
+    
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
