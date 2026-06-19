@@ -345,24 +345,9 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         col_sel1, col_sel2 = st.columns([2, 1])
         
-        if "filtro_radar_valor" not in st.session_state:
-            st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
-
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
-            
-            try:
-                idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
-            except:
-                idx_defecto = 0
-                
-            obj_seleccionado = st.selectbox(
-                "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
-                opciones_busqueda, 
-                index=idx_defecto,
-                key="buscador_radar_master"
-            )
-            st.session_state["filtro_radar_valor"] = obj_seleccionado
+            obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda, key="buscador_radar_master")
         
         comisaria_cercana_name = None
         distancia_minima = float('inf')
@@ -391,6 +376,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
                 st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
                 
+                # SE SINCRONIZA MONITOREO CON GOOGLE MAPS GENERANDO EL BOTÓN IDÉNTICO
                 if comisaria_cercana_name:
                     url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
                     st.markdown(
@@ -414,7 +400,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
                     
-                    st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
+                    st.session_state["buscador_radar_master"] = "MOSTRAR TODO"
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -429,15 +415,14 @@ if st.session_state.rol_sel == "MONITOREO":
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
 
+            # 1. Inicializamos el mapa permitiendo súper zoom táctico (Hasta nivel 21)
             m_mon = folium.Map(
                 location=centro_mapa, 
                 zoom_start=zoom_inicial, 
                 max_zoom=21,
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-                attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
+                attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             )
-            
-            m_mon.create_pane('capa_etiquetas_superior', z_index=650)
             
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
@@ -495,14 +480,14 @@ if st.session_state.rol_sel == "MONITOREO":
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#000000",
-                    weight=5,
+                    weight=6,
                     opacity=0.4
                 ).add_to(m_mon)
 
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#39FF14",       
-                    weight=4,              
+                    weight=5,              
                     opacity=0.25           
                 ).add_to(m_mon)
             else:
@@ -517,16 +502,15 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        # 3. INYECCIÓN DE ETIQUETAS FORZADA AL MÁXIMO NIVEL (PANE SUPERIOR COBERTURA)
+        # 3. INYECCIÓN FINAL CON SÚPER ZOOM
         folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
-            attr='© <a href="https://carto.com/attributions">CARTO</a>',
+            attr='&copy; <a href="https://carto.com/attributions">CARTO</a>',
             name="Etiquetas de Calles",
             max_zoom=21,         
             max_native_zoom=20,  
             overlay=True,
-            control=False,
-            pane='capa_etiquetas_superior'
+            control=False
         ).add_to(m_mon)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
@@ -648,7 +632,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ln1, lt1, ln2, lt2 = map(math.radians, [lon_target, lat_target, com['LONGITUD'], com['LATITUD']])
                     dln = ln2 - ln1
                     dlt = lt2 - lt1
-                    # CORRECCIÓN DE ERROR EN LA VARIABLE DEL HAVERSINE: dlon -> dln
                     a = math.sin(dlt/2)**2 + math.cos(lt1) * math.cos(lt2) * math.sin(dln/2)**2
                     c = 2 * math.asin(math.sqrt(a))
                     km = 6371 * c
