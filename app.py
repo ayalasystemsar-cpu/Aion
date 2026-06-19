@@ -783,7 +783,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
     t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
-    
     with t_crisis:
         st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -792,16 +791,28 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
         
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        for _, r in df_obj_maps_jefe.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], tooltip=f"Clic para auditar: {r['OBJETIVO']}", icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")).add_to(m_visor)
+        if not df_obj_maps_jefe.empty:
+            for _, r in df_obj_maps_jefe.iterrows():
+                folium.Marker(
+                    [r['LATITUD'], r['LONGITUD']], 
+                    popup=r['OBJETIVO'], # Importante: El popup define el 'last_object_clicked' en st_folium
+                    tooltip=f"Clic para auditar: {r['OBJETIVO']}", 
+                    icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")
+                ).add_to(m_visor)
         
+        # Captura de datos interactiva del mapa
         mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        objetivo_cliqueado = mapa_retorno.get("last_object_clicked_popup", "").strip().upper() if mapa_retorno else None
+        # --- LÓGICA DE DETECCIÓN DE CLIC EN OBJETIVO ---
+        objetivo_cliqueado = None
+        if mapa_retorno and mapa_retorno.get("last_object_clicked_popup"):
+            objetivo_cliqueado = mapa_retorno["last_object_clicked_popup"].strip().upper()
         
         if objetivo_cliqueado:
             st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
+            
+            # 1. Buscar supervisor asignado en la base de objetivos
             df_match_obj = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_cliqueado]
             sup_resp = df_match_obj['SUPERVISOR'].values[0] if not df_match_obj.empty else "NO ASIGNADO"
             
@@ -809,98 +820,28 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             
             with pan1:
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
+                # Corrección: Uso de comillas dobles escapadas para atributos HTML
                 st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
                 st.write("---")
+                
+                # 2. Extraer el último relevo de la pestaña VIGILADORES
                 st.markdown("**🔄 ÚLTIMO RELEVO REGISTRADO:**", unsafe_allow_html=True)
-                df_rel = leer_matriz_nube("VIGILADORES")
-                if not df_rel.empty:
-                    df_rel.columns = df_rel.columns.str.strip().str.upper()
-                    df_rel_obj = df_rel[df_rel['OBJETIVO'] == objetivo_cliqueado]
+                df_relevos_base = leer_matriz_nube("VIGILADORES")
+                if not df_relevos_base.empty:
+                    df_relevos_base.columns = df_relevos_base.columns.str.strip().str.upper()
+                    df_rel_obj = df_relevos_base[df_relevos_base['OBJETIVO'] == objetivo_cliqueado]
                     if not df_rel_obj.empty:
-                        rel = df_rel_obj.iloc[-1]
-                        st.write(f"🕒 **Hora Relevo:** {rel.get('HORA', 'N/A')}")
-                        st.write(f"🛑 **Sale:** {rel.get('VIGILADOR_SALIENTE', 'N/A')}")
-                        st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')}")
-                        
-                        df_alt = leer_matriz_nube("ALERTAS")
-                        if not df_alt.empty:
-                            df_alt.columns = df_alt.columns.str.strip().str.upper()
-                            hay_panico = df_alt[df_alt['CARGA_UTIL'].str.contains(objetivo_cliqueado, na=False) & (df_alt['ESTADO'] == 'PENDIENTE')]
-                            if not hay_panico.empty: st.error("🚨 ¡ANTIPÁNICO ACTIVADO!")
-                            else: st.success("✅ SISTEMA NORMAL")
+                        ultimo_rel = df_rel_obj.iloc[-1]
+                        st.write(f"📅 **Fecha/Hora:** {ultimo_rel.get('FECHA')} {ultimo_rel.get('HORA')}")
+                        st.write(f"🛑 **Sale:** {ultimo_rel.get('VIGILADOR_SALIENTE')}")
+                        st.write(f"🟢 **Entra:** {ultimo_rel.get('VIGILADOR_ENTRANTE')}")
+                        st.write(f"📊 **Estado:** {ultimo_rel.get('ESTADO')}")
+                    else:
+                        st.info("Sin registros de relevo de guardia en esta pestaña.")
+                else:
+                    st.info("No se pudo conectar a la base de Relevos.")
                 st.markdown('</div>', unsafe_allow_html=True)
-            with pan2:
-                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                st.markdown("**🔄 HISTORIAL RECIENTE:**", unsafe_allow_html=True)
-                df_nov = leer_matriz_nube("NOVEDADES_GUARDIA")
-                if not df_nov.empty:
-                    df_nov.columns = df_nov.columns.str.strip().str.upper()
-                    st.dataframe(df_nov[df_nov['OBJETIVO'] == objetivo_cliqueado].tail(5), use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("🎯 Seleccione un objetivo en el mapa.")
-
-    with t_ejecucion:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        if st.button("ELEVAR PETICIÓN"): escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "JEFE", "PETICION", "GENERAL", "NUEVA"])
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_auditoria:
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_actas.empty: st.dataframe(df_actas.tail(20), use_container_width=True)
-elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
-    m2.metric("Nivel de Cobertura", "47/93")
-    m3.metric("Auditorías Físicas (QRs)", "2")
-    m4.metric("Desgaste Flota (Km)", "4954 Km")
-    
-    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    with t_com_est:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
-        g_asunto = st.text_input("Asunto:", key="ger_asunto")
-        g_orden = st.text_area("Orden:", key="ger_orden")
-        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
-        if st.button("Ejecutar Directiva"):
-            escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, g_asunto])
-            st.success("✅ Directiva Transmitida")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    with t_ejecucion_ger:
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
-            if st.button("Solicitar Alta"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
-                st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
-        with col_g2:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            opciones_baja = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-            g_baja_obj = st.selectbox("Objetivo:", opciones_baja, key="ger_baja_obj")
-            if st.button("Solicitar Baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
-                st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_tab_auditoria:
-        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        for _, r in df_ger_maps.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=450, key="map_gerencia")
-
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    u_ing = st.text_input("ADMIN_USER")
-    p_ing = st.text_input("ADMIN_PASS", type="password")
-    if u_ing == "admin" and p_ing == "aion2026": 
-        st.success("Núcleo Maestro desbloqueado.")
+                
             with pan2:
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
                 st.markdown("**🔄 HISTORIAL RECIENTE DE NOVEDADES EN GUARDIA:**", unsafe_allow_html=True)
