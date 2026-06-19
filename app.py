@@ -715,41 +715,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
-
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
     
+    # Asegúrate de que esta línea esté a 4 espacios del margen izquierdo
     tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
     
-    with tab_presentismo:
-        st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
-        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
-            v_dni = st.text_input("DNI / LEGAJO:").strip()
-            v_obj = st.selectbox("OBJETIVO DE PRESENTISMO:", opciones_globales_obj, key="obj_pres_vig")
-            v_tipo_marcacion = st.selectbox("TIPO DE MARCACIÓN:", ["INGRESO", "EGRESO"], key="tipo_marc_vig")
-            img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
-            btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
-            
-            if btn_fichar:
-                if v_apellido and img_facial and v_dni:
-                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
-                    sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-                    
-                    fecha_hora_arg = obtener_hora_argentina()
-                    fecha_hoy = fecha_hora_arg.split(" ")[0]
-                    hora_hoy = fecha_hora_arg.split(" ")[1]
-                    
-                    datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
-                    exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
-                    
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable])
-                    if exito_pres: st.success(f"🔒 BIOMETRÍA REGISTRADA.")
-                    else: st.error("❌ ERROR DE RED")
-                else: st.error("❌ ERROR: Complete todos los campos.")
-                    
-   with tab_relevo:
+    # Asegúrate de que esta línea esté a 4 espacios
+    with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
             v_obj_relevo = st.selectbox("OBJETIVO DEL RELEVO:", opciones_globales_obj, key="obj_relevo_vig")
@@ -764,7 +738,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     fecha_hora_arg = obtener_hora_argentina()
                     
-                    # Registro para la tabla de monitoreo (8 columnas)
                     datos_novedad = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj_relevo,             # B: OBJETIVO
@@ -778,7 +751,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
                     
-                    # Registro para la tabla de relevos
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
@@ -790,7 +762,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         st.error("❌ ERROR DE RED AL REGISTRAR")
                 else:
                     st.error("❌ Por favor, completa los nombres de los vigiladores")
-    st.markdown('</div>', unsafe_allow_html=True)  
+    st.markdown('</div>', unsafe_allow_html=True)
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
