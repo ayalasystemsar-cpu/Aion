@@ -763,13 +763,18 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
                     fecha_hora_arg = obtener_hora_argentina()
-                    fecha_hoy = fecha_hora_arg.split(" ")[0]
-                    hora_hoy = fecha_hora_arg.split(" ")[1]
                     
-                    datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
-                    exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
+                    # CORRECCIÓN: ESCRITURA ESTRUCTURADA EN COLUMNAS SEPARADAS
+                    exito_relevo = escribir_registro_nube("NOVEDADES_GUARDIA", [
+                        fecha_hora_arg, 
+                        v_obj_relevo, 
+                        "RELEVO_S/D", 
+                        "CAMBIO_GUARDIA", 
+                        vig_saliente, 
+                        vig_entrante, 
+                        sup_responsable
+                    ])
                     
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
                     if exito_relevo: st.success("🔒 RELEVO EXITOSO.")
                     else: st.error("❌ ERROR DE RED")
     st.markdown('</div>', unsafe_allow_html=True)
