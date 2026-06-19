@@ -723,6 +723,48 @@ elif st.session_state.rol_sel == "VIGILADOR":
     tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
     
     # Asegúrate de que esta línea esté a 4 espacios
+    with tab_presentismo:
+        st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
+        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
+            v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
+            v_dni = st.text_input("DNI / LEGAJO:").strip()
+            v_obj = st.selectbox("OBJETIVO DE PRESENTISMO:", opciones_globales_obj, key="obj_pres_vig")
+            v_tipo_marcacion = st.selectbox("TIPO DE MARCACIÓN:", ["INGRESO", "EGRESO"], key="tipo_marc_vig")
+            img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
+            btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
+            
+            if btn_fichar:
+                if v_apellido and img_facial and v_dni:
+                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
+                    sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
+                    
+                    fecha_hora_arg = obtener_hora_argentina()
+                    fecha_hoy = fecha_hora_arg.split(" ")[0]
+                    hora_hoy = fecha_hora_arg.split(" ")[1]
+                    
+                    # 1. Registro en PRESENTISMO
+                    datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
+                    exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
+                    
+                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
+                    datos_novedad_fichaje = [
+                        fecha_hora_arg,           # A: FECHA
+                        v_obj,                    # B: OBJETIVO
+                        v_dni,                    # C: DETALLE_ID
+                        f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
+                        f"OPERARIO: {v_apellido}",# E: VIGILADOR_SALE
+                        "N/A",                    # F: VIGILADOR_ENTRA
+                        "PROCESADO",              # G: ESTADO
+                        sup_responsable           # H: SUPERVISOR_ASIGNADO
+                    ]
+                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
+                    
+                    if exito_pres: 
+                        st.success(f"🔒 BIOMETRÍA REGISTRADA.")
+                    else: 
+                        st.error("❌ ERROR DE RED")
+                else: 
+                    st.error("❌ ERROR: Complete todos los campos.")
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
