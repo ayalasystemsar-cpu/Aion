@@ -391,7 +391,13 @@ if st.session_state.rol_sel == "MONITOREO":
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
 
-            m_mon = folium.Map(location=centro_mapa, zoom_start=zoom_inicial, tiles="CartoDB dark_matter")
+            # 1. Inicializamos el mapa con la versión de fondo SIN ETIQUETAS
+            m_mon = folium.Map(
+                location=centro_mapa, 
+                zoom_start=zoom_inicial, 
+                tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
+                attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            )
             
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
@@ -445,12 +451,12 @@ if st.session_state.rol_sel == "MONITOREO":
                 com_lat, com_lon = c['LATITUD'], c['LONGITUD']
                 coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
                 
-                # CIAN NEÓN TRANSLÚCIDO: Resalta en el mapa oscuro y deja leer el texto de las calles debajo
+                # 2. Dibujamos la línea de la ruta Cian Neón (Queda en el medio)
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#00E5FF",       # Cian neón de alta definición
                     weight=5,              # Espesor óptimo para no tapar por completo las letras
-                    opacity=0.75           # Opacidad balanceada (75%) que permite la lectura del mapa base
+                    opacity=0.75           # Opacidad al 75% para la lectura del mapa base
                 ).add_to(m_mon)
             else:
                 color_icono = "#0000FF"
@@ -463,6 +469,15 @@ if st.session_state.rol_sel == "MONITOREO":
                 tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
+        
+        # 3. INYECCIÓN FINAL: Capa de solo etiquetas flotando sobre el trazo cian
+        folium.TileLayer(
+            tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
+            attr='&copy; <a href="https://carto.com/attributions">CARTO</a>',
+            name="Etiquetas de Calles",
+            overlay=True,
+            control=False
+        ).add_to(m_mon)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
     with t_gestion:
@@ -654,7 +669,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
                     escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
-                    if exito_relevo: st.success(f"🔒 RELEVO SANCIONADO.")
+                    if exito_relevo: st.success("🔒 RELEVO EXITOSO.")
                     else: st.error("❌ ERROR DE RED")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -745,4 +760,5 @@ elif st.session_state.rol_sel == "GERENCIA":
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
     p_ing = st.text_input("ADMIN_PASS", type="password")
-    if u_ing == "admin" and p_ing == "aion2026": st.success("Núcleo Maestro desbloqueado.")
+    if u_ing == "admin" and p_ing == "aion2026": 
+        st.success("Núcleo Maestro desbloqueado.")
