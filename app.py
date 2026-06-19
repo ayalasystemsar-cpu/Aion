@@ -776,14 +776,14 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 
-   # --- B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA) ---
-elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+  elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
+    # Se eliminó la pestaña de 'Auditoría' de esta lista
     t_crisis, t_ejecucion = st.tabs(["Centro de Crisis", "Ejecución"])
     
     with t_crisis:
@@ -800,7 +800,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        objetivo_cliqueado = mapa_retorno.get("last_object_clicked_popup", "").strip().upper() if mapa_retorno else None
+        # Lógica de detección de clic segura
+        objetivo_cliqueado = None
+        if isinstance(mapa_retorno, dict) and mapa_retorno.get("last_object_clicked_popup"):
+            objetivo_cliqueado = str(mapa_retorno["last_object_clicked_popup"]).strip().upper()
         
         if objetivo_cliqueado:
             st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
@@ -827,7 +830,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')}")
                         st.write(f"📊 **Estado:** {rel.get('ESTADO', 'N/A')}")
                         
-                        # Lógica Antipánico (SÍ/NO)
                         df_alt = leer_matriz_nube("ALERTAS")
                         if not df_alt.empty:
                             df_alt.columns = df_alt.columns.str.strip().str.upper()
