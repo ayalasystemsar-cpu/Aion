@@ -537,7 +537,7 @@ if st.session_state.rol_sel == "MONITOREO":
         m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
-  with t_comunicacion:
+        with t_comunicacion:
         st.subheader("💬 CHAT OPERATIVO")
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
@@ -545,6 +545,8 @@ if st.session_state.rol_sel == "MONITOREO":
             if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
                 st.rerun()
+        
+        # Estas líneas deben estar indentadas a 8 espacios para pertenecer al 'with t_comunicacion'
         df_chats = leer_matriz_nube("CHATS")
         if not df_chats.empty:
             for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
@@ -564,7 +566,6 @@ if st.session_state.rol_sel == "MONITOREO":
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
         if not df_nov_g.empty: 
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-            # Ordenamos por fecha descendente para ver lo último primero
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
             st.info("Sin novedades registradas.")
