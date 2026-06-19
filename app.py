@@ -395,7 +395,7 @@ if st.session_state.rol_sel == "MONITOREO":
             m_mon = folium.Map(
                 location=centro_mapa, 
                 zoom_start=zoom_inicial, 
-                max_zoom=21,  # Permite al operador aproximarse mucho más
+                max_zoom=21,  # Permite aproximarse al máximo nivel de detalle de las manzanas
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
                 attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             )
@@ -452,12 +452,22 @@ if st.session_state.rol_sel == "MONITOREO":
                 com_lat, com_lon = c['LATITUD'], c['LONGITUD']
                 coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
                 
-                # 2. Dibujamos la línea de la ruta Cian Neón (Queda en el medio)
+                # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO (ESTILO RESALTADOR) ---
+                
+                # Capa de Fondo del Trazo: Una guía negra muy fina para dar contraste nítido a los bordes de la calle
                 folium.PolyLine(
                     locations=coordenadas_ruta,
-                    color="#00E5FF",       # Cian neón de alta definición
-                    weight=5,              # Espesor óptimo para no tapar por completo las letras
-                    opacity=0.75           # Opacidad al 75% para la lectura del mapa base
+                    color="#000000",
+                    weight=6,
+                    opacity=0.4
+                ).add_to(m_mon)
+
+                # Capa Principal del Trazo: Verde Lima Fluorescente SÚPER TRANSLÚCIDO (Opacidad al 25%)
+                folium.PolyLine(
+                    locations=coordenadas_ruta,
+                    color="#39FF14",       # Verde Lima Fluo puro
+                    weight=5,              # Grosor ideal calibrado para la calle
+                    opacity=0.25           # Permite pintar el mapa sin saturar ni encandilar las letras grises
                 ).add_to(m_mon)
             else:
                 color_icono = "#0000FF"
@@ -471,13 +481,13 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        # 3. INYECCIÓN FINAL SÚPER ZOOM: Forzamos el estiramiento de etiquetas en alta resolución
+        # 3. INYECCIÓN FINAL CON SÚPER ZOOM: Capa transparente de etiquetas flotando arriba de todo
         folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
             attr='&copy; <a href="https://carto.com/attributions">CARTO</a>',
             name="Etiquetas de Calles",
-            max_zoom=21,         # Permite romper la barrera del nivel 18 en el renderizador
-            max_native_zoom=20,  # Le dice a CartoDB que estire digitalmente las letras si se excede el tilemap nativo
+            max_zoom=21,         # Libera los controles hasta nivel 21
+            max_native_zoom=20,  # Estira digitalmente las tipografías de CartoDB si pasás el límite
             overlay=True,
             control=False
         ).add_to(m_mon)
