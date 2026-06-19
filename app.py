@@ -345,9 +345,27 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         col_sel1, col_sel2 = st.columns([2, 1])
         
+        # INICIALIZACIÓN CONTROLADA PARA EVITAR EL ERROR DE STREAMLIT
+        if "filtro_radar_valor" not in st.session_state:
+            st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
+
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
-            obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda, key="buscador_radar_master")
+            
+            # Buscamos el índice actual seguro en base a la variable de estado externa
+            try:
+                idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
+            except:
+                idx_defecto = 0
+                
+            obj_seleccionado = st.selectbox(
+                "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
+                opciones_busqueda, 
+                index=idx_defecto,
+                key="buscador_radar_master"
+            )
+            # Sincronizamos el estado de lectura
+            st.session_state["filtro_radar_valor"] = obj_seleccionado
         
         comisaria_cercana_name = None
         distancia_minima = float('inf')
@@ -376,7 +394,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
                 st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
                 
-                # SE SINCRONIZA MONITOREO CON GOOGLE MAPS GENERANDO EL BOTÓN IDÉNTICO
                 if comisaria_cercana_name:
                     url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
                     st.markdown(
@@ -400,7 +417,8 @@ if st.session_state.rol_sel == "MONITOREO":
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
                     
-                    st.session_state["buscador_radar_master"] = "MOSTRAR TODO"
+                    # CORRECCIÓN DE RAÍZ: Modificamos la variable externa de estado seguro, no el widget directo
+                    st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -415,13 +433,12 @@ if st.session_state.rol_sel == "MONITOREO":
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
 
-            # 1. Inicializamos el mapa permitiendo súper zoom táctico (Hasta nivel 21)
             m_mon = folium.Map(
                 location=centro_mapa, 
                 zoom_start=zoom_inicial, 
                 max_zoom=21,
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-                attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
             )
             
             for _, r in df_mapa_monitoreo.iterrows():
@@ -505,7 +522,7 @@ if st.session_state.rol_sel == "MONITOREO":
         # 3. INYECCIÓN FINAL CON SÚPER ZOOM
         folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
-            attr='&copy; <a href="https://carto.com/attributions">CARTO</a>',
+            attr='© <a href="https://carto.com/attributions">CARTO</a>',
             name="Etiquetas de Calles",
             max_zoom=21,         
             max_native_zoom=20,  
