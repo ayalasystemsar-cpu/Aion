@@ -516,7 +516,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        # --- SOLUCIÓN TÁCTICA PARA TRAER LAS ETIQUETAS DE CALLES ARRIBA DE TODO SIN ATRIBUTO DE PANEL VIEJO ---
         capa_etiquetas = folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
             attr='© <a href="https://carto.com/attributions">CARTO</a>',
@@ -528,12 +527,10 @@ if st.session_state.rol_sel == "MONITOREO":
         )
         capa_etiquetas.add_to(m_mon)
         
-        # Inyección forzada de CSS al mapa mediante un MacroElement nativo de Branca para priorizar el z-index de las tipografías
         script_z_index = Element("""
             <style>
                 .leaflet-pane.leaflet-overlay-pane { z-index: 400 !important; }
                 .leaflet-pane.leaflet-tile-pane { z-index: 200 !important; }
-                /* Forzar que las capas superiores añadidas floten a nivel de interfaz */
                 .leaflet-layer:nth-last-child(1) { z-index: 500 !important; pointer-events: none; }
             </style>
         """)
@@ -777,6 +774,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     else: st.error("❌ ERROR DE RED")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
@@ -786,16 +784,81 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
     t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
     with t_crisis:
-        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
+        st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
+        
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
-                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
+                folium.Marker(
+                    [r['LATITUD'], r['LONGITUD']], 
+                    popup=r['OBJETIVO'], # Importante: El popup define el 'last_object_clicked' en st_folium
+                    tooltip=f"Clic para auditar: {r['OBJETIVO']}", 
+                    icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")
+                ).add_to(m_visor)
+        
+        # Captura de datos interactiva del mapa
+        mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
+        
+        # --- LÓGICA DE DETECCIÓN DE CLIC EN OBJETIVO ---
+        objetivo_cliqueado = None
+        if mapa_retorno and mapa_retorno.get("last_object_clicked_popup"):
+            objetivo_cliqueado = mapa_retorno["last_object_clicked_popup"].strip().upper()
+        
+        if objetivo_cliqueado:
+            st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
+            
+            # 1. Buscar supervisor asignado en la base de objetivos
+            df_match_obj = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_cliqueado]
+            sup_resp = df_match_obj['SUPERVISOR'].values[0] if not df_match_obj.empty else "NO ASIGNADO"
+            
+            pan1, pan2 = st.columns([1, 2])
+            
+            with pan1:
+                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
+                st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style='color:#00E5FF; font-family:\'Orbitron\'; font-size:16px;'>{sup_resp}</span>", unsafe_allow_html=True)
+                st.write("---")
+                
+                # 2. Extraer el último relevo de la pestaña VIGILADORES
+                st.markdown("**🔄 ÚLTIMO RELEVO REGISTRADO:**", unsafe_allow_html=True)
+                df_relevos_base = leer_matriz_nube("VIGILADORES")
+                if not df_relevos_base.empty:
+                    df_relevos_base.columns = df_relevos_base.columns.str.strip().str.upper()
+                    df_rel_obj = df_relevos_base[df_relevos_base['OBJETIVO'] == objetivo_cliqueado]
+                    if not df_rel_obj.empty:
+                        ultimo_rel = df_rel_obj.iloc[-1]
+                        st.write(f"📅 **Fecha/Hora:** {ultimo_rel.get('FECHA')} {ultimo_rel.get('HORA')}")
+                        st.write(f"🛑 **Sale:** {ultimo_rel.get('VIGILADOR_SALIENTE')}")
+                        st.write(f"🟢 **Entra:** {ultimo_rel.get('VIGILADOR_ENTRANTE')}")
+                        st.write(f"📊 **Estado:** {ultimo_rel.get('ESTADO')}")
+                    else:
+                        st.info("Sin registros de relevo de guardia en esta pestaña.")
+                else:
+                    st.info("No se pudo conectar a la base de Relevos.")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+            with pan2:
+                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
+                st.markdown("**🔄 HISTORIAL RECIENTE DE NOVEDADES EN GUARDIA:**", unsafe_allow_html=True)
+                
+                # 3. Filtrar últimas novedades en guardia del objetivo seleccionado
+                df_nov_guardia_base = leer_matriz_nube("NOVEDADES_GUARDIA")
+                if not df_nov_guardia_base.empty:
+                    df_nov_guardia_base.columns = df_nov_guardia_base.columns.str.strip().str.upper()
+                    df_nov_filtrado = df_nov_guardia_base[df_nov_guardia_base['OBJETIVO'] == objetivo_cliqueado]
+                    if not df_nov_filtrado.empty:
+                        st.dataframe(df_nov_filtrado.sort_index(ascending=False).head(5), use_container_width=True)
+                    else:
+                        st.info(f"No se registran novedades de guardia recientes para {objetivo_cliqueado}.")
+                else:
+                    st.info("Sin registros en la base de Novedades Guardia.")
+                st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
     
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
