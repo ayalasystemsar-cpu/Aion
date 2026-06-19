@@ -811,8 +811,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         
         if objetivo_cliqueado:
             st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
-            if objetivo_cliqueado:
-            st.markdown(f"### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}")
             
             # Buscar supervisor asignado
             df_match_obj = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_cliqueado]
