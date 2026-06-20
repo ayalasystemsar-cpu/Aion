@@ -732,16 +732,17 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
+                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 9 columnas)
                     datos_novedad_fichaje = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj,                    # B: OBJETIVO
                         "N/A",                    # C: DETALLE
                        f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
-                       v_apellido.upper(),       # E: VIGILADOR_SALE(Nombre)
-                        v_dni,                    # F: VIGILADOR_ENTRA_LEGAJO (DNI/Legajo)
-                        "PROCESADO",              # G: ESTADO
-                        up_responsable           # H: SUPERVISOR_ASIGNADO
+                       f"OPERARIO: {v_apellido}",# E: VIGILADOR_SALE
+                        "N/A",                    # F: VIGILADOR_ENTRA
+                        v_dni,                    # G: DNI/LEGAJO
+                        "PROCESADO",              # H: ESTADO
+                        sup_responsable           # I: SUPERVISOR_ASIGNADO
                     ]
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
                     
@@ -771,10 +772,12 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         v_obj_relevo,             # B: OBJETIVO
                         "RELEVO_COMPLETO",        # C: DETALLE
                         "CAMBIO_GUARDIA",         # D: TIPO_EVENTO
-                        vig_saliente.upper(),     # E: VIGILADOR_SALE(Nombre que sale)
-                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA_LEGAJO (Nombre que entra)
-                        "PROCESADO",              # G: ESTADO
-                        sup_responsable           # H: SUPERVISOR_ASIGNADO
+                        vig_saliente.upper(),     # E: VIGILADOR_SALE
+                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA
+                        "N/A",                    # G: DNI/LEGAJO (o el dato que corresponda aquí)
+                        "PROCESADO",              # H: ESTADO
+                        sup_responsable           # I: SUPERVISOR_ASIGNADO
+                      
                     ]
                     
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
