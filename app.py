@@ -558,12 +558,18 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
-
-    with t_nov:
+with t_nov:
         st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
+        
         if not df_nov_g.empty: 
+            # 1. Limpiamos espacios y pasamos a mayúsculas
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
+            
+            # 2. BLINDAJE: Si hay columnas duplicadas, las eliminamos automáticamente
+            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
+            
+            # 3. Ordenamos por fecha
             st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
             st.info("Sin novedades registradas.")
