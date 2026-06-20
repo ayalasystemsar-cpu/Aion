@@ -1,60 +1,4 @@
-import streamlit as st
-import datetime
-from datetime import datetime
-import pandas as pd
-import pytz
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-from streamlit_js_eval import get_geolocation
-import osmnx as ox
-import networkx as nx
-import folium
-from folium.plugins import AntPath
-from streamlit_folium import st_folium
-import math
-import requests  # Importante para conectar con el servidor de mapas de calles
-from branca.element import Element # Para inyección de z-index nativo seguro
-
-# Configuración de página OLED
-st.set_page_config(
-    page_title="AION-YAROKU | CORE",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
-ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-
-def conectar_google():
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        return gspread.authorize(creds)
-    except: 
-        return None
-
-# --- 3. FUNCIONES DE LÓGICA E DATOS ---
-def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
-def actualizar_celda(pestana, fila, columna, valor):
-    try:
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.update_acell(f"{columna}{fila}", valor)
-            return True
-    except: 
-        return False
-
-def escribir_registro_nube(pestana, datos_fila):
-    try:
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.append_row(datos_fila)
+tos_fila)
             return True
     except: 
         return False
@@ -346,24 +290,9 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         col_sel1, col_sel2 = st.columns([2, 1])
         
-        if "filtro_radar_valor" not in st.session_state:
-            st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
-
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
-            
-            try:
-                idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
-            except:
-                idx_defecto = 0
-                
-            obj_seleccionado = st.selectbox(
-                "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
-                opciones_busqueda, 
-                index=idx_defecto,
-                key="buscador_radar_master"
-            )
-            st.session_state["filtro_radar_valor"] = obj_seleccionado
+            obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda, key="buscador_radar_master")
         
         comisaria_cercana_name = None
         distancia_minima = float('inf')
@@ -392,6 +321,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
                 st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
                 
+                # SE SINCRONIZA MONITOREO CON GOOGLE MAPS GENERANDO EL BOTÓN IDÉNTICO
                 if comisaria_cercana_name:
                     url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
                     st.markdown(
@@ -415,7 +345,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
                     
-                    st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
+                    st.session_state["buscador_radar_master"] = "MOSTRAR TODO"
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -430,12 +360,13 @@ if st.session_state.rol_sel == "MONITOREO":
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
 
+            # 1. Inicializamos el mapa permitiendo súper zoom táctico (Hasta nivel 21)
             m_mon = folium.Map(
                 location=centro_mapa, 
                 zoom_start=zoom_inicial, 
                 max_zoom=21,
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-                attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
+                attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             )
             
             for _, r in df_mapa_monitoreo.iterrows():
@@ -494,14 +425,14 @@ if st.session_state.rol_sel == "MONITOREO":
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#000000",
-                    weight=5,
+                    weight=6,
                     opacity=0.4
                 ).add_to(m_mon)
 
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#39FF14",       
-                    weight=4,              
+                    weight=5,              
                     opacity=0.25           
                 ).add_to(m_mon)
             else:
@@ -516,25 +447,16 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        capa_etiquetas = folium.TileLayer(
+        # 3. INYECCIÓN FINAL CON SÚPER ZOOM
+        folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
-            attr='© <a href="https://carto.com/attributions">CARTO</a>',
+            attr='&copy; <a href="https://carto.com/attributions">CARTO</a>',
             name="Etiquetas de Calles",
             max_zoom=21,         
             max_native_zoom=20,  
             overlay=True,
             control=False
-        )
-        capa_etiquetas.add_to(m_mon)
-        
-        script_z_index = Element("""
-            <style>
-                .leaflet-pane.leaflet-overlay-pane { z-index: 400 !important; }
-                .leaflet-pane.leaflet-tile-pane { z-index: 200 !important; }
-                .leaflet-layer:nth-last-child(1) { z-index: 500 !important; pointer-events: none; }
-            </style>
-        """)
-        m_mon.get_root().header.add_child(script_z_index)
+        ).add_to(m_mon)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
     with t_gestion:
@@ -769,12 +691,11 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrANTE}", sup_responsable])
                     if exito_relevo: st.success("🔒 RELEVO EXITOSO.")
                     else: st.error("❌ ERROR DE RED")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
@@ -784,94 +705,16 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
     t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
     with t_crisis:
-        st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
+        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
-        
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         if not df_obj_maps_jefe.empty:
             for _, r in df_obj_maps_jefe.iterrows():
-                folium.Marker(
-                    [r['LATITUD'], r['LONGITUD']], 
-                    popup=r['OBJETIVO'], # Importante: El popup define el 'last_object_clicked' en st_folium
-                    tooltip=f"Clic para auditar: {r['OBJETIVO']}", 
-                    icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")
-                ).add_to(m_visor)
-        
-        # Captura de datos interactiva del mapa
-        mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
+                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        # --- LÓGICA DE DETECCIÓN DE CLIC EN OBJETIVO ---
-        objetivo_cliqueado = None
-        if mapa_retorno and mapa_retorno.get("last_object_clicked_popup"):
-            objetivo_cliqueado = mapa_retorno["last_object_clicked_popup"].strip().upper()
-        
-        if objetivo_cliqueado:
-            st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
-            
-            # 1. Buscar supervisor asignado en la base de objetivos
-            df_match_obj = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_cliqueado]
-            sup_resp = df_match_obj['SUPERVISOR'].values[0] if not df_match_obj.empty else "NO ASIGNADO"
-            
-            pan1, pan2 = st.columns([1, 2])
-            
-            with pan1:
-                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
-                st.write("---")
-                
-                st.markdown("**🔄 ÚLTIMO RELEVO REGISTRADO:**", unsafe_allow_html=True)
-                df_rel = leer_matriz_nube("VIGILADORES")
-                
-                if not df_rel.empty:
-                    df_rel.columns = df_rel.columns.str.strip().str.upper()
-                    df_rel_obj = df_rel[df_rel['OBJETIVO'] == objetivo_cliqueado]
-                    
-                    if not df_rel_obj.empty:
-                        rel = df_rel_obj.iloc[-1]
-                        hora_relevo = rel.get('HORA', 'N/A')
-                        
-                        # Mostramos los datos con la hora integrada
-                        st.write(f"📅 **Fecha:** {rel.get('FECHA', 'N/A')}")
-                        st.write(f"🛑 **Sale:** {rel.get('VIGILADOR_SALIENTE', 'N/A')} ({hora_relevo})")
-                        st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')} ({hora_relevo})")
-                        st.write(f"📊 **Estado:** {rel.get('ESTADO', 'N/A')}")
-                        
-                        # Lógica Antipánico (Sí/No)
-                        df_alt = leer_matriz_nube("ALERTAS")
-                        if not df_alt.empty:
-                            df_alt.columns = df_alt.columns.str.strip().str.upper()
-                            hay_panico = df_alt[df_alt['CARGA_UTIL'].str.contains(objetivo_cliqueado, na=False) & (df_alt['ESTADO'] == 'PENDIENTE')]
-                            
-                            if not hay_panico.empty:
-                                st.error("🚨 **ANTIPÁNICO:** SÍ (ACTIVADO)")
-                            else:
-                                st.success("✅ **ANTIPÁNICO:** NO")
-                    else:
-                        st.info("Sin registros de relevo en este objetivo.")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with pan2:
-                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                st.markdown("**🔄 HISTORIAL RECIENTE DE NOVEDADES EN GUARDIA:**", unsafe_allow_html=True)
-                
-                # 3. Filtrar últimas novedades en guardia del objetivo seleccionado
-                df_nov_guardia_base = leer_matriz_nube("NOVEDADES_GUARDIA")
-                if not df_nov_guardia_base.empty:
-                    df_nov_guardia_base.columns = df_nov_guardia_base.columns.str.strip().str.upper()
-                    df_nov_filtrado = df_nov_guardia_base[df_nov_guardia_base['OBJETIVO'] == objetivo_cliqueado]
-                    if not df_nov_filtrado.empty:
-                        st.dataframe(df_nov_filtrado.sort_index(ascending=False).head(5), use_container_width=True)
-                    else:
-                        st.info(f"No se registran novedades de guardia recientes para {objetivo_cliqueado}.")
-                else:
-                    st.info("Sin registros en la base de Novedades Guardia.")
-                st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
     
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
