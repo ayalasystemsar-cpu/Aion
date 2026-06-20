@@ -799,26 +799,31 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
+    # Solo dos pestañas, sin auditoría de datos técnicos
     t_crisis, t_ejecucion = st.tabs(["Centro de Crisis", "Ejecución"])
+    
     with t_crisis:
-        st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
+        st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
         
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        if not df_obj_maps_jefe.empty:
-            for _, r in df_obj_maps_jefe.iterrows():
-                folium.Marker(
-                    [r['LATITUD'], r['LONGITUD']], 
-                    popup=r['OBJETIVO'], # Importante: El popup define el 'last_object_clicked' en st_folium
-                    tooltip=f"Clic para auditar: {r['OBJETIVO']}", 
-                    icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")
-                ).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        # Captura de datos interactiva del mapa
-        mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
+        # Aquí termina el radar, NO agregamos nada más para que no salga la tabla.
+
+    with t_ejecucion:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
+        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
+        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
+        o_det = st.text_input("Nombre / Detalle:")
+        if st.button("ELEVAR PETICIÓN"):
+            if o_det.strip():
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
+                st.success("✅ Petición Elevada Exitosamente")
         st.markdown('</div>', unsafe_allow_html=True)
         
         # --- LÓGICA DE DETECCIÓN DE CLIC EN OBJETIVO ---
