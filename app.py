@@ -811,42 +811,4 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
 
 
-
-        # Pestañas del sistema
-    t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 CHAT OPERATIVO", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
-    ])
-
-    with t_radar:
-        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        # (Aquí va tu código de radar)
-
-    with t_comunicacion:
-        st.subheader("💬 CHAT OPERATIVO")
-        # (Aquí va tu código de chat)
-
-    with t_vig:
-        st.subheader("👥 PADRÓN VIGILADORES")
-        df_padrero = leer_matriz_nube("VIGILADORES")
-        if not df_padrero.empty:
-            df_padrero.columns = df_padrero.columns.str.strip().str.upper()
-            st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
-
-    with t_nov:
-        st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
-        df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty:
-            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
-            cols_deseadas = ["FECHA", "OBJETIVO", "TIPO_EVENTO", "VIGILADOR_SALE", 
-                             "VIGILADOR_ENTRA", "DNI/LEGAJO", "ESTADO", "SUPERVISOR_ASIGNADO"]
-            cols_finales = [c for c in cols_deseadas if c in df_nov_g.columns]
-            st.dataframe(df_nov_g[cols_finales].sort_values(by="FECHA", ascending=False), use_container_width=True)
-        else:
-            st.info("Sin novedades registradas.")
-
-# --- ROL SUPERVISOR (DEBE ESTAR ALINEADO AL MARGEN IZQUIERDO) ---
-elif st.session_state.rol_sel == "SUPERVISOR":
                                 
