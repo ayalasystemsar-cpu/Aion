@@ -563,35 +563,25 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
-    with t_nov:
-       st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
-        # Esta línea debe tener exactamente 8 espacios (o 2 niveles de indentación)
+with t_nov:
+        st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
+        
         if not df_nov_g.empty:
-            # 1. Limpieza de nombres de columnas (blinda ante espacios y duplicados)
             df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
             df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
             
-            # 2. Gestión de fechas más robusta
             if 'FECHA' in df_nov_g.columns:
-                # Intentamos convertir, si falla dejamos el texto original para no perder datos
                 df_nov_g['FECHA_ORDEN'] = pd.to_datetime(df_nov_g['FECHA'], errors='coerce')
-                # Ordenamos usando la columna de fecha real, pero mostramos los datos originales
-                df_ordenado = df_nov_g.sort_values(by='FECHA_ORDEN', ascending=False)
-                # Eliminamos la columna auxiliar de orden
-                df_ordenado = df_ordenado.drop(columns=['FECHA_ORDEN'])
+                df_ordenado = df_nov_g.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
             else:
-                # Si no hay columna FECHA, mostramos todo sin ordenar
                 df_ordenado = df_nov_g
             
-            # 3. Mostrar tabla limpia
             st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
-            
         else:
-            st.warning("⚠️ La tabla 'NOVEDADES_GUARDIA' no tiene datos o no se pudo conectar.")
-            # Diagnóstico visual
-            if st.button("🔄 REINTENTAR CONEXIÓN"):
-                st.rerun()
+            st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
+
+    
 
 
 elif st.session_state.rol_sel == "SUPERVISOR":
