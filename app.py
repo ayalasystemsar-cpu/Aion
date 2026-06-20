@@ -335,8 +335,7 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
         "🚨 RADAR S.O.S", "💬 CHAT OPERATIVO", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ])
-
-    with t_radar:
+with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
@@ -351,12 +350,11 @@ if st.session_state.rol_sel == "MONITOREO":
 
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
-            
             try:
                 idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
             except:
                 idx_defecto = 0
-                
+            
             obj_seleccionado = st.selectbox(
                 "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
                 opciones_busqueda, 
@@ -391,13 +389,9 @@ if st.session_state.rol_sel == "MONITOREO":
             with col_sel2:
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
                 st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
-                
                 if comisaria_cercana_name:
                     url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
-                    st.markdown(
-                        f'<a href="{url_gmaps_monitoreo}" target="_blank" class="btn-google-maps" style="font-size:11px; padding:6px 12px; margin-top:5px;">🗺️ ASISTENTE GPS COMPARTIDO</a>',
-                        unsafe_allow_html=True
-                    )
+                    st.markdown(f'<a href="{url_gmaps_monitoreo}" target="_blank" class="btn-google-maps" style="font-size:11px; padding:6px 12px; margin-top:5px;">🗺️ ASISTENTE GPS COMPARTIDO</a>', unsafe_allow_html=True)
         else:
             with col_sel2:
                 st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
@@ -414,14 +408,13 @@ if st.session_state.rol_sel == "MONITOREO":
                     idx_df = opciones_alertas[alerta_seleccionada]
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    
                     st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-   
+
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_mapa_monitoreo.empty:
+     if not df_mapa_monitoreo.empty:
             if obj_seleccionado != "MOSTRAR TODO":
                 datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
                 centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
@@ -536,9 +529,10 @@ if st.session_state.rol_sel == "MONITOREO":
         """)
         m_mon.get_root().header.add_child(script_z_index)
         
+        # ... [El código de folium y mapa se mantiene aquí con la misma indentación] ...
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
 
-with t_comunicacion:
+    with t_comunicacion:
         st.subheader("💬 CHAT OPERATIVO")
         with st.form(key="form_chat_monitoreo", clear_on_submit=True):
             txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
@@ -546,13 +540,12 @@ with t_comunicacion:
             if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
                 escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
                 st.rerun()
-        
         df_chats = leer_matriz_nube("CHATS")
         if not df_chats.empty:
             for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
                 st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-                
-  with t_vig:
+
+    with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
         if not df_padrero.empty:
@@ -567,14 +560,11 @@ with t_comunicacion:
         if not df_nov_g.empty:
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
-            # Seleccionamos las columnas eliminando "DETALLE"
-            cols_deseadas = ["FECHA", "OBJETIVO", "TIPO_EVENTO", "VIGILADOR_SALE", 
-                             "VIGILADOR_ENTRA", "DNI/LEGAJO", "ESTADO", "SUPERVISOR_ASIGNADO"]
+            cols_deseadas = ["FECHA", "OBJETIVO", "TIPO_EVENTO", "VIGILADOR_SALE", "VIGILADOR_ENTRA", "DNI/LEGAJO", "ESTADO", "SUPERVISOR_ASIGNADO"]
             cols_finales = [c for c in cols_deseadas if c in df_nov_g.columns]
             st.dataframe(df_nov_g[cols_finales].sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
             st.info("Sin novedades registradas.")
-# --- AQUÍ EMPIEZA EL OTRO ROL ---
 elif st.session_state.rol_sel == "SUPERVISOR":
 
    
