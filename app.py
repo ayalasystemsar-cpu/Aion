@@ -792,27 +792,35 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     st.error("❌ Por favor, completa los nombres de los vigiladores")
     st.markdown('</div>', unsafe_allow_html=True)
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
-elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+
+ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Solo dos pestañas, sin auditoría de datos técnicos
-    t_crisis, t_ejecucion = st.tabs(["Centro de Crisis", "Ejecución"])
-    
+    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
     with t_crisis:
-        st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA")
+        st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
         
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
-        st.markdown('</div>', unsafe_allow_html=True)
+        if not df_obj_maps_jefe.empty:
+            for _, r in df_obj_maps_jefe.iterrows():
+                folium.Marker(
+                    [r['LATITUD'], r['LONGITUD']], 
+                    popup=r['OBJETIVO'], # Importante: El popup define el 'last_object_clicked' en st_folium
+                    tooltip=f"Clic para auditar: {r['OBJETIVO']}", 
+                    icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")
+                ).add_to(m_visor)
         
-        # Aquí termina el radar, NO agregamos nada más para que no salga la tabla.
+        # Captura de datos interactiva del mapa
+        mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # --- LÓGICA DE DETECCIÓN DE CLIC EN OBJETIVO ---
         objetivo_cliqueado = None
@@ -893,9 +901,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             if o_det.strip():
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
                 st.success("✅ Petición Elevada Exitosamente")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-   
+        st.markdown('</div>', unsafe_allow_html=True)  
 
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
