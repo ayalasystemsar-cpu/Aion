@@ -732,17 +732,19 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
-                    datos_novedad_fichaje = [
-                        fecha_hora_arg,           # A: FECHA
-                        v_obj,                    # B: OBJETIVO
-                        v_dni,                    # C: DETALLE_ID
-                        f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
-                        f"OPERARIO: {v_apellido}",# E: VIGILADOR_SALE
-                        "N/A",                    # F: VIGILADOR_ENTRA
-                        "PROCESADO",              # G: ESTADO
-                        sup_responsable           # H: SUPERVISOR_ASIGNADO
-                    ]
+                
+                    # Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
+datos_novedad_fichaje = [
+    fecha_hora_arg,           # A: FECHA
+    v_obj,                    # B: OBJETIVO
+    v_dni,                    # C: DETALLE (antes DETALLE_ID)
+    f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
+    f"OPERARIO: {v_apellido}",# E: VIGILADOR_SALE_LEGAJO
+    "N/A",                    # F: VIGILADOR_ENTRA_LEGAJO
+    "PROCESADO",              # G: ESTADO
+    sup_responsable           # H: SUPERVISOR_ASIGNADO
+]
+escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
                     
                     if exito_pres: 
@@ -766,16 +768,18 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     fecha_hora_arg = obtener_hora_argentina()
                     
-                    datos_novedad = [
-                        fecha_hora_arg,           # A: FECHA
-                        v_obj_relevo,             # B: OBJETIVO
-                        "RELEVO_S/D",             # C: DETALLE_ID
-                        "CAMBIO_GUARDIA",         # D: TIPO_EVENTO
-                        vig_saliente.upper(),     # E: VIGILADOR_SALE
-                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA
-                        "PROCESADO",              # G: ESTADO
-                        sup_responsable           # H: SUPERVISOR_ASIGNADO
-                    ]
+                    # Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
+datos_novedad_fichaje = [
+    fecha_hora_arg,           # A: FECHA
+    v_obj,                    # B: OBJETIVO
+    v_dni,                    # C: DETALLE (antes DETALLE_ID)
+    f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
+    f"OPERARIO: {v_apellido}",# E: VIGILADOR_SALE_LEGAJO
+    "N/A",                    # F: VIGILADOR_ENTRA_LEGAJO
+    "PROCESADO",              # G: ESTADO
+    sup_responsable           # H: SUPERVISOR_ASIGNADO
+]
+escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
                     
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
                     
