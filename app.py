@@ -558,20 +558,21 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
-       with t_nov:
-           st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
-           df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-           
-           if not df_nov_g.empty:
-               df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-               df_nov_g = df_nov_g.loc[:, df_nov_g.columns != '']
-               df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
-               cols_deseadas = ["FECHA", "OBJETIVO", "TIPO_EVENTO", "VIGILADOR_SALE", "VIGILADOR_ENTRA", "DNI/LEGAJO", "ESTADO", "SUPERVISOR_ASIGNADO"]
-               cols_finales = [c for c in cols_deseadas if c in df_nov_g.columns]
-               df_final = df_nov_g[cols_finales]
-               st.dataframe(df_final.sort_values(by="FECHA", ascending=False), use_container_width=True)
+
+    with t_nov:
+        st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
+        df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
+        if not df_nov_g.empty: 
+            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
+            # Blindaje contra duplicados
+            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
+            # Seleccionar columnas (sin DETALLE)
+            cols_deseadas = ["FECHA", "OBJETIVO", "TIPO_EVENTO", "VIGILADOR_SALE", 
+                             "VIGILADOR_ENTRA", "DNI/LEGAJO", "ESTADO", "SUPERVISOR_ASIGNADO"]
+            cols_finales = [c for c in cols_deseadas if c in df_nov_g.columns]
+            st.dataframe(df_nov_g[cols_finales].sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
-             st.info("Sin novedades registradas.")
+            st.info("Sin novedades registradas.")
 
 
 
