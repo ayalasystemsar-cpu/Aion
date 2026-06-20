@@ -872,10 +872,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.markdown('</div>', unsafe_allow_html=True)
                 
             with pan2:
-                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                st.markdown("**🔄 HISTORIAL RECIENTE DE NOVEDADES EN GUARDIA:**", unsafe_allow_html=True)
-                
-             
+               
             st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
     
     with t_ejecucion:
