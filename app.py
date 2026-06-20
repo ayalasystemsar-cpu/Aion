@@ -564,13 +564,36 @@ if st.session_state.rol_sel == "MONITOREO":
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
     with t_nov:
-        st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
+       st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
+        
+        # Leemos la matriz con tu función (asegúrate que tenga la limpieza que definimos antes)
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty: 
-            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        
+        if not df_nov_g.empty:
+            # 1. Limpieza de nombres de columnas (blinda ante espacios y duplicados)
+            df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
+            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
+            
+            # 2. Gestión de fechas más robusta
+            if 'FECHA' in df_nov_g.columns:
+                # Intentamos convertir, si falla dejamos el texto original para no perder datos
+                df_nov_g['FECHA_ORDEN'] = pd.to_datetime(df_nov_g['FECHA'], errors='coerce')
+                # Ordenamos usando la columna de fecha real, pero mostramos los datos originales
+                df_ordenado = df_nov_g.sort_values(by='FECHA_ORDEN', ascending=False)
+                # Eliminamos la columna auxiliar de orden
+                df_ordenado = df_ordenado.drop(columns=['FECHA_ORDEN'])
+            else:
+                # Si no hay columna FECHA, mostramos todo sin ordenar
+                df_ordenado = df_nov_g
+            
+            # 3. Mostrar tabla limpia
+            st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
+            
         else:
-            st.info("Sin novedades registradas.")
+            st.warning("⚠️ La tabla 'NOVEDADES_GUARDIA' no tiene datos o no se pudo conectar.")
+            # Diagnóstico visual
+            if st.button("🔄 REINTENTAR CONEXIÓN"):
+                st.rerun()
 
 
 elif st.session_state.rol_sel == "SUPERVISOR":
