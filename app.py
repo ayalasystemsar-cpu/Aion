@@ -715,14 +715,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
+
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
     
-    # Asegúrate de que esta línea esté a 4 espacios del margen izquierdo
     tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
     
-    # Asegúrate de que esta línea esté a 4 espacios
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
@@ -742,29 +741,14 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     
-                    # 1. Registro en PRESENTISMO
                     datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
-                    datos_novedad_fichaje = [
-                        fecha_hora_arg,           # A: FECHA
-                        v_obj,                    # B: OBJETIVO
-                        v_dni,                    # C: DETALLE_ID
-                        f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
-                        f"OPERARIO: {v_apellido}",# E: VIGILADOR_SALE
-                        "N/A",                    # F: VIGILADOR_ENTRA
-                        "PROCESADO",              # G: ESTADO
-                        sup_responsable           # H: SUPERVISOR_ASIGNADO
-                    ]
-                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, v_dni, f"FACIAL_{v_tipo_marcacion}", f"OPERARIO: {v_apellido}", sup_responsable])
+                    if exito_pres: st.success(f"🔒 BIOMETRÍA REGISTRADA.")
+                    else: st.error("❌ ERROR DE RED")
+                else: st.error("❌ ERROR: Complete todos los campos.")
                     
-                    if exito_pres: 
-                        st.success(f"🔒 BIOMETRÍA REGISTRADA.")
-                    else: 
-                        st.error("❌ ERROR DE RED")
-                else: 
-                    st.error("❌ ERROR: Complete todos los campos.")
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
@@ -779,32 +763,17 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
                     fecha_hora_arg = obtener_hora_argentina()
-                    
-                    datos_novedad = [
-                        fecha_hora_arg,           # A: FECHA
-                        v_obj_relevo,             # B: OBJETIVO
-                        "RELEVO_S/D",             # C: DETALLE_ID
-                        "CAMBIO_GUARDIA",         # D: TIPO_EVENTO
-                        vig_saliente.upper(),     # E: VIGILADOR_SALE
-                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA
-                        "PROCESADO",              # G: ESTADO
-                        sup_responsable           # H: SUPERVISOR_ASIGNADO
-                    ]
-                    
-                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
-                    
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
+                    
                     datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
-                    if exito_relevo: 
-                        st.success("🔒 RELEVO REGISTRADO Y SANEADO")
-                    else: 
-                        st.error("❌ ERROR DE RED AL REGISTRAR")
-                else:
-                    st.error("❌ Por favor, completa los nombres de los vigiladores")
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
+                    if exito_relevo: st.success("🔒 RELEVO EXITOSO.")
+                    else: st.error("❌ ERROR DE RED")
     st.markdown('</div>', unsafe_allow_html=True)
+
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
