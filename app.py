@@ -783,6 +783,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
     t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
+    
     with t_crisis:
         st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -791,29 +792,16 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
         
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        if not df_obj_maps_jefe.empty:
-            for _, r in df_obj_maps_jefe.iterrows():
-                folium.Marker(
-                    [r['LATITUD'], r['LONGITUD']], 
-                    popup=r['OBJETIVO'], # Importante: El popup define el 'last_object_clicked' en st_folium
-                    tooltip=f"Clic para auditar: {r['OBJETIVO']}", 
-                    icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")
-                ).add_to(m_visor)
+        for _, r in df_obj_maps_jefe.iterrows():
+            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], tooltip=f"Clic para auditar: {r['OBJETIVO']}", icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")).add_to(m_visor)
         
-        # Captura de datos interactiva del mapa
         mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
         
-       
-        # --- LÓGICA DE DETECCIÓN DE CLIC EN OBJETIVO ---
-        objetivo_cliqueado = None
-        if mapa_retorno and mapa_retorno.get("last_object_clicked_popup"):
-            objetivo_cliqueado = mapa_retorno["last_object_clicked_popup"].strip().upper()
+        objetivo_cliqueado = mapa_retorno.get("last_object_clicked_popup", "").strip().upper() if mapa_retorno else None
         
         if objetivo_cliqueado:
             st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
-            
-            # Buscar supervisor asignado
             df_match_obj = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_cliqueado]
             sup_resp = df_match_obj['SUPERVISOR'].values[0] if not df_match_obj.empty else "NO ASIGNADO"
             
@@ -823,7 +811,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
                 st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
                 st.write("---")
-                
                 st.markdown("**🔄 ÚLTIMO RELEVO REGISTRADO:**", unsafe_allow_html=True)
                 df_rel = leer_matriz_nube("VIGILADORES")
                 if not df_rel.empty:
@@ -835,17 +822,13 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         st.write(f"🛑 **Sale:** {rel.get('VIGILADOR_SALIENTE', 'N/A')}")
                         st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')}")
                         
-                        # Lógica Antipánico
                         df_alt = leer_matriz_nube("ALERTAS")
                         if not df_alt.empty:
                             df_alt.columns = df_alt.columns.str.strip().str.upper()
                             hay_panico = df_alt[df_alt['CARGA_UTIL'].str.contains(objetivo_cliqueado, na=False) & (df_alt['ESTADO'] == 'PENDIENTE')]
-                            if not hay_panico.empty:
-                                st.error("🚨 ¡ANTIPÁNICO ACTIVADO!")
-                            else:
-                                st.success("✅ SISTEMA NORMAL")
+                            if not hay_panico.empty: st.error("🚨 ¡ANTIPÁNICO ACTIVADO!")
+                            else: st.success("✅ SISTEMA NORMAL")
                 st.markdown('</div>', unsafe_allow_html=True)
-
             with pan2:
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
                 st.markdown("**🔄 HISTORIAL RECIENTE:**", unsafe_allow_html=True)
@@ -854,27 +837,18 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     df_nov.columns = df_nov.columns.str.strip().str.upper()
                     st.dataframe(df_nov[df_nov['OBJETIVO'] == objetivo_cliqueado].tail(5), use_container_width=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-        
         else:
-            st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
-    
+            st.info("🎯 Seleccione un objetivo en el mapa.")
+
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
-        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
-        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
-        o_det = st.text_input("Nombre / Detalle:")
-        if st.button("ELEVAR PETICIÓN"):
-            if o_det.strip():
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
-                st.success("✅ Petición Elevada Exitosamente")
+        if st.button("ELEVAR PETICIÓN"): escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "JEFE", "PETICION", "GENERAL", "NUEVA"])
         st.markdown('</div>', unsafe_allow_html=True)
 
     with t_auditoria:
         st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_novedades = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_novedades.empty: st.dataframe(df_novedades.tail(20), use_container_width=True)
-
+        df_actas = leer_matriz_nube("ACTAS_FLOTAS")
+        if not df_actas.empty: st.dataframe(df_actas.tail(20), use_container_width=True)
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     m1, m2, m3, m4 = st.columns(4)
