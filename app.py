@@ -813,18 +813,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('</div>', unsafe_allow_html=True)
         
         # Aquí termina el radar, NO agregamos nada más para que no salga la tabla.
-
-    with t_ejecucion:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
-        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
-        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
-        o_det = st.text_input("Nombre / Detalle:")
-        if st.button("ELEVAR PETICIÓN"):
-            if o_det.strip():
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
-                st.success("✅ Petición Elevada Exitosamente")
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # --- LÓGICA DE DETECCIÓN DE CLIC EN OBJETIVO ---
         objetivo_cliqueado = None
