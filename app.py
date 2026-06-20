@@ -738,7 +738,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         v_obj,                    # B: OBJETIVO
                         "N/A",                    # C: DETALLE
                        f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
-                       v_apellido.upper(),       # E: VIGILADOR_SALE_LEGAJO (Nombre)
+                       v_apellido.upper(),       # E: VIGILADOR_SALE(Nombre)
                         v_dni,                    # F: VIGILADOR_ENTRA_LEGAJO (DNI/Legajo)
                         "PROCESADO",              # G: ESTADO
                         up_responsable           # H: SUPERVISOR_ASIGNADO
@@ -769,10 +769,10 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_novedad = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj_relevo,             # B: OBJETIVO
-                        "RELEVO_S/D",             # C: DETALLE_ID
+                        "RELEVO_COMPLETO",        # C: DETALLE
                         "CAMBIO_GUARDIA",         # D: TIPO_EVENTO
-                        vig_saliente.upper(),     # E: VIGILADOR_SALE
-                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA
+                        vig_saliente.upper(),     # E: VIGILADOR_SALE(Nombre que sale)
+                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA_LEGAJO (Nombre que entra)
                         "PROCESADO",              # G: ESTADO
                         sup_responsable           # H: SUPERVISOR_ASIGNADO
                     ]
