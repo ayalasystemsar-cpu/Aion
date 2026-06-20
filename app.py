@@ -799,7 +799,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
+    t_crisis, t_ejecucion = st.tabs(["Centro de Crisis", "Ejecución"])
     with t_crisis:
         st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -875,19 +875,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
                 st.markdown("**🔄 HISTORIAL RECIENTE DE NOVEDADES EN GUARDIA:**", unsafe_allow_html=True)
                 
-                # 3. Filtrar últimas novedades en guardia del objetivo seleccionado
-                df_nov_guardia_base = leer_matriz_nube("NOVEDADES_GUARDIA")
-                if not df_nov_guardia_base.empty:
-                    df_nov_guardia_base.columns = df_nov_guardia_base.columns.str.strip().str.upper()
-                    df_nov_filtrado = df_nov_guardia_base[df_nov_guardia_base['OBJETIVO'] == objetivo_cliqueado]
-                    if not df_nov_filtrado.empty:
-                        st.dataframe(df_nov_filtrado.sort_index(ascending=False).head(5), use_container_width=True)
-                    else:
-                        st.info(f"No se registran novedades de guardia recientes para {objetivo_cliqueado}.")
-                else:
-                    st.info("Sin registros en la base de Novedades Guardia.")
-                st.markdown('</div>', unsafe_allow_html=True)
-        else:
+             
             st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
     
     with t_ejecucion:
