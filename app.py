@@ -565,10 +565,8 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_nov:
        st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
-        
         # Esta línea debe tener exactamente 8 espacios (o 2 niveles de indentación)
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        
         if not df_nov_g.empty:
             # 1. Limpieza de nombres de columnas (blinda ante espacios y duplicados)
             df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
