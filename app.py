@@ -720,15 +720,10 @@ elif st.session_state.rol_sel == "VIGILADOR":
             btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
             
             if btn_fichar:
-                if v_apellido and img_facial and v_dni:
-                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
-                    sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-                    
+                    # Verifica que estas líneas tengan la misma indentación:
                     fecha_hora_arg = obtener_hora_argentina()
-                    fecha_hoy = fecha_hora_arg.split(" ")[0]
-                    hora_hoy = fecha_hora_arg.split(" ")[1]
+                    fecha_hoy = fecha_hora_arg.split(" ")[0] 
                     
-                    # 1. Registro en PRESENTISMO
                     datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
