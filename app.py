@@ -549,7 +549,7 @@ if st.session_state.rol_sel == "MONITOREO":
         if not df_chats.empty:
             for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
                 st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-
+                
    with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
@@ -559,7 +559,7 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
-    with t_nov:
+     with t_nov:
         st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
         
