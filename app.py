@@ -564,12 +564,12 @@ if st.session_state.rol_sel == "MONITOREO":
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
             
     with t_nov:
-          st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
-          df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
+        st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
+        df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
         
-           if not df_nov_g.empty:
-             df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
-             df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
+        if not df_nov_g.empty:
+            df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
+            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
             
             if 'FECHA' in df_nov_g.columns:
                 df_nov_g['FECHA_ORDEN'] = pd.to_datetime(df_nov_g['FECHA'], errors='coerce')
@@ -580,8 +580,6 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
-
-
     
 
 
