@@ -13,7 +13,6 @@ from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
 import requests  # Importante para conectar con el servidor de mapas de calles
-from branca.element import Element # Para inyección de z-index nativo seguro
 
 # Configuración de página OLED
 st.set_page_config(
@@ -193,17 +192,6 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
-        
-        /* Estilo para botón de Google Maps */
-        .btn-google-maps {
-            display: inline-flex; align-items: center; justify-content: center;
-            background-color: #ffffff !important; color: #1a73e8 !important;
-            font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 14px;
-            padding: 12px 24px; border-radius: 6px; border: 2px solid #1a73e8;
-            text-decoration: none !important; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
-            width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
-        }
-        .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         </style>
         """, unsafe_allow_html=True
     )
@@ -346,28 +334,12 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         col_sel1, col_sel2 = st.columns([2, 1])
         
-        if "filtro_radar_valor" not in st.session_state:
-            st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
-
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
-            
-            try:
-                idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
-            except:
-                idx_defecto = 0
-                
-            obj_seleccionado = st.selectbox(
-                "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
-                opciones_busqueda, 
-                index=idx_defecto,
-                key="buscador_radar_master"
-            )
-            st.session_state["filtro_radar_valor"] = obj_seleccionado
+            obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda)
         
         comisaria_cercana_name = None
         distancia_minima = float('inf')
-        com_lat_m, com_lon_m = None, None
         
         if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
             datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
@@ -385,19 +357,10 @@ if st.session_state.rol_sel == "MONITOREO":
                 if km < distancia_minima:
                     distancia_minima = km
                     comisaria_cercana_name = com['COMISARIA']
-                    com_lat_m = com['LATITUD']
-                    com_lon_m = com['LONGITUD']
             
             with col_sel2:
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
                 st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
-                
-                if comisaria_cercana_name:
-                    url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
-                    st.markdown(
-                        f'<a href="{url_gmaps_monitoreo}" target="_blank" class="btn-google-maps" style="font-size:11px; padding:6px 12px; margin-top:5px;">🗺️ ASISTENTE GPS COMPARTIDO</a>',
-                        unsafe_allow_html=True
-                    )
         else:
             with col_sel2:
                 st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
@@ -414,8 +377,6 @@ if st.session_state.rol_sel == "MONITOREO":
                     idx_df = opciones_alertas[alerta_seleccionada]
                     actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
                     actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
-                    
-                    st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
                     st.success("✅ Normalizado")
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -430,12 +391,13 @@ if st.session_state.rol_sel == "MONITOREO":
                 centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
                 zoom_inicial = 11
 
+            # 1. Inicializamos el mapa permitiendo súper zoom táctico (Hasta nivel 21)
             m_mon = folium.Map(
                 location=centro_mapa, 
                 zoom_start=zoom_inicial, 
-                max_zoom=21,
+                max_zoom=21,  # Permite aproximarse al máximo nivel de detalle de las manzanas
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-                attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
+                attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             )
             
             for _, r in df_mapa_monitoreo.iterrows():
@@ -482,7 +444,7 @@ if st.session_state.rol_sel == "MONITOREO":
         for _, c in df_com.iterrows():
             es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
             
-            if es_la_mas_cercana and obj_seleccionado != "MOSTRAR TODO":
+            if es_la_mas_cercana:
                 color_icono = "#FF9800"
                 tamano_fuente = "26px"
                 sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
@@ -490,19 +452,22 @@ if st.session_state.rol_sel == "MONITOREO":
                 com_lat, com_lon = c['LATITUD'], c['LONGITUD']
                 coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
                 
-                # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO ---
+                # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO (ESTILO RESALTADOR) ---
+                
+                # Capa de Fondo del Trazo: Una guía negra muy fina para dar contraste nítido a los bordes de la calle
                 folium.PolyLine(
                     locations=coordenadas_ruta,
                     color="#000000",
-                    weight=5,
+                    weight=6,
                     opacity=0.4
                 ).add_to(m_mon)
 
+                # Capa Principal del Trazo: Verde Lima Fluorescente SÚPER TRANSLÚCIDO (Opacidad al 25%)
                 folium.PolyLine(
                     locations=coordenadas_ruta,
-                    color="#39FF14",       
-                    weight=4,              
-                    opacity=0.25           
+                    color="#39FF14",       # Verde Lima Fluo puro
+                    weight=5,              # Grosor ideal calibrado para la calle
+                    opacity=0.25           # Permite pintar el mapa sin saturar ni encandilar las letras grises
                 ).add_to(m_mon)
             else:
                 color_icono = "#0000FF"
@@ -516,25 +481,16 @@ if st.session_state.rol_sel == "MONITOREO":
                 icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
             ).add_to(m_mon)
         
-        capa_etiquetas = folium.TileLayer(
+        # 3. INYECCIÓN FINAL CON SÚPER ZOOM: Capa transparente de etiquetas flotando arriba de todo
+        folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
-            attr='© <a href="https://carto.com/attributions">CARTO</a>',
+            attr='&copy; <a href="https://carto.com/attributions">CARTO</a>',
             name="Etiquetas de Calles",
-            max_zoom=21,         
-            max_native_zoom=20,  
+            max_zoom=21,         # Libera los controles hasta nivel 21
+            max_native_zoom=20,  # Estira digitalmente las tipografías de CartoDB si pasás el límite
             overlay=True,
             control=False
-        )
-        capa_etiquetas.add_to(m_mon)
-        
-        script_z_index = Element("""
-            <style>
-                .leaflet-pane.leaflet-overlay-pane { z-index: 400 !important; }
-                .leaflet-pane.leaflet-tile-pane { z-index: 200 !important; }
-                .leaflet-layer:nth-last-child(1) { z-index: 500 !important; pointer-events: none; }
-            </style>
-        """)
-        m_mon.get_root().header.add_child(script_z_index)
+        ).add_to(m_mon)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")  
     with t_gestion:
@@ -619,9 +575,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with col_btn2:
             if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
 
-        t_vis_qr, t_ruta_gmaps, t_car_tac, t_com_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"
-        ])
+        t_vis_qr, t_car_tac, t_com_sup, t_pres_sup = st.tabs(["Visita QR", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"])
         
         with t_vis_qr:
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
@@ -635,48 +589,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 for _, r in df_mapa_sup.iterrows():
                     folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
                 st_folium(m_visor, width="100%", height=400, key=f"map_sup_{sup_activo_normalizado}")
-
-        with t_ruta_gmaps:
-            st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
-            opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
-            
-            if len(opciones_servicios_r) > 0:
-                obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_servicios_r, key="sup_ruta_gmaps_target")
-                
-                datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
-                lat_target = datos_obj_r['LATITUD']
-                lon_target = datos_obj_r['LONGITUD']
-                
-                comisaria_r_name = None
-                com_lat_target, com_lon_target = None, None
-                dist_min_r = float('inf')
-                
-                for _, com in df_comisarias.iterrows():
-                    ln1, lt1, ln2, lt2 = map(math.radians, [lon_target, lat_target, com['LONGITUD'], com['LATITUD']])
-                    dln = ln2 - ln1
-                    dlt = lt2 - lt1
-                    a = math.sin(dlt/2)**2 + math.cos(lt1) * math.cos(lt2) * math.sin(dln/2)**2
-                    c = 2 * math.asin(math.sqrt(a))
-                    km = 6371 * c
-                    
-                    if km < dist_min_r:
-                        dist_min_r = km
-                        comisaria_r_name = com['COMISARIA']
-                        com_lat_target = com['LATITUD']
-                        com_lon_target = com['LONGITUD']
-                
-                if comisaria_r_name:
-                    st.info(f"👮 **Comisaría Encontrada:** {comisaria_r_name} (Distancia: {dist_min_r:.2f} Km)")
-                    
-                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_target},{com_lon_target}&destination={lat_target},{lon_target}&travelmode=driving"
-                    
-                    st.markdown(
-                        f'<a href="{url_gmaps}" target="_blank" class="btn-google-maps">🗺️ ABRIR ASISTENTE GPS EN GOOGLE MAPS</a>',
-                        unsafe_allow_html=True
-                    )
-                    st.caption("⚠️ Al presionar el botón, se abrirá la aplicación de Google Maps en tu dispositivo con el trazado GPS listo para iniciar la navegación.")
-            else:
-                st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
 
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
@@ -769,12 +681,11 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrANTE}", sup_responsable])
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO_S/D", "CAMBIO_GUARDIA", f"SALE: {vig_saliente} | ENTRA: {vig_entrante}", sup_responsable])
                     if exito_relevo: st.success("🔒 RELEVO EXITOSO.")
                     else: st.error("❌ ERROR DE RED")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
@@ -783,142 +694,17 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
     t_crisis, t_ejecucion, t_auditoria = st.tabs(["Centro de Crisis", "Ejecución", "Auditoría"])
-    
     with t_crisis:
-        st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
+        st.subheader("📡 RADAR Y LOCALIZACIÓN DE OBJETIVOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        
         df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
         centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
-        
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        for _, r in df_obj_maps_jefe.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], popup=r['OBJETIVO'], tooltip=f"Clic para auditar: {r['OBJETIVO']}", icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")).add_to(m_visor)
-        
-        mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
+        if not df_obj_maps_jefe.empty:
+            for _, r in df_obj_maps_jefe.iterrows():
+                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
+        st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        objetivo_cliqueado = mapa_retorno.get("last_object_clicked_popup", "").strip().upper() if mapa_retorno else None
-        
-        if objetivo_cliqueado:
-            st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
-            df_match_obj = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_cliqueado]
-            sup_resp = df_match_obj['SUPERVISOR'].values[0] if not df_match_obj.empty else "NO ASIGNADO"
-            
-            pan1, pan2 = st.columns([1, 2])
-            
-            with pan1:
-                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
-                st.write("---")
-                st.markdown("**🔄 ÚLTIMO RELEVO REGISTRADO:**", unsafe_allow_html=True)
-                df_rel = leer_matriz_nube("VIGILADORES")
-                if not df_rel.empty:
-                    df_rel.columns = df_rel.columns.str.strip().str.upper()
-                    df_rel_obj = df_rel[df_rel['OBJETIVO'] == objetivo_cliqueado]
-                    if not df_rel_obj.empty:
-                        rel = df_rel_obj.iloc[-1]
-                        st.write(f"🕒 **Hora Relevo:** {rel.get('HORA', 'N/A')}")
-                        st.write(f"🛑 **Sale:** {rel.get('VIGILADOR_SALIENTE', 'N/A')}")
-                        st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')}")
-                        
-                        df_alt = leer_matriz_nube("ALERTAS")
-                        if not df_alt.empty:
-                            df_alt.columns = df_alt.columns.str.strip().str.upper()
-                            hay_panico = df_alt[df_alt['CARGA_UTIL'].str.contains(objetivo_cliqueado, na=False) & (df_alt['ESTADO'] == 'PENDIENTE')]
-                            if not hay_panico.empty: st.error("🚨 ¡ANTIPÁNICO ACTIVADO!")
-                            else: st.success("✅ SISTEMA NORMAL")
-                st.markdown('</div>', unsafe_allow_html=True)
-            with pan2:
-                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                st.markdown("**🔄 HISTORIAL RECIENTE:**", unsafe_allow_html=True)
-                df_nov = leer_matriz_nube("NOVEDADES_GUARDIA")
-                if not df_nov.empty:
-                    df_nov.columns = df_nov.columns.str.strip().str.upper()
-                    st.dataframe(df_nov[df_nov['OBJETIVO'] == objetivo_cliqueado].tail(5), use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("🎯 Seleccione un objetivo en el mapa.")
-
-    with t_ejecucion:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        if st.button("ELEVAR PETICIÓN"): escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), "JEFE", "PETICION", "GENERAL", "NUEVA"])
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_auditoria:
-        st.subheader("📋 REPORTE DE MOVIMIENTOS")
-        df_actas = leer_matriz_nube("ACTAS_FLOTAS")
-        if not df_actas.empty: st.dataframe(df_actas.tail(20), use_container_width=True)
-elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
-    m2.metric("Nivel de Cobertura", "47/93")
-    m3.metric("Auditorías Físicas (QRs)", "2")
-    m4.metric("Desgaste Flota (Km)", "4954 Km")
-    
-    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    with t_com_est:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
-        g_asunto = st.text_input("Asunto:", key="ger_asunto")
-        g_orden = st.text_area("Orden:", key="ger_orden")
-        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
-        if st.button("Ejecutar Directiva"):
-            escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, g_orden, g_prioridad, g_para, g_asunto])
-            st.success("✅ Directiva Transmitida")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    with t_ejecucion_ger:
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
-            if st.button("Solicitar Alta"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
-                st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
-        with col_g2:
-            st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-            opciones_baja = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-            g_baja_obj = st.selectbox("Objetivo:", opciones_baja, key="ger_baja_obj")
-            if st.button("Solicitar Baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
-                st.success("✅ Petición enviada")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_tab_auditoria:
-        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        for _, r in df_ger_maps.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=450, key="map_gerencia")
-
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    u_ing = st.text_input("ADMIN_USER")
-    p_ing = st.text_input("ADMIN_PASS", type="password")
-    if u_ing == "admin" and p_ing == "aion2026": 
-        st.success("Núcleo Maestro desbloqueado.")
-            with pan2:
-                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
-                st.markdown("**🔄 HISTORIAL RECIENTE DE NOVEDADES EN GUARDIA:**", unsafe_allow_html=True)
-                
-                # 3. Filtrar últimas novedades en guardia del objetivo seleccionado
-                df_nov_guardia_base = leer_matriz_nube("NOVEDADES_GUARDIA")
-                if not df_nov_guardia_base.empty:
-                    df_nov_guardia_base.columns = df_nov_guardia_base.columns.str.strip().str.upper()
-                    df_nov_filtrado = df_nov_guardia_base[df_nov_guardia_base['OBJETIVO'] == objetivo_cliqueado]
-                    if not df_nov_filtrado.empty:
-                        st.dataframe(df_nov_filtrado.sort_index(ascending=False).head(5), use_container_width=True)
-                    else:
-                        st.info(f"No se registran novedades de guardia recientes para {objetivo_cliqueado}.")
-                else:
-                    st.info("Sin registros en la base de Novedades Guardia.")
-                st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
     
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
