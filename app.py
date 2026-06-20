@@ -108,10 +108,14 @@ def leer_matriz_nube(pestana):
             encabezados = [str(h).strip().upper() for h in todas_filas[0]]
             datos_cuerpo = todas_filas[1:]
             
-            if len(datos_cuerpo) == 0:
-                return pd.DataFrame(columns=encabezados)
-                
             df = pd.DataFrame(datos_cuerpo, columns=encabezados)
+            
+            # --- BLINDAJE CONTRA DUPLICADOS ---
+            # 1. Quitar espacios accidentales
+            df.columns = [str(c).strip().upper() for c in df.columns]
+            # 2. Eliminar columnas duplicadas (mantiene la primera ocurrencia)
+            df = df.loc[:, ~df.columns.duplicated()]
+            
             return df
         except Exception as e: 
             return pd.DataFrame()
