@@ -773,7 +773,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_novedad = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj,                    # B: OBJETIVO
-                        v_tipo_evento,            # C: TIPO_EVENTO (Aquí entra tu evento)
+                        tipo_evento_relevo,       # C: TIPO_EVENTO
                         v_apellido,               # D: VIGILADOR_SALE (quien reporta)
                         "N/A",                    # E: VIGILADOR_ENTRA
                         v_dni,                    # F: DNI/LEGAJO
