@@ -549,7 +549,7 @@ if st.session_state.rol_sel == "MONITOREO":
         if not df_chats.empty:
             for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
                 st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-                
+
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
@@ -559,33 +559,18 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
-     with t_nov:
+    with t_nov:
         st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        
         if not df_nov_g.empty: 
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-            # Blindaje contra duplicados
-            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
-            # Filtramos solo las columnas que existen en tu Excel
-            cols_deseadas = ["FECHA", "OBJETIVO", "TIPO_EVENTO", "VIGILADOR_SALE", 
-                             "VIGILADOR_ENTRA", "DNI/LEGAJO", "ESTADO", "SUPERVISOR_ASIGNADO"]
-            cols_finales = [c for c in cols_deseadas if c in df_nov_g.columns]
-            
-            st.dataframe(df_nov_g[cols_finales].sort_values(by="FECHA", ascending=False), use_container_width=True)
+            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
             st.info("Sin novedades registradas.")
 
-# --- AQUÍ EMPIEZA EL SIGUIENTE ROL, ALINEADO AL MARGEN IZQUIERDO ---
-elif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado:
-        # ... resto del código ...
-
-# --- AQUÍ ASEGÚRATE DE QUE NO QUEDE NINGÚN 'WITH' ABIERTO ---
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
-
         
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
@@ -747,18 +732,16 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 9 columnas)
+                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
                     datos_novedad_fichaje = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj,                    # B: OBJETIVO
-                        f"FACIAL_{v_tipo_marcacion}", # C: TIPO_EVENTO
-                        f"OPERARIO: {v_apellido}",# D: VIGILADOR_SALE
-                        "N/A",                    # E: VIGILADOR_ENTRA
-                        v_dni,                    # F: DNI/LEGAJO
+                        v_dni,                    # C: DETALLE_ID
+                        f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
+                        f"OPERARIO: {v_apellido}",# E: VIGILADOR_SALE
+                        "N/A",                    # F: VIGILADOR_ENTRA
                         "PROCESADO",              # G: ESTADO
                         sup_responsable           # H: SUPERVISOR_ASIGNADO
-                        
-                       
                     ]
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
                     
@@ -786,14 +769,12 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_novedad = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj_relevo,             # B: OBJETIVO
-                        "CAMBIO_GUARDIA",         # C: TIPO_EVENTO
-                        vig_saliente.upper(),     # D: VIGILADOR_SALE
-                        vig_entrante.upper(),     # E: VIGILADOR_ENTRA
-                        "N/A",                    # F: DNI/LEGAJO
+                        "RELEVO_S/D",             # C: DETALLE_ID
+                        "CAMBIO_GUARDIA",         # D: TIPO_EVENTO
+                        vig_saliente.upper(),     # E: VIGILADOR_SALE
+                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA
                         "PROCESADO",              # G: ESTADO
                         sup_responsable           # H: SUPERVISOR_ASIGNADO
-                        
-                      
                     ]
                     
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
@@ -810,7 +791,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 else:
                     st.error("❌ Por favor, completa los nombres de los vigiladores")
     st.markdown('</div>', unsafe_allow_html=True)
-    
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
