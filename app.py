@@ -565,7 +565,7 @@ if st.session_state.rol_sel == "MONITOREO":
         if not df_nov_g.empty:
             df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
             df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
-            # Seleccionamos las columnas eliminando "DETALLE"
+            
             cols_deseadas = ["FECHA", "OBJETIVO", "TIPO_EVENTO", "VIGILADOR_SALE", 
                              "VIGILADOR_ENTRA", "DNI/LEGAJO", "ESTADO", "SUPERVISOR_ASIGNADO"]
             cols_finales = [c for c in cols_deseadas if c in df_nov_g.columns]
@@ -688,27 +688,41 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_chats_sup = leer_matriz_nube("CHATS")
             if not df_chats_sup.empty:
                 for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
-                    st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True0)
 
-        with t_pres_sup:
+with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
+            
             if not df_v_total.empty:
+                # 1. Limpieza estándar
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
                 
+                # 2. BLINDAJE: Eliminar columnas duplicadas y vacías
+                df_v_total = df_v_total.loc[:, df_v_total.columns != '']
+                df_v_total = df_v_total.loc[:, ~df_v_total.columns.duplicated()]
+                
+                # 3. Filtrado por supervisor
                 def fila_pertenece_a_supervisor(row, sup_name):
-                    for cell_val in row.values:
-                        if str(cell_val).strip().upper() == sup_name: return True
-                    return False
+                    # Buscamos el nombre del supervisor en CUALQUIER columna de la fila
+                    return any(str(cell_val).strip().upper() == sup_name for cell_val in row.values)
                 
                 mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
                 df_v_filtrado = df_v_total[mask_sup]
+                
                 if not df_v_filtrado.empty:
-                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
+                    # 4. Mostrar solo las columnas que deseas (sin DETALLE y ordenadas)
+                    cols_deseadas = ["FECHA", "OBJETIVO", "TIPO_EVENTO", "VIGILADOR_SALE", 
+                                     "VIGILADOR_ENTRA", "DNI/LEGAJO", "ESTADO", "SUPERVISOR_ASIGNADO"]
+                    cols_finales = [c for c in cols_deseadas if c in df_v_filtrado.columns]
+                    
+                    st.dataframe(df_v_filtrado[cols_finales].sort_values(by="FECHA", ascending=False), use_container_width=True)
                 else:
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
+
+        
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
