@@ -562,7 +562,8 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
-      with t_nov:
+            
+    with t_nov:
           st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
           df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
         
