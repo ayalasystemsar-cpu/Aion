@@ -733,17 +733,17 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
                     # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
-                    datos_novedad_fichaje = [
-                        fecha_hora_arg,           # A: FECHA
-                        v_obj,                    # B: OBJETIVO
-                        v_dni,                    # C: DETALLE_ID
-                        f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
-                        f"OPERARIO: {v_apellido}",# E: VIGILADOR_SALE
-                        "N/A",                    # F: VIGILADOR_ENTRA
-                        "PROCESADO",              # G: ESTADO
-                        sup_responsable           # H: SUPERVISOR_ASIGNADO
-                    ]
-                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
+                   datos_novedad_fichaje = [
+    fecha_hora_arg,           # A: FECHA
+    v_obj,                    # B: OBJETIVO
+    "N/A",                    # C: DETALLE
+    f"FACIAL_{v_tipo_marcacion}", # D: TIPO_EVENTO
+    v_apellido.upper(),       # E: VIGILADOR_SALE_LEGAJO (Nombre)
+    v_dni,                    # F: VIGILADOR_ENTRA_LEGAJO (DNI/Legajo)
+    "PROCESADO",              # G: ESTADO
+    sup_responsable           # H: SUPERVISOR_ASIGNADO
+]
+escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
                     
                     if exito_pres: 
                         st.success(f"🔒 BIOMETRÍA REGISTRADA.")
