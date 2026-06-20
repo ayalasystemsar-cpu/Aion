@@ -386,13 +386,14 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("Sin novedades registradas.")
 
-elif st.session_state.rol_sel == "SUPERVISOR":
+ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         # Aquí continúa tu código de supervisor
 
 # --- AQUÍ ASEGÚRATE DE QUE NO QUEDE NINGÚN 'WITH' ABIERTO ---
-elif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado:
+
+ elif st.session_state.rol_sel == "SUPERVISOR":
+     if st.session_state.sup_autenticado:
 
         
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
