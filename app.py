@@ -769,7 +769,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
                     fecha_hora_arg = obtener_hora_argentina()
-                    
+                  #  --- CORRECCIÓN AQUÍ: Definimos la variable antes de usarla ---
+                    tipo_evento_relevo = "CAMBIO_GUARDIA"
                     datos_novedad = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj,                    # B: OBJETIVO
