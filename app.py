@@ -764,33 +764,17 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
-                    fecha_hora_arg = obtener_hora_argentina()
-                    
-                    datos_novedad = [
+                  datos_novedad = [
                         fecha_hora_arg,           # A: FECHA
                         v_obj_relevo,             # B: OBJETIVO
-                        "RELEVO_S/D",             # C: DETALLE_ID
+                        "RELEVO",                 # C: DETALLE
                         "CAMBIO_GUARDIA",         # D: TIPO_EVENTO
-                        vig_saliente.upper(),     # E: VIGILADOR_SALE
-                        vig_entrante.upper(),     # F: VIGILADOR_ENTRA
+                        f"SALE: {vig_saliente.upper()}", # E: VIGILADOR_SALE
+                        f"ENTRA: {vig_entrante.upper()}",# F: VIGILADOR_ENTRA (Si quieres legajos, ponlos aquí)
                         "PROCESADO",              # G: ESTADO
                         sup_responsable           # H: SUPERVISOR_ASIGNADO
                     ]
-                    
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
-                    
-                    fecha_hoy = fecha_hora_arg.split(" ")[0]
-                    hora_hoy = fecha_hora_arg.split(" ")[1]
-                    datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
-                    exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
-                    
-                    if exito_relevo: 
-                        st.success("🔒 RELEVO REGISTRADO Y SANEADO")
-                    else: 
-                        st.error("❌ ERROR DE RED AL REGISTRAR")
-                else:
-                    st.error("❌ Por favor, completa los nombres de los vigiladores")
-    st.markdown('</div>', unsafe_allow_html=True)
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
