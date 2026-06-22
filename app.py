@@ -83,29 +83,24 @@ def calcular_ruta_real(orig, dest):
         return [orig, dest]
 
 # --- SE REMOVIÓ EL TTL=5 QUE HACÍA QUE LA PÁGINA SE ACTUALIZARA SOLA TODO EL TIEMPO ---
-@st.cache_data(ttl=60) 
+@st.cache_data(ttl=30)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
-    if gc:
-        try:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            todas_filas = hoja.get_all_values()
-            
-            if not todas_filas or len(todas_filas) == 0:
-                return pd.DataFrame()
-                
-            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-            datos_cuerpo = todas_filas[1:]
-            
-            if len(datos_cuerpo) == 0:
-                return pd.DataFrame(columns=encabezados)
-                
-            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
-            return df
-        except Exception as e: 
-            return pd.DataFrame()
-    return pd.DataFrame()
-
+    if not gc: return pd.DataFrame()
+    try:
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+        datos = hoja.get_all_values()
+        if len(datos) < 2: return pd.DataFrame()
+        
+        # Convertimos la fila 0 en encabezados únicos
+        encabezados = [str(col).strip().upper() if str(col).strip() != "" else f"COL_{i}" for i, col in enumerate(datos[0])]
+        
+        df = pd.DataFrame(datos[1:], columns=encabezados)
+        # Eliminamos filas donde todo esté vacío
+        df = df.dropna(how='all')
+        return df
+    except Exception:
+        return pd.DataFrame()
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
