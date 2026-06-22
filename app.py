@@ -696,7 +696,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
                     st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
-                with t_pres_sup:
+       with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             
