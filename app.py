@@ -12,7 +12,7 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
-import requests # Importante para conectar con el servidor de mapas de calles
+import requests  # Importante para conectar con el servidor de mapas de calles
 from branca.element import Element # Para inyección de z-index nativo seguro
 
 # Configuración de página OLED
@@ -562,25 +562,15 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
-            
+
     with t_nov:
         st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        
-        if not df_nov_g.empty:
-            df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
-            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
-            
-            if 'FECHA' in df_nov_g.columns:
-                df_nov_g['FECHA_ORDEN'] = pd.to_datetime(df_nov_g['FECHA'], errors='coerce')
-                df_ordenado = df_nov_g.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
-            else:
-                df_ordenado = df_nov_g
-            
-            st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
+        if not df_nov_g.empty: 
+            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
+            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
         else:
-            st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
-    
+            st.info("Sin novedades registradas.")
 
 
 elif st.session_state.rol_sel == "SUPERVISOR":
@@ -748,14 +738,14 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
                     datos_novedad_fichaje = [
-                       fecha_hora_arg, # A: FECHA
-                       v_obj, # B: OBJETIVO
+                       fecha_hora_arg,           # A: FECHA
+                       v_obj,                    # B: OBJETIVO
                         f"FACIAL_{v_tipo_marcacion}", # C: TIPO_EVENTO
-                        v_apellido, # D: VIGILADOR_SALE
-                        "N/A", # E: VIGILADOR_ENTRA
-                        v_dni, # F: DNI/LEGAJO
-                        "PROCESADO", # G: ESTADO
-                        sup_responsable # H: SUPERVISOR_ASIGNADO
+                        v_apellido,               # D: VIGILADOR_SALE
+                        "N/A",                    # E: VIGILADOR_ENTRA
+                        v_dni,                    # F: DNI/LEGAJO
+                        "PROCESADO",              # G: ESTADO
+                        sup_responsable           # H: SUPERVISOR_ASIGNADO
                     ]
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
                     
@@ -765,7 +755,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         st.error("❌ ERROR DE RED")
                 else: 
                     st.error("❌ ERROR: Complete todos los campos.")
-    
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
@@ -776,29 +765,24 @@ elif st.session_state.rol_sel == "VIGILADOR":
             
             if btn_relevo:
                 if vig_saliente and vig_entrante:
-                    # Buscamos el supervisor correcto según el objetivo del relevo
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
                     fecha_hora_arg = obtener_hora_argentina()
-                    tipo_evento_relevo = "CAMBIO_GUARDIA"
                     
-                    # CORRECCIÓN AQUÍ: Usamos las variables correctas del relevo
                     datos_novedad = [
-                        fecha_hora_arg,       # A: FECHA
-                        v_obj_relevo,         # B: OBJETIVO (usamos v_obj_relevo)
-                        tipo_evento_relevo,   # C: TIPO_EVENTO
-                        vig_saliente,         # D: VIGILADOR_SALE (usamos vig_saliente)
-                        vig_entrante,         # E: VIGILADOR_ENTRA (usamos vig_entrante)
-                        "N/A",                # F: DNI/LEGAJO
-                        "PROCESADO",          # G: ESTADO
-                        sup_responsable       # H: SUPERVISOR_ASIGNADO
+                        fecha_hora_arg,           # A: FECHA
+                        v_obj,                    # B: OBJETIVO
+                        tipo_evento_relevo,       # C: TIPO_EVENTO
+                        v_apellido,               # D: VIGILADOR_SALE (quien reporta)
+                        "N/A",                    # E: VIGILADOR_ENTRA
+                        v_dni,                    # F: DNI/LEGAJO
+                        "PROCESADO",              # G: ESTADO
+                        sup_responsable           # H: SUPERVISOR_ASIGNADO
                     ]
                     
-                    # Enviamos a NOVEDADES_GUARDIA para que aparezca en los cuadros de control
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
                     
-                    # Opcional: Registro histórico interno
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
@@ -810,7 +794,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         st.error("❌ ERROR DE RED AL REGISTRAR")
                 else:
                     st.error("❌ Por favor, completa los nombres de los vigiladores")
-
+    st.markdown('</div>', unsafe_allow_html=True)
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
