@@ -696,25 +696,28 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
                     st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
-        with t_pres_sup:
+                with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
+            
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
                 
-                def fila_pertenece_a_supervisor(row, sup_name):
-                    for cell_val in row.values:
-                        if str(cell_val).strip().upper() == sup_name: return True
-                    return False
+                # Normalizamos el supervisor actual para la comparación
+                sup_activo = st.session_state.user_sel.strip().upper()
                 
-                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
-                df_v_filtrado = df_v_total[mask_sup]
+                # Filtramos verificando si la columna 'SUPERVISOR_ASIGNADO' contiene el nombre
+                # Aseguramos que los valores sean strings y estén limpios
+                mask = df_v_total['SUPERVISOR_ASIGNADO'].astype(str).str.strip().str.upper() == sup_activo
+                df_v_filtrado = df_v_total[mask]
+                
                 if not df_v_filtrado.empty:
                     st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
                 else:
-                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
+                    st.info(f"Sin registros para {sup_activo}. Verifica que la columna 'SUPERVISOR_ASIGNADO' tenga el nombre correcto en Sheets.")
             else:
-                st.info("No hay datos registrados en Novedades Guardia.")
+                st.info("No hay datos en NOVEDADES_GUARDIA.")
+
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
