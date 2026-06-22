@@ -566,12 +566,12 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_nov:
         st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty: 
-            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        
+        if not df_nov_g.empty:
+            # Mostramos todo, ordenado por fecha de forma simple
+            st.dataframe(df_nov_g, use_container_width=True, hide_index=True)
         else:
-            st.info("Sin novedades registradas.")
-
+            st.warning("⚠️ No se encontraron datos. Asegúrate de haber enviado un fichaje o relevo.")
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
@@ -687,24 +687,32 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
         with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
-            df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
-            if not df_v_total.empty:
-                df_v_total.columns = df_v_total.columns.str.strip().str.upper()
+           with t_pres_sup:
+        st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
+        df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
+        
+        if not df_v_total.empty:
+            # 1. Limpiamos nombres de columnas para asegurar consistencia
+            df_v_total.columns = df_v_total.columns.str.strip().str.upper()
+            sup_buscado = st.session_state.user_sel.strip().upper()
+            
+            # 2. Buscamos cualquier columna que se parezca a SUPERVISOR
+            col_sup = next((c for c in df_v_total.columns if "SUPERVISOR" in c), None)
+            
+            if col_sup:
+                # 3. Filtramos: usamos .astype(str) para evitar errores con celdas vacías
+                df_v_filtrado = df_v_total[df_v_total[col_sup].astype(str).str.strip().str.upper() == sup_buscado]
                 
-                def fila_pertenece_a_supervisor(row, sup_name):
-                    for cell_val in row.values:
-                        if str(cell_val).strip().upper() == sup_name: return True
-                    return False
-                
-                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
-                df_v_filtrado = df_v_total[mask_sup]
                 if not df_v_filtrado.empty:
-                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
+                    st.dataframe(df_v_filtrado, use_container_width=True)
                 else:
-                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
+                    st.warning(f"No hay registros asignados específicamente a '{sup_buscado}'.")
+                    # Debug: mostramos qué supervisores existen en la tabla para que sepas qué buscar
+                    st.write("Supervisores encontrados en la base:", df_v_total[col_sup].unique())
             else:
-                st.info("No hay datos registrados en Novedades Guardia.")
+                st.error("No se encontró la columna 'SUPERVISOR' en el archivo. Verifica los encabezados.")
+        else:
+            st.info("No hay datos cargados en la hoja 'NOVEDADES_GUARDIA'.")
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
