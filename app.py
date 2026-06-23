@@ -49,14 +49,27 @@ def leer_matriz_nube(pestana):
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
-            if not todas_filas: return pd.DataFrame()
+            
+            if not todas_filas or len(todas_filas) == 0:
+                return pd.DataFrame()
+                
             encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-            df = pd.DataFrame(todas_filas[1:], columns=encabezados)
+            datos_cuerpo = todas_filas[1:]
+            
+            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
+            
+            # --- CORRECCIÓN AQUÍ ---
+            # Asegúrate de que esta línea tenga exactamente 12 espacios 
+            # o el mismo nivel que la línea "df = pd.DataFrame..."
             df.columns = [str(c).strip().upper() for c in df.columns]
-            return df.loc[:, ~df.columns.duplicated()]
-        except: return pd.DataFrame()
+            
+            # Eliminar columnas duplicadas
+            df = df.loc[:, ~df.columns.duplicated()]
+            
+            return df
+        except Exception as e: 
+            return pd.DataFrame()
     return pd.DataFrame()
-
 # --- FUNCIÓN DE CHAT UNIFICADA ---
 def renderizar_sistema_chats(rol_usuario, rol_destino_opciones=None, silent=False):
     df_chats = leer_matriz_nube("CHATS")
