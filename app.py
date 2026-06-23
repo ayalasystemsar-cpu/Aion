@@ -733,7 +733,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
             btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
             
-            if v_apellido and img_facial and v_dni:
+           if v_apellido and img_facial and v_dni:
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
@@ -765,7 +765,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     if exito_pres: 
                         st.success(f"🔒 BIOMETRÍA REGISTRADA.")
-                    
+                    else: 
+                        st.error("❌ ERROR DE RED")
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
@@ -800,7 +801,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
                     if exito_relevo: 
-                        st.success("🔒 RELEVO REGISTRADO Y SANEADO")
+                        st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
                     else: 
                         st.error("❌ ERROR DE RED AL REGISTRAR")
                 else:
