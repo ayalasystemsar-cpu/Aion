@@ -820,15 +820,14 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if mapa_retorno and mapa_retorno.get("last_object_clicked_popup"):
             objetivo_cliqueado = mapa_retorno["last_object_clicked_popup"].strip().upper()
         
+       # DENTRO DEL IF objetivo_cliqueado:
         if objetivo_cliqueado:
             st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
             
-            # 1. Buscar supervisor asignado en la base de objetivos
-            df_match_obj = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_cliqueado]
-            sup_resp = df_match_obj['SUPERVISOR'].values[0] if not df_match_obj.empty else "NO ASIGNADO"
-            
+            # 1. Definimos las columnas AQUÍ, para que siempre existan antes de usarse
             pan1, pan2 = st.columns([1, 2])
             
+            # 2. Bloque pan1: Auditoría de Supervisor y Relevos
             with pan1:
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
                 st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
@@ -844,19 +843,15 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     if not df_rel_obj.empty:
                         rel = df_rel_obj.iloc[-1]
                         hora_relevo = rel.get('HORA', 'N/A')
-                        
-                        # Mostramos los datos con la hora integrada
                         st.write(f"📅 **Fecha:** {rel.get('FECHA', 'N/A')}")
                         st.write(f"🛑 **Sale:** {rel.get('VIGILADOR_SALIENTE', 'N/A')} ({hora_relevo})")
                         st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')} ({hora_relevo})")
                         st.write(f"📊 **Estado:** {rel.get('ESTADO', 'N/A')}")
                         
-                        # Lógica Antipánico (Sí/No)
                         df_alt = leer_matriz_nube("ALERTAS")
                         if not df_alt.empty:
                             df_alt.columns = df_alt.columns.str.strip().str.upper()
                             hay_panico = df_alt[df_alt['CARGA_UTIL'].str.contains(objetivo_cliqueado, na=False) & (df_alt['ESTADO'] == 'PENDIENTE')]
-                            
                             if not hay_panico.empty:
                                 st.error("🚨 **ANTIPÁNICO:** SÍ (ACTIVADO)")
                             else:
@@ -864,11 +859,14 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     else:
                         st.info("Sin registros de relevo en este objetivo.")
                 st.markdown('</div>', unsafe_allow_html=True)
-                
-    with pan2:
-               
+            
+            # 3. Bloque pan2: Información adicional
+            with pan2:
+                st.info("🎯 Visualización detallada del objetivo seleccionado en la red táctica.")
+        
+        # 4. Mensaje si no hay nada seleccionado
+        else:
             st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
-    
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
