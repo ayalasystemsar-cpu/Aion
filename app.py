@@ -334,11 +334,18 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
+   # Al definir los tabs, calculamos la alerta primero
+    hay_nuevos_mon = renderizar_sistema_chats("MONITOREO", silent=True)
     t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 CHAT OPERATIVO", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+        "🚨 RADAR S.O.S", 
+        f"💬 CHAT {'🔴' if hay_nuevos_mon else ''}", 
+        "👥 PADRÓN VIGILADORES", 
+        "🔄 NOVEDADES Y FICHAJES"
     ])
 
+    with t_comunicacion:
+        st.subheader("💬 CENTRAL DE COMUNICACIÓN")
+        renderizar_sistema_chats("MONITOREO")
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
