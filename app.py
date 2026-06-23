@@ -12,18 +12,13 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
-import requests # Importante para conectar con el servidor de mapas de calles
-from branca.element import Element # Para inyección de z-index nativo seguro
+import requests
+from branca.element import Element
 
-# Configuración de página OLED
-st.set_page_config(
-    page_title="AION-YAROKU | CORE",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuración de página
+st.set_page_config(page_title="AION-YAROKU | CORE", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
+# --- CONEXIONES ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
 def conectar_google():
@@ -31,23 +26,12 @@ def conectar_google():
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
-    except: 
-        return None
+    except: return None
 
-# --- 3. FUNCIONES DE LÓGICA E DATOS ---
+# --- FUNCIONES DE LÓGICA ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
-def actualizar_celda(pestana, fila, columna, valor):
-    try:
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.update_acell(f"{columna}{fila}", valor)
-            return True
-    except: 
-        return False
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -56,43 +40,7 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
             return True
-    except: 
-        return False
-        
-@st.cache_resource
-def obtener_grafo_zona(lat, lon):
-    try:
-        return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
-    except:
-        return None
-
-def calcular_ruta_real(orig, dest):
-    mid_lat = (orig[0] + dest[0]) / 2
-    mid_lon = (orig[1] + dest[1]) / 2
-    G = obtener_grafo_zona(mid_lat, mid_lon)
-    
-    if G is None: 
-        return [orig, dest]
-        
-    try:
-        orig_node = ox.distance.nearest_nodes(G, X=orig[1], Y=orig[0])
-        dest_node = ox.distance.nearest_nodes(G, X=dest[1], Y=dest[0])
-        ruta = nx.shortest_path(G, orig_node, dest_node, weight='length')
-        return [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta]
-    except:
-        return [orig, dest]
-
-# Función dedicada a obtener el trazado exacto calle por calle vía OSRM (Estilo GPS)
-def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
-    try:
-        url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson"
-        response = requests.get(url, timeout=5).json()
-        if response.get("code") == "Ok":
-            coordenadas = response["routes"][0]["geometry"]["coordinates"]
-            return [[point[1], point[0]] for point in coordenadas]
-    except:
-        pass
-    return [[lat1, lon1], [lat2, lon2]]
+    except: return False
 
 @st.cache_data(ttl=60) 
 def leer_matriz_nube(pestana):
@@ -101,14 +49,43 @@ def leer_matriz_nube(pestana):
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
-            
-            if not todas_filas or len(todas_filas) == 0:
-                return pd.DataFrame()
-                
+            if not todas_filas: return pd.DataFrame()
             encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-            datos_cuerpo = todas_filas[1:]
-            
-            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
+            df = pd.DataFrame(todas_filas[1:], columns=encabezados)
+            df.columns = [str(c).strip().upper() for c in df.columns]
+            return df.loc[:, ~df.columns.duplicated()]
+        except: return pd.DataFrame()
+    return pd.DataFrame()
+
+# --- FUNCIÓN DE CHAT UNIFICADA ---
+def renderizar_sistema_chats(rol_usuario, rol_destino_opciones=None, silent=False):
+    df_chats = leer_matriz_nube("CHATS")
+    total_actual = len(df_chats) if not df_chats.empty else 0
+    
+    if 'total_mensajes_previo' not in st.session_state:
+        st.session_state.total_mensajes_previo = total_actual
+    
+    hay_nuevos = total_actual > st.session_state.total_mensajes_previo
+    if silent: return hay_nuevos
+    
+    if hay_nuevos: st.session_state.total_mensajes_previo = total_actual
+
+    with st.form(key=f"form_chat_{rol_usuario}", clear_on_submit=True):
+        col_c1, col_c2 = st.columns([3, 1])
+        txt_msg = col_c1.text_input("MENSAJE:")
+        opciones = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADORES"]
+        dest = col_c2.selectbox("PARA:", opciones if not rol_destino_opciones else rol_destino_opciones)
+        
+        if st.form_submit_button("TRANSMITIR"):
+            if txt_msg.strip():
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.upper(), "VERDE", dest, rol_usuario])
+                st.rerun()
+
+    if not df_chats.empty:
+        df_c = df_chats[(df_chats['PARA'] == "TODOS") | (df_chats['PARA'] == rol_usuario)]
+        for _, msg in df_c.tail(15).iloc[::-1].iterrows():
+            st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} | De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
+    return hay_nuevos
             
             # --- BLINDAJE CONTRA DUPLICADOS ---
             # 1. Quitar espacios accidentales
