@@ -332,6 +332,7 @@ elif st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
+    # --- PROCESAMIENTO DE DATOS ---
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
@@ -343,33 +344,25 @@ elif st.session_state.rol_sel == "MONITOREO":
         if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
-    lista_objetivos_en_panico = []
-    if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
-        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
-        sos_activos = len(pendientes)
-        for _, row in pendientes.iterrows():
-            carga = str(row['CARGA_UTIL'])
-            if "OBJ:" in carga:
-                try: 
-                    lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
-                except: pass
-    else: 
-        sos_activos = 0
+    # --- INDICADORES ---
+    pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'] if not df_emergencias.empty else pd.DataFrame()
+    sos_activos = len(pendientes)
     
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
+    # --- PESTAÑAS (CHAT UNIFICADO) ---
     hay_nuevos_mon = renderizar_sistema_chats("MONITOREO", silent=True)
     
     t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
         "🚨 RADAR S.O.S", 
         f"💬 CHAT {'🔴' if hay_nuevos_mon else ''}", 
         "👥 PADRÓN VIGILADORES", 
-        "🔄 NOVEDADES"
+        "🔄 NOVEDADES Y FICHAJES"
     ])
-    
+
     with t_comunicacion:
         st.subheader("💬 CENTRAL DE COMUNICACIÓN")
         renderizar_sistema_chats("MONITOREO")
