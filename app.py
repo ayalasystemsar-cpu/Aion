@@ -716,7 +716,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
 elif st.session_state.rol_sel == "VIGILADOR":
-    elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
