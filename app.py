@@ -120,6 +120,33 @@ def leer_matriz_nube(pestana):
         except Exception as e: 
             return pd.DataFrame()
     return pd.DataFrame()
+    --- SISTEMA DE CHAT UNIFICADO ---
+def renderizar_sistema_chats(rol_usuario, rol_destino_opciones=None, silent=False):
+    df_chats = leer_matriz_nube("CHATS")
+    total_actual = len(df_chats) if not df_chats.empty else 0
+    
+    if 'total_mensajes_previo' not in st.session_state:
+        st.session_state.total_mensajes_previo = total_actual
+    
+    hay_nuevos = total_actual > st.session_state.total_mensajes_previo
+    if silent: return hay_nuevos
+    
+    st.session_state.total_mensajes_previo = total_actual
+
+    with st.form(key=f"form_chat_{rol_usuario}", clear_on_submit=True):
+        col_c1, col_c2 = st.columns([3, 1])
+        txt_msg = col_c1.text_input("MENSAJE:")
+        dest = col_c2.selectbox("PARA:", rol_destino_opciones if rol_destino_opciones else ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADORES"])
+        
+        if st.form_submit_button("TRANSMITIR"):
+            if txt_msg.strip():
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.upper(), "VERDE", dest, rol_usuario])
+                st.rerun()
+
+    if not df_chats.empty:
+        df_c = df_chats[(df_chats['PARA'] == "TODOS") | (df_chats['PARA'] == rol_usuario)]
+        for _, msg in df_c.tail(15).iloc[::-1].iterrows():
+            st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} | De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
