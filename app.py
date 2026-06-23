@@ -363,9 +363,23 @@ elif st.session_state.rol_sel == "MONITOREO":
         "🔄 NOVEDADES Y FICHAJES"
     ])
 
-    with t_comunicacion:
+   with t_comunicacion:
         st.subheader("💬 CENTRAL DE COMUNICACIÓN")
+        
+        # 1. Llamamos al sistema de chat unificado
         renderizar_sistema_chats("MONITOREO")
+        
+        # 2. Si quieres mostrar el historial, el bucle debe estar así:
+        df_chats = leer_matriz_nube("CHATS")
+        if not df_chats.empty:
+            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
+                # AQUÍ ESTÁ LA CORRECCIÓN: Usamos triple comilla para evitar errores de sintaxis
+                st.markdown(f"""
+                    <div class="{'message-box-red' if msg.get('PRIORIDAD') == 'ROJA' else 'message-box'}">
+                        <div class="message-info">{msg.get('HORA')} | De: {msg.get('USUARIO')}</div>
+                        <div class="message-text">{msg.get('TEXTO')}</div>
+                    </div>
+                """, unsafe_allow_html=True)
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
