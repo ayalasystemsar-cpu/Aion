@@ -716,75 +716,50 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
 elif st.session_state.rol_sel == "VIGILADOR":
+    elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
+    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
-    # Asegúrate de que esta línea esté a 4 espacios del margen izquierdo
-    tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
+    tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE (PRESENTISMO)", "🔄 SANCIONAR RELEVO"])
     
-    # Asegúrate de que esta línea esté a 4 espacios
     with tab_presentismo:
-        st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
+        st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
+            v_apellido = st.text_input("NOMBRE COMPLETO:").upper().strip()
             v_dni = st.text_input("DNI / LEGAJO:").strip()
-            v_obj = st.selectbox("OBJETIVO DE PRESENTISMO:", opciones_globales_obj, key="obj_pres_vig")
-            v_tipo_marcacion = st.selectbox("TIPO DE MARCACIÓN:", ["INGRESO", "EGRESO"], key="tipo_marc_vig")
-            img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
-            btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
+            v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
+            v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
+            img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
+            btn_fichar = st.form_submit_button("CONSIGNAR Y TRANSMITIR")
             
-            if btn_fichar:
-                if v_apellido and img_facial and v_dni:
-                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
-                    sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-                    
-                    fecha_hora_arg = obtener_hora_argentina()
-                    
-                    # 1. Registro en PRESENTISMO
-                    datos_presentismo = [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
-                    exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
-                    
-                    # 2. Registro en NOVEDADES_GUARDIA
-                    vigilador_sale = v_apellido if v_tipo_marcacion == "EGRESO" else "N/A"
-                    vigilador_entra = v_apellido if v_tipo_marcacion == "INGRESO" else "N/A"
-                    
-                    datos_novedad_fichaje = [
-                        fecha_hora_arg, v_obj, f"FACIAL_{v_tipo_marcacion}", vigilador_sale, vigilador_entra, v_dni, "PROCESADO", sup_responsable
-                    ]
-                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
-                    
-                    if exito_pres:
-                        st.success("🔒 BIOMETRÍA REGISTRADA.")
-                    else:
-                        st.error("❌ ERROR DE RED")
-                else:
-                    st.error("❌ ERROR: Complete todos los campos.")
+            if btn_fichar and v_apellido and img_facial and v_dni:
+                sup_responsable = df_objetivos[df_objetivos['OBJETIVO']==v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                fecha_hora_arg = obtener_hora_argentina()
+                
+                # LÓGICA DE BITÁCORA TÁCTICA
+                tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
+                vig_sale = v_apellido if v_tipo_marcacion == "EGRESO" else "---"
+                vig_entra = v_apellido if v_tipo_marcacion == "INGRESO" else "---"
+                
+                escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_apellido} - {v_obj}", "", "OK", v_tipo_marcacion])
+                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, vig_sale, vig_entra, v_dni, "PROCESADO", sup_responsable])
+                st.success(f"🔒 {tipo_evento} REGISTRADA.")
 
     with tab_relevo:
-        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
+        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
-            v_obj_relevo = st.selectbox("OBJETIVO DEL RELEVO:", opciones_globales_obj, key="obj_relevo_vig")
-            vig_saliente = st.text_input("VIGILADOR QUE ENTREGA (SALE):").upper().strip()
-            vig_entrante = st.text_input("VIGILADOR QUE RECIBE (ENTRA):").upper().strip()
-            v_dni_relevo = st.text_input("DNI / LEGAJO DEL RESPONSABLE:").strip()
-            btn_relevo = st.form_submit_button("SANCIONAR CAMBIO DE GUARDIA")
+            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj)
+            vig_saliente = st.text_input("SALE:").upper().strip()
+            vig_entrante = st.text_input("ENTRA:").upper().strip()
+            v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
+            btn_relevo = st.form_submit_button("SANCIONAR CAMBIO")
             
-            if btn_relevo:
-                if vig_saliente and vig_entrante and v_dni_relevo:
-                    df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_relevo]
-                    sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
-                    
-                    fecha_hora_arg = obtener_hora_argentina()
-                    datos_novedad_relevo = [fecha_hora_arg, v_obj_relevo, "CAMBIO_GUARDIA", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_responsable]
-                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_relevo)
-                    
-                    datos_relevo = [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
-                    if escribir_registro_nube("VIGILADORES", datos_relevo):
-                        st.success("🔒 RELEVO REGISTRADO Y SANEADO")
-                    else:
-                        st.error("❌ ERROR DE RED")
-                else:
-                    st.error("❌ Por favor, completa los nombres y el DNI")
+            if btn_relevo and vig_saliente and vig_entrante and v_dni_relevo:
+                sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                fecha = obtener_hora_argentina()
+                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
+                escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
+                st.success("🔒 RELEVO REGISTRADO Y SANEADO")
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
