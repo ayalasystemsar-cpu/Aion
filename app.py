@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -766,10 +765,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     if exito_pres: 
                         st.success(f"🔒 BIOMETRÍA REGISTRADA.")
-                    else: 
-                        st.error("❌ ERROR DE RED")
-                    else: 
-                        st.error("❌ ERROR: Complete todos los campos.")
+                    
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
