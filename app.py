@@ -328,7 +328,7 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
-if st.session_state.rol_sel == "MONITOREO":
+elif st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
@@ -361,10 +361,18 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
+    hay_nuevos_mon = renderizar_sistema_chats("MONITOREO", silent=True)
+    
     t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 CHAT OPERATIVO", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+        "🚨 RADAR S.O.S", 
+        f"💬 CHAT {'🔴' if hay_nuevos_mon else ''}", 
+        "👥 PADRÓN VIGILADORES", 
+        "🔄 NOVEDADES"
     ])
+    
+    with t_comunicacion:
+        st.subheader("💬 CENTRAL DE COMUNICACIÓN")
+        renderizar_sistema_chats("MONITOREO")
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
@@ -567,19 +575,7 @@ if st.session_state.rol_sel == "MONITOREO":
         m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-    with t_comunicacion:
-        st.subheader("💬 CHAT OPERATIVO")
-        with st.form(key="form_chat_monitoreo", clear_on_submit=True):
-            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
-            prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
-            if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
-                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
-                st.rerun()
-        
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
-                st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
+    {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
