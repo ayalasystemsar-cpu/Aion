@@ -824,7 +824,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             
             pan1, pan2 = st.columns([1, 2])
             
-            
             with pan1:
                 st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
                 st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
