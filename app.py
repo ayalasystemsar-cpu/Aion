@@ -328,11 +328,10 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
-elif st.session_state.rol_sel == "MONITOREO":
+if st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
-    # --- PROCESAMIENTO DE DATOS ---
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
@@ -344,16 +343,25 @@ elif st.session_state.rol_sel == "MONITOREO":
         if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
-    # --- INDICADORES ---
-    pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE'] if not df_emergencias.empty else pd.DataFrame()
-    sos_activos = len(pendientes)
+    lista_objetivos_en_panico = []
+    if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
+        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+        sos_activos = len(pendientes)
+        for _, row in pendientes.iterrows():
+            carga = str(row['CARGA_UTIL'])
+            if "OBJ:" in carga:
+                try: 
+                    lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
+                except: pass
+    else: 
+        sos_activos = 0
     
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # --- PESTAÑAS (CHAT UNIFICADO) ---
+    # Llamada unificada al sistema de chat
     hay_nuevos_mon = renderizar_sistema_chats("MONITOREO", silent=True)
     
     t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
@@ -363,30 +371,16 @@ elif st.session_state.rol_sel == "MONITOREO":
         "🔄 NOVEDADES Y FICHAJES"
     ])
 
-   with t_comunicacion:
+    with t_comunicacion:
         st.subheader("💬 CENTRAL DE COMUNICACIÓN")
-        
-        # 1. Llamamos al sistema de chat unificado
         renderizar_sistema_chats("MONITOREO")
-        
-        # 2. Si quieres mostrar el historial, el bucle debe estar así:
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
-                # AQUÍ ESTÁ LA CORRECCIÓN: Usamos triple comilla para evitar errores de sintaxis
-                st.markdown(f"""
-                    <div class="{'message-box-red' if msg.get('PRIORIDAD') == 'ROJA' else 'message-box'}">
-                        <div class="message-info">{msg.get('HORA')} | De: {msg.get('USUARIO')}</div>
-                        <div class="message-text">{msg.get('TEXTO')}</div>
-                    </div>
-                """, unsafe_allow_html=True)
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
-
+        # [AQUÍ VA TU CÓDIGO DE MAPAS Y RADAR QUE TENÍAS ANTES]7
         # --- INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         col_sel1, col_sel2 = st.columns([2, 1])
@@ -582,39 +576,24 @@ elif st.session_state.rol_sel == "MONITOREO":
         m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-    {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-
+    
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
         if not df_padrero.empty:
             df_padrero.columns = df_padrero.columns.str.strip().str.upper()
             st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
             
     with t_nov:
         st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        
         if not df_nov_g.empty:
             df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
             df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
-            
-            if 'FECHA' in df_nov_g.columns:
-                df_nov_g['FECHA_ORDEN'] = pd.to_datetime(df_nov_g['FECHA'], errors='coerce')
-                df_ordenado = df_nov_g.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
-            else:
-                df_ordenado = df_nov_g
-            
-            st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
-        else:
-            st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
-    
-
+            st.dataframe(df_nov_g, use_container_width=True, hide_index=True)
 
 elif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado:
+    # ..if st.session_state.sup_autenticado:
         
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
@@ -744,54 +723,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 else:
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
-                st.info("No hay datos registrados en Novedades Guardia.")
-elif st.session_state.rol_sel == "VIGILADOR":
-    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-    
-    tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE (PRESENTISMO)", "🔄 SANCIONAR RELEVO"])
-    
-    with tab_presentismo:
-        st.markdown("### 📸 REGISTRO BIOMÉTRICO")
-        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_apellido = st.text_input("NOMBRE COMPLETO:").upper().strip()
-            v_dni = st.text_input("DNI / LEGAJO:").strip()
-            v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
-            img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
-            btn_fichar = st.form_submit_button("CONSIGNAR Y TRANSMITIR")
-            
-            if btn_fichar and v_apellido and img_facial and v_dni:
-                sup_responsable = df_objetivos[df_objetivos['OBJETIVO']==v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                fecha_hora_arg = obtener_hora_argentina()
-                
-                # LÓGICA DE BITÁCORA TÁCTICA
-                tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
-                vig_sale = v_apellido if v_tipo_marcacion == "EGRESO" else "---"
-                vig_entra = v_apellido if v_tipo_marcacion == "INGRESO" else "---"
-                
-                escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_apellido} - {v_obj}", "", "OK", v_tipo_marcacion])
-                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, vig_sale, vig_entra, v_dni, "PROCESADO", sup_responsable])
-                st.success(f"🔒 {tipo_evento} REGISTRADA.")
+                st.info("No hay datos registrados en Novedades Guardia."). (Tu código de supervisor existente)
+    pass 
 
-    with tab_relevo:
-        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
-        with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
-            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            vig_saliente = st.text_input("SALE:").upper().strip()
-            vig_entrante = st.text_input("ENTRA:").upper().strip()
-            v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
-            btn_relevo = st.form_submit_button("SANCIONAR CAMBIO")
-            
-            if btn_relevo and vig_saliente and vig_entrante and v_dni_relevo:
-                sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                fecha = obtener_hora_argentina()
-                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
-                escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
-                st.success("🔒 RELEVO REGISTRADO Y SANEADO")
-# B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
+elif st.session_state.rol_sel == "VIGILADOR":
+    # ... (Tu código de vigilador existente)
+    pass
+
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    col1, col2, col3, col4 = st.columns(4)
+    # ... (T col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
@@ -883,12 +823,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             if o_det.strip():
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
                 st.success("✅ Petición Elevada Exitosamente")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-  
+        st.markdown('</div>', unsafe_allow_html=True)u código de jefe existente)
+    pass
 
 elif st.session_state.rol_sel == "GERENCIA":
-    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
+    # ...st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
     m2.metric("Nivel de Cobertura", "47/93")
@@ -932,7 +871,8 @@ elif st.session_state.rol_sel == "GERENCIA":
         m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
         for _, r in df_ger_maps.iterrows():
             folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=450, key="map_gerencia")
+        st_folium(m_visor, width="100%", height=450, key="map_gerencia") (Tu código de gerencia existente)
+    pass
 
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
