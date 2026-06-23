@@ -839,9 +839,9 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         st.info("Sin registros de relevo en este objetivo.")
                 st.markdown('</div>', unsafe_allow_html=True)
                 
-    with pan2:
+             with pan2:
                
-            st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
+                  st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
     
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
