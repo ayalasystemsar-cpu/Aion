@@ -686,8 +686,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
                     st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
-        with t_pres_sup:
-           with t_pres_sup:
+     with t_pres_sup:
         st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
         df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
         
@@ -700,17 +699,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             col_sup = next((c for c in df_v_total.columns if "SUPERVISOR" in c), None)
             
             if col_sup:
-                # 3. Filtramos: usamos .astype(str) para evitar errores con celdas vacías
+                # 3. Filtramos
                 df_v_filtrado = df_v_total[df_v_total[col_sup].astype(str).str.strip().str.upper() == sup_buscado]
                 
                 if not df_v_filtrado.empty:
                     st.dataframe(df_v_filtrado, use_container_width=True)
                 else:
                     st.warning(f"No hay registros asignados específicamente a '{sup_buscado}'.")
-                    # Debug: mostramos qué supervisores existen en la tabla para que sepas qué buscar
                     st.write("Supervisores encontrados en la base:", df_v_total[col_sup].unique())
             else:
-                st.error("No se encontró la columna 'SUPERVISOR' en el archivo. Verifica los encabezados.")
+                st.error("No se encontró la columna 'SUPERVISOR' en el archivo.")
         else:
             st.info("No hay datos cargados en la hoja 'NOVEDADES_GUARDIA'.")
 elif st.session_state.rol_sel == "VIGILADOR":
