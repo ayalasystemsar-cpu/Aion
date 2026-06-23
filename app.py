@@ -734,8 +734,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL COMPULSORIO")
             btn_fichar = st.form_submit_button("CONSIGNAR PRESENTE Y TRANSMITIR")
             
-            if btn_fichar:
-                if v_apellido and img_facial and v_dni:
+            if v_apellido and img_facial and v_dni:
                     df_match = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]
                     sup_responsable = df_match['SUPERVISOR'].values[0] if not df_match.empty else "NO ASIGNADO"
                     
@@ -747,18 +746,28 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
+                    # 2. Registro en NOVEDADES_GUARDIA (Lógica inteligente)
+                    # Si es INGRESO, el nombre va en ENTRA. Si es EGRESO, va en SALE.
+                    vigilador_sale = v_apellido if v_tipo_marcacion == "EGRESO" else "N/A"
+                    vigilador_entra = v_apellido if v_tipo_marcacion == "INGRESO" else "N/A"
+                    
                     datos_novedad_fichaje = [
-                       fecha_hora_arg, # A: FECHA
-                       v_obj, # B: OBJETIVO
+                        fecha_hora_arg,               # A: FECHA
+                        v_obj,                        # B: OBJETIVO
                         f"FACIAL_{v_tipo_marcacion}", # C: TIPO_EVENTO
-                        v_apellido, # D: VIGILADOR_SALE
-                        "N/A", # E: VIGILADOR_ENTRA
-                        v_dni, # F: DNI/LEGAJO
-                        "PROCESADO", # G: ESTADO
-                        sup_responsable # H: SUPERVISOR_ASIGNADO
+                        vigilador_sale,               # D: VIGILADOR_SALE
+                        vigilador_entra,              # E: VIGILADOR_ENTRA
+                        v_dni,                        # F: DNI/LEGAJO
+                        "PROCESADO",                  # G: ESTADO
+                        sup_responsable               # H: SUPERVISOR_ASIGNADO
                     ]
+                    
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
+                    
+                    if exito_pres: 
+                        st.success(f"🔒 BIOMETRÍA REGISTRADA.")
+                    else: 
+                        st.error("❌ ERROR DE RED")
                     
                     if exito_pres: 
                         st.success(f"🔒 BIOMETRÍA REGISTRADA.")
@@ -782,18 +791,17 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     fecha_hora_arg = obtener_hora_argentina()
                   # --- CORRECCIÓN AQUÍ: Definimos la variable antes de usarla ---
                     tipo_evento_relevo = "CAMBIO_GUARDIA"
-                    datos_novedad = [
-                        fecha_hora_arg, # A: FECHA
-                        v_obj, # B: OBJETIVO
-                        tipo_evento_relevo, # C: TIPO_EVENTO
-                        v_apellido, # D: VIGILADOR_SALE (quien reporta)
-                        "N/A", # E: VIGILADOR_ENTRA
-                        v_dni, # F: DNI/LEGAJO
-                        "PROCESADO", # G: ESTADO
-                        sup_responsable # H: SUPERVISOR_ASIGNADO
+                    datos_novedad_relevo = [
+                        fecha_hora_arg,      # A: FECHA
+                        v_obj_relevo,        # B: OBJETIVO
+                        "CAMBIO_GUARDIA",    # C: TIPO_EVENTO
+                        vig_saliente,        # D: VIGILADOR_SALE
+                        vig_entrante,        # E: VIGILADOR_ENTRA
+                        v_dni_relevo,        # F: DNI/LEGAJO <-- AQUÍ YA NO ES N/A
+                        "PROCESADO",         # G: ESTADO
+                        sup_responsable      # H: SUPERVISOR_ASIGNADO
                     ]
-                    
-                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
+                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_relevo)
                     
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
