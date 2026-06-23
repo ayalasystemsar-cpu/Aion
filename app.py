@@ -120,7 +120,7 @@ def leer_matriz_nube(pestana):
         except Exception as e: 
             return pd.DataFrame()
     return pd.DataFrame()
-    --- SISTEMA DE CHAT UNIFICADO ---
+    #--- SISTEMA DE CHAT UNIFICADO ---#
 def renderizar_sistema_chats(rol_usuario, rol_destino_opciones=None, silent=False):
     df_chats = leer_matriz_nube("CHATS")
     total_actual = len(df_chats) if not df_chats.empty else 0
