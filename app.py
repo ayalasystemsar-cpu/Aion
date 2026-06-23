@@ -723,7 +723,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
     
     # Asegúrate de que esta línea esté a 4 espacios
-   with tab_presentismo:
+    with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
             v_apellido = st.text_input("APELLIDO Y NOMBRE COMPLETO:").upper().strip()
