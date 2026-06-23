@@ -94,33 +94,24 @@ def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
         pass
     return [[lat1, lon1], [lat2, lon2]]
 
-@st.cache_data(ttl=60) 
+@st.cache_data(ttl=30)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
-    if gc:
-        try:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            todas_filas = hoja.get_all_values()
-            
-            if not todas_filas or len(todas_filas) == 0:
-                return pd.DataFrame()
-                
-            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-            datos_cuerpo = todas_filas[1:]
-            
-            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
-            
-            # --- BLINDAJE CONTRA DUPLICADOS ---
-            # 1. Quitar espacios accidentales
-            df.columns = [str(c).strip().upper() for c in df.columns]
-            # 2. Eliminar columnas duplicadas (mantiene la primera ocurrencia)
-            df = df.loc[:, ~df.columns.duplicated()]
-            
-            return df
-        except Exception as e: 
-            return pd.DataFrame()
-    return pd.DataFrame()
-
+    if not gc: return pd.DataFrame()
+    try:
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+        datos = hoja.get_all_values()
+        if len(datos) < 2: return pd.DataFrame()
+        
+        # Usamos la primera fila como encabezado y eliminamos espacios
+        encabezados = [str(h).strip().upper() for h in datos[0]]
+        df = pd.DataFrame(datos[1:], columns=encabezados)
+        
+        # Eliminamos filas que estén totalmente vacías
+        return df.dropna(how='all')
+    except Exception as e:
+        st.error(f"Error al leer '{pestana}': {e}")
+        return pd.DataFrame()
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
@@ -566,13 +557,17 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_nov:
         st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty: 
-            df_nov_g.columns = df_nov_g.columns.str.strip().str.upper()
-            st.dataframe(df_nov_g.sort_values(by="FECHA", ascending=False), use_container_width=True)
+        
+        if not df_nov_g.empty:
+            # Ordenamos por fecha (asumiendo que la columna se llama FECHA)
+            if 'FECHA' in df_nov_g.columns:
+                df_nov_g['FECHA_ORDEN'] = pd.to_datetime(df_nov_g['FECHA'], errors='coerce')
+                df_ordenado = df_nov_g.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
+                st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(df_nov_g, use_container_width=True, hide_index=True)
         else:
-            st.info("Sin novedades registradas.")
-
-
+            st.info("No hay registros en la base de novedades.")
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
@@ -709,10 +704,10 @@ elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL", "BARRIO EL CAMPO"]
     
-    # Asegúrate de que esta línea esté a 4 espacios del margen izquierdo
+    # Definición de pestañas
     tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE INDIVIDUAL (PRESENTISMO)", "🔄 SANCIONAR RELEVO (CAMBIO DE GUARDIA)"])
     
-    # Asegúrate de que esta línea esté a 4 espacios
+    # --- PESTAÑA: FICHAJE ---
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO DE INGRESO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
@@ -736,25 +731,20 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     datos_presentismo = [fecha_hoy, hora_hoy, v_dni, f"{v_apellido} - {v_obj}", "", "OK_SISTEMA", v_tipo_marcacion]
                     exito_pres = escribir_registro_nube("PRESENTISMO", datos_presentismo)
                     
-                    # 2. Registro en NOVEDADES_GUARDIA (Alineado a 8 columnas)
+                    # 2. Registro en NOVEDADES_GUARDIA
                     datos_novedad_fichaje = [
-                       fecha_hora_arg,           # A: FECHA
-                       v_obj,                    # B: OBJETIVO
-                        f"FACIAL_{v_tipo_marcacion}", # C: TIPO_EVENTO
-                        v_apellido,               # D: VIGILADOR_SALE
-                        "N/A",                    # E: VIGILADOR_ENTRA
-                        v_dni,                    # F: DNI/LEGAJO
-                        "PROCESADO",              # G: ESTADO
-                        sup_responsable           # H: SUPERVISOR_ASIGNADO
+                        fecha_hora_arg, f"FACIAL_{v_tipo_marcacion}", v_obj, v_apellido, "N/A", v_dni, "PROCESADO", sup_responsable
                     ]
                     escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_fichaje)
                     
-                    if exito_pres: 
-                        st.success(f"🔒 BIOMETRÍA REGISTRADA.")
-                    else: 
+                    if exito_pres:
+                        st.success("🔒 BIOMETRÍA REGISTRADA.")
+                    else:
                         st.error("❌ ERROR DE RED")
-                else: 
+                else:
                     st.error("❌ ERROR: Complete todos los campos.")
+
+    # --- PESTAÑA: RELEVO ---
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO DE GUARDIA")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
@@ -770,30 +760,25 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     
                     fecha_hora_arg = obtener_hora_argentina()
                     
-                    datos_novedad = [
-                        fecha_hora_arg,           # A: FECHA
-                        v_obj,                    # B: OBJETIVO
-                        tipo_evento_relevo,       # C: TIPO_EVENTO
-                        v_apellido,               # D: VIGILADOR_SALE (quien reporta)
-                        "N/A",                    # E: VIGILADOR_ENTRA
-                        v_dni,                    # F: DNI/LEGAJO
-                        "PROCESADO",              # G: ESTADO
-                        sup_responsable           # H: SUPERVISOR_ASIGNADO
+                    # Registro en NOVEDADES_GUARDIA
+                    datos_novedad_relevo = [
+                        fecha_hora_arg, "CAMBIO_GUARDIA", v_obj_relevo, vig_saliente, vig_entrante, "N/A", "PROCESADO", sup_responsable
                     ]
+                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad_relevo)
                     
-                    escribir_registro_nube("NOVEDADES_GUARDIA", datos_novedad)
-                    
+                    # Registro auxiliar en VIGILADORES
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_hoy = fecha_hora_arg.split(" ")[1]
                     datos_relevo = [fecha_hoy, hora_hoy, v_obj_relevo, vig_saliente, vig_entrante, sup_responsable, "RELEVO_EFECTUADO"]
                     exito_relevo = escribir_registro_nube("VIGILADORES", datos_relevo)
                     
-                    if exito_relevo: 
+                    if exito_relevo:
                         st.success("🔒 RELEVO REGISTRADO Y SANEADO")
-                    else: 
+                    else:
                         st.error("❌ ERROR DE RED AL REGISTRAR")
                 else:
                     st.error("❌ Por favor, completa los nombres de los vigiladores")
+
     st.markdown('</div>', unsafe_allow_html=True)
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
