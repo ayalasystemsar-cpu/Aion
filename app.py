@@ -102,9 +102,9 @@ def renderizar_sistema_chats(rol_usuario, rol_destino_opciones=None, silent=Fals
             
             # --- BLINDAJE CONTRA DUPLICADOS ---
             # 1. Quitar espacios accidentales
-            df.columns = [str(c).strip().upper() for c in df.columns]
+        df.columns = [str(c).strip().upper() for c in df.columns]
             # 2. Eliminar columnas duplicadas (mantiene la primera ocurrencia)
-            df = df.loc[:, ~df.columns.duplicated()]
+        df = df.loc[:, ~df.columns.duplicated()]
             
             return df
         except Exception as e: 
