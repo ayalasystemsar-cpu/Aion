@@ -149,57 +149,50 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def renderizar_mensajeria_global(rol_contexto):
+    # 1. ESTADO DE RESPUESTA
+    if 'asunto_respuesta' not in st.session_state:
+        st.session_state.asunto_respuesta = None
+
+    # 2. LECTURA DE DATOS
     df_msg = leer_matriz_nube("MENSAJERIA")
     
-    if df_msg.empty:
-        st.info("No hay mensajes en la red.")
-        return
+    st.subheader("💬 COMUNICACIONES OPERATIVAS")
 
-    # 1. Filtro: Usamos 'REMITENTE' y 'MENSAJE' que son tus columnas reales
-    nombre_user = st.session_state.user_sel.upper()
-    mask_display = (df_msg['DESTINATARIO'] == "TODOS") | \
-                   (df_msg['DESTINATARIO'] == rol_contexto.upper()) | \
-                   (df_msg['DESTINATARIO'] == nombre_user)
-    
-    df_display = df_msg[mask_display]
-    
-    st.subheader(f"💬 COMUNICACIONES OPERATIVAS")
-
-    # 2. FORMULARIO CON "RESPUESTA"
+    # 3. FORMULARIO DE ENVÍO (Aquí está el cuadro que te faltaba)
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
-        # Si estamos respondiendo, avisamos al usuario
         if st.session_state.asunto_respuesta:
             st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
-            
-        cols = st.columns([2, 1, 1])
-        with cols[0]:
-            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS)
-        with cols[1]:
-            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
-        with cols[2]:
-            # Si hay un asunto activo, lo bloqueamos para que la respuesta sea en el mismo hilo
-            if st.session_state.asunto_respuesta:
-                asunto = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
-            else:
-                asunto = st.text_input("ASUNTO:")
-            
-        txt_msg = st.text_input("MENSAJE:")
-        
-        if st.form_submit_button("TRANSMITIR A LA RED"):
+            asunto_input = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
+        else:
+            asunto_input = st.text_input("ASUNTO:")
+
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            txt_msg = st.text_input("MENSAJE:")
+        with col_b:
+            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "SUPERVISORES"] + LISTA_SUPS_TACTICOS)
+
+        if st.form_submit_button("TRANSMITIR"):
             if txt_msg.strip():
+                # Guardamos: FECHA, REMITENTE, DESTINATARIO, ASUNTO, MENSAJE, ESTADO, GRAVEDAD
                 escribir_registro_nube("MENSAJERIA", [
                     obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
-                    asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad
+                    asunto_input.upper(), txt_msg.upper(), "PENDIENTE", "VERDE"
                 ])
-                st.session_state.asunto_respuesta = None # Limpiar estado
+                st.session_state.asunto_respuesta = None
                 st.rerun()
 
-    # 3. VISUALIZACIÓN CON BOTÓN DE RESPUESTA
-    # ... (tu bucle for para mostrar mensajes) ...
-            # DENTRO DEL BUCLE, DONDE MUESTRAS EL MENSAJE, AGREGA ESTO:
-            if st.button(f"↩️ Responder a este mensaje", key=f"resp_{idx}"):
-                st.session_state.asunto_respuesta = msg.get("ASUNTO")
-                st.rerun()
+    # 4. VISUALIZACIÓN POR HILOS (Para ver las respuestas)
+    if not df_msg.empty:
+        # Agrupamos por ASUNTO para que las respuestas aparezcan juntas
+        for asunto, grupo in df_msg.groupby('ASUNTO'):
+            with st.expander(f"💬 Hilo: {asunto}"):
+                for _, msg in grupo.iterrows():
+                    st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
+                
+                if st.button(f"Responder a este hilo", key=f"btn_{asunto}"):
+                    st.session_state.asunto_respuesta = asunto
+                    st.rerun()
 def aplicar_identidad_alfa():
     st.markdown(
         """
