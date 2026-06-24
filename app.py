@@ -724,16 +724,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
 
-with t_car_tac:
+
+        with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
                 st.success("✅ Cargado")
-
-        with t_mensajeria_sup:
+                
+         with t_mensajeria_sup:
             renderizar_mensajeria_global("SUPERVISOR")
-
-        with t_pres_sup:
+             
+elif st.session_stawith t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
@@ -752,10 +753,7 @@ with t_car_tac:
                 else:
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
-                st.info("No hay datos registrados en Novedades Guardia.")
-                
-                
-elif st.session_state.rol_sel == "VIGILADOR":
+                st.info("No hay datos registrados en Novedades Guardia.")te.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
