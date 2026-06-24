@@ -151,52 +151,55 @@ def cargar_objetivos():
 def renderizar_mensajeria_global(rol_contexto):
     df_msg = leer_matriz_nube("MENSAJERIA")
     
-    # 1. Contar pendientes para este usuario
+    # 1. Filtro de mensajes visibles para este rol
     nombre_user = st.session_state.user_sel.upper()
-    mask_pendientes = ((df_msg['DESTINATARIO'] == "TODOS") | 
-                       (df_msg['DESTINATARIO'] == rol_contexto.upper()) | 
-                       (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
-    pendientes = len(df_msg[mask_pendientes]) if not df_msg.empty else 0
+    mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == rol_contexto.upper()) | (df_msg['DESTINATARIO'] == nombre_user)
+    df_display = df_msg[mask_display]
     
-    st.subheader(f"💬 MENSAJERÍA GLOBAL ({pendientes} PENDIENTES)")
-    
-    # 2. Formulario de Envío
+    st.subheader(f"💬 COMUNICACIONES OPERATIVAS")
+
+    # 2. Formulario de Envío (con opción de responder)
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
-        cols = st.columns([2, 1, 1])
-        with cols[0]:
-            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS)
-        with cols[1]:
-            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
-        with cols[2]:
-            asunto = st.text_input("ASUNTO:")
-            
-        txt_msg = st.text_input("MENSAJE:")
+        col_c1, col_c2 = st.columns([3, 1])
+        with col_c1:
+            txt_msg = st.text_input("ESCRIBIR MENSAJE:")
+        with col_c2:
+            destinatario = st.selectbox("DESTINATARIO:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS)
+        
         if st.form_submit_button("TRANSMITIR A LA RED"):
             if txt_msg.strip():
                 escribir_registro_nube("MENSAJERIA", [
                     obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
-                    asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad
+                    "COMUNICACIÓN", txt_msg.upper(), "PENDIENTE", "VERDE"
                 ])
                 st.rerun()
 
-    # 3. Visualización y Marcar como leído
-    if not df_msg.empty:
-        mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == rol_contexto.upper()) | (df_msg['DESTINATARIO'] == nombre_user)
-        for idx, msg in df_msg[mask_display].tail(15).iloc[::-1].iterrows():
+    # 3. Visualización con Botón de Responder
+    if not df_display.empty:
+        for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
+            idx_real = idx + 2 # Fila en Sheet
             is_roja = str(msg.get("GRAVEDAD", "")).upper() == "ROJA"
+            
+            # Caja de mensaje
             st.markdown(f'''
                 <div class="{"message-box-red" if is_roja else "message-box"}">
                     <div class="message-info">{msg.get("FECHA")} | DE: {msg.get("REMITENTE")} ➔ PARA: {msg.get("DESTINATARIO")}</div>
-                    <div class="message-text"><strong>{msg.get("ASUNTO")}:</strong> {msg.get("MENSAJE")}</div>
+                    <div class="message-text">{msg.get("MENSAJE")}</div>
                 </div>
             ''', unsafe_allow_html=True)
-            if str(msg.get("ESTADO", "")).upper() == "PENDIENTE":
-                if st.button(f"✅ MARCAR COMO LEÍDO", key=f"btn_{rol_contexto}_{idx}"):
-                    actualizar_celda("MENSAJERIA", idx + 2, "F", "LEÍDO")
-                    st.rerun()
-
-# --- 4. DISEÑO E IDENTIDAD VISUAL ---
-
+            
+            # Botones: Responder y Marcar como Leído
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                # El botón de respuesta precarga el nombre del remitente en el campo de texto (si quisieras ir más allá, requeriría session_state)
+                if st.button("↩️ RESPONDER", key=f"resp_{idx}"):
+                    st.session_state.dest_predefinido = msg.get("REMITENTE")
+                    st.info(f"Respondiendo a: {msg.get('REMITENTE')}")
+            with col2:
+                if str(msg.get("ESTADO", "")).upper() == "PENDIENTE":
+                    if st.button("✅ LEÍDO", key=f"leido_{idx}"):
+                        actualizar_celda("MENSAJERIA", idx_real, "F", "LEÍDO")
+                        st.rerun()
 def aplicar_identidad_alfa():
     st.markdown(
         """
