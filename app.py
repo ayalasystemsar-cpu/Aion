@@ -375,16 +375,22 @@ with col_sel1:
                 index=idx_defecto,
                 key="buscador_radar_master"
             )
-            st.session_state["filtro_radar_valor"] = obj_seleccionado
-        distancia_minima = float('inf')
-        com_lat_m, com_lon_m = None, None
-        
-        if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
-            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
-            lat_obj = datos_obj['LATITUD']
-            lon_obj = datos_obj['LONGITUD']
+st.session_state["filtro_radar_valor"] = obj_seleccionado
+
+            # --- ESTAS LÍNEAS DEBEN TENER EXACTAMENTE 8 ESPACIOS ---
+            comisaria_cercana_name = None
+            distancia_minima = float('inf')
+            com_lat_m, com_lon_m = None, None
             
-            for _, com in df_comisarias.iterrows():
+            # El siguiente IF debe estar al mismo nivel que las líneas anteriores
+            if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
+                datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+                lat_obj = datos_obj['LATITUD']
+                lon_obj = datos_obj['LONGITUD']
+                
+                # Este FOR debe tener 12 espacios (4 más que el IF)
+                for _, com in df_comisarias.iterrows():
+                    # ... (el resto de tu código de cálculo)
                 lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
                 dlon = lon2 - lon1
                 dlat = lat2 - lat1
