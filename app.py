@@ -731,38 +731,56 @@ elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
-    tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE (PRESENTISMO)", "🔄 SANCIONAR RELEVO"])
+    # 1. Definición de pestañas incluyendo la de MENSAJERÍA
+    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", "💬 MENSAJERÍA"])
     
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_apellido = st.text_input("NOMBRE COMPLETO:").upper().strip()
+            # Solo solicitamos el LEGAJO
             v_dni = st.text_input("LEGAJO:").strip()
             v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
             v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
             btn_fichar = st.form_submit_button("CONSIGNAR Y TRANSMITIR")
             
-            if btn_fichar and v_apellido and img_facial and v_dni:
+            if btn_fichar and v_dni and img_facial:
+                # El nombre se toma automáticamente de la sesión
+                v_apellido = st.session_state.user_sel
                 sup_responsable = df_objetivos[df_objetivos['OBJETIVO']==v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                 fecha_hora_arg = obtener_hora_argentina()
                 
-                # LÓGICA DE BITÁCORA TÁCTICA
                 tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
-                vig_sale = v_apellido if v_tipo_marcacion == "EGRESO" else "---"
-                vig_entra = v_apellido if v_tipo_marcacion == "INGRESO" else "---"
-                
                 escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_apellido} - {v_obj}", "", "OK", v_tipo_marcacion])
-                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, vig_sale, vig_entra, v_dni, "PROCESADO", sup_responsable])
+                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_apellido, v_dni, "PROCESADO", sup_responsable])
                 st.success(f"🔒 {tipo_evento} REGISTRADA.")
+
+    with tab_mensajeria:
+        st.subheader("💬 MENSAJERÍA GLOBAL")
+        with st.form(key="form_mensajeria_vigilador", clear_on_submit=True):
+            txt_msg = st.text_input("INFORME DE SITUACIÓN:")
+            if st.form_submit_button("TRANSMITIR A CENTRAL") and txt_msg.strip():
+                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), "VERDE", "TODOS", "REPORTE CAMPO"])
+                st.rerun()
+        
+        # Lectura de mensajes
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        if not df_msg.empty:
+            for _, msg in df_msg.tail(10).iloc[::-1].iterrows():
+                st.markdown(f'''
+                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
+                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
+                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
 
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
             v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            vig_saliente = st.text_input("SALE:").upper().strip()
-            vig_entrante = st.text_input("ENTRA:").upper().strip()
-            v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
+            vig_saliente = st.text_input("SALE (NOMBRE):").upper().strip()
+            vig_entrante = st.text_input("ENTRA (NOMBRE):").upper().strip()
+            v_dni_relevo = st.text_input("LEGAJO RESPONSABLE:").strip()
             btn_relevo = st.form_submit_button("SANCIONAR CAMBIO")
             
             if btn_relevo and vig_saliente and vig_entrante and v_dni_relevo:
@@ -771,8 +789,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
-
-  
 
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
