@@ -772,32 +772,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
         with t_vis_qr:
-            st.markdown("### 📱 CONTROL DE OBJETIVOS")
+            st.markdown("### 📱 ESCANEO TÁCTICO PARA SUPERVISORES")
+            st.info("Utilice esta función para escanear el código QR del objetivo y registrar su presencia.")
             
-            # --- NUEVO: GENERADOR DE QR ---
-            st.markdown("---")
-            st.subheader("🖨️ GENERADOR DE QR")
-            lista_objs = df_objetivos['OBJETIVO'].unique()
-            obj_a_generar = st.selectbox("Seleccione objetivo para generar QR:", lista_objs)
-            
-            if obj_a_generar:
-                # REEMPLAZA 'tu-app-de-aion.streamlit.app' por la URL real de tu web
-                url_base = "https://tu-app-de-aion.streamlit.app/" 
-                url_final = f"{url_base}?obj={obj_a_generar.replace(' ', '%20')}"
-                
-                import qrcode
-                # Ajustamos box_size=15 para que sea un QR grande y fácil de escanear
-                qr = qrcode.QRCode(version=1, box_size=15, border=3)
-                qr.add_data(url_final)
-                qr.make(fit=True)
-                img = qr.make_image(fill_color="black", back_color="white")
-                
-                st.image(img.get_image(), width=300, caption=f"QR para {obj_a_generar}")
-                st.code(url_final, language="text")
-            st.markdown("---")
-            # --- FIN DEL GENERADOR ---
-
-            st.info("Utilice esta pestaña para generar los QR. Una vez impresos, escanéelos con su celular.")
+            # Aquí pondremos el lector de QR en el futuro
+            st.warning("⚠️ Módulo de Escaneo en preparación. Use los botones de Arribo/Retiro abajo.")
             
             # Mostramos el mapa de objetivos
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
@@ -806,6 +785,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 for _, r in df_mapa_sup.iterrows():
                     folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="green", icon="qrcode")).add_to(m_visor)
                 st_folium(m_visor, width="100%", height=300)
+
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
@@ -1025,11 +1005,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
     # 3. Definición de pestañas con el label dinámico
-    # Cambia tu línea actual por esta:
-# Cambia tu línea actual por esta:
-t_mensajeria_jefe, t_crisis, t_ejecucion, t_auditoria = st.tabs([
-    label_msg, "Centro de Crisis", "Ejecución", "📋 AUDITORÍA"
-])
+    t_mensajeria_jefe, t_crisis, t_ejecucion = st.tabs([label_msg, "Centro de Crisis", "Ejecución"])
+
     # Pestaña 1: Mensajería Global
     with t_mensajeria_jefe:
         renderizar_mensajeria_global("JEFE DE OPERACIONES")
