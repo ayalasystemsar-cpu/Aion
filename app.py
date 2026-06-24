@@ -790,6 +790,96 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
+elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    # Cabecera métricas
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🚨 S.O.S ACTIVOS", "0")
+    col2.metric("📡 RED", "OPERATIVA")
+    col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
+    col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+
+    # Definición de pestañas: Mensajería, Crisis y Ejecución
+    t_mensajeria_jefe, t_crisis, t_ejecucion = st.tabs(["💬 MENSAJERÍA GLOBAL", "Centro de Crisis", "Ejecución"])
+
+    # Pestaña 1: Mensajería Global
+    with t_mensajeria_jefe:
+        st.subheader("💬 MENSAJERÍA GLOBAL")
+        with st.form(key="form_mensajeria_jefe", clear_on_submit=True):
+            txt_msg = st.text_input("REPORTE OPERATIVO:")
+            prioridad = st.selectbox("PRIORIDAD:", ["VERDE", "ROJA"])
+            if st.form_submit_button("TRANSMITIR") and txt_msg.strip():
+                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), prioridad, "TODOS", "JEFATURA"])
+                st.rerun()
+        
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        if not df_msg.empty:
+            for _, msg in df_msg.tail(10).iloc[::-1].iterrows():
+                st.markdown(f'''
+                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
+                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
+                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
+
+    # Pestaña 2: Centro de Crisis (Original restaurado)
+    with t_crisis:
+        st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        
+        df_obj_maps_jefe = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
+        centro = [df_obj_maps_jefe['LATITUD'].mean(), df_obj_maps_jefe['LONGITUD'].mean()] if not df_obj_maps_jefe.empty else [-34.6, -58.4]
+        
+        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
+        if not df_obj_maps_jefe.empty:
+            for _, r in df_obj_maps_jefe.iterrows():
+                folium.Marker(
+                    [r['LATITUD'], r['LONGITUD']], 
+                    popup=r['OBJETIVO'],
+                    tooltip=f"Clic para auditar: {r['OBJETIVO']}", 
+                    icon=folium.Icon(color="cadetblue", icon="shield", prefix="fa")
+                ).add_to(m_visor)
+        
+        mapa_retorno = st_folium(m_visor, width="100%", height=500, key="map_jefe_operaciones_crisis")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        objetivo_cliqueado = None
+        if mapa_retorno and mapa_retorno.get("last_object_clicked_popup"):
+            objetivo_cliqueado = mapa_retorno["last_object_clicked_popup"].strip().upper()
+        
+        if objetivo_cliqueado:
+            st.markdown(f'### 📊 CONSOLA TÁCTICA DE AUDITORÍA: {objetivo_cliqueado}')
+            df_match_obj = df_objetivos[df_objetivos['OBJETIVO'] == objetivo_cliqueado]
+            sup_resp = df_match_obj['SUPERVISOR'].values[0] if not df_match_obj.empty else "NO ASIGNADO"
+            pan1, pan2 = st.columns([1, 2])
+            with pan1:
+                st.markdown('<div class="panel-novedad" style="margin-top:0px;">', unsafe_allow_html=True)
+                st.markdown(f"**👤 SUPERVISOR RESPONSABLE:**<br><span style=\"color:#00E5FF; font-family:'Orbitron'; font-size:16px;\">{sup_resp}</span>", unsafe_allow_html=True)
+                st.write("---")
+                st.markdown("**🔄 ÚLTIMO RELEVO REGISTRADO:**", unsafe_allow_html=True)
+                df_rel = leer_matriz_nube("VIGILADORES")
+                if not df_rel.empty:
+                    df_rel.columns = df_rel.columns.str.strip().str.upper()
+                    df_rel_obj = df_rel[df_rel['OBJETIVO'] == objetivo_cliqueado]
+                    if not df_rel_obj.empty:
+                        rel = df_rel_obj.iloc[-1]
+                        st.write(f"📅 **Fecha:** {rel.get('FECHA', 'N/A')}")
+                        st.write(f"🛑 **Sale:** {rel.get('VIGILADOR_SALIENTE', 'N/A')}")
+                        st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')}")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+    # Pestaña 3: Ejecución (Original restaurado)
+    with t_ejecucion:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
+        o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
+        o_cat = st.selectbox("Categoría:", ["OBJETIVO", "MÓVIL", "RECURSO HUMANO"])
+        o_det = st.text_input("Nombre / Detalle:")
+        if st.button("ELEVAR PETICIÓN"):
+            if o_det.strip():
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, o_accion, o_cat, o_det])
+                st.success("✅ Petición Elevada Exitosamente")
+        st.markdown('</div>', unsafe_allow_html=True)
+
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     
