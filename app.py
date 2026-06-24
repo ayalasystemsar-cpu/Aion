@@ -731,7 +731,31 @@ elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
-    tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE (PRESENTISMO)", "🔄 SANCIONAR RELEVO"])
+   # Ajusta las pestañas para incluir la mensajería
+    t_fichaje, t_mensajeria_vig, t_novedades = st.tabs(["🕒 FICHAJE", "💬 MENSAJERÍA", "📋 NOVEDADES"])
+
+    with t_mensajeria_vig:
+        st.subheader("💬 MENSAJERÍA GLOBAL")
+        
+        # Formulario de reporte rápido
+        with st.form(key="form_mensajeria_vigilador", clear_on_submit=True):
+            txt_msg = st.text_input("INFORME DE SITUACIÓN:")
+            # El vigilador reporta en verde, el sistema puede subir la prioridad si es necesario
+            if st.form_submit_button("REPORTAR A CENTRAL") and txt_msg.strip():
+                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), "VERDE", "TODOS", "REPORTE CAMPO"])
+                st.rerun()
+        
+        # Lectura de mensajes (para que el vigilador esté al tanto de directivas)
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        if not df_msg.empty:
+            # Mostramos los últimos 10 mensajes
+            for _, msg in df_msg.tail(10).iloc[::-1].iterrows():
+                st.markdown(f'''
+                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
+                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
+                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
     
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
