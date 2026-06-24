@@ -773,11 +773,31 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
         with t_vis_qr:
             st.markdown("### 📱 ESCANEO TÁCTICO PARA SUPERVISORES")
-            st.info("Utilice esta función para escanear el código QR del objetivo y registrar su presencia.")
             
-            # Aquí pondremos el lector de QR en el futuro
-            st.warning("⚠️ Módulo de Escaneo en preparación. Use los botones de Arribo/Retiro abajo.")
+            # --- AQUÍ ESTABA EL PROBLEMA: QUITAMOS EL WARNING Y PONEMOS EL GENERADOR ---
+            st.subheader("🖨️ GENERADOR DE QR")
             
+            # Verificamos que df_objetivos_filtrados tenga datos
+            if not df_objetivos_filtrados.empty:
+                lista_objs = df_objetivos_filtrados['OBJETIVO'].unique()
+                obj_a_generar = st.selectbox("Seleccione objetivo:", lista_objs)
+                
+                if obj_a_generar:
+                    # Ajusta aquí con tu URL real
+                    url_final = f"https://tu-app-de-aion.streamlit.app/?obj={obj_a_generar.replace(' ', '%20')}"
+                    
+                    import qrcode
+                    qr = qrcode.QRCode(version=1, box_size=15, border=3)
+                    qr.add_data(url_final)
+                    qr.make(fit=True)
+                    img = qr.make_image(fill_color="black", back_color="white")
+                    
+                    st.image(img.get_image(), width=300, caption=f"QR para {obj_a_generar}")
+            else:
+                st.warning("No hay objetivos asignados a tu usuario para generar QR.")
+            # --- FIN DEL GENERADOR ---
+
+            st.markdown("---")
             # Mostramos el mapa de objetivos
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
