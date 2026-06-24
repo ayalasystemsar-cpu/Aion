@@ -1,4 +1,166 @@
-: 15px;
+import streamlit as st
+import datetime
+from datetime import datetime
+import pandas as pd
+import pytz
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from streamlit_js_eval import get_geolocation
+import osmnx as ox
+import networkx as nx
+import folium
+from folium.plugins import AntPath
+from streamlit_folium import st_folium
+import math
+import requests # Importante para conectar con el servidor de mapas de calles
+from branca.element import Element # Para inyección de z-index nativo seguro
+
+# Configuración de página OLED
+st.set_page_config(
+    page_title="AION-YAROKU | CORE",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
+ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+
+def conectar_google():
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+        return gspread.authorize(creds)
+    except: 
+        return None
+
+# --- 3. FUNCIONES DE LÓGICA E DATOS ---
+def obtener_hora_argentina():
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
+def actualizar_celda(pestana, fila, columna, valor):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            hoja.update_acell(f"{columna}{fila}", valor)
+            return True
+    except: 
+        return False
+
+def escribir_registro_nube(pestana, datos_fila):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            hoja.append_row(datos_fila)
+            return True
+    except: 
+        return False
+        
+@st.cache_resource
+def obtener_grafo_zona(lat, lon):
+    try:
+        return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
+    except:
+        return None
+
+def calcular_ruta_real(orig, dest):
+    mid_lat = (orig[0] + dest[0]) / 2
+    mid_lon = (orig[1] + dest[1]) / 2
+    G = obtener_grafo_zona(mid_lat, mid_lon)
+    
+    if G is None: 
+        return [orig, dest]
+        
+    try:
+        orig_node = ox.distance.nearest_nodes(G, X=orig[1], Y=orig[0])
+        dest_node = ox.distance.nearest_nodes(G, X=dest[1], Y=dest[0])
+        ruta = nx.shortest_path(G, orig_node, dest_node, weight='length')
+        return [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta]
+    except:
+        return [orig, dest]
+
+# Función dedicada a obtener el trazado exacto calle por calle vía OSRM (Estilo GPS)
+def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
+    try:
+        url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson"
+        response = requests.get(url, timeout=5).json()
+        if response.get("code") == "Ok":
+            coordenadas = response["routes"][0]["geometry"]["coordinates"]
+            return [[point[1], point[0]] for point in coordenadas]
+    except:
+        pass
+    return [[lat1, lon1], [lat2, lon2]]
+
+@st.cache_data(ttl=60) 
+def leer_matriz_nube(pestana):
+    gc = conectar_google()
+    if gc:
+        try:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            todas_filas = hoja.get_all_values()
+            
+            if not todas_filas or len(todas_filas) == 0:
+                return pd.DataFrame()
+                
+            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
+            datos_cuerpo = todas_filas[1:]
+            
+            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
+            
+            # --- BLINDAJE CONTRA DUPLICADOS ---
+            # 1. Quitar espacios accidentales
+            df.columns = [str(c).strip().upper() for c in df.columns]
+            # 2. Eliminar columnas duplicadas (mantiene la primera ocurrencia)
+            df = df.loc[:, ~df.columns.duplicated()]
+            
+            return df
+        except Exception as e: 
+            return pd.DataFrame()
+    return pd.DataFrame()
+
+@st.cache_data(ttl=60)
+def cargar_datos_comisarias():
+    data = {
+        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
+        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
+        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
+    }
+    return pd.DataFrame(data)
+
+@st.cache_data(ttl=60)
+def cargar_objetivos():
+    df = leer_matriz_nube("OBJETIVOS")
+    if not df.empty:
+        df.columns = df.columns.str.strip().str.upper()
+        df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
+        df = df[df['OBJETIVO'].notna()]
+        
+        if 'SUPERVISOR' in df.columns:
+            df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
+        
+        df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
+        df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
+        df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
+        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
+        return df 
+    return pd.DataFrame()
+
+# --- 4. DISEÑO E IDENTIDAD VISUAL ---
+def aplicar_identidad_alfa():
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
+        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
+        .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
+        
+        .estacion-titulo {
+            font-family: 'Orbitron', sans-serif;
+            color: #00E5FF !important; font-size: 24px; margin-top: 15px;
             display: flex; align-items: center; justify-content: center; gap: 12px;
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
         }
