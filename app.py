@@ -208,12 +208,28 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
+
+        /* Botón Panico Fino */
+        .btn-panico-fino {
+            border: 1px solid #FF4B4B !important;
+            background: transparent !important;
+            color: #FF4B4B !important;
+            padding: 8px 16px !important;
+            border-radius: 4px !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-size: 10px !important;
+            letter-spacing: 2px !important;
+            text-transform: uppercase !important;
+            transition: all 0.3s ease !important;
+            width: 100% !important;
+        }
+        .btn-panico-fino:hover {
+            background: rgba(255, 75, 75, 0.1) !important;
+            box-shadow: 0 0 10px rgba(255, 75, 75, 0.2) !important;
+        }
         </style>
         """, unsafe_allow_html=True
     )
-
-aplicar_identidad_alfa()
-
 # --- 5. SIDEBAR TÁCTICO ---
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
