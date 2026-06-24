@@ -174,21 +174,28 @@ def renderizar_mensajeria_global(rol_contexto):
             destinatario = st.selectbox("PARA:", destinatarios_posibles)
             gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
 
-        # BOTÓN DE ENVÍO
+        # DENTRO DEL BOTÓN DE TRANSMITIR
         if st.form_submit_button("TRANSMITIR A LA RED"):
             if txt_msg.strip():
                 escribir_registro_nube("MENSAJERIA", [
                     obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
                     (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
                 ])
-                # Cartelito de confirmación
-                if st.session_state.asunto_respuesta:
-                    st.success("✅ RESPUESTA ENVIADA")
-                else:
-                    st.success("✅ MENSAJE ENVIADO")
                 
+                # GUARDAMOS EL ESTADO PARA MOSTRAR EL CARTEL
+                st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
                 st.session_state.asunto_respuesta = None
                 st.rerun()
+
+    # ESTO DEBE IR JUSTO DESPUÉS DEL FORMULARIO PARA QUE SE VEA BIEN
+    if 'mensaje_enviado' in st.session_state:
+        if st.session_state.mensaje_enviado == "RESPUESTA":
+            st.success("✅ RESPUESTA ENVIADA")
+        else:
+            st.success("✅ MENSAJE ENVIADO")
+        
+        # BORRAMOS LA VARIABLE PARA QUE EL CARTEL SE VAYA AL RECARGAR
+        del st.session_state.mensaje_enviado
 
     # 4. VISUALIZACIÓN POR HILOS
     if not df_msg.empty:
