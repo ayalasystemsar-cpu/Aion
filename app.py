@@ -760,10 +760,48 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("No hay objetivos asignados.")
 
-        with t_ruta_gmaps:
+       with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
-            # ... (tu código de rutas sigue igual) ...
-            st.info("Navegación disponible.")
+            opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
+            
+            if len(opciones_servicios_r) > 0:
+                obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_servicios_r, key="sup_ruta_gmaps_target")
+                
+                datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
+                lat_target = datos_obj_r['LATITUD']
+                lon_target = datos_obj_r['LONGITUD']
+                
+                comisaria_r_name = None
+                com_lat_target, com_lon_target = None, None
+                dist_min_r = float('inf')
+                
+                for _, com in df_comisarias.iterrows():
+                    ln1, lt1, ln2, lt2 = map(math.radians, [lon_target, lat_target, com['LONGITUD'], com['LATITUD']])
+                    dln = ln2 - ln1
+                    dlt = lt2 - lt1
+                    a = math.sin(dlt/2)**2 + math.cos(lt1) * math.cos(lt2) * math.sin(dln/2)**2
+                    c = 2 * math.asin(math.sqrt(a))
+                    km = 6371 * c
+                    
+                    if km < dist_min_r:
+                        dist_min_r = km
+                        comisaria_r_name = com['COMISARIA']
+                        com_lat_target = com['LATITUD']
+                        com_lon_target = com['LONGITUD']
+                
+                if comisaria_r_name:
+                    st.info(f"👮 **Comisaría Encontrada:** {comisaria_r_name} (Distancia: {dist_min_r:.2f} Km)")
+                    
+                    # Generamos el enlace para Google Maps
+                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_target},{com_lon_target}&destination={lat_target},{lon_target}&travelmode=driving"
+                    
+                    st.markdown(
+                        f'<a href="{url_gmaps}" target="_blank" class="btn-google-maps" style="background-color: #4285F4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: block; text-align: center;">🗺️ ABRIR ASISTENTE GPS EN GOOGLE MAPS</a>',
+                        unsafe_allow_html=True
+                    )
+                    st.caption("⚠️ Al presionar el botón, se abrirá la aplicación de Google Maps en tu dispositivo con el trazado GPS listo para iniciar la navegación.")
+            else:
+                st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
 
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
