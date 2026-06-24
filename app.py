@@ -335,8 +335,8 @@ if st.session_state.rol_sel == "MONITOREO":
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
     # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
-    t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 CHAT OPERATIVO", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+    t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
+        "🚨 RADAR S.O.S", "💬 MENSAJERÍA", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ])
 
     with t_radar:
