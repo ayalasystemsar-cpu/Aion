@@ -758,7 +758,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     # 1. Definición de pestañas (Incluyendo MENSAJERÍA)
   
     # 2. Pestaña de Fichaje (Solo LEGAJO)
-   with tab_presentismo:
+    with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
             # --- NUEVO CAMPO APELLIDO Y NOMBRE ---
