@@ -149,6 +149,7 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
+
 def aplicar_identidad_alfa():
     st.markdown(
         """
@@ -171,11 +172,18 @@ def aplicar_identidad_alfa():
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
+        
+        /* BOTÓN PÁNICO FINO (Uso exclusivo) */
+        div.stButton > button[data-testid="baseButton-secondary"].panico-fino-btn { 
+            border: 1px solid #FF4B4B !important;
+            background: transparent !important;
+            color: #FF4B4B !important;
+            font-family: 'Orbitron', sans-serif !important;
+            letter-spacing: 2px !important;
+            transition: all 0.3s ease !important;
+        }
+        div.stButton > button[data-testid="baseButton-secondary"].panico-fino-btn:hover { 
+            background: rgba(255, 75, 75, 0.1) !important;
         }
         
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
@@ -185,33 +193,9 @@ def aplicar_identidad_alfa():
         
         .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
-
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
-        .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.4) !important; border: 1px solid #2D313E !important;
-            color: #A0A5B5 !important; border-radius: 4px 4px 0px 0px !important; padding: 6px 16px !important;
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
-        }
-        .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
-        
-        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
-        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
-        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
-        
-        /* Estilo para botón de Google Maps */
-        .btn-google-maps {
-            display: inline-flex; align-items: center; justify-content: center;
-            background-color: #ffffff !important; color: #1a73e8 !important;
-            font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 14px;
-            padding: 12px 24px; border-radius: 6px; border: 2px solid #1a73e8;
-            text-decoration: none !important; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
-            width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
-        }
-        .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         </style>
         """, unsafe_allow_html=True
     )
-
 aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
