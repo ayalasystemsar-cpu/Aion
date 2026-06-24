@@ -1027,32 +1027,13 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
 elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
-    elif st.session_state.rol_sel == "GERENCIA":
-
- elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Calculamos el total de mensajes pendientes para GERENCIA
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
     
-    total_nuevos = 0
-    if not df_msg.empty:
-        mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
-                (df_msg['DESTINATARIO'] == "GERENCIA") | 
-                (df_msg['DESTINATARIO'] == nombre_user)) & \
-               (df_msg['ESTADO'] == "PENDIENTE")
-        total_nuevos = len(df_msg[mask])
-
-    # 2. Creamos la etiqueta dinámica
-    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
-
-    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
+    # 1. Definición de pestañas (Incluyendo MENSAJERÍA, EJECUCIÓN y TABLERO)
+    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     
-    # 3. Definición de pestañas con el label dinámico
-    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs([label_msg, "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    
-    # 4. Pestaña de Mensajería Global
+    # 2. Pestaña de Mensajería Global
     with t_mensajeria_ger:
-        renderizar_mensajeria_global("GERENCIA") 
+        renderizar_mensajeria_global("GERENCIA")
 
     # 3. Pestaña de EJECUCIÓN (Restaurada)
     with t_ejecucion_ger:
