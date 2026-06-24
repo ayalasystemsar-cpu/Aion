@@ -147,7 +147,7 @@ def cargar_objetivos():
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
     return pd.DataFrame()
-    def renderizar_mensajeria_global(rol_contexto):
+ def renderizar_mensajeria_global(rol_contexto):
     df_msg = leer_matriz_nube("MENSAJERIA")
     
     # 1. Contar pendientes para este usuario
