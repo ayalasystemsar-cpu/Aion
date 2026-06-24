@@ -120,41 +120,7 @@ def leer_matriz_nube(pestana):
         except Exception as e: 
             return pd.DataFrame()
     return pd.DataFrame()
-    
-def renderizar_sistema_chats(rol_actual):
-    # Formulario de envío
-    with st.form(key=f"form_chat_{rol_actual}", clear_on_submit=True):
-        col_c1, col_c2 = st.columns([3, 1])
-        with col_c1:
-            txt_msg = st.text_input("MENSAJE:")
-        with col_c2:
-            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADORES"])
-        
-        if st.form_submit_button("TRANSMITIR"):
-            if txt_msg.strip():
-                escribir_registro_nube("CHATS", [
-                    obtener_hora_argentina(), 
-                    st.session_state.user_sel, 
-                    txt_msg.upper(), 
-                    "VERDE", 
-                    destinatario, 
-                    rol_actual
-                ])
-                st.session_state.total_mensajes_previo += 1
-                st.rerun()
 
-    # Lectura y filtrado
-    df_c = leer_matriz_nube("CHATS")
-    if not df_c.empty:
-        # Filtramos: mensajes para todos o para este rol
-        df_c = df_c[(df_c['PARA'] == "TODOS") | (df_c['PARA'] == rol_actual)]
-        for _, msg in df_c.tail(10).iloc[::-1].iterrows():
-            st.markdown(f"""
-                <div style="background-color: #1A1C23; padding: 10px; border-radius: 5px; border-left: 3px solid #00E5FF; margin-bottom: 5px;">
-                    <small style="color: #00E5FF;">{msg['HORA']} | {msg['USUARIO']}</small><br>
-                    <strong>{msg['TEXTO']}</strong>
-                </div>
-            """, unsafe_allow_html=True)
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
@@ -367,19 +333,12 @@ if st.session_state.rol_sel == "MONITOREO":
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
-# 1. Lógica previa: Comprobar mensajes
-    hay_nuevos_mon = hay_mensajes_nuevos() # Llamas a tu función lógica
-    
-    # 2. Definimos el nombre dinámico
-    nombre_tab_chat = "💬 CHAT" + (" 🔴" if hay_nuevos_mon else "")
 
-    # 3. Creamos los tabs
+    # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
     t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", 
-        nombre_tab_chat, 
-        "👥 PADRÓN VIGILADORES", 
-        "🔄 NOVEDADES"
+        "🚨 RADAR S.O.S", "💬 CHAT OPERATIVO", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ])
+
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
@@ -582,11 +541,19 @@ if st.session_state.rol_sel == "MONITOREO":
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
     with t_comunicacion:
-        st.subheader("💬 CENTRAL DE COMUNICACIÓN")
-        # Esta única línea reemplaza todo el formulario y el bucle anterior
-        renderizar_sistema_chats("MONITOREO")
+        st.subheader("💬 CHAT OPERATIVO")
+        with st.form(key="form_chat_monitoreo", clear_on_submit=True):
+            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
+            prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
+            if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
+                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
+                st.rerun()
         
-       
+        df_chats = leer_matriz_nube("CHATS")
+        if not df_chats.empty:
+            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
+                st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
+
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
