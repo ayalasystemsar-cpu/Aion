@@ -779,7 +779,29 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_crisis, t_ejecucion = st.tabs(["Centro de Crisis", "Ejecución"])
+t_mensajeria_jefe, t_ejecucion = st.tabs(["💬 MENSAJERÍA GLOBAL", "Ejecución"])
+
+    with t_mensajeria_jefe:
+        st.subheader("💬 MENSAJERÍA GLOBAL")
+        
+        # Formulario de envío
+        with st.form(key="form_mensajeria_jefe", clear_on_submit=True):
+            txt_msg = st.text_input("REPORTE OPERATIVO:")
+            prioridad = st.selectbox("PRIORIDAD:", ["VERDE", "ROJA"])
+            if st.form_submit_button("TRANSMITIR") and txt_msg.strip():
+                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), prioridad, "TODOS", "JEFATURA"])
+                st.rerun()
+        
+        # Lectura de mensajes
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        if not df_msg.empty:
+            for _, msg in df_msg.tail(15).iloc[::-1].iterrows():
+                st.markdown(f'''
+                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
+                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
+                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
     with t_crisis:
         st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
