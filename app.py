@@ -312,7 +312,7 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
-if st.session_state.rol_sel == "MONITOREO":
+elif st.session_state.rol_sel == "MONITOREO":
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
@@ -327,28 +327,16 @@ if st.session_state.rol_sel == "MONITOREO":
         if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
-    lista_objetivos_en_panico = []
-    if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
-        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
-        sos_activos = len(pendientes)
-        for _, row in pendientes.iterrows():
-            carga = str(row['CARGA_UTIL'])
-            if "OBJ:" in carga:
-                try: 
-                    lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
-                except: pass
-    else: 
-        sos_activos = 0
+    # --- LÓGICA DE ALERTAS ---
+    pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+    sos_activos = len(pendientes)
     
     c1, c2, c3 = st.columns(3)
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
-    t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 MENSAJERÍA GLOBAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
-    ])
+    t_radar, t_mensajeria, t_vig, t_nov = st.tabs(["🚨 RADAR S.O.S", "💬 MENSAJERÍA GLOBAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"])
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
@@ -452,42 +440,27 @@ if st.session_state.rol_sel == "MONITOREO":
                 attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
             )
             
+           # --- NUEVO CÓDIGO PARA EL MAPA (REEMPLAZA TU BUCLE FOR ACTUAL) ---
             for _, r in df_mapa_monitoreo.iterrows():
-                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
-                es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
+                # 1. ¿Este objetivo tiene una alerta PENDIENTE en la base de datos?
+                alerta_en_obj = pendientes[pendientes['CARGA_UTIL'].str.contains(str(r['OBJETIVO']), na=False)]
                 
-                if es_panico or es_el_seleccionado:
+                if not alerta_en_obj.empty:
+                    # 2. Extraer el nombre del vigilador de la nota (Carga Util)
+                    carga = str(alerta_en_obj.iloc[0]['CARGA_UTIL'])
+                    nombre_vig = carga.split("|VIG:")[1] if "|VIG:" in carga else "VIGILADOR"
+                    
+                    # 3. Dibujar el punto ROJO con el nombre
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"🚨 {'[EN ENFOQUE TÁCTICO]' if es_el_seleccionado else '¡ALERTA PÁNICO!'} | {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
-                        icon=folium.DivIcon(
-                            icon_size=(30, 30),
-                            icon_anchor=(15, 15),
-                            html='''
-                            <div style="
-                                background-color: #FF0000;
-                                width: 16px;
-                                height: 16px;
-                                border-radius: 50%;
-                                border: 2px solid white;
-                                box-shadow: 0 0 10px #FF0000;
-                                animation: pulse 1s infinite alternate;
-                            "></div>
-                            <style>
-                                @keyframes pulse {
-                                    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-                                    100% { transform: scale(1.2); box-shadow: 0 0 0 12px rgba(255, 0, 0, 0); }
-                                }
-                            </style>
-                            '''
-                        )
+                        tooltip=f"🚨 PÁNICO | OBJETIVO: {r['OBJETIVO']} | VIG: {nombre_vig}",
+                        icon=folium.DivIcon(html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #FF0000; animation: pulse 1s infinite alternate;"></div>''')
                     ).add_to(m_mon)
                 else:
+                    # 4. Dibujar el punto NORMAL (Celeste) como siempre
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], 
-                        radius=7,
-                        color="#00E5FF",
-                        fill=True, 
+                        radius=7, color="#00E5FF", fill=True, 
                         fill_color="#00E5FF",
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
