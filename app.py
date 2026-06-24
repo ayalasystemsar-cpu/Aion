@@ -747,7 +747,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
                 st.success("✅ Cargado")
 
-        with# 1. INICIALIZAR ESTADOS
+        # 1. INICIALIZAR ESTADOS
         if 'resp_destinatario' not in st.session_state: st.session_state.resp_destinatario = "TODOS"
         if 'resp_asunto' not in st.session_state: st.session_state.resp_asunto = ""
 
