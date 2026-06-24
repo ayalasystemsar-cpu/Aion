@@ -876,8 +876,29 @@ elif st.session_state.rol_sel == "GERENCIA":
     m2.metric("Nivel de Cobertura", "47/93")
     m3.metric("Auditorías Físicas (QRs)", "2")
     m4.metric("Desgaste Flota (Km)", "4954 Km")
-    
-    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+
+    with t_mensajeria_ger:
+        st.subheader("💬 MENSAJERÍA GLOBAL")
+        # Formulario de envío
+        with st.form(key="form_mensajeria_gerencia", clear_on_submit=True):
+            txt_msg = st.text_input("DIRECTIVA PARA LA RED:")
+            prioridad = st.selectbox("PRIORIDAD:", ["VERDE", "AMARILLA", "ROJA"])
+            if st.form_submit_button("TRANSMITIR DIRECTIVA") and txt_msg.strip():
+                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), prioridad, "TODOS", "ORDEN GERENCIAL"])
+                st.rerun()
+        
+        # Lectura de mensajes
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        if not df_msg.empty:
+            for _, msg in df_msg.tail(15).iloc[::-1].iterrows():
+                st.markdown(f'''
+                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
+                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
+                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
+   
     with t_com_est:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
