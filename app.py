@@ -703,11 +703,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
                 st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
-        # --- MÓDULO: GESTIÓN DE JORNADA Y QR ---
+      # --- AQUÍ EMPIEZA EL MÓDULO NUEVO DE JORNADA Y QR ---
         st.markdown("---")
-        st.subheader("⏱️ GESTIÓN DE JORNADA")
+        st.subheader("⏱️ GESTIÓN DE JORNADA Y CONTROL QR")
         
-        # 1. Botones de Jornada Global (Estos se quedan, son vitales)
         col_j1, col_j2 = st.columns(2)
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA"):
@@ -718,26 +717,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
                 st.success("Jornada cerrada.")
 
-        # 2. Lógica de Detección por QR
-        st.markdown("---")
-        st.subheader("📍 CONTROL DE OBJETIVO (VÍA QR)")
-        
-        # Esto detecta si escaneaste un QR que trae un objetivo en la URL
         query_params = st.query_params
         obj_detectado = query_params.get("obj", None)
         
         if obj_detectado:
-            st.success(f"🎯 OBJETIVO DETECTADO: {obj_detectado}")
+            st.success(f"🎯 OBJETIVO DETECTADO POR QR: {obj_detectado}")
             c_arribo, c_retiro = st.columns(2)
             with c_arribo:
-                if st.button(f"✅ CONFIRMAR ARRIBO A {obj_detectado}"):
+                if st.button(f"✅ ARRIBO A {obj_detectado}"):
                     registrar_movimiento_supervisor(st.session_state.user_sel, obj_detectado, "ARRIBO")
             with c_retiro:
-                if st.button(f"🚪 CONFIRMAR RETIRO DE {obj_detectado}"):
+                if st.button(f"🚪 RETIRO DE {obj_detectado}"):
                     registrar_movimiento_supervisor(st.session_state.user_sel, obj_detectado, "RETIRO")
         else:
-            st.info("👈 Escanee el código QR del objetivo para habilitar el registro de Arribo/Retiro.")
+            st.info("👈 Escanee el QR del objetivo para habilitar el registro de Arribo/Retiro.")
         st.markdown("---")
+        # --- AQUÍ TERMINA EL MÓDULO NUEVO --- 
 
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
