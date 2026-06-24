@@ -153,12 +153,7 @@ def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
 
-    # 2. LECTURA DE DATOS
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    
-    st.subheader("💬 COMUNICACIONES OPERATIVAS")
-
-    # 3. FORMULARIO DE ENVÍO (Aquí está el cuadro que te faltaba)
+    # 2. Formulario de Envío
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
         if st.session_state.asunto_respuesta:
             st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
@@ -170,29 +165,10 @@ def renderizar_mensajeria_global(rol_contexto):
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
         with col_b:
-            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "SUPERVISORES"] + LISTA_SUPS_TACTICOS)
-
-        if st.form_submit_button("TRANSMITIR"):
-            if txt_msg.strip():
-                # Guardamos: FECHA, REMITENTE, DESTINATARIO, ASUNTO, MENSAJE, ESTADO, GRAVEDAD
-                escribir_registro_nube("MENSAJERIA", [
-                    obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
-                    asunto_input.upper(), txt_msg.upper(), "PENDIENTE", "VERDE"
-                ])
-                st.session_state.asunto_respuesta = None
-                st.rerun()
-
-    # 4. VISUALIZACIÓN POR HILOS (Para ver las respuestas)
-    if not df_msg.empty:
-        # Agrupamos por ASUNTO para que las respuestas aparezcan juntas
-        for asunto, grupo in df_msg.groupby('ASUNTO'):
-            with st.expander(f"💬 Hilo: {asunto}"):
-                for _, msg in grupo.iterrows():
-                    st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
-                
-                if st.button(f"Responder a este hilo", key=f"btn_{asunto}"):
-                    st.session_state.asunto_respuesta = asunto
-                    st.rerun()
+            # --- AQUÍ ES DONDE DEBES MODIFICAR LA LÍNEA ---
+            # Borra la línea anterior de 'destinatario = ...' y pon esta:
+            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + LISTA_SUPS_TACTICOS
+            destinatario = st.selectbox("PARA:", destinatarios_posibles)
 def aplicar_identidad_alfa():
     st.markdown(
         """
