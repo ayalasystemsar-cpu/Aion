@@ -367,15 +367,15 @@ with col_sel1:
                 idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
             except:
                 idx_defecto = 0
-obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", opciones_busqueda, index=idx_defecto, key="buscador_radar_master")
-
+            
+            # --- SELECCIONADOR LIMPIO ---
+            obj_seleccionado = st.selectbox(
+                "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
                 opciones_busqueda, 
                 index=idx_defecto,
                 key="buscador_radar_master"
             )
             st.session_state["filtro_radar_valor"] = obj_seleccionado
-        
-        comisaria_cercana_name = None
         distancia_minima = float('inf')
         com_lat_m, com_lon_m = None, None
         
