@@ -153,9 +153,10 @@ def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
 
-    # 2. Formulario de Envío
+# 2. Formulario de Envío
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
-        if st.session_state.asunto_respuesta:
+        # Si estamos respondiendo, avisamos al usuario
+        if st.session_state.get('asunto_respuesta'):
             st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
             asunto_input = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
         else:
@@ -165,10 +166,21 @@ def renderizar_mensajeria_global(rol_contexto):
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
         with col_b:
-            # --- AQUÍ ES DONDE DEBES MODIFICAR LA LÍNEA ---
-            # Borra la línea anterior de 'destinatario = ...' y pon esta:
+            # Aquí incluimos "VIGILADOR" en la lista de destinatarios
             destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + LISTA_SUPS_TACTICOS
             destinatario = st.selectbox("PARA:", destinatarios_posibles)
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
+
+        # ESTA ES LA CLAVE: El botón debe estar aquí adentro, alineado con 'cols'
+        if st.form_submit_button("TRANSMITIR A LA RED"):
+            if txt_msg.strip():
+                asunto_final = asunto_input if asunto_input else "SIN ASUNTO"
+                escribir_registro_nube("MENSAJERIA", [
+                    obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
+                    asunto_final.upper(), txt_msg.upper(), "PENDIENTE", gravedad
+                ])
+                st.session_state.asunto_respuesta = None 
+                st.rerun()
 def aplicar_identidad_alfa():
     st.markdown(
         """
