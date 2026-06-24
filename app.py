@@ -771,7 +771,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y SANEADO")
-# B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
+
 # B. ROL: JEFE DE OPERACIONES (MÓDULO INTERACTIVO DE AUDITORÍA DE OBJETIVOS)
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
@@ -780,7 +780,35 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    t_crisis, t_ejecucion = st.tabs(["Centro de Crisis", "Ejecución"])
+   # Definición de pestañas (asegúrate de que esta línea esté al mismo nivel que tus otros elif)
+    t_mensajeria_jefe, t_crisis, t_ejecucion = st.tabs(["💬 MENSAJERÍA GLOBAL", "Centro de Crisis", "Ejecución"])
+
+    # Bloque de Mensajería Global
+    with t_mensajeria_jefe:
+        st.subheader("💬 MENSAJERÍA GLOBAL")
+        
+        with st.form(key="form_mensajeria_jefe", clear_on_submit=True):
+            txt_msg = st.text_input("REPORTE OPERATIVO:")
+            prioridad = st.selectbox("PRIORIDAD:", ["VERDE", "ROJA"])
+            if st.form_submit_button("TRANSMITIR") and txt_msg.strip():
+                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), prioridad, "TODOS", "JEFATURA"])
+                st.rerun()
+        
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        if not df_msg.empty:
+            for _, msg in df_msg.tail(15).iloc[::-1].iterrows():
+                st.markdown(f'''
+                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
+                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
+                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
+
+    # Bloque de Centro de Crisis (mantenlo como lo tenías antes)
+    with t_crisis:
+        # Aquí va todo tu código original del Centro de Crisis
+        st.write("Configuración de Centro de Crisis activa.")
+        # ... resto de tu código original ...
     with t_crisis:
         st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
