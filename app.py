@@ -212,6 +212,7 @@ def renderizar_mensajeria_global(rol_contexto):
                         st.rerun()
         else:
             st.warning("La base de datos no tiene una columna 'ASUNTO'. Verifica tu Google Sheet.")
+            
  def obtener_etiqueta_mensajeria(rol_contexto):
     df_msg = leer_matriz_nube("MENSAJERIA")
     if df_msg.empty:
