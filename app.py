@@ -147,7 +147,20 @@ def cargar_objetivos():
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
     return pd.DataFrame()
-
+    
+@st.cache_data(ttl=10) # TTL corto para ver mensajes en tiempo real
+def contar_mensajes_nuevos(rol_usuario):
+    df = leer_matriz_nube("MENSAJERIA")
+    if df.empty:
+        return 0
+    
+    # Filtramos: Destino coincide con el rol Y el estado es PENDIENTE
+    # (Asegúrate de que 'PENDIENTE' esté escrito tal cual en tu Excel)
+    pendientes = df[
+        (df['DESTINATARIO'].str.strip().str.upper() == rol_usuario.upper()) & 
+        (df['ESTADO'].str.strip().str.upper() == "PENDIENTE")
+    ]
+    return len(pendientes)
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
 def aplicar_identidad_alfa():
     st.markdown(
@@ -334,16 +347,16 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
-    t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 CHAT OPERATIVO", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
-    ])
+    # --- PASO 3: Pestaña Dinámica ---
+    
+    total_nuevos = contar_mensajes_nuevos(st.session_state.rol_sel)
+    label_mensajeria = f"💬 CHAT ({total_nuevos})" if total_nuevos > 0 else "💬 CHAT"
 
-    with t_radar:
-        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+    # Ahora usamos la variable label_mensajeria en lugar del nombre fijo
+    t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
+        "🚨 RADAR S.O.S", label_mensajeria, "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+    ])
+    
 
         # --- INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
@@ -540,20 +553,49 @@ if st.session_state.rol_sel == "MONITOREO":
         m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-    with t_comunicacion:
-        st.subheader("💬 CHAT OPERATIVO")
-        with st.form(key="form_chat_monitoreo", clear_on_submit=True):
-            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
-            prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
-            if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
-                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
-                st.rerun()
+   with t_comunicacion:
+        st.subheader("💬 CENTRO DE MENSAJES")
         
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
-                st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-
+        # 1. Selector de destinatario
+        destinatarios = ["TODOS", "JEFE DE OPERACIONES", "MONITOREO", "SUPERVISORES", "VIGILADORES"]
+        destino_sel = st.selectbox("ENVIAR MENSAJE A:", destinatarios)
+        
+        with st.form(key="form_chat_mensajeria", clear_on_submit=True):
+            txt_mensaje = st.text_input("ESCRIBIR MENSAJE:")
+            prioridad = st.selectbox("CRITICIDAD:", ["VERDE", "ROJA"])
+            
+            if st.form_submit_button("TRANSMITIR"):
+                if txt_mensaje.strip():
+                    # Aquí escribimos en la pestaña "MENSAJERIA" de tu Excel
+                    # La estructura debe coincidir con tus columnas: 
+                    # [FECHA, REMITENTE, DESTINATARIO, ASUNTO, MENSAJE, ESTADO, GRAVEDAD]
+                    escribir_registro_nube("MENSAJERIA", [
+                        obtener_hora_argentina(), 
+                        st.session_state.user_sel, 
+                        destino_sel, 
+                        "GENERAL", 
+                        txt_mensaje.strip().upper(), 
+                        "PENDIENTE", # <--- ESTO ACTIVA TU CONTADOR
+                        prioridad
+                    ])
+                    st.rerun()
+        
+        # 2. Visualización
+        df_mensajes = leer_matriz_nube("MENSAJERIA")
+        if not df_mensajes.empty:
+            # Filtro para ver solo lo que le corresponde al rol actual o lo que es para TODOS
+            df_filtrado = df_mensajes[
+                (df_mensajes['DESTINATARIO'].str.upper() == "TODOS") | 
+                (df_mensajes['DESTINATARIO'].str.upper() == st.session_state.rol_sel)
+            ]
+            
+            for _, msg in df_filtrado.tail(15).iloc[::-1].iterrows():
+                st.markdown(f'''
+                    <div class="{"message-box-red" if msg.get("GRAVEDAD")=="ROJA" else "message-box"}">
+                        <div class="message-info">{msg.get("FECHA")} | Para: {msg.get("DESTINATARIO")}</div>
+                        <div class="message-text"><b>{msg.get("REMITENTE")}:</b> {msg.get("MENSAJE")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
