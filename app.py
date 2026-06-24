@@ -1071,27 +1071,34 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Pestaña 4: Auditoría de Supervisión (NUEVA)
-    with t_auditoria:
+   with t_auditoria:
         st.subheader("📋 AUDITORÍA DE SUPERVISIÓN")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         
         if not df_jornadas.empty:
-            def calcular_duracion_supervision(df):
-                df['DATETIME'] = pd.to_datetime(df['FECHA'].astype(str) + ' ' + df['HORA'].astype(str))
-                df = df.sort_values(by=['SUPERVISOR', 'OBJETIVO', 'DATETIME'])
-                df['DURACION'] = df.groupby(['SUPERVISOR', 'OBJETIVO'])['DATETIME'].diff()
-                df.loc[df['ACCIÓN'] != 'RETIRO', 'DURACION'] = pd.NaT
-                return df
+            # Limpiamos nombres de columnas: quitamos espacios y pasamos a mayúsculas
+            df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
+            
+            # Verificamos si las columnas que necesita el código existen
+            if {'FECHA', 'HORA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN'}.issubset(df_jornadas.columns):
+                
+                # Función de cálculo segura
+                def calcular_duracion(df):
+                    df['DATETIME'] = pd.to_datetime(df['FECHA'].astype(str) + ' ' + df['HORA'].astype(str), errors='coerce')
+                    df = df.sort_values(by=['SUPERVISOR', 'OBJETIVO', 'DATETIME'])
+                    df['DURACION'] = df.groupby(['SUPERVISOR', 'OBJETIVO'])['DATETIME'].diff()
+                    # Solo marcamos duración en RETIROS
+                    df.loc[df['ACCIÓN'] != 'RETIRO', 'DURACION'] = pd.NaT
+                    return df
 
-            df_procesado = calcular_duracion_supervision(df_jornadas)
-            df_procesado['DURACION_MINUTOS'] = df_procesado['DURACION'].dt.total_seconds() / 60
-            
-            fecha_busqueda = st.date_input("Filtrar auditoría por fecha:")
-            df_filtrado = df_procesado[df_procesado['DATETIME'].dt.date == fecha_busqueda]
-            
-            st.dataframe(df_filtrado[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN', 'HORA', 'DURACION_MINUTOS']], use_container_width=True)
+                df_procesado = calcular_duracion(df_jornadas)
+                df_procesado['DURACION_MINUTOS'] = df_procesado['DURACION'].dt.total_seconds() / 60
+                
+                st.dataframe(df_procesado[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN', 'HORA', 'DURACION_MINUTOS']], use_container_width=True)
+            else:
+                st.error(f"Error: La hoja no tiene las columnas esperadas. Columnas detectadas: {df_jornadas.columns.tolist()}")
         else:
-            st.info("Aún no hay registros de jornada para auditar.")
+            st.info("La hoja está vacía o no se pudo leer.")
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
