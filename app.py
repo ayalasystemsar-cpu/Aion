@@ -277,7 +277,7 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_nov_g, use_container_width=True, hide_index=True)
 
 elif st.session_state.rol_sel == "SUPERVISOR":
-    # ... (T if st.session_state.sup_autenticado:
+    if st.session_state.sup_autenticado:
         
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
@@ -411,7 +411,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     pass 
 
 elif st.session_state.rol_sel == "VIGILADOR":
-    # ...  st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+      st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
     tab_presentismo, tab_relevo = st.tabs(["📋 FICHAJE (PRESENTISMO)", "🔄 SANCIONAR RELEVO"])
@@ -457,7 +457,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     pass
 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    # ... (Telif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
@@ -555,7 +555,7 @@ u código de jefe existente)
     pass
 
 elif st.session_state.rol_sel == "GERENCIA":
-    # ... st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Ahorro de Riesgo (Estimado)", "$ 1.200.000")
     m2.metric("Nivel de Cobertura", "47/93")
