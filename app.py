@@ -810,11 +810,26 @@ elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
-    # AGREGAMOS tab_panico aquí:
+    # 1. Calculamos el total de nuevos para el Vigilador
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
+    
+    total_nuevos = 0
+    if not df_msg.empty:
+        # Filtramos para el rol VIGILADOR o el usuario específico
+        mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                (df_msg['DESTINATARIO'] == "VIGILADOR") | 
+                (df_msg['DESTINATARIO'] == nombre_user)) & \
+               (df_msg['ESTADO'] == "PENDIENTE")
+        total_nuevos = len(df_msg[mask])
+
+    # 2. Etiqueta dinámica
+    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+    
+    # 3. Definimos los tabs usando esa etiqueta
     tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs([
-        "📋 FICHAJE", "🔄 RELEVO", "💬 MENSAJERÍA GLOBAL", "🚨 PÁNICO"
+        "📋 FICHAJE", "🔄 RELEVO", label_msg, "🚨 PÁNICO"
     ])
-    # 1. Definición de pestañas (Incluyendo MENSAJERÍA)
   
     # 2. Pestaña de Fichaje (Solo LEGAJO)
     with tab_presentismo:
