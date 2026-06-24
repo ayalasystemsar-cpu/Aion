@@ -772,17 +772,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
         with t_vis_qr:
-            opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
-            obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
-            st.radio("ACCIÓN:", ["SELECCIONAR...", "INGRESO", "SALIDA"], index=0, key="sup_radio_accion", horizontal=True)
+            st.markdown("### 📱 ESCANEO TÁCTICO PARA SUPERVISORES")
+            st.info("Utilice esta función para escanear el código QR del objetivo y registrar su presencia.")
             
-            st.write("---")
+            # Aquí pondremos el lector de QR en el futuro
+            st.warning("⚠️ Módulo de Escaneo en preparación. Use los botones de Arribo/Retiro abajo.")
+            
+            # Mostramos el mapa de objetivos
             df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
             if not df_mapa_sup.empty:
-                m_visor = folium.Map(location=[df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()], zoom_start=12, tiles="CartoDB dark_matter")
+                m_visor = folium.Map(location=[df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()], zoom_start=13, tiles="CartoDB dark_matter")
                 for _, r in df_mapa_sup.iterrows():
-                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"🎯 OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-                st_folium(m_visor, width="100%", height=400, key=f"map_sup_{sup_activo_normalizado}")
+                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="green", icon="qrcode")).add_to(m_visor)
+                st_folium(m_visor, width="100%", height=300)
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
