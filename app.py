@@ -774,7 +774,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_vis_qr:
             st.markdown("### 📱 ESCANEO TÁCTICO PARA SUPERVISORES")
             
-            # --- AQUÍ ESTABA EL PROBLEMA: QUITAMOS EL WARNING Y PONEMOS EL GENERADOR ---
             st.subheader("🖨️ GENERADOR DE QR")
             
             # Verificamos que df_objetivos_filtrados tenga datos
@@ -793,19 +792,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     img = qr.make_image(fill_color="black", back_color="white")
                     
                     st.image(img.get_image(), width=300, caption=f"QR para {obj_a_generar}")
+                    st.success("Código QR generado correctamente.")
             else:
                 st.warning("No hay objetivos asignados a tu usuario para generar QR.")
-            # --- FIN DEL GENERADOR ---
-
-            st.markdown("---")
-            # Mostramos el mapa de objetivos
-            df_mapa_sup = df_objetivos_filtrados.dropna(subset=['LATITUD', 'LONGITUD'])
-            if not df_mapa_sup.empty:
-                m_visor = folium.Map(location=[df_mapa_sup['LATITUD'].mean(), df_mapa_sup['LONGITUD'].mean()], zoom_start=13, tiles="CartoDB dark_matter")
-                for _, r in df_mapa_sup.iterrows():
-                    folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"OBJETIVO: {r['OBJETIVO']}", icon=folium.Icon(color="green", icon="qrcode")).add_to(m_visor)
-                st_folium(m_visor, width="100%", height=300)
-
+            
+            # El mapa ha sido eliminado de esta sección.
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
