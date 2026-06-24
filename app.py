@@ -1004,14 +1004,14 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # 2. Etiqueta dinámica
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
-    # 3. Definición de pestañas con el label dinámico
-    t_mensajeria_jefe, t_crisis, t_ejecucion = st.tabs([label_msg, "Centro de Crisis", "Ejecución"])
+    # 3. Definición de pestañas (AGREGAMOS T_AUDITORIA)
+    t_mensajeria_jefe, t_crisis, t_ejecucion, t_auditoria = st.tabs([label_msg, "Centro de Crisis", "Ejecución", "📋 AUDITORÍA"])
 
     # Pestaña 1: Mensajería Global
     with t_mensajeria_jefe:
         renderizar_mensajeria_global("JEFE DE OPERACIONES")
 
-    # Pestaña 2: Centro de Crisis (Original restaurado)
+    # Pestaña 2: Centro de Crisis
     with t_crisis:
         st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -1057,7 +1057,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         st.write(f"🟢 **Entra:** {rel.get('VIGILADOR_ENTRANTE', 'N/A')}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # Pestaña 3: Ejecución (Original restaurado)
+    # Pestaña 3: Ejecución
     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
@@ -1070,6 +1070,28 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.success("✅ Petición Elevada Exitosamente")
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # Pestaña 4: Auditoría de Supervisión (NUEVA)
+    with t_auditoria:
+        st.subheader("📋 AUDITORÍA DE SUPERVISIÓN")
+        df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
+        
+        if not df_jornadas.empty:
+            def calcular_duracion_supervision(df):
+                df['DATETIME'] = pd.to_datetime(df['FECHA'].astype(str) + ' ' + df['HORA'].astype(str))
+                df = df.sort_values(by=['SUPERVISOR', 'OBJETIVO', 'DATETIME'])
+                df['DURACION'] = df.groupby(['SUPERVISOR', 'OBJETIVO'])['DATETIME'].diff()
+                df.loc[df['ACCIÓN'] != 'RETIRO', 'DURACION'] = pd.NaT
+                return df
+
+            df_procesado = calcular_duracion_supervision(df_jornadas)
+            df_procesado['DURACION_MINUTOS'] = df_procesado['DURACION'].dt.total_seconds() / 60
+            
+            fecha_busqueda = st.date_input("Filtrar auditoría por fecha:")
+            df_filtrado = df_procesado[df_procesado['DATETIME'].dt.date == fecha_busqueda]
+            
+            st.dataframe(df_filtrado[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN', 'HORA', 'DURACION_MINUTOS']], use_container_width=True)
+        else:
+            st.info("Aún no hay registros de jornada para auditar.")
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
