@@ -802,7 +802,7 @@ with t_mensajeria_jefe:
                         <div class="message-text">{msg.get("TEXTO")}</div>
                     </div>
                 ''', unsafe_allow_html=True)
-    with t_crisis:
+with t_crisis:
         st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
