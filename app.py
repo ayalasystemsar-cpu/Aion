@@ -703,11 +703,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
                 st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
-        # --- NUEVO MÓDULO: CONTROL DE JORNADA Y OBJETIVOS (INSERTAR AQUÍ) ---
+        # --- MÓDULO: GESTIÓN DE JORNADA Y QR ---
         st.markdown("---")
-        st.subheader("⏱️ GESTIÓN DE JORNADA Y RUTAS")
+        st.subheader("⏱️ GESTIÓN DE JORNADA")
         
-        # 1. Botones de Jornada Global
+        # 1. Botones de Jornada Global (Estos se quedan, son vitales)
         col_j1, col_j2 = st.columns(2)
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA"):
@@ -717,22 +717,27 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🏁 CIERRE DE JORNADA"):
                 registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
                 st.success("Jornada cerrada.")
-        
-        # 2. Gestión de Arribo/Retiro por Objetivo
-        st.markdown("**Gestión de Itinerancia:**")
-        obj_itinerante = st.selectbox("OBJETIVO A VISITAR:", opciones_servicios if 'opciones_servicios' in locals() else df_objetivos['OBJETIVO'].unique())
-        
-        col_r1, col_r2 = st.columns(2)
-        with col_r1:
-            if st.button("📍 REGISTRAR ARRIBO"):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_itinerante, "ARRIBO")
-                st.info(f"Arribo a {obj_itinerante} registrado.")
-        with col_r2:
-            if st.button("👋 REGISTRAR RETIRO"):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_itinerante, "RETIRO")
-                st.info(f"Retiro de {obj_itinerante} registrado.")
+
+        # 2. Lógica de Detección por QR
         st.markdown("---")
-        # --- FIN DEL MÓDULO NUEVO ---
+        st.subheader("📍 CONTROL DE OBJETIVO (VÍA QR)")
+        
+        # Esto detecta si escaneaste un QR que trae un objetivo en la URL
+        query_params = st.query_params
+        obj_detectado = query_params.get("obj", None)
+        
+        if obj_detectado:
+            st.success(f"🎯 OBJETIVO DETECTADO: {obj_detectado}")
+            c_arribo, c_retiro = st.columns(2)
+            with c_arribo:
+                if st.button(f"✅ CONFIRMAR ARRIBO A {obj_detectado}"):
+                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_detectado, "ARRIBO")
+            with c_retiro:
+                if st.button(f"🚪 CONFIRMAR RETIRO DE {obj_detectado}"):
+                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_detectado, "RETIRO")
+        else:
+            st.info("👈 Escanee el código QR del objetivo para habilitar el registro de Arribo/Retiro.")
+        st.markdown("---")
 
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
