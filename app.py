@@ -367,8 +367,8 @@ with col_sel1:
                 idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
             except:
                 idx_defecto = 0
-                
-            obj_seleccionado = st.selectbox(
+
+obj_seleccionado = st.selectbox(
                 "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
                 opciones_busqueda, 
                 index=idx_defecto,
