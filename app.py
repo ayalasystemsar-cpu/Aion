@@ -540,20 +540,26 @@ if st.session_state.rol_sel == "MONITOREO":
         m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-    with t_comunicacion:
-        st.subheader("💬 CHAT OPERATIVO")
-        with st.form(key="form_chat_monitoreo", clear_on_submit=True):
-            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
-            prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
-            if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
-                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
+    with t_mensajeria:
+        st.subheader("💬 MENSAJERÍA GLOBAL")
+        with st.form(key="form_mensajeria_mon", clear_on_submit=True):
+            txt_msg = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
+            prioridad = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
+            if st.form_submit_button("TRANSMITIR A LA RED") and txt_msg.strip():
+                # Aseguramos que apunte a MENSAJERIA
+                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), prioridad, "TODOS", "MENSAJERÍA GLOBAL"])
                 st.rerun()
         
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
-                st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        if not df_msg.empty:
+            for _, msg in df_msg.tail(15).iloc[::-1].iterrows():
+                # Ajustamos según el nombre de columnas de tu hoja MENSAJERIA
+                st.markdown(f'''
+                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
+                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
+                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
