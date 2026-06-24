@@ -1025,8 +1025,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
     # 3. Definición de pestañas con el label dinámico
-    t_mensajeria_jefe, t_crisis, t_ejecucion = st.tabs([label_msg, "Centro de Crisis", "Ejecución"])
-
+    # Cambia tu línea actual por esta:
+# Cambia tu línea actual por esta:
+t_mensajeria_jefe, t_crisis, t_ejecucion, t_auditoria = st.tabs([
+    label_msg, "Centro de Crisis", "Ejecución", "📋 AUDITORÍA"
+])
     # Pestaña 1: Mensajería Global
     with t_mensajeria_jefe:
         renderizar_mensajeria_global("JEFE DE OPERACIONES")
