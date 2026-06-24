@@ -811,13 +811,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
             else:
                 st.info("No hay datos registrados en Novedades Guardia.")
+                
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
+    # AGREGAMOS tab_panico aquí:
+    tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs([
+        "📋 FICHAJE", "🔄 RELEVO", "💬 MENSAJERÍA", "🚨 PÁNICO"
+    ])
     # 1. Definición de pestañas (Incluyendo MENSAJERÍA)
-    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 SANCIONAR RELEVO", "💬 MENSAJERÍA GLOBAL"])
-    
+  
     # 2. Pestaña de Fichaje (Solo LEGAJO)
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
@@ -873,6 +877,39 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
+                with tab_panico:
+        st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
+        st.info("Utilice este panel solo en situaciones de riesgo inminente.")
+        
+        # Selección de objetivo para que el sistema sepa a qué supervisor avisar
+        obj_vigilador = st.selectbox("CONFIRME SU OBJETIVO ACTUAL:", opciones_globales_obj)
+        
+        # Checkbox de seguridad para evitar disparos accidentales
+        if st.checkbox("HABILITAR BOTÓN DE ALERTA"):
+            # Este es el botón que usa la clase CSS 'panico-fino' que definimos
+            if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="panico-fino"):
+                
+                # 1. BUSCAR SUPERVISOR ASIGNADO AL OBJETIVO
+                sup_asignado = "MONITOREO" # Valor por defecto si no encuentra supervisor
+                if not df_objetivos.empty:
+                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_vigilador]
+                    if not filtro.empty:
+                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                
+                # 2. PROCESAR EL ENVÍO
+                fecha = obtener_hora_argentina()
+                
+                # A) Registro en la base de ALERTAS (Para que Monitoreo lo vea en su Radar)
+                escribir_registro_nube("ALERTAS", [fecha, st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"OBJ:{obj_vigilador}", "SIN INFORME"])
+                
+                # B) Mensaje directo al Supervisor y Monitoreo (Para que les aparezca en su bandeja)
+                datos_aviso = [fecha, st.session_state.user_sel, sup_asignado, "ALERTA PÁNICO", f"OBJ:{obj_vigilador} - REQUIERE APOYO", "PENDIENTE", "ROJA"]
+                escribir_registro_nube("MENSAJERIA", datos_aviso)
+                
+                datos_monitoreo = [fecha, st.session_state.user_sel, "MONITOREO", "ALERTA PÁNICO", f"OBJ:{obj_vigilador} - ALERTA VIGILADOR", "PENDIENTE", "ROJA"]
+                escribir_registro_nube("MENSAJERIA", datos_monitoreo)
+                
+                st.error(f"⚠️ ALERTA ENVIADA A MONITOREO Y A {sup_asignado}")
 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
