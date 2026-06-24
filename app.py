@@ -378,19 +378,19 @@ with col_sel1:
 st.session_state["filtro_radar_valor"] = obj_seleccionado
 
             # --- ESTAS LÍNEAS DEBEN TENER EXACTAMENTE 8 ESPACIOS ---
-            comisaria_cercana_name = None
-            distancia_minima = float('inf')
-            com_lat_m, com_lon_m = None, None
+# Inicialización de variables de búsqueda
+        comisaria_cercana_name = None
+        distancia_minima = float('inf')
+        com_lat_m, com_lon_m = None, None
+        
+        # Lógica de cálculo
+        if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
+            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+            lat_obj = datos_obj['LATITUD']
+            lon_obj = datos_obj['LONGITUD']
             
-            # El siguiente IF debe estar al mismo nivel que las líneas anteriores
-            if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
-                datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
-                lat_obj = datos_obj['LATITUD']
-                lon_obj = datos_obj['LONGITUD']
-                
-                # Este FOR debe tener 12 espacios (4 más que el IF)
-                for _, com in df_comisarias.iterrows():
-                    # ... (el resto de tu código de cálculo)
+            for _, com in df_comisarias.iterrows():
+                # Cálculo de distancia
                 lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
                 dlon = lon2 - lon1
                 dlat = lat2 - lat1
@@ -403,7 +403,6 @@ st.session_state["filtro_radar_valor"] = obj_seleccionado
                     comisaria_cercana_name = com['COMISARIA']
                     com_lat_m = com['LATITUD']
                     com_lon_m = com['LONGITUD']
-            
             with col_sel2:
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
                 st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
