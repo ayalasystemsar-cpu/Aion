@@ -625,9 +625,9 @@ st.session_state["filtro_radar_valor"] = obj_seleccionado
     
 
 
+# --- 8. BLOQUE FINAL DE LÓGICA DE ROL Y AUDITORÍA ---
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
-        
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
             if st.button("ACTIVAR\nPÁNICO", type="primary", use_container_width=True):
@@ -681,13 +681,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
-            
             if len(opciones_servicios_r) > 0:
                 obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_servicios_r, key="sup_ruta_gmaps_target")
-                
                 datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
-                lat_target = datos_obj_r['LATITUD']
-                lon_target = datos_obj_r['LONGITUD']
+                lat_target, lon_target = datos_obj_r['LATITUD'], datos_obj_r['LONGITUD']
                 
                 comisaria_r_name = None
                 com_lat_target, com_lon_target = None, None
@@ -695,30 +692,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 for _, com in df_comisarias.iterrows():
                     ln1, lt1, ln2, lt2 = map(math.radians, [lon_target, lat_target, com['LONGITUD'], com['LATITUD']])
-                    dln = ln2 - ln1
-                    dlt = lt2 - lt1
+                    dln, dlt = ln2 - ln1, lt2 - lt1
                     a = math.sin(dlt/2)**2 + math.cos(lt1) * math.cos(lt2) * math.sin(dln/2)**2
-                    c = 2 * math.asin(math.sqrt(a))
-                    km = 6371 * c
-                    
+                    km = 6371 * (2 * math.asin(math.sqrt(a)))
                     if km < dist_min_r:
-                        dist_min_r = km
-                        comisaria_r_name = com['COMISARIA']
-                        com_lat_target = com['LATITUD']
-                        com_lon_target = com['LONGITUD']
+                        dist_min_r, comisaria_r_name = km, com['COMISARIA']
+                        com_lat_target, com_lon_target = com['LATITUD'], com['LONGITUD']
                 
                 if comisaria_r_name:
                     st.info(f"👮 **Comisaría Encontrada:** {comisaria_r_name} (Distancia: {dist_min_r:.2f} Km)")
-                    
                     url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_target},{com_lon_target}&destination={lat_target},{lon_target}&travelmode=driving"
-                    
-                    st.markdown(
-                        f'<a href="{url_gmaps}" target="_blank" class="btn-google-maps">🗺️ ABRIR ASISTENTE GPS EN GOOGLE MAPS</a>',
-                        unsafe_allow_html=True
-                    )
-                    st.caption("⚠️ Al presionar el botón, se abrirá la aplicación de Google Maps en tu dispositivo con el trazado GPS listo para iniciar la navegación.")
+                    st.markdown(f'<a href="{url_gmaps}" target="_blank" class="btn-google-maps">🗺️ ABRIR ASISTENTE GPS</a>', unsafe_allow_html=True)
             else:
-                st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
+                st.warning("No tenés objetivos asignados.")
 
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
@@ -739,25 +725,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
 
         with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
+            st.markdown("### 📋 NOVEDADES DE MI GRUPO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
-                
-                def fila_pertenece_a_supervisor(row, sup_name):
-                    for cell_val in row.values:
-                        if str(cell_val).strip().upper() == sup_name: return True
-                    return False
-                
-                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
-                df_v_filtrado = df_v_total[mask_sup]
-                if not df_v_filtrado.empty:
-                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
-                else:
-                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
-            else:
-                st.info("No hay datos registrados en Novedades Guardia.")
+                mask_sup = df_v_total.apply(lambda r: any(str(val).strip().upper() == sup_activo_normalizado for val in r.values), axis=1)
+                st.dataframe(df_v_total[mask_sup].sort_values(by="FECHA", ascending=False), use_container_width=True)
+
 elif st.session_state.rol_sel == "VIGILADOR":
+    # ... (Mantiene tu lógica actual de vigilador)
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
