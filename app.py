@@ -781,7 +781,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
 t_mensajeria_jefe, t_ejecucion = st.tabs(["💬 MENSAJERÍA GLOBAL", "Ejecución"])
 
-    with t_mensajeria_jefe:
+with t_mensajeria_jefe:
         st.subheader("💬 MENSAJERÍA GLOBAL")
         
         # Formulario de envío
