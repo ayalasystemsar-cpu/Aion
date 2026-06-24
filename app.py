@@ -729,11 +729,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
                 st.success("✅ Cargado")
-with t_mensajeria_sup:
+        with t_mensajeria_sup:
             # Observa los espacios antes de renderizar (esto es lo que falta)
             renderizar_mensajeria_global("SUPERVISOR")
        
- with t_pres_sup:
+        with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
