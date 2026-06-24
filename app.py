@@ -802,7 +802,7 @@ with t_mensajeria_jefe:
                         <div class="message-text">{msg.get("TEXTO")}</div>
                     </div>
                 ''', unsafe_allow_html=True)
-with t_crisis:
+ with t_crisis:
         st.subheader("📡 RADAR Y AUDITORÍA INTERACTIVA DE SERVICIOS")
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
@@ -877,7 +877,7 @@ with t_crisis:
                
                   st.info("🎯 Seleccione o haga clic en el marcador de cualquier objetivo dentro del mapa táctico superior para desplegar su estado de relevos, supervisor y novedades.")
     
-    with t_ejecucion:
+     with t_ejecucion:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.subheader("🚨 PETICIÓN DE ALTA/BAJA")
         o_accion = st.selectbox("Acción:", ["ALTA", "BAJA"])
