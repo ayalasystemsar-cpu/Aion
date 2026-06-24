@@ -703,6 +703,37 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
                 st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
 
+        # --- NUEVO MÓDULO: CONTROL DE JORNADA Y OBJETIVOS (INSERTAR AQUÍ) ---
+        st.markdown("---")
+        st.subheader("⏱️ GESTIÓN DE JORNADA Y RUTAS")
+        
+        # 1. Botones de Jornada Global
+        col_j1, col_j2 = st.columns(2)
+        with col_j1:
+            if st.button("🚀 INICIO DE JORNADA"):
+                registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "INICIO")
+                st.success("Jornada iniciada.")
+        with col_j2:
+            if st.button("🏁 CIERRE DE JORNADA"):
+                registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
+                st.success("Jornada cerrada.")
+        
+        # 2. Gestión de Arribo/Retiro por Objetivo
+        st.markdown("**Gestión de Itinerancia:**")
+        obj_itinerante = st.selectbox("OBJETIVO A VISITAR:", opciones_servicios if 'opciones_servicios' in locals() else df_objetivos['OBJETIVO'].unique())
+        
+        col_r1, col_r2 = st.columns(2)
+        with col_r1:
+            if st.button("📍 REGISTRAR ARRIBO"):
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_itinerante, "ARRIBO")
+                st.info(f"Arribo a {obj_itinerante} registrado.")
+        with col_r2:
+            if st.button("👋 REGISTRAR RETIRO"):
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_itinerante, "RETIRO")
+                st.info(f"Retiro de {obj_itinerante} registrado.")
+        st.markdown("---")
+        # --- FIN DEL MÓDULO NUEVO ---
+
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
 
