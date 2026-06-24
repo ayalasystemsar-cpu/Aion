@@ -356,7 +356,8 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
         "🚨 RADAR S.O.S", label_mensajeria, "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ])
-    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+
+st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     col_sel1, col_sel2 = st.columns([2, 1])
         
         if "filtro_radar_valor" not in st.session_state:
