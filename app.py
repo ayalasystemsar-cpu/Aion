@@ -944,8 +944,23 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Definición de pestañas: Mensajería, Crisis y Ejecución
-    t_mensajeria_jefe, t_crisis, t_ejecucion = st.tabs(["💬 MENSAJERÍA GLOBAL", "Centro de Crisis", "Ejecución"])
+    # 1. Calculamos el total de nuevos para el JEFE DE OPERACIONES
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
+    
+    total_nuevos = 0
+    if not df_msg.empty:
+        mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                (df_msg['DESTINATARIO'] == "JEFE DE OPERACIONES") | 
+                (df_msg['DESTINATARIO'] == nombre_user)) & \
+               (df_msg['ESTADO'] == "PENDIENTE")
+        total_nuevos = len(df_msg[mask])
+
+    # 2. Etiqueta dinámica
+    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+
+    # 3. Definición de pestañas con el label dinámico
+    t_mensajeria_jefe, t_crisis, t_ejecucion = st.tabs([label_msg, "Centro de Crisis", "Ejecución"])
 
     # Pestaña 1: Mensajería Global
     with t_mensajeria_jefe:
