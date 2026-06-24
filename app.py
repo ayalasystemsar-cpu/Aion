@@ -153,10 +153,14 @@ def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
 
-# 2. Formulario de Envío
+    # 2. LECTURA DE DATOS
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    
+    st.subheader("💬 COMUNICACIONES OPERATIVAS")
+
+    # 3. FORMULARIO DE ENVÍO
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
-        # Si estamos respondiendo, avisamos al usuario
-        if st.session_state.get('asunto_respuesta'):
+        if st.session_state.asunto_respuesta:
             st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
             asunto_input = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
         else:
@@ -166,21 +170,41 @@ def renderizar_mensajeria_global(rol_contexto):
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
         with col_b:
-            # Aquí incluimos "VIGILADOR" en la lista de destinatarios
             destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + LISTA_SUPS_TACTICOS
             destinatario = st.selectbox("PARA:", destinatarios_posibles)
             gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
 
-        # ESTA ES LA CLAVE: El botón debe estar aquí adentro, alineado con 'cols'
+        # BOTÓN DE ENVÍO
         if st.form_submit_button("TRANSMITIR A LA RED"):
             if txt_msg.strip():
-                asunto_final = asunto_input if asunto_input else "SIN ASUNTO"
                 escribir_registro_nube("MENSAJERIA", [
                     obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
-                    asunto_final.upper(), txt_msg.upper(), "PENDIENTE", gravedad
+                    (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
                 ])
-                st.session_state.asunto_respuesta = None 
+                # Cartelito de confirmación
+                if st.session_state.asunto_respuesta:
+                    st.success("✅ RESPUESTA ENVIADA")
+                else:
+                    st.success("✅ MENSAJE ENVIADO")
+                
+                st.session_state.asunto_respuesta = None
                 st.rerun()
+
+    # 4. VISUALIZACIÓN POR HILOS
+    if not df_msg.empty:
+        # Agrupamos por ASUNTO para ver las conversaciones
+        # Aseguramos que la columna ASUNTO exista
+        if 'ASUNTO' in df_msg.columns:
+            for asunto, grupo in df_msg.groupby('ASUNTO'):
+                with st.expander(f"💬 Hilo: {asunto}"):
+                    for _, msg in grupo.iterrows():
+                        st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
+                    
+                    if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
+                        st.session_state.asunto_respuesta = asunto
+                        st.rerun()
+        else:
+            st.warning("La base de datos no tiene una columna 'ASUNTO'. Verifica tu Google Sheet.")
 def aplicar_identidad_alfa():
     st.markdown(
         """
