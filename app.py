@@ -149,19 +149,69 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def renderizar_mensajeria_global(rol_contexto):
-    # 1. LEER DATOS Y CONTAR PENDIENTES
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
-    
-    # Filtro: mensajes para TODOS, para mi ROL, o para MI NOMBRE, y que estén PENDIENTES
-    if not df_msg.empty:
-        mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
-                (df_msg['DESTINATARIO'] == rol_contexto.upper()) | 
-                (df_msg['DESTINATARIO'] == nombre_user)) & \
-               (df_msg['ESTADO'] == "PENDIENTE")
-        total_nuevos = len(df_msg[mask])
-    else:
+    # 1. ESTADO DE RESPUESTA
+    if 'asunto_respuesta' not in st.session_state:
+        st.session_state.asunto_respuesta = None
 
+    # 2. LECTURA DE DATOS
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    
+    st.subheader("💬 COMUNICACIONES OPERATIVAS")
+
+    # 3. FORMULARIO DE ENVÍO
+    with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
+        if st.session_state.asunto_respuesta:
+            st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
+            asunto_input = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
+        else:
+            asunto_input = st.text_input("ASUNTO:")
+
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            txt_msg = st.text_input("MENSAJE:")
+        with col_b:
+            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + LISTA_SUPS_TACTICOS
+            destinatario = st.selectbox("PARA:", destinatarios_posibles)
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
+
+        # DENTRO DEL BOTÓN DE TRANSMITIR
+        if st.form_submit_button("TRANSMITIR A LA RED"):
+            if txt_msg.strip():
+                escribir_registro_nube("MENSAJERIA", [
+                    obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
+                    (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
+                ])
+                
+                # GUARDAMOS EL ESTADO PARA MOSTRAR EL CARTEL
+                st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
+                st.session_state.asunto_respuesta = None
+                st.rerun()
+
+    # ESTO DEBE IR JUSTO DESPUÉS DEL FORMULARIO PARA QUE SE VEA BIEN
+    if 'mensaje_enviado' in st.session_state:
+        if st.session_state.mensaje_enviado == "RESPUESTA":
+            st.success("✅ RESPUESTA ENVIADA")
+        else:
+            st.success("✅ MENSAJE ENVIADO")
+        
+        # BORRAMOS LA VARIABLE PARA QUE EL CARTEL SE VAYA AL RECARGAR
+        del st.session_state.mensaje_enviado
+
+    # 4. VISUALIZACIÓN POR HILOS
+    if not df_msg.empty:
+        # Agrupamos por ASUNTO para ver las conversaciones
+        # Aseguramos que la columna ASUNTO exista
+        if 'ASUNTO' in df_msg.columns:
+            for asunto, grupo in df_msg.groupby('ASUNTO'):
+                with st.expander(f"💬 Hilo: {asunto}"):
+                    for _, msg in grupo.iterrows():
+                        st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
+                    
+                    if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
+                        st.session_state.asunto_respuesta = asunto
+                        st.rerun()
+        else:
+            st.warning("La base de datos no tiene una columna 'ASUNTO'. Verifica tu Google Sheet.")
 def aplicar_identidad_alfa():
     st.markdown(
         """
