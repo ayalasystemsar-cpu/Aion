@@ -625,8 +625,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with col_btn2:
             if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
 
-        t_vis_qr, t_ruta_gmaps, t_car_tac, t_com_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 CHAT OPERATIVO", "📋 NOVEDADES Y RELEVOS"
+        t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
+            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
         with t_vis_qr:
