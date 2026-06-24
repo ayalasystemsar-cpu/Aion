@@ -120,7 +120,26 @@ def leer_matriz_nube(pestana):
         except Exception as e: 
             return pd.DataFrame()
     return pd.DataFrame()
-
+    
+def hay_mensajes_nuevos():
+    df_chats = leer_matriz_nube("CHATS")
+    if df_chats.empty: 
+        return False
+    
+    total_actual = len(df_chats)
+    
+    # Si es la primera vez, inicializamos y retornamos False
+    if 'total_mensajes_previo' not in st.session_state:
+        st.session_state.total_mensajes_previo = total_actual
+        return False
+    
+    # Comparamos
+    if total_actual > st.session_state.total_mensajes_previo:
+        # IMPORTANTE: Actualizamos el estado para que deje de marcar como "nuevo"
+        st.session_state.total_mensajes_previo = total_actual
+        return True
+        
+    return False
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
@@ -333,12 +352,19 @@ if st.session_state.rol_sel == "MONITOREO":
     c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+# 1. Lógica previa: Comprobar mensajes
+    hay_nuevos_mon = hay_mensajes_nuevos() # Llamas a tu función lógica
+    
+    # 2. Definimos el nombre dinámico
+    nombre_tab_chat = "💬 CHAT" + (" 🔴" if hay_nuevos_mon else "")
 
-    # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
+    # 3. Creamos los tabs
     t_radar, t_comunicacion, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 CHAT OPERATIVO", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+        "🚨 RADAR S.O.S", 
+        nombre_tab_chat, 
+        "👥 PADRÓN VIGILADORES", 
+        "🔄 NOVEDADES"
     ])
-
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
@@ -541,19 +567,11 @@ if st.session_state.rol_sel == "MONITOREO":
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
     with t_comunicacion:
-        st.subheader("💬 CHAT OPERATIVO")
-        with st.form(key="form_chat_monitoreo", clear_on_submit=True):
-            txt_mensaje_mon = st.text_input("ESCRIBIR MENSAJE TÁCTICO:")
-            prioridad_mon = st.selectbox("NIVEL DE CRITICIDAD:", ["VERDE", "ROJA"])
-            if st.form_submit_button("TRANSMITIR A LA RED") and txt_mensaje_mon.strip():
-                escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_mon.strip().upper(), prioridad_mon, "TODOS", "MONITOREO DIRECTO"])
-                st.rerun()
+        st.subheader("💬 CENTRAL DE COMUNICACIÓN")
+        # Esta única línea reemplaza todo el formulario y el bucle anterior
+        renderizar_sistema_chats("MONITOREO")
         
-        df_chats = leer_matriz_nube("CHATS")
-        if not df_chats.empty:
-            for _, msg in df_chats.tail(15).iloc[::-1].iterrows():
-                st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-
+       
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
