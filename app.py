@@ -226,6 +226,18 @@ def obtener_etiqueta_mensajeria(rol_contexto):
     
     total_nuevos = len(df_msg[mask])
     return f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
+
+def registrar_movimiento_supervisor(supervisor, objetivo, accion):
+    fecha_hora_arg = obtener_hora_argentina()
+    fecha = fecha_hora_arg.split(" ")[0]
+    hora = fecha_hora_arg.split(" ")[1]
+    
+    # Esta lista debe coincidir exactamente con el orden de las columnas de tu hoja
+    datos = [fecha, supervisor, objetivo, accion, hora]
+    
+    exito = escribir_registro_nube("JORNADA_SUPERVISORES", datos)
+    return exito
+
 def aplicar_identidad_alfa():
     st.markdown(
         """
