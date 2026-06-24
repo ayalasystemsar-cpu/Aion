@@ -708,15 +708,26 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with col_btn2:
             if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
 
-        # --- AQUÍ EMPIEZA EL CAMBIO PARA EL CONTADOR ---
-        # 1. Calculamos la etiqueta dinámica
-        label_msg = obtener_etiqueta_mensajeria("SUPERVISOR")
+        # 1. Calculamos el total de nuevos para el Supervisor
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        nombre_user = st.session_state.user_sel.upper()
+        
+        total_nuevos = 0
+        if not df_msg.empty:
+            # Filtramos para el rol SUPERVISOR o el nombre específico del Supervisor
+            mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                    (df_msg['DESTINATARIO'] == "SUPERVISORES") | 
+                    (df_msg['DESTINATARIO'] == nombre_user)) & \
+                   (df_msg['ESTADO'] == "PENDIENTE")
+            total_nuevos = len(df_msg[mask])
 
-        # 2. Definimos los tabs usando la variable 'label_msg'
+        # 2. Creamos la etiqueta con el nombre que pediste
+        label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+
+        # 3. Definimos los tabs usando esa variable
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
-        
         with t_vis_qr:
             opciones_servicios = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS"]
             obj_seleccionado_sup = st.selectbox("SERVICIO ACTUAL:", opciones_servicios, key="sup_servicio_actual")
