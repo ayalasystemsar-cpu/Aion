@@ -686,39 +686,44 @@ if st.session_state.rol_sel == "MONITOREO":
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
-        # --- 0. GESTIÓN DE JORNADA (INICIO/FIN) ---
+        # --- 0. GESTIÓN DE JORNADA (CENTRADOS) ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
-        col_j1, col_j2 = st.columns(2)
-        with col_j1:
+        col_c1, col_c2 = st.columns([1, 1])
+        with col_c1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "INICIO")
                 st.success("Jornada iniciada.")
-        with col_j2:
+        with col_c2:
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
                 st.success("Jornada cerrada.")
 
-        # --- 1. BOTÓN DE PÁNICO ---
-        if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-            lat_envio, lon_envio = 0.0, 0.0
-            try:
-                loc = get_geolocation()
-                if loc and isinstance(loc, dict) and 'coords' in loc:
-                    lat_envio = loc['coords'].get('latitude', 0.0)
-                    lon_envio = loc['coords'].get('longitude', 0.0)
-            except: pass
-            
-            df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
-            obj_alerta = "UBICACIÓN DESCONOCIDA"
-            if not df_jornadas.empty:
-                df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
-                movs = df_jornadas[df_jornadas['SUPERVISOR'] == st.session_state.user_sel.upper()]
-                if not movs.empty:
-                    obj_alerta = movs.iloc[-1]['OBJETIVO']
-            
-            carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-            escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-            st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+        # --- 1. BOTÓN DE PÁNICO (CENTRALIZADO) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        # Usamos columnas para darle un ancho fijo y centrarlo visualmente
+        _, col_panico, _ = st.columns([1, 2, 1]) 
+        with col_panico:
+            if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
+                # (Aquí va tu lógica de pánico intacta)
+                lat_envio, lon_envio = 0.0, 0.0
+                try:
+                    loc = get_geolocation()
+                    if loc and isinstance(loc, dict) and 'coords' in loc:
+                        lat_envio = loc['coords'].get('latitude', 0.0)
+                        lon_envio = loc['coords'].get('longitude', 0.0)
+                except: pass
+                
+                df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
+                obj_alerta = "UBICACIÓN DESCONOCIDA"
+                if not df_jornadas.empty:
+                    df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
+                    movs = df_jornadas[df_jornadas['SUPERVISOR'] == st.session_state.user_sel.upper()]
+                    if not movs.empty:
+                        obj_alerta = movs.iloc[-1]['OBJETIVO']
+                
+                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
 
         # --- 2. REGISTRO DIRECTO ---
         st.markdown("---")
@@ -740,6 +745,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.success(f"Retiro en {obj_select}")
         else:
             st.warning("No hay objetivos asignados para registro directo.")
+
+        # --- 3. TABS Y QR ---
+        # ... (Tu definición de tabs y with t_vis_qr aquí abajo)
 
         # --- 3. MENSAJERÍA Y TABS ---
         df_msg = leer_matriz_nube("MENSAJERIA")
