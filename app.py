@@ -878,7 +878,6 @@ elif st.session_state.rol_sel == "GERENCIA":
     m4.metric("Desgaste Flota (Km)", "4954 Km")
     
     t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
         g_asunto = st.text_input("Asunto:", key="ger_asunto")
