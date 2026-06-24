@@ -683,89 +683,55 @@ if st.session_state.rol_sel == "MONITOREO":
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
     
 
-
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
-        col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
-        with col_p2:
-            if st.button("ACTIVAR\nPÁNICO", type="primary", use_container_width=True):
-                lat_envio, lon_envio = 0.0, 0.0
-                try:
-                    loc = get_geolocation()
-                    if loc and isinstance(loc, dict) and 'coords' in loc:
-                        lat_envio = loc['coords'].get('latitude', 0.0)
-                        lon_envio = loc['coords'].get('longitude', 0.0)
-                except: pass
-                
-                obj_alerta = st.session_state.sup_servicio_actual if 'sup_servicio_actual' in st.session_state else "SUPERVISOR"
-                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-                st.error(f"🚨 S.O.S ENVIADO DESDE {obj_alerta}")
+        # --- 1. BOTÓN DE PÁNICO (INDEPENDIENTE DEL QR) ---
+        if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
+            lat_envio, lon_envio = 0.0, 0.0
+            try:
+                loc = get_geolocation()
+                if loc and isinstance(loc, dict) and 'coords' in loc:
+                    lat_envio = loc['coords'].get('latitude', 0.0)
+                    lon_envio = loc['coords'].get('longitude', 0.0)
+            except: pass
+            
+            # Buscamos el objetivo actual directamente en la base de datos de jornada
+            df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
+            obj_alerta = "UBICACIÓN DESCONOCIDA"
+            if not df_jornadas.empty:
+                df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
+                movs = df_jornadas[df_jornadas['SUPERVISOR'] == st.session_state.user_sel.upper()]
+                if not movs.empty:
+                    obj_alerta = movs.iloc[-1]['OBJETIVO']
+            
+            carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+            escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+            st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
 
-      # --- AQUÍ EMPIEZA EL MÓDULO NUEVO DE JORNADA Y QR ---
+        # --- 2. REGISTRO DIRECTO (SIN QR) ---
         st.markdown("---")
-        st.subheader("⏱️ GESTIÓN DE JORNADA Y CONTROL QR")
-        
-        col_j1, col_j2 = st.columns(2)
-        with col_j1:
-            if st.button("🚀 INICIO DE JORNADA"):
-                registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "INICIO")
-                st.success("Jornada iniciada.")
-        with col_j2:
-            if st.button("🏁 CIERRE DE JORNADA"):
-                registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
-                st.success("Jornada cerrada.")
-
-        query_params = st.query_params
-        obj_detectado = query_params.get("obj", None)
-        
-        if obj_detectado:
-            st.success(f"🎯 OBJETIVO DETECTADO POR QR: {obj_detectado}")
-            c_arribo, c_retiro = st.columns(2)
-            with c_arribo:
-                if st.button(f"✅ ARRIBO A {obj_detectado}"):
-                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_detectado, "ARRIBO")
-            with c_retiro:
-                if st.button(f"🚪 RETIRO DE {obj_detectado}"):
-                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_detectado, "RETIRO")
-        else:
-            st.info("👈 Escanee el QR del objetivo para habilitar el registro de Arribo/Retiro.")
-        st.markdown("---")
-        # --- AQUÍ TERMINA EL MÓDULO NUEVO --- 
-
+        st.subheader("📍 REGISTRO DIRECTO (SIN QR)")
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-
-        st.subheader("Control de Unidad Móvil")
-        st.markdown('<div class="panel-info">', unsafe_allow_html=True)
-        c1, c2, c3, c4 = st.columns(4)
-        with c1: st.selectbox("Móvil:", ["S-001", "M-002", "M-003", "OTRO"], key="sup_movil_select")
-        with c2: st.number_input("Km Inicial:", value=0, key="sup_km_inicial")
-        with c3: st.number_input("Km Final:", value=0, key="sup_km_final")
-        with c4: st.number_input("Combustible (Lts):", value=0.0, key="sup_combustible")
-        st.markdown('</div>', unsafe_allow_html=True)
         
-        col_btn1, col_btn2 = st.columns([3, 1])
-        with col_btn1: st.button("SELLAR ODOMETRÍA Y LOGÍSTICA", key="btn_sellar_logistica", use_container_width=True)
-        with col_btn2:
-            if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
+        opciones_obj = df_objetivos_filtrados['OBJETIVO'].unique()
+        if len(opciones_obj) > 0:
+            obj_select = st.selectbox("Seleccione Objetivo:", opciones_obj, key="obj_select_directo")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("✅ ARRIBO DIRECTO", use_container_width=True):
+                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "ARRIBO")
+                    st.success(f"Arribo en {obj_select}")
+            with c2:
+                if st.button("🚪 RETIRO DIRECTO", use_container_width=True):
+                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "RETIRO")
+                    st.success(f"Retiro en {obj_select}")
+        else:
+            st.warning("No hay objetivos asignados para registro directo.")
 
-        # 1. Calculamos el total de nuevos para el Supervisor
-        df_msg = leer_matriz_nube("MENSAJERIA")
-        nombre_user = st.session_state.user_sel.upper()
-        
-        total_nuevos = 0
-        if not df_msg.empty:
-            # Filtramos para el rol SUPERVISOR o el nombre específico del Supervisor
-            mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
-                    (df_msg['DESTINATARIO'] == "SUPERVISORES") | 
-                    (df_msg['DESTINATARIO'] == nombre_user)) & \
-                   (df_msg['ESTADO'] == "PENDIENTE")
-            total_nuevos = len(df_msg[mask])
-
-        # 2. Creamos la etiqueta con el nombre que pediste
-        label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+        # --- 3. PESTAÑAS (Aquí va tu lógica de QR, Mapas, etc.) ---
+        # (Aquí mantienes tus tabs t_vis_qr, t_ruta_gmaps, etc. tal cual los tenías)
 
         # 3. Definimos los tabs usando esa variable
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
