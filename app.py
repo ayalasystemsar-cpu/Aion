@@ -161,19 +161,7 @@ def renderizar_mensajeria_global(rol_contexto):
                (df_msg['ESTADO'] == "PENDIENTE")
         total_nuevos = len(df_msg[mask])
     else:
- def obtener_etiqueta_mensajeria(rol_contexto):
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    if df_msg.empty:
-        return "💬 MENSAJERÍA"
-    
-    nombre_user = st.session_state.user_sel.upper()
-    mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
-            (df_msg['DESTINATARIO'] == rol_contexto.upper()) | 
-            (df_msg['DESTINATARIO'] == nombre_user)) & \
-           (df_msg['ESTADO'] == "PENDIENTE")
-    
-    total_nuevos = len(df_msg[mask])
-    return f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
+
 def aplicar_identidad_alfa():
     st.markdown(
         """
