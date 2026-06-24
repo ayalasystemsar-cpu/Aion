@@ -724,27 +724,36 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
 
-        with t_car_tac:
+
+       with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
                 st.success("✅ Cargado")
-with t_mensajeria_sup:
-            # Observa los espacios antes de renderizar (esto es lo que falta)
+
+        with t_mensajeria_sup:
             renderizar_mensajeria_global("SUPERVISOR")
-       
- with t_pres_sup:
+
+        with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_v_total.empty:
                 df_v_total.columns = df_v_total.columns.str.strip().str.upper()
                 
-                # LA LÍNEA DE ABAJO DEBE TENER EXACTAMENTE EL MISMO NIVEL 
-                # DE SANGRÍA QUE 'df_v_total.columns = ...'
                 def fila_pertenece_a_supervisor(row, sup_name):
                     for cell_val in row.values:
                         if str(cell_val).strip().upper() == sup_name: return True
                     return False
+                
+                mask_sup = df_v_total.apply(lambda r: fila_pertenece_a_supervisor(r, sup_activo_normalizado), axis=1)
+                df_v_filtrado = df_v_total[mask_sup]
+                
+                if not df_v_filtrado.empty:
+                    st.dataframe(df_v_filtrado.sort_values(by="FECHA", ascending=False), use_container_width=True)
+                else:
+                    st.info(f"Sin registros asignados para {sup_activo_normalizado} en este turno.")
+            else:
+                st.info("No hay datos registrados en Novedades Guardia.")
                 
                 
 elif st.session_state.rol_sel == "VIGILADOR":
