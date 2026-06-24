@@ -359,13 +359,10 @@ if st.session_state.rol_sel == "MONITOREO":
 
 # --- INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
 st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
- col_sel1, col_sel2 = st.columns([2, 1])
+col_sel1, col_sel2 = st.columns([2, 1])
 
-        if "filtro_radar_valor" not in st.session_state:
-            st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
-        
-        if "filtro_radar_valor" not in st.session_state:
-            st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"  
+if "filtro_radar_valor" not in st.session_state:
+    st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"       
 
         with col_sel1:
             opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
