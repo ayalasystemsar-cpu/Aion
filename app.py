@@ -149,15 +149,24 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def renderizar_mensajeria_global(rol_contexto):
-    # 1. ESTADO DE RESPUESTA
-    if 'asunto_respuesta' not in st.session_state:
-        st.session_state.asunto_respuesta = None
-
-    # 2. LECTURA DE DATOS
+    # 1. LEER DATOS Y CONTAR PENDIENTES
     df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
     
-    st.subheader("💬 COMUNICACIONES OPERATIVAS")
+    # Filtro: mensajes para TODOS, para mi ROL, o para MI NOMBRE, y que estén PENDIENTES
+    if not df_msg.empty:
+        mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                (df_msg['DESTINATARIO'] == rol_contexto.upper()) | 
+                (df_msg['DESTINATARIO'] == nombre_user)) & \
+               (df_msg['ESTADO'] == "PENDIENTE")
+        total_nuevos = len(df_msg[mask])
+    else:
+        total_nuevos = 0
 
+    # 2. MOSTRAR EL CONTADOR EN EL TÍTULO
+    # Si hay mensajes, muestra el número, si no, solo el título
+    titulo = f"💬 MENSAJERÍA ({total_nuevos} NUEVOS)" if total_nuevos > 0 else "💬 MENSAJERÍA"
+    st.subheader(titulo)
     # 3. FORMULARIO DE ENVÍO
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
         if st.session_state.asunto_respuesta:
