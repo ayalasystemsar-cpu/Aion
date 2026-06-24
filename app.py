@@ -690,18 +690,24 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
                 st.success("✅ Cargado")
 
-        with t_com_sup:
-            with st.form(key="form_chat_supervisor", clear_on_submit=True):
-                txt_mensaje_sup = st.text_input("REPORTE RÁPIDO PARA MONITOREO:")
-                prioridad_sup = st.selectbox("RELEVANCIA:", ["VERDE", "ROJA"])
-                if st.form_submit_button("ENVIAR MENSAJE") and txt_mensaje_sup.strip():
-                    escribir_registro_nube("CHATS", [obtener_hora_argentina(), st.session_state.user_sel, txt_mensaje_sup.strip().upper(), prioridad_sup, "MONITOREO", "REPORTE CAMPO"])
+        with t_mensajeria_sup:
+            st.subheader("💬 MENSAJERÍA GLOBAL")
+            with st.form(key="form_mensajeria_supervisor", clear_on_submit=True):
+                txt_msg = st.text_input("REPORTE RÁPIDO PARA LA RED:")
+                prioridad = st.selectbox("RELEVANCIA:", ["VERDE", "ROJA"])
+                if st.form_submit_button("ENVIAR MENSAJE") and txt_msg.strip():
+                    escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), prioridad, "TODOS", "REPORTE CAMPO"])
                     st.rerun()
-            df_chats_sup = leer_matriz_nube("CHATS")
-            if not df_chats_sup.empty:
-                for _, msg in df_chats_sup.tail(15).iloc[::-1].iterrows():
-                    st.markdown(f'<div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}"><div class="message-info">{msg.get("HORA")} De: {msg.get("USUARIO")}</div><div class="message-text">{msg.get("TEXTO")}</div></div>', unsafe_allow_html=True)
-
+            
+            df_msg = leer_matriz_nube("MENSAJERIA")
+            if not df_msg.empty:
+                for _, msg in df_msg.tail(15).iloc[::-1].iterrows():
+                    st.markdown(f'''
+                        <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
+                            <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
+                            <div class="message-text">{msg.get("TEXTO")}</div>
+                        </div>
+                    ''', unsafe_allow_html=True)
         with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
