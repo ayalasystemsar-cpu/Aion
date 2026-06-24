@@ -823,24 +823,34 @@ elif st.session_state.rol_sel == "VIGILADOR":
     # 1. Definición de pestañas (Incluyendo MENSAJERÍA)
   
     # 2. Pestaña de Fichaje (Solo LEGAJO)
+    # 2. Pestaña de Fichaje (Restaurada y ajustada)
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_dni = st.text_input("LEGAJO:").strip() 
+            # Campos para nombre, apellido y DNI
+            v_nombre = st.text_input("NOMBRE:").upper().strip()
+            v_apellido = st.text_input("APELLIDO:").upper().strip()
+            v_dni = st.text_input("LEGAJO:").strip()
+            
             v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
             v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
+            
             btn_fichar = st.form_submit_button("CONSIGNAR Y TRANSMITIR")
             
-            if btn_fichar and v_dni and img_facial:
-                v_apellido = st.session_state.user_sel # Captura automática
+            if btn_fichar and v_dni and v_nombre and v_apellido and img_facial:
+                # Concatenamos nombre y apellido para el registro
+                nombre_completo = f"{v_apellido} {v_nombre}"
                 sup_responsable = df_objetivos[df_objetivos['OBJETIVO']==v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                 fecha_hora_arg = obtener_hora_argentina()
                 
                 tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
-                escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_apellido} - {v_obj}", "", "OK", v_tipo_marcacion])
-                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_apellido, v_dni, "PROCESADO", sup_responsable])
-                st.success(f"🔒 {tipo_evento} REGISTRADA.")
+                
+                # Escribir en Google Sheets
+                escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{nombre_completo} - {v_obj}", "", "OK", v_tipo_marcacion])
+                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", nombre_completo, v_dni, "PROCESADO", sup_responsable])
+                
+                st.success(f"🔒 {tipo_evento} REGISTRADA PARA {nombre_completo}.")
 
     # 3. Pestaña de Mensajería Global (Integrada)
     with tab_mensajeria:
