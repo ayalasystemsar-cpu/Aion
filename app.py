@@ -877,8 +877,8 @@ elif st.session_state.rol_sel == "GERENCIA":
     m3.metric("Auditorías Físicas (QRs)", "2")
     m4.metric("Desgaste Flota (Km)", "4954 Km")
     
-    t_com_est, t_ejecucion_ger, t_tab_auditoria = st.tabs(["📩 COMUNICACIÓN ESTRATÉGICA", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    with t_com_est:
+    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+    
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
         g_asunto = st.text_input("Asunto:", key="ger_asunto")
