@@ -858,8 +858,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_apellido, v_dni, "PROCESADO", sup_responsable])
                 st.success(f"🔒 {tipo_evento} REGISTRADA.")
 
-    # 3. Pestaña de Mensajería Global (Integrada)
-   with t_mensajeria_vigilador:
+    with t_mensajeria_vigilador:
             # 1. INICIALIZAR ESTADOS DE RESPUESTA
             if 'resp_destinatario' not in st.session_state: st.session_state.resp_destinatario = "TODOS"
             if 'resp_asunto' not in st.session_state: st.session_state.resp_asunto = ""
@@ -924,8 +923,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
                         st.rerun()
             else:
-                st.info("No hay mensajes en la red.") 
-
+                st.info("No hay mensajes en la red.")
     # 4. Pestaña de Relevo (Misma lógica)
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
