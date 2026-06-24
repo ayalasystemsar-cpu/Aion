@@ -14,7 +14,6 @@ from streamlit_folium import st_folium
 import math
 import requests # Importante para conectar con el servidor de mapas de calles
 from branca.element import Element # Para inyección de z-index nativo seguro
-import streamlit as st
 
 # Configuración de página OLED
 st.set_page_config(
@@ -148,37 +147,6 @@ def cargar_objetivos():
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
     return pd.DataFrame()
-    
-def render_mensajeria(db, user_id):
-    st.header("Sistema de Mensajería")
-    
-    # Formulario para enviar mensaje
-    with st.form("nuevo_mensaje"):
-        destinatario = st.text_input("Destinatario (ID o Nombre)")
-        asunto = st.text_input("Asunto")
-        mensaje = st.text_area("Mensaje")
-        enviar = st.form_submit_button("Enviar Mensaje")
-        
-        if enviar:
-            db.collection('mensajes').add({
-                'remitente': user_id,
-                'destinatario': destinatario,
-                'asunto': asunto,
-                'mensaje': mensaje,
-                'estado': 'Pendiente', # O el estado que definas
-                'fecha': st.session_state.get('fecha_actual', 'Hoy') # Ajusta según tu lógica
-            })
-            st.success("Mensaje enviado correctamente.")
-
-    # Visualización de mensajes (la tabla que pediste)
-    st.subheader("Bandeja de Entrada")
-    mensajes_ref = db.collection('mensajes').where('destinatario', '==', user_id).stream()
-    
-    data = [m.to_dict() for m in mensajes_ref]
-    if data:
-        st.table(data) # Esto mostrará las columnas FECHA, REMITENTE, etc.
-    else:
-        st.info("No tienes mensajes nuevos.")
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
 def aplicar_identidad_alfa():
