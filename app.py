@@ -121,25 +121,40 @@ def leer_matriz_nube(pestana):
             return pd.DataFrame()
     return pd.DataFrame()
     
-def hay_mensajes_nuevos():
-    df_chats = leer_matriz_nube("CHATS")
-    if df_chats.empty: 
-        return False
-    
-    total_actual = len(df_chats)
-    
-    # Si es la primera vez, inicializamos y retornamos False
-    if 'total_mensajes_previo' not in st.session_state:
-        st.session_state.total_mensajes_previo = total_actual
-        return False
-    
-    # Comparamos
-    if total_actual > st.session_state.total_mensajes_previo:
-        # IMPORTANTE: Actualizamos el estado para que deje de marcar como "nuevo"
-        st.session_state.total_mensajes_previo = total_actual
-        return True
+def renderizar_sistema_chats(rol_actual):
+    # Formulario de envío
+    with st.form(key=f"form_chat_{rol_actual}", clear_on_submit=True):
+        col_c1, col_c2 = st.columns([3, 1])
+        with col_c1:
+            txt_msg = st.text_input("MENSAJE:")
+        with col_c2:
+            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADORES"])
         
-    return False
+        if st.form_submit_button("TRANSMITIR"):
+            if txt_msg.strip():
+                escribir_registro_nube("CHATS", [
+                    obtener_hora_argentina(), 
+                    st.session_state.user_sel, 
+                    txt_msg.upper(), 
+                    "VERDE", 
+                    destinatario, 
+                    rol_actual
+                ])
+                st.session_state.total_mensajes_previo += 1
+                st.rerun()
+
+    # Lectura y filtrado
+    df_c = leer_matriz_nube("CHATS")
+    if not df_c.empty:
+        # Filtramos: mensajes para todos o para este rol
+        df_c = df_c[(df_c['PARA'] == "TODOS") | (df_c['PARA'] == rol_actual)]
+        for _, msg in df_c.tail(10).iloc[::-1].iterrows():
+            st.markdown(f"""
+                <div style="background-color: #1A1C23; padding: 10px; border-radius: 5px; border-left: 3px solid #00E5FF; margin-bottom: 5px;">
+                    <small style="color: #00E5FF;">{msg['HORA']} | {msg['USUARIO']}</small><br>
+                    <strong>{msg['TEXTO']}</strong>
+                </div>
+            """, unsafe_allow_html=True)
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
