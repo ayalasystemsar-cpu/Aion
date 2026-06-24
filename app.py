@@ -422,10 +422,10 @@ if st.session_state.rol_sel == "MONITOREO":
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
     # --- CAMBIO 1: Calculamos la etiqueta dinámica aquí ---
-    label_msg = obtener_etiqueta_mensajeria("MONITOREO")
+    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
     # --- CAMBIO 2: Usamos la variable 'label_msg' en la lista de pestañas ---
-    t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
+    t_radar, t_mensajeria , t_vig, t_nov = st.tabs([
         "🚨 RADAR S.O.S", label_msg, "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ])
 
