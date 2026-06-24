@@ -165,41 +165,41 @@ def renderizar_mensajeria_global(rol_contexto):
     
     st.subheader(f"💬 COMUNICACIONES OPERATIVAS")
 
-    # 2. Formulario de Envío
+    # 2. FORMULARIO CON "RESPUESTA"
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            txt_msg = st.text_input("MENSAJE:")
-        with col2:
-            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"])
+        # Si estamos respondiendo, avisamos al usuario
+        if st.session_state.asunto_respuesta:
+            st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
+            
+        cols = st.columns([2, 1, 1])
+        with cols[0]:
+            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS)
+        with cols[1]:
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
+        with cols[2]:
+            # Si hay un asunto activo, lo bloqueamos para que la respuesta sea en el mismo hilo
+            if st.session_state.asunto_respuesta:
+                asunto = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
+            else:
+                asunto = st.text_input("ASUNTO:")
+            
+        txt_msg = st.text_input("MENSAJE:")
         
-        if st.form_submit_button("TRANSMITIR"):
+        if st.form_submit_button("TRANSMITIR A LA RED"):
             if txt_msg.strip():
-                # Coincide con el orden de tu imagen: FECHA, REMITENTE, DESTINATARIO, ASUNTO, MENSAJE, ESTADO, GRAVEDAD
                 escribir_registro_nube("MENSAJERIA", [
-                    obtener_hora_argentina(), 
-                    st.session_state.user_sel, 
-                    destinatario, 
-                    "N/A",           # ASUNTO
-                    txt_msg.upper(), # MENSAJE
-                    "PENDIENTE",     # ESTADO
-                    "VERDE"          # GRAVEDAD
+                    obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
+                    asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad
                 ])
+                st.session_state.asunto_respuesta = None # Limpiar estado
                 st.rerun()
 
-    # 3. Visualización (Aquí usamos tus nombres de columna reales)
-    for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
-        # Usamos los nombres exactos de la imagen
-        remitente = msg.get("REMITENTE", "DESCONOCIDO")
-        texto = msg.get("MENSAJE", "")
-        fecha = msg.get("FECHA", "")
-        
-        st.markdown(f'''
-            <div class="message-box">
-                <div class="message-info">{fecha} | DE: {remitente}</div>
-                <div class="message-text">{texto}</div>
-            </div>
-        ''', unsafe_allow_html=True)
+    # 3. VISUALIZACIÓN CON BOTÓN DE RESPUESTA
+    # ... (tu bucle for para mostrar mensajes) ...
+            # DENTRO DEL BUCLE, DONDE MUESTRAS EL MENSAJE, AGREGA ESTO:
+            if st.button(f"↩️ Responder a este mensaje", key=f"resp_{idx}"):
+                st.session_state.asunto_respuesta = msg.get("ASUNTO")
+                st.rerun()
 def aplicar_identidad_alfa():
     st.markdown(
         """
