@@ -551,16 +551,19 @@ if st.session_state.rol_sel == "MONITOREO":
         m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-    with t_mensajeria:
-        # 1. LEER DATOS
+# 1. INICIALIZAR ESTADOS
+        if 'resp_destinatario' not in st.session_state: st.session_state.resp_destinatario = "TODOS"
+        if 'resp_asunto' not in st.session_state: st.session_state.resp_asunto = ""
+
+        # 2. LEER DATOS
         df_msg = leer_matriz_nube("MENSAJERIA")
         
-        # 2. CONTADOR DE PENDIENTES
+        # 3. CONTADOR DE PENDIENTES
         msg_pendientes = 0
         if not df_msg.empty:
             rol_actual = st.session_state.rol_sel.upper()
             nombre_usuario = st.session_state.user_sel.upper()
-            # Filtro: es para TODOS, para mi ROL o para MI NOMBRE y está PENDIENTE
+            # Filtro: Mensajes para TODOS, para mi ROL o para MI NOMBRE que estén PENDIENTES
             mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
                     (df_msg['DESTINATARIO'] == rol_actual) | 
                     (df_msg['DESTINATARIO'] == nombre_usuario)) & (df_msg['ESTADO'] == "PENDIENTE")
@@ -568,30 +571,31 @@ if st.session_state.rol_sel == "MONITOREO":
             
         st.subheader(f"💬 MENSAJERÍA GLOBAL ({msg_pendientes} PENDIENTES)")
         
-        # 3. FORMULARIO DE ENVÍO
+        # 4. FORMULARIO DE ENVÍO
+        opciones_destino = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS
+        idx_dest = opciones_destino.index(st.session_state.resp_destinatario) if st.session_state.resp_destinatario in opciones_destino else 0
+
         with st.form(key=f"form_msg_{st.session_state.rol_sel}", clear_on_submit=True):
-            opciones_destino = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS
-            destinatario = st.selectbox("DESTINATARIO (ROL O SUPERVISOR):", opciones_destino)
-            asunto = st.text_input("ASUNTO:")
+            destinatario = st.selectbox("DESTINATARIO:", opciones_destino, index=idx_dest)
+            asunto = st.text_input("ASUNTO:", value=st.session_state.resp_asunto)
             txt_msg = st.text_input("MENSAJE:")
             gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
             
             if st.form_submit_button("TRANSMITIR A LA RED"):
                 if txt_msg.strip():
-                    # Orden exacto según tu hoja: FECHA, REMITENTE, DESTINATARIO, ASUNTO, MENSAJE, ESTADO, GRAVEDAD
                     datos = [obtener_hora_argentina(), st.session_state.user_sel, destinatario, asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad]
                     escribir_registro_nube("MENSAJERIA", datos)
+                    st.session_state.resp_destinatario = "TODOS"
+                    st.session_state.resp_asunto = ""
                     st.rerun()
 
-        # 4. VISUALIZACIÓN Y MARCAR COMO LEÍDO
+        # 5. VISUALIZACIÓN Y RESPUESTA
         if not df_msg.empty:
-            rol_actual = st.session_state.rol_sel.upper()
-            nombre_usuario = st.session_state.user_sel.upper()
-            mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == rol_actual) | (df_msg['DESTINATARIO'] == nombre_usuario)
+            mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == st.session_state.rol_sel.upper()) | (df_msg['DESTINATARIO'] == st.session_state.user_sel.upper())
             df_display = df_msg[mask_display]
             
             for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
-                idx_hoja = idx + 2 # Fila real en Google Sheets
+                idx_hoja = idx + 2
                 is_roja = str(msg.get("GRAVEDAD", "")).upper() == "ROJA"
                 es_pendiente = str(msg.get("ESTADO", "")).upper() == "PENDIENTE"
                 
@@ -602,8 +606,13 @@ if st.session_state.rol_sel == "MONITOREO":
                     </div>
                 ''', unsafe_allow_html=True)
                 
-                # Botón único por cada mensaje
-                if es_pendiente and st.button(f"✅ MARCAR COMO LEÍDO", key=f"btn_{st.session_state.rol_sel}_{idx}"):
+                cols_msg = st.columns([1, 1])
+                if cols_msg[0].button(f"↩️ RESPONDER", key=f"res_{st.session_state.rol_sel}_{idx}"):
+                    st.session_state.resp_destinatario = msg.get("REMITENTE")
+                    st.session_state.resp_asunto = f"RE: {msg.get('ASUNTO')}"
+                    st.rerun()
+                
+                if es_pendiente and cols_msg[1].button(f"✅ LEÍDO", key=f"btn_{st.session_state.rol_sel}_{idx}"):
                     actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
                     st.rerun()
         else:
@@ -738,60 +747,73 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
                 st.success("✅ Cargado")
 
-        with t_mensajeria_sup:
-            # 1. LEER DATOS
-            df_msg = leer_matriz_nube("MENSAJERIA")
-            
-            # 2. CONTADOR DE PENDIENTES
-            msg_pendientes = 0
-            if not df_msg.empty:
-                rol_actual = "SUPERVISOR"
-                nombre_usuario = st.session_state.user_sel.upper()
-                mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
-                        (df_msg['DESTINATARIO'] == rol_actual) | 
-                        (df_msg['DESTINATARIO'] == nombre_usuario)) & (df_msg['ESTADO'] == "PENDIENTE")
-                msg_pendientes = len(df_msg[mask])
-                
-            st.subheader(f"💬 MENSAJERÍA GLOBAL ({msg_pendientes} PENDIENTES)")
-            
-            # 3. FORMULARIO DE ENVÍO
-            with st.form(key=f"form_msg_{st.session_state.user_sel}", clear_on_submit=True):
-                opciones_destino = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS
-                destinatario = st.selectbox("DESTINATARIO:", opciones_destino)
-                asunto = st.text_input("ASUNTO:")
-                txt_msg = st.text_input("MENSAJE:")
-                gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
-                
-                if st.form_submit_button("TRANSMITIR A LA RED"):
-                    if txt_msg.strip():
-                        datos = [obtener_hora_argentina(), st.session_state.user_sel, destinatario, asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad]
-                        escribir_registro_nube("MENSAJERIA", datos)
-                        st.rerun()
+        with# 1. INICIALIZAR ESTADOS
+        if 'resp_destinatario' not in st.session_state: st.session_state.resp_destinatario = "TODOS"
+        if 'resp_asunto' not in st.session_state: st.session_state.resp_asunto = ""
 
-            # 4. VISUALIZACIÓN
-            if not df_msg.empty:
-                rol_actual = "SUPERVISOR"
-                nombre_usuario = st.session_state.user_sel.upper()
-                mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == rol_actual) | (df_msg['DESTINATARIO'] == nombre_usuario)
-                df_display = df_msg[mask_display]
+        # 2. LEER DATOS
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        
+        # 3. CONTADOR DE PENDIENTES
+        msg_pendientes = 0
+        if not df_msg.empty:
+            rol_actual = st.session_state.rol_sel.upper()
+            nombre_usuario = st.session_state.user_sel.upper()
+            # Filtro: Mensajes para TODOS, para mi ROL o para MI NOMBRE que estén PENDIENTES
+            mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                    (df_msg['DESTINATARIO'] == rol_actual) | 
+                    (df_msg['DESTINATARIO'] == nombre_usuario)) & (df_msg['ESTADO'] == "PENDIENTE")
+            msg_pendientes = len(df_msg[mask])
+            
+        st.subheader(f"💬 MENSAJERÍA GLOBAL ({msg_pendientes} PENDIENTES)")
+        
+        # 4. FORMULARIO DE ENVÍO
+        opciones_destino = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS
+        idx_dest = opciones_destino.index(st.session_state.resp_destinatario) if st.session_state.resp_destinatario in opciones_destino else 0
+
+        with st.form(key=f"form_msg_{st.session_state.rol_sel}", clear_on_submit=True):
+            destinatario = st.selectbox("DESTINATARIO:", opciones_destino, index=idx_dest)
+            asunto = st.text_input("ASUNTO:", value=st.session_state.resp_asunto)
+            txt_msg = st.text_input("MENSAJE:")
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
+            
+            if st.form_submit_button("TRANSMITIR A LA RED"):
+                if txt_msg.strip():
+                    datos = [obtener_hora_argentina(), st.session_state.user_sel, destinatario, asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad]
+                    escribir_registro_nube("MENSAJERIA", datos)
+                    st.session_state.resp_destinatario = "TODOS"
+                    st.session_state.resp_asunto = ""
+                    st.rerun()
+
+        # 5. VISUALIZACIÓN Y RESPUESTA
+        if not df_msg.empty:
+            mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == st.session_state.rol_sel.upper()) | (df_msg['DESTINATARIO'] == st.session_state.user_sel.upper())
+            df_display = df_msg[mask_display]
+            
+            for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
+                idx_hoja = idx + 2
+                is_roja = str(msg.get("GRAVEDAD", "")).upper() == "ROJA"
+                es_pendiente = str(msg.get("ESTADO", "")).upper() == "PENDIENTE"
                 
-                for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
-                    idx_hoja = idx + 2
-                    is_roja = str(msg.get("GRAVEDAD", "")).upper() == "ROJA"
-                    es_pendiente = str(msg.get("ESTADO", "")).upper() == "PENDIENTE"
-                    
-                    st.markdown(f'''
-                        <div class="{"message-box-red" if is_roja else "message-box"}">
-                            <div class="message-info">{msg.get("FECHA")} | DE: {msg.get("REMITENTE")} ➔ PARA: {msg.get("DESTINATARIO")}</div>
-                            <div class="message-text"><strong>{msg.get("ASUNTO")}:</strong> {msg.get("MENSAJE")}</div>
-                        </div>
-                    ''', unsafe_allow_html=True)
-                    
-                    if es_pendiente and st.button(f"✅ MARCAR COMO LEÍDO", key=f"btn_sup_{idx}"):
-                        actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
-                        st.rerun()
-            else:
-                st.info("No hay mensajes en la red.")
+                st.markdown(f'''
+                    <div class="{"message-box-red" if is_roja else "message-box"}">
+                        <div class="message-info">{msg.get("FECHA")} | DE: {msg.get("REMITENTE")} ➔ PARA: {msg.get("DESTINATARIO")}</div>
+                        <div class="message-text"><strong>{msg.get("ASUNTO")}:</strong> {msg.get("MENSAJE")}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
+                
+                cols_msg = st.columns([1, 1])
+                if cols_msg[0].button(f"↩️ RESPONDER", key=f"res_{st.session_state.rol_sel}_{idx}"):
+                    st.session_state.resp_destinatario = msg.get("REMITENTE")
+                    st.session_state.resp_asunto = f"RE: {msg.get('ASUNTO')}"
+                    st.rerun()
+                
+                if es_pendiente and cols_msg[1].button(f"✅ LEÍDO", key=f"btn_{st.session_state.rol_sel}_{idx}"):
+                    actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
+                    st.rerun()
+        else:
+            st.info("No hay mensajes en la red.") t_mensajeria_sup:
+            
         with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
@@ -818,7 +840,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     
     # AGREGAMOS tab_panico aquí:
     tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs([
-        "📋 FICHAJE", "🔄 RELEVO", "💬 MENSAJERÍA", "🚨 PÁNICO"
+        "📋 FICHAJE", "🔄 RELEVO", "💬 MENSAJERÍA GLOBAL", "🚨 PÁNICO"
     ])
     # 1. Definición de pestañas (Incluyendo MENSAJERÍA)
   
@@ -853,23 +875,72 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 st.success(f"🔒 {tipo_evento} REGISTRADA PARA {nombre_completo}.")
 
     # 3. Pestaña de Mensajería Global (Integrada)
-    with tab_mensajeria:
-        st.subheader("💬 MENSAJERÍA GLOBAL")
-        with st.form(key="form_mensajeria_vigilador", clear_on_submit=True):
-            txt_msg = st.text_input("INFORME DE SITUACIÓN:")
-            if st.form_submit_button("REPORTAR A CENTRAL") and txt_msg.strip():
-                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), "VERDE", "TODOS", "REPORTE CAMPO"])
-                st.rerun()
-        
+    # 1. INICIALIZAR ESTADOS
+        if 'resp_destinatario' not in st.session_state: st.session_state.resp_destinatario = "TODOS"
+        if 'resp_asunto' not in st.session_state: st.session_state.resp_asunto = ""
+
+        # 2. LEER DATOS
         df_msg = leer_matriz_nube("MENSAJERIA")
+        
+        # 3. CONTADOR DE PENDIENTES
+        msg_pendientes = 0
         if not df_msg.empty:
-            for _, msg in df_msg.tail(10).iloc[::-1].iterrows():
+            rol_actual = st.session_state.rol_sel.upper()
+            nombre_usuario = st.session_state.user_sel.upper()
+            # Filtro: Mensajes para TODOS, para mi ROL o para MI NOMBRE que estén PENDIENTES
+            mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                    (df_msg['DESTINATARIO'] == rol_actual) | 
+                    (df_msg['DESTINATARIO'] == nombre_usuario)) & (df_msg['ESTADO'] == "PENDIENTE")
+            msg_pendientes = len(df_msg[mask])
+            
+        st.subheader(f"💬 MENSAJERÍA GLOBAL ({msg_pendientes} PENDIENTES)")
+        
+        # 4. FORMULARIO DE ENVÍO
+        opciones_destino = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS
+        idx_dest = opciones_destino.index(st.session_state.resp_destinatario) if st.session_state.resp_destinatario in opciones_destino else 0
+
+        with st.form(key=f"form_msg_{st.session_state.rol_sel}", clear_on_submit=True):
+            destinatario = st.selectbox("DESTINATARIO:", opciones_destino, index=idx_dest)
+            asunto = st.text_input("ASUNTO:", value=st.session_state.resp_asunto)
+            txt_msg = st.text_input("MENSAJE:")
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
+            
+            if st.form_submit_button("TRANSMITIR A LA RED"):
+                if txt_msg.strip():
+                    datos = [obtener_hora_argentina(), st.session_state.user_sel, destinatario, asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad]
+                    escribir_registro_nube("MENSAJERIA", datos)
+                    st.session_state.resp_destinatario = "TODOS"
+                    st.session_state.resp_asunto = ""
+                    st.rerun()
+
+        # 5. VISUALIZACIÓN Y RESPUESTA
+        if not df_msg.empty:
+            mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == st.session_state.rol_sel.upper()) | (df_msg['DESTINATARIO'] == st.session_state.user_sel.upper())
+            df_display = df_msg[mask_display]
+            
+            for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
+                idx_hoja = idx + 2
+                is_roja = str(msg.get("GRAVEDAD", "")).upper() == "ROJA"
+                es_pendiente = str(msg.get("ESTADO", "")).upper() == "PENDIENTE"
+                
                 st.markdown(f'''
-                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
-                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
-                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    <div class="{"message-box-red" if is_roja else "message-box"}">
+                        <div class="message-info">{msg.get("FECHA")} | DE: {msg.get("REMITENTE")} ➔ PARA: {msg.get("DESTINATARIO")}</div>
+                        <div class="message-text"><strong>{msg.get("ASUNTO")}:</strong> {msg.get("MENSAJE")}</div>
                     </div>
                 ''', unsafe_allow_html=True)
+                
+                cols_msg = st.columns([1, 1])
+                if cols_msg[0].button(f"↩️ RESPONDER", key=f"res_{st.session_state.rol_sel}_{idx}"):
+                    st.session_state.resp_destinatario = msg.get("REMITENTE")
+                    st.session_state.resp_asunto = f"RE: {msg.get('ASUNTO')}"
+                    st.rerun()
+                
+                if es_pendiente and cols_msg[1].button(f"✅ LEÍDO", key=f"btn_{st.session_state.rol_sel}_{idx}"):
+                    actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
+                    st.rerun()
+        else:
+            st.info("No hay mensajes en la red.")
 
     # 4. Pestaña de Relevo (Misma lógica)
     with tab_relevo:
@@ -933,24 +1004,72 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     t_mensajeria_jefe, t_crisis, t_ejecucion = st.tabs(["💬 MENSAJERÍA GLOBAL", "Centro de Crisis", "Ejecución"])
 
     # Pestaña 1: Mensajería Global
-    with t_mensajeria_jefe:
-        st.subheader("💬 MENSAJERÍA GLOBAL")
-        with st.form(key="form_mensajeria_jefe", clear_on_submit=True):
-            txt_msg = st.text_input("REPORTE OPERATIVO:")
-            prioridad = st.selectbox("PRIORIDAD:", ["VERDE", "ROJA"])
-            if st.form_submit_button("TRANSMITIR") and txt_msg.strip():
-                escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, txt_msg.strip().upper(), prioridad, "TODOS", "JEFATURA"])
-                st.rerun()
-        
+   # 1. INICIALIZAR ESTADOS
+        if 'resp_destinatario' not in st.session_state: st.session_state.resp_destinatario = "TODOS"
+        if 'resp_asunto' not in st.session_state: st.session_state.resp_asunto = ""
+
+        # 2. LEER DATOS
         df_msg = leer_matriz_nube("MENSAJERIA")
+        
+        # 3. CONTADOR DE PENDIENTES
+        msg_pendientes = 0
         if not df_msg.empty:
-            for _, msg in df_msg.tail(10).iloc[::-1].iterrows():
+            rol_actual = st.session_state.rol_sel.upper()
+            nombre_usuario = st.session_state.user_sel.upper()
+            # Filtro: Mensajes para TODOS, para mi ROL o para MI NOMBRE que estén PENDIENTES
+            mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                    (df_msg['DESTINATARIO'] == rol_actual) | 
+                    (df_msg['DESTINATARIO'] == nombre_usuario)) & (df_msg['ESTADO'] == "PENDIENTE")
+            msg_pendientes = len(df_msg[mask])
+            
+        st.subheader(f"💬 MENSAJERÍA GLOBAL ({msg_pendientes} PENDIENTES)")
+        
+        # 4. FORMULARIO DE ENVÍO
+        opciones_destino = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS
+        idx_dest = opciones_destino.index(st.session_state.resp_destinatario) if st.session_state.resp_destinatario in opciones_destino else 0
+
+        with st.form(key=f"form_msg_{st.session_state.rol_sel}", clear_on_submit=True):
+            destinatario = st.selectbox("DESTINATARIO:", opciones_destino, index=idx_dest)
+            asunto = st.text_input("ASUNTO:", value=st.session_state.resp_asunto)
+            txt_msg = st.text_input("MENSAJE:")
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
+            
+            if st.form_submit_button("TRANSMITIR A LA RED"):
+                if txt_msg.strip():
+                    datos = [obtener_hora_argentina(), st.session_state.user_sel, destinatario, asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad]
+                    escribir_registro_nube("MENSAJERIA", datos)
+                    st.session_state.resp_destinatario = "TODOS"
+                    st.session_state.resp_asunto = ""
+                    st.rerun()
+
+        # 5. VISUALIZACIÓN Y RESPUESTA
+        if not df_msg.empty:
+            mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == st.session_state.rol_sel.upper()) | (df_msg['DESTINATARIO'] == st.session_state.user_sel.upper())
+            df_display = df_msg[mask_display]
+            
+            for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
+                idx_hoja = idx + 2
+                is_roja = str(msg.get("GRAVEDAD", "")).upper() == "ROJA"
+                es_pendiente = str(msg.get("ESTADO", "")).upper() == "PENDIENTE"
+                
                 st.markdown(f'''
-                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
-                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
-                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    <div class="{"message-box-red" if is_roja else "message-box"}">
+                        <div class="message-info">{msg.get("FECHA")} | DE: {msg.get("REMITENTE")} ➔ PARA: {msg.get("DESTINATARIO")}</div>
+                        <div class="message-text"><strong>{msg.get("ASUNTO")}:</strong> {msg.get("MENSAJE")}</div>
                     </div>
                 ''', unsafe_allow_html=True)
+                
+                cols_msg = st.columns([1, 1])
+                if cols_msg[0].button(f"↩️ RESPONDER", key=f"res_{st.session_state.rol_sel}_{idx}"):
+                    st.session_state.resp_destinatario = msg.get("REMITENTE")
+                    st.session_state.resp_asunto = f"RE: {msg.get('ASUNTO')}"
+                    st.rerun()
+                
+                if es_pendiente and cols_msg[1].button(f"✅ LEÍDO", key=f"btn_{st.session_state.rol_sel}_{idx}"):
+                    actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
+                    st.rerun()
+        else:
+            st.info("No hay mensajes en la red.")
 
     # Pestaña 2: Centro de Crisis (Original restaurado)
     with t_crisis:
@@ -1018,27 +1137,72 @@ elif st.session_state.rol_sel == "GERENCIA":
     t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     
     # 2. Pestaña de Mensajería Global
-    with t_mensajeria_ger:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        g_para = st.selectbox("Para:", ["TODOS"] + LISTA_SUPS_TACTICOS, key="ger_para")
-        g_asunto = st.text_input("Asunto:", key="ger_asunto")
-        g_orden = st.text_area("Orden:", key="ger_orden")
-        g_prioridad = st.selectbox("Prioridad:", ["VERDE", "AMARILLA", "ROJA"], key="ger_prioridad")
-        if st.button("Ejecutar Directiva"):
-            escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), st.session_state.user_sel, g_orden.upper(), g_prioridad, g_para, g_asunto])
-            st.success("✅ Directiva Transmitida")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Lectura de mensajes
+    # 1. INICIALIZAR ESTADOS
+        if 'resp_destinatario' not in st.session_state: st.session_state.resp_destinatario = "TODOS"
+        if 'resp_asunto' not in st.session_state: st.session_state.resp_asunto = ""
+
+        # 2. LEER DATOS
         df_msg = leer_matriz_nube("MENSAJERIA")
+        
+        # 3. CONTADOR DE PENDIENTES
+        msg_pendientes = 0
         if not df_msg.empty:
-            for _, msg in df_msg.tail(10).iloc[::-1].iterrows():
+            rol_actual = st.session_state.rol_sel.upper()
+            nombre_usuario = st.session_state.user_sel.upper()
+            # Filtro: Mensajes para TODOS, para mi ROL o para MI NOMBRE que estén PENDIENTES
+            mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                    (df_msg['DESTINATARIO'] == rol_actual) | 
+                    (df_msg['DESTINATARIO'] == nombre_usuario)) & (df_msg['ESTADO'] == "PENDIENTE")
+            msg_pendientes = len(df_msg[mask])
+            
+        st.subheader(f"💬 MENSAJERÍA GLOBAL ({msg_pendientes} PENDIENTES)")
+        
+        # 4. FORMULARIO DE ENVÍO
+        opciones_destino = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS
+        idx_dest = opciones_destino.index(st.session_state.resp_destinatario) if st.session_state.resp_destinatario in opciones_destino else 0
+
+        with st.form(key=f"form_msg_{st.session_state.rol_sel}", clear_on_submit=True):
+            destinatario = st.selectbox("DESTINATARIO:", opciones_destino, index=idx_dest)
+            asunto = st.text_input("ASUNTO:", value=st.session_state.resp_asunto)
+            txt_msg = st.text_input("MENSAJE:")
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
+            
+            if st.form_submit_button("TRANSMITIR A LA RED"):
+                if txt_msg.strip():
+                    datos = [obtener_hora_argentina(), st.session_state.user_sel, destinatario, asunto.upper(), txt_msg.upper(), "PENDIENTE", gravedad]
+                    escribir_registro_nube("MENSAJERIA", datos)
+                    st.session_state.resp_destinatario = "TODOS"
+                    st.session_state.resp_asunto = ""
+                    st.rerun()
+
+        # 5. VISUALIZACIÓN Y RESPUESTA
+        if not df_msg.empty:
+            mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == st.session_state.rol_sel.upper()) | (df_msg['DESTINATARIO'] == st.session_state.user_sel.upper())
+            df_display = df_msg[mask_display]
+            
+            for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
+                idx_hoja = idx + 2
+                is_roja = str(msg.get("GRAVEDAD", "")).upper() == "ROJA"
+                es_pendiente = str(msg.get("ESTADO", "")).upper() == "PENDIENTE"
+                
                 st.markdown(f'''
-                    <div class="{"message-box-red" if msg.get("PRIORIDAD")=="ROJA" else "message-box"}">
-                        <div class="message-info">{msg.get("HORA")} | DE: {msg.get("USUARIO")}</div>
-                        <div class="message-text">{msg.get("TEXTO")}</div>
+                    <div class="{"message-box-red" if is_roja else "message-box"}">
+                        <div class="message-info">{msg.get("FECHA")} | DE: {msg.get("REMITENTE")} ➔ PARA: {msg.get("DESTINATARIO")}</div>
+                        <div class="message-text"><strong>{msg.get("ASUNTO")}:</strong> {msg.get("MENSAJE")}</div>
                     </div>
                 ''', unsafe_allow_html=True)
+                
+                cols_msg = st.columns([1, 1])
+                if cols_msg[0].button(f"↩️ RESPONDER", key=f"res_{st.session_state.rol_sel}_{idx}"):
+                    st.session_state.resp_destinatario = msg.get("REMITENTE")
+                    st.session_state.resp_asunto = f"RE: {msg.get('ASUNTO')}"
+                    st.rerun()
+                
+                if es_pendiente and cols_msg[1].button(f"✅ LEÍDO", key=f"btn_{st.session_state.rol_sel}_{idx}"):
+                    actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
+                    st.rerun()
+        else:
+            st.info("No hay mensajes en la red.")
 
     # 3. Pestaña de EJECUCIÓN (Restaurada)
     with t_ejecucion_ger:
