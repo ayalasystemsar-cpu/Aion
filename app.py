@@ -724,8 +724,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
 
-
-       with t_car_tac:
+with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
