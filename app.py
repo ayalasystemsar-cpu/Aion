@@ -708,8 +708,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with col_btn2:
             if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
 
+        # --- AQUÍ EMPIEZA EL CAMBIO PARA EL CONTADOR ---
+        # 1. Calculamos la etiqueta dinámica
+        label_msg = obtener_etiqueta_mensajeria("SUPERVISOR")
+
+        # 2. Definimos los tabs usando la variable 'label_msg'
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA GLOBAL", "📋 NOVEDADES Y RELEVOS"
+            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
         
         with t_vis_qr:
