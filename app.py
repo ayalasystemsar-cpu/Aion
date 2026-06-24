@@ -421,9 +421,12 @@ if st.session_state.rol_sel == "MONITOREO":
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
 
-    # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
+    # --- CAMBIO 1: Calculamos la etiqueta dinámica aquí ---
+    label_msg = obtener_etiqueta_mensajeria("MONITOREO")
+
+    # --- CAMBIO 2: Usamos la variable 'label_msg' en la lista de pestañas ---
     t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 MENSAJERÍA GLOBAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+        "🚨 RADAR S.O.S", label_msg, "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ])
 
     with t_radar:
