@@ -823,7 +823,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     # 1. Definición de pestañas (Incluyendo MENSAJERÍA)
   
     # 2. Pestaña de Fichaje (Solo LEGAJO)
-    # 2. Pestaña de Fichaje (Restaurada y ajustada)
+ )
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
@@ -878,8 +878,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
             v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj)
             vig_saliente = st.text_input("SALE:").upper().strip()
             vig_entrante = st.text_input("ENTRA:").upper().strip()
-            v_dni_relevo = st.text_input("LEGAJO RESPONSABLE:").strip()
-            btn_relevo = st.form_submit_button("SANCIONAR CAMBIO")
+            v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
+            btn_relevo = st.form_submit_button("CAMBIO EXITOSO")
             
             if btn_relevo and vig_saliente and vig_entrante and v_dni_relevo:
                 sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
