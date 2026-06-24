@@ -149,7 +149,6 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
-
 def aplicar_identidad_alfa():
     st.markdown(
         """
@@ -166,36 +165,38 @@ def aplicar_identidad_alfa():
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
         }
 
-        .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
-        .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
-        .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
-        .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
-
-        .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        
-        /* BOTÓN PÁNICO FINO (Uso exclusivo) */
-        div.stButton > button[data-testid="baseButton-secondary"].panico-fino-btn { 
+        /* Estilo exclusivo para el botón de pánico fino */
+        div[data-testid="stButton"] button.panico-fino {
             border: 1px solid #FF4B4B !important;
-            background: transparent !important;
+            background-color: transparent !important;
             color: #FF4B4B !important;
             font-family: 'Orbitron', sans-serif !important;
+            font-size: 10px !important;
             letter-spacing: 2px !important;
+            padding: 8px 16px !important;
+            width: 100% !important;
             transition: all 0.3s ease !important;
         }
-        div.stButton > button[data-testid="baseButton-secondary"].panico-fino-btn:hover { 
-            background: rgba(255, 75, 75, 0.1) !important;
+        div[data-testid="stButton"] button.panico-fino:hover {
+            background-color: rgba(255, 75, 75, 0.1) !important;
+            box-shadow: 0 0 10px rgba(255, 75, 75, 0.2) !important;
+        }
+
+        .stButton > button[kind="primary"] { 
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
+            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
+            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
         }
         
         .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
         .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
-        .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
-        .message-text { color: #e0e0e0; font-size: 14px; margin-top: 4px; font-family: 'Rajdhani', sans-serif; }
         
-        .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
         </style>
         """, unsafe_allow_html=True
     )
+
 aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
