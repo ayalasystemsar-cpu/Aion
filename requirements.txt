@@ -13,3 +13,4 @@ supabase
 streamlit-drawable-canvas
 osmnx
 networkx
+qrcode
