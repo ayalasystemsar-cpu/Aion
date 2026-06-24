@@ -548,8 +548,8 @@ if "filtro_radar_valor" not in st.session_state:
         """)
         m_mon.get_root().header.add_child(script_z_index)
         
-        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-   with t_comunicacion:
+        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico"
+    with t_comunicacion:
         st.subheader("💬 CENTRO DE MENSAJES")
         
         # 1. Selector de destinatario
