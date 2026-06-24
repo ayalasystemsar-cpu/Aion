@@ -151,39 +151,55 @@ def cargar_objetivos():
 def renderizar_mensajeria_global(rol_contexto):
     df_msg = leer_matriz_nube("MENSAJERIA")
     
-    # 1. ESTADO PARA RESPUESTAS
-    if 'respuesta_a_asunto' not in st.session_state:
-        st.session_state.respuesta_a_asunto = None
+    if df_msg.empty:
+        st.info("No hay mensajes en la red.")
+        return
 
-    # 2. FORMULARIO
-    with st.form(key="form_chat", clear_on_submit=True):
-        # Si estamos respondiendo, mostramos a quién
-        if st.session_state.respuesta_a_asunto:
-            st.info(f"Respondiendo al hilo: {st.session_state.respuesta_a_asunto}")
+    # 1. Filtro: Usamos 'REMITENTE' y 'MENSAJE' que son tus columnas reales
+    nombre_user = st.session_state.user_sel.upper()
+    mask_display = (df_msg['DESTINATARIO'] == "TODOS") | \
+                   (df_msg['DESTINATARIO'] == rol_contexto.upper()) | \
+                   (df_msg['DESTINATARIO'] == nombre_user)
+    
+    df_display = df_msg[mask_display]
+    
+    st.subheader(f"💬 COMUNICACIONES OPERATIVAS")
+
+    # 2. Formulario de Envío
+    with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            txt_msg = st.text_input("MENSAJE:")
+        with col2:
+            destinatario = st.selectbox("PARA:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"])
         
-        txt_msg = st.text_input("MENSAJE:")
-        if st.form_submit_button("ENVIAR"):
-            # Si hay una respuesta activa, usamos el mismo asunto
-            asunto_uso = st.session_state.respuesta_a_asunto if st.session_state.respuesta_a_asunto else "NUEVO TEMA"
-            escribir_registro_nube("MENSAJERIA", [
-                obtener_hora_argentina(), st.session_state.user_sel, "TODOS", 
-                asunto_uso, txt_msg.upper(), "PENDIENTE", "VERDE"
-            ])
-            st.session_state.respuesta_a_asunto = None # Limpiamos respuesta
-            st.rerun()
+        if st.form_submit_button("TRANSMITIR"):
+            if txt_msg.strip():
+                # Coincide con el orden de tu imagen: FECHA, REMITENTE, DESTINATARIO, ASUNTO, MENSAJE, ESTADO, GRAVEDAD
+                escribir_registro_nube("MENSAJERIA", [
+                    obtener_hora_argentina(), 
+                    st.session_state.user_sel, 
+                    destinatario, 
+                    "N/A",           # ASUNTO
+                    txt_msg.upper(), # MENSAJE
+                    "PENDIENTE",     # ESTADO
+                    "VERDE"          # GRAVEDAD
+                ])
+                st.rerun()
 
-    # 3. VISUALIZACIÓN POR HILOS
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    if not df_msg.empty:
-        # Agrupamos por ASUNTO para ver las conversaciones
-        for asunto, grupo in df_msg.groupby('ASUNTO'):
-            with st.expander(f"💬 Hilo: {asunto}"):
-                for _, msg in grupo.iterrows():
-                    st.markdown(f"**{msg['USUARIO']}:** {msg['MENSAJE']}")
-                
-                if st.button(f"Responder a {asunto}", key=f"btn_{asunto}"):
-                    st.session_state.respuesta_a_asunto = asunto
-                    st.rerun()
+    # 3. Visualización (Aquí usamos tus nombres de columna reales)
+    for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
+        # Usamos los nombres exactos de la imagen
+        remitente = msg.get("REMITENTE", "DESCONOCIDO")
+        texto = msg.get("MENSAJE", "")
+        fecha = msg.get("FECHA", "")
+        
+        st.markdown(f'''
+            <div class="message-box">
+                <div class="message-info">{fecha} | DE: {remitente}</div>
+                <div class="message-text">{texto}</div>
+            </div>
+        ''', unsafe_allow_html=True)
 def aplicar_identidad_alfa():
     st.markdown(
         """
