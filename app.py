@@ -336,7 +336,7 @@ if st.session_state.rol_sel == "MONITOREO":
 
     # Pestañas optimizadas: Quitamos PRESENTISMO y LIBRO_BASE
     t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", "💬 MENSAJERÍA", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+        "🚨 RADAR S.O.S", "💬 MENSAJERÍA GLOBAL", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ])
 
     with t_radar:
@@ -626,7 +626,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🔄 REFRESCAR SISTEMA", key=f"btn_refrescar_sistema_{sup_activo_normalizado}", use_container_width=True): st.rerun()
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
+            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA GLOBAL", "📋 NOVEDADES Y RELEVOS"
         ])
         
         with t_vis_qr:
@@ -732,7 +732,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
     # 1. Definición de pestañas (Incluyendo MENSAJERÍA)
-    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 SANCIONAR RELEVO", "💬 MENSAJERÍA"])
+    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 SANCIONAR RELEVO", "💬 MENSAJERÍA GLOBAL"])
     
     # 2. Pestaña de Fichaje (Solo LEGAJO)
     with tab_presentismo:
