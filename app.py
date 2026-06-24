@@ -362,15 +362,19 @@ col_sel1, col_sel2 = st.columns([2, 1])
 
 if "filtro_radar_valor" not in st.session_state:
     st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
-
 with col_sel1:
-    try:
-        idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
-    except:
-        idx_defecto = 0
+            try:
+                idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
+            except:
+                idx_defecto = 0
                 
             obj_seleccionado = st.selectbox(
                 "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
+                opciones_busqueda, 
+                index=idx_defecto,
+                key="buscador_radar_master"
+            )
+
                 opciones_busqueda, 
                 index=idx_defecto,
                 key="buscador_radar_master"
