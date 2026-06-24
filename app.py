@@ -811,9 +811,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if es_pendiente and cols_msg[1].button(f"✅ LEÍDO", key=f"btn_{st.session_state.rol_sel}_{idx}"):
                     actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
                     st.rerun()
-        else:
-            st.info("No hay mensajes en la red.") t_mensajeria_sup:
-            
+        
         with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
             df_v_total = leer_matriz_nube("NOVEDADES_GUARDIA")
