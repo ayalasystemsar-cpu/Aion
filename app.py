@@ -686,6 +686,18 @@ if st.session_state.rol_sel == "MONITOREO":
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
+        # --- 0. GESTIÓN DE JORNADA (INICIO/FIN) ---
+        st.subheader("⏱️ GESTIÓN DE JORNADA")
+        col_j1, col_j2 = st.columns(2)
+        with col_j1:
+            if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
+                registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "INICIO")
+                st.success("Jornada iniciada.")
+        with col_j2:
+            if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
+                registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
+                st.success("Jornada cerrada.")
+
         # --- 1. BOTÓN DE PÁNICO ---
         if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
             lat_envio, lon_envio = 0.0, 0.0
@@ -742,6 +754,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
+
+        # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
+      
 
         with t_vis_qr:
             st.markdown("### 📱 ESCANEO TÁCTICO PARA SUPERVISORES")
