@@ -161,7 +161,7 @@ def renderizar_mensajeria_global(rol_contexto):
                (df_msg['ESTADO'] == "PENDIENTE")
         total_nuevos = len(df_msg[mask])
     else:
-def obtener_etiqueta_mensajeria(rol_contexto):
+ def obtener_etiqueta_mensajeria(rol_contexto):
     df_msg = leer_matriz_nube("MENSAJERIA")
     if df_msg.empty:
         return "💬 MENSAJERÍA"
