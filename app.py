@@ -149,6 +149,7 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 # --- 4. DISEÑO E IDENTIDAD VISUAL ---
+
 def aplicar_identidad_alfa():
     st.markdown(
         """
@@ -198,7 +199,6 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
         
-        /* Estilo para botón de Google Maps */
         .btn-google-maps {
             display: inline-flex; align-items: center; justify-content: center;
             background-color: #ffffff !important; color: #1a73e8 !important;
@@ -208,10 +208,21 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
+
+        /* NUEVO: Botón Pánico Fino */
+        div.stButton > button[kind="secondary"].panico-fino { 
+            border: 1px solid #FF4B4B !important;
+            background: transparent !important;
+            color: #FF4B4B !important;
+            font-family: 'Orbitron', sans-serif !important;
+            letter-spacing: 2px !important;
+            width: 100% !important;
+            transition: all 0.3s ease !important;
+        }
+        div.stButton > button[kind="secondary"].panico-fino:hover { background: rgba(255, 75, 75, 0.1) !important; }
         </style>
         """, unsafe_allow_html=True
     )
-
 aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
