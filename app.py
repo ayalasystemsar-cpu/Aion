@@ -737,7 +737,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
             v_apellido = st.text_input("NOMBRE COMPLETO:").upper().strip()
-            v_dni = st.text_input("DNI / LEGAJO:").strip()
+            v_dni = st.text_input("DNI:").strip()
             v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
             v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
