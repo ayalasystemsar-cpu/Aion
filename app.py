@@ -540,21 +540,12 @@ if st.session_state.rol_sel == "MONITOREO":
         m_mon.get_root().header.add_child(script_z_index)
         
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-    with t_mensajeria:
-        # Lógica de conteo de mensajes pendientes
-        df_msg = leer_matriz_nube("MENSAJERIA")
-        msg_pendientes = 0
-        if not df_msg.empty:
-            rol_actual = st.session_state.rol_sel.upper()
-            # Filtramos los que son para mi rol O para TODOS y están pendientes
-            mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == rol_actual)) & (df_msg['ESTADO'] == "PENDIENTE")
-            msg_pendientes = len(df_msg[mask])
-            
-        st.subheader(f"💬 MENSAJERÍA GLOBAL ({msg_pendientes} PENDIENTES)")
-        
-        # Formulario de envío
+   # Formulario de envío
         with st.form(key="form_mensajeria_global", clear_on_submit=True):
-            destinatario = st.selectbox("DESTINATARIO:", ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"])
+            # Combinamos áreas generales con tu lista de supervisores
+            opciones_destino = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + LISTA_SUPS_TACTICOS
+            
+            destinatario = st.selectbox("DESTINATARIO:", opciones_destino)
             asunto = st.text_input("ASUNTO:")
             txt_msg = st.text_input("MENSAJE:")
             prioridad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
@@ -563,27 +554,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 if txt_msg.strip():
                     datos = [obtener_hora_argentina(), st.session_state.user_sel, destinatario, asunto.upper(), txt_msg.upper(), "PENDIENTE", prioridad]
                     escribir_registro_nube("MENSAJERIA", datos)
-                    st.rerun()
-
-        # Visualización y marca como "LEÍDO" (cambia estado a OK)
-        if not df_msg.empty:
-            mask_display = (df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == rol_actual)
-            df_display = df_msg[mask_display]
-            
-            for idx, msg in df_display.tail(15).iloc[::-1].iterrows():
-                # Obtenemos el índice real en la hoja (sumamos 2 por cabecera y base 0)
-                idx_hoja = idx + 2
-                
-                es_pendiente = msg.get("ESTADO") == "PENDIENTE"
-                st.markdown(f'''
-                    <div class="{"message-box-red" if msg.get("GRAVEDAD")=="ROJA" else "message-box"}">
-                        <div class="message-info">{msg.get("FECHA")} | DE: {msg.get("REMITENTE")}</div>
-                        <div class="message-text"><strong>{msg.get("ASUNTO")}:</strong> {msg.get("MENSAJE")}</div>
-                    </div>
-                ''', unsafe_allow_html=True)
-                
-                if es_pendiente and st.button(f"✅ MARCAR COMO LEÍDO", key=f"btn_{idx}"):
-                    actualizar_celda("MENSAJERIA", idx_hoja, "F", "LEÍDO")
                     st.rerun()
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
