@@ -753,7 +753,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     
     # AGREGAMOS tab_panico aquí:
     tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs([
-        "📋 FICHAJE", "🔄 RELEVO", "💬 MENSAJERÍA", "🚨 PÁNICO"
+        "📋 FICHAJE", "🔄 RELEVO", "💬 MENSAJERÍA GLOBAL", "🚨 PÁNICO"
     ])
     # 1. Definición de pestañas (Incluyendo MENSAJERÍA)
   
