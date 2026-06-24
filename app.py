@@ -1029,7 +1029,7 @@ elif st.session_state.rol_sel == "GERENCIA":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     elif st.session_state.rol_sel == "GERENCIA":
 
-       elif st.session_state.rol_sel == "GERENCIA":
+ elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
