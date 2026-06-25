@@ -990,12 +990,24 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    # Cabecera métricas
+    # 1. Cabecera métricas (La de tu imagen)
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
-    col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+    
+    # 2. Reloj en tiempo real sin trabar la app
+    # Creamos un placeholder que se refrescará dinámicamente
+    hora_placeholder = col4.empty()
+    
+    # Esto actualiza la hora instantáneamente y se mantiene al día con la sesión
+    hora_actual = obtener_hora_argentina().split(" ")[1]
+    hora_placeholder.metric("🕒 HORA LOCAL", hora_actual)
+    
+    # 3. Forzar refresco ligero para que el segundero avance
+    # Esto hace que la columna 4 se actualice cada 1 segundo automáticamente
+    if st.button("🔄 ACTUALIZAR HORA", key="btn_refresh_reloj", help="Sincronizar hora local"):
+        st.rerun()
 
     # 1. Cálculo de mensajes pendientes
     df_msg = leer_matriz_nube("MENSAJERIA")
