@@ -1126,7 +1126,7 @@ with t_tab_auditoria:
             if (df_flota['KM_RECORRIDOS'] < 0).any():
                 st.error("⚠️ ¡ALERTA! Detectado registro con KM FINAL menor al INICIAL.")
         
- elif st.session_state.rol_sel == "GERENCIA":
+  elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
