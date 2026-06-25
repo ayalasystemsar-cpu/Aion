@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -1053,34 +1052,52 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Pestaña 4: Auditoría de Supervisión (NUEVA)
-   
-    # Pestaña 4: Auditoría (Aquí pegas el nuevo código)
     with t_auditoria:
         st.subheader("📋 AUDITORÍA DE SUPERVISIÓN")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         
         if not df_jornadas.empty:
+            # Limpiamos nombres de columnas: quitamos espacios y pasamos a mayúsculas
             df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
             
-            # Convertimos columnas a datetime para que la tabla sea profesional
-            df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'] + ' ' + df_jornadas['HORA'], errors='coerce')
-            df_jornadas = df_jornadas.sort_values(by=['SUPERVISOR', 'OBJETIVO', 'DATETIME'])
-            
-            # Tabla de Resumen: Inicio y Fin claro
-            st.markdown("#### 🕒 RESUMEN DE JORNADAS POR OBJETIVO")
-            df_reporte = df_jornadas.groupby(['SUPERVISOR', 'OBJETIVO', 'FECHA']).agg(
-                INICIO=('HORA', 'first'),
-                FIN=('HORA', 'last')
-            ).reset_index()
+            # Verificamos si las columnas que necesita el código existen
+            if {'FECHA', 'HORA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN'}.issubset(df_jornadas.columns):
+                
+                # Función de cálculo segura
+                def calcular_duracion(df):
+                    df['DATETIME'] = pd.to_datetime(df['FECHA'].astype(str) + ' ' + df['HORA'].astype(str), errors='coerce')
+                    df = df.sort_values(by=['SUPERVISOR', 'OBJETIVO', 'DATETIME'])
+                    df['DURACION'] = df.groupby(['SUPERVISOR', 'OBJETIVO'])['DATETIME'].diff()
+                    # Solo marcamos duración en RETIROS
+                    df.loc[df['ACCIÓN'] != 'RETIRO', 'DURACION'] = pd.NaT
+                    return df
 
-            # Mostramos el cuadro
-            st.dataframe(df_reporte, use_container_width=True)
-            
-            # Opcional: El detalle completo debajo
-            with st.expander("🔍 VER DETALLE DE MOVIMIENTOS"):
-                st.dataframe(df_jornadas[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN', 'HORA']], use_container_width=True)
+                df_procesado = calcular_duracion(df_jornadas)
+                df_procesado['DURACION_MINUTOS'] = df_procesado['DURACION'].dt.total_seconds() / 60
+                
+                st.dataframe(df_procesado[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN', 'HORA', 'DURACION_MINUTOS']], use_container_width=True)
+            else:
+                st.error(f"Error: La hoja no tiene las columnas esperadas. Columnas detectadas: {df_jornadas.columns.tolist()}")
         else:
-            st.info("No hay datos de jornada para auditar.")
+            st.info("La hoja está vacía o no se pudo leer.")
+elif st.session_state.rol_sel == "GERENCIA":
+    # 1. Calculamos el total de mensajes pendientes para GERENCIA
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
+    
+    total_nuevos = 0
+    if not df_msg.empty:
+        mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                (df_msg['DESTINATARIO'] == "GERENCIA") | 
+                (df_msg['DESTINATARIO'] == nombre_user)) & \
+               (df_msg['ESTADO'] == "PENDIENTE")
+        total_nuevos = len(df_msg[mask])
+
+    # 2. Creamos la etiqueta dinámica
+    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+
+    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\', sans-serif; font-size:24px; margin-bottom:5px;">Comando Estratégico: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
+    
     # 3. Definición de pestañas con el label dinámico
     t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs([label_msg, "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     
