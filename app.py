@@ -904,33 +904,21 @@ elif st.session_state.rol_sel == "VIGILADOR":
             
             if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
                 if v_nombre_completo and v_dni and img_facial:
-                    # 1. GUARDAMOS EL NOMBRE Y LEGAJO EN LA SESIÓN (Para el botón de Pánico)
                     st.session_state.v_nombre_completo = v_nombre_completo.upper()
                     st.session_state.legajo_vigilador = v_dni
                     
-                    # 2. PROCESAMOS EL REGISTRO EN LA NUBE
                     fecha_hora_arg = obtener_hora_argentina()
                     sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                     tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
                     
-                    # Registro en Presentismo
-                    escribir_registro_nube("PRESENTISMO", [
-                        fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], 
-                        v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion
-                    ])
-                    
-                    # Registro en Novedades Guardia
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [
-                        fecha_hora_arg, v_obj, tipo_evento, "---", 
-                        v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable
-                    ])
+                    escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
                     
                     st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
                 else:
                     st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
-                
 
-    # 4. Pestaña de Relevo (LA QUE QUERÍAS RECUPERAR)
+    # 4. Pestaña de Relevo
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
@@ -949,35 +937,36 @@ elif st.session_state.rol_sel == "VIGILADOR":
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
 
-    # 6. Pestaña Pánico (Instantáneo)
+    # 6. Pestaña Pánico (MODIFICADA: AUTOMÁTICA)
     with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         st.warning("⚠️ AL PRESIONAR EL BOTÓN, SE NOTIFICARÁ A MONITOREO Y A SU SUPERVISOR.")
         
-        obj_vigilador = st.selectbox("CONFIRME SU OBJETIVO ACTUAL:", opciones_globales_obj, key="panico_obj")
+        # BUSCAR OBJETIVO AUTOMÁTICO
+        df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
+        # Asumimos que user_sel es el nombre del vigilador
+        jornada_actual = df_jornada[df_jornada['SUPERVISOR'] == st.session_state.user_sel].tail(1)
         
+        if not jornada_actual.empty:
+            obj_detectado = jornada_actual['OBJETIVO'].values[0]
+            st.success(f"📍 OBJETIVO DETECTADO AUTOMÁTICAMENTE: **{obj_detectado}**")
+        else:
+            obj_detectado = "SIN_OBJETIVO_ASIGNADO"
+            st.error("⚠️ No se detectó objetivo activo. Por favor, realice su fichaje.")
+
         if st.checkbox("HABILITAR BOTÓN DE ALERTA"):
             if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="btn_panico_final", type="primary", use_container_width=True):
-                
-                # --- AQUÍ ESTÁ EL CAMBIO ---
-                # Buscamos el nombre que el vigilador puso en el formulario de fichaje
-                # Si no existe, al menos intentamos leerlo de la sesión
                 nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR"))
-                
                 sup_asignado = "MONITOREO"
                 if not df_objetivos.empty:
-                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_vigilador]
+                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                     if not filtro.empty:
                         sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
                 
                 fecha = obtener_hora_argentina()
-                # Registramos el nombre real (nombre_real) en lugar de user_sel
-                carga_sos = f"VIG:{nombre_real}|OBJ:{obj_vigilador}|SUP:{sup_asignado}"
-                
-                # EN LA HOJA ALERTAS, GUARDAMOS EL NOMBRE REAL EN LA COLUMNA USUARIO
+                carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
                 escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
-                
-                st.error(f"🚨 ALERTA ENVIADA: {nombre_real}")
+                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
