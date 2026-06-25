@@ -869,8 +869,34 @@ elif st.session_state.rol_sel == "VIGILADOR":
             v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
             v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
+            
             if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
-                st.success("🔒 MARCACIÓN REGISTRADA")
+                if v_nombre_completo and v_dni and img_facial:
+                    # 1. GUARDAMOS EL NOMBRE Y LEGAJO EN LA SESIÓN (Para el botón de Pánico)
+                    st.session_state.v_nombre_completo = v_nombre_completo.upper()
+                    st.session_state.legajo_vigilador = v_dni
+                    
+                    # 2. PROCESAMOS EL REGISTRO EN LA NUBE
+                    fecha_hora_arg = obtener_hora_argentina()
+                    sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                    tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
+                    
+                    # Registro en Presentismo
+                    escribir_registro_nube("PRESENTISMO", [
+                        fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], 
+                        v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion
+                    ])
+                    
+                    # Registro en Novedades Guardia
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [
+                        fecha_hora_arg, v_obj, tipo_evento, "---", 
+                        v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable
+                    ])
+                    
+                    st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
+                else:
+                    st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
+                
 
     # 4. Pestaña de Relevo (LA QUE QUERÍAS RECUPERAR)
     with tab_relevo:
