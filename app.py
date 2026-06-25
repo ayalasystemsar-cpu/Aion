@@ -455,12 +455,26 @@ if st.session_state.rol_sel == "MONITOREO":
                 except: pass
     else: 
         sos_activos = 0
+    # 1. Cabecera operativa para Monitoreo
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🚨 ALERTAS PENDIENTES", "0")
+    col2.metric("📡 ESTADO RED", "EN LÍNEA")
+    col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
     
-    c1, c2, c3 = st.columns(3)
-    c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
-    c2.metric("📡 RED", "OPERATIVA")
-    c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
-
+    # 2. Contenedor para el reloj con fragmento
+    hora_container = col4.container()
+    
+    # 3. Función de refresco rápido
+    @st.fragment(run_every=1)
+    def mostrar_reloj_monitoreo():
+        hora_actual = obtener_hora_argentina().split(" ")[1]
+        st.metric("🕒 HORA LOCAL", hora_actual)
+    
+    with hora_container:
+        mostrar_reloj_monitoreo()
+        
+    st.write("---")
+    
   # 1. Calculamos el total de nuevos ANTES de definir la etiqueta
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
