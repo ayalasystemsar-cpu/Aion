@@ -1013,8 +1013,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     col4.metric("🕒 HORA LOCAL", hora_actual)
-    if col4.button("📡 SINCRONIZAR HORA")
-    expected ':'
+    if col4.button("📡 SINCRONIZAR HORA"):
+        st.rerun()
     
     # 3. Mensajería (Tu lógica que SÍ funciona)
     df_msg = leer_matriz_nube("MENSAJERIA")
