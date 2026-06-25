@@ -1081,7 +1081,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.info("La hoja está vacía o no se pudo leer.")
 
-   elif st.session_state.rol_sel == "GERENCIA":
+elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
