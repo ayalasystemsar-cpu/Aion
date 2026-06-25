@@ -685,44 +685,62 @@ if st.session_state.rol_sel == "MONITOREO":
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
-        
-        # --- 0. GESTIÓN DE JORNADA (INICIO/FIN) ---
+     # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
+        
+        # 1. Definimos las opciones de objetivos primero
+        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+        df_objs_sup = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        opciones_obj = df_objs_sup['OBJETIVO'].unique() if not df_objs_sup.empty else ["SIN OBJETIVOS ASIGNADOS"]
+
+        # 2. Selector de objetivo (DEBE IR ANTES DE LOS BOTONES)
+        obj_seleccionado = st.selectbox("🎯 SELECCIONE OBJETIVO:", opciones_obj, key="obj_jornada_sel")
+        
         col_j1, col_j2 = st.columns(2)
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "INICIO")
-                st.success("Jornada iniciada.")
+                # Usamos obj_seleccionado en lugar de "N/A"
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "INICIO")
+                st.success(f"Jornada iniciada en {obj_seleccionado}")
         with col_j2:
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
-                st.success("Jornada cerrada.")
+                # Usamos obj_seleccionado en lugar de "N/A"
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
+                st.success(f"Jornada cerrada en {obj_seleccionado}")
 
-     # --- 1. BOTÓN DE PÁNICO (Centrado y con captura de objetivo) ---
-        st.markdown("<br>", unsafe_allow_html=True)
-        _, col_panico, _ = st.columns([1, 2, 1])
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                # CAPTURA EXACTA DEL OBJETIVO SELECCIONADO
-                obj_alerta = st.session_state.get("obj_jornada_sel", "UBICACIÓN DESCONOCIDA")
+                # FORMA SEGURA DE OBTENER EL OBJETIVO ACTUAL
+                # Si el supervisor eligió uno en el selectbox, lo tomamos.
+                # Si no, buscamos el último movimiento registrado en la base de datos.
                 
-                # Intentamos geolocalizar
+                obj_alerta = st.session_state.get("obj_jornada_sel", "SIN OBJETIVO SELECCIONADO")
+                
+                # Si el selectbox tiene un valor por defecto o raro, forzamos la lectura de la nube
+                if obj_alerta == "SIN OBJETIVO SELECCIONADO":
+                    df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
+                    if not df_jornadas.empty:
+                        df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
+                        # Filtramos por supervisor para ver cuál fue su último objetivo
+                        movs = df_jornadas[df_jornadas['SUPERVISOR'] == st.session_state.user_sel.upper()]
+                        if not movs.empty:
+                            obj_alerta = movs.iloc[-1]['OBJETIVO']
+
+                # Geolocalización
                 lat_envio, lon_envio = 0.0, 0.0
                 try:
                     loc = get_geolocation()
                     if loc and isinstance(loc, dict) and 'coords' in loc:
                         lat_envio = loc['coords'].get('latitude', 0.0)
                         lon_envio = loc['coords'].get('longitude', 0.0)
-                except: 
-                    pass
+                except: pass
                 
-                # ENVIAMOS EL REGISTRO CON EL OBJETIVO CAPTURADO
+                # ENVÍO FINAL
                 carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
                 
-                if escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos]):
-                    st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
-                else:
-                    st.warning("⚠️ El Pánico se disparó pero hubo un error de conexión con la nube.")
+                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+     
 
         # --- 2. REGISTRO DIRECTO ---
         st.markdown("---")
