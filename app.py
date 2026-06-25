@@ -1069,7 +1069,14 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Pestaña 4: Auditoría de Supervisión (NUEVA)
-    with t_auditoria:
+
+        with t_auditoria:
+            
+            # --- PEGA AQUÍ EL BLOQUE DE RELEVOS ---
+            df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
+            if not df_relevos.empty:
+                df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]- PEGA AQUÍ EL BLOQUE DE RELEVOS ---
+            
         st.subheader("📋 AUDITORÍA DE SUPERVISIÓN")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         
