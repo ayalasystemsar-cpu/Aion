@@ -996,11 +996,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     
     # 2. Definición de pestañas
-    t_mensajeria_jefe, t_crisis, t_ejecucion, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "Ejecución", "📍 TABLERO DE AUDITORÍA"])
+    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "Ejecución", "📍 TABLERO DE AUDITORÍA"])
     
     # 3. Pestaña Mensajería
-    with t_mensajeria_ger:
-        renderizar_mensajeria_global("GERENCIA")
+    with t_mensajeria_jefe:
+        renderizar_mensajeria_global("JEFE DE OPERACIONES")
         
     # 4. Pestaña Ejecución
     with t_ejecucion_ger:
