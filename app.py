@@ -1035,7 +1035,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             st.info("La hoja está vacía o no se pudo leer.")
 elif st.session_state.rol_sel == "GERENCIA":
     
-with t_tab_auditoria:
+ with t_tab_auditoria:
         # Al llamar a la función, esta dibujará la Mensajería, la Auditoría y la Flota automáticamente
         renderizar_auditoria_completa()
     
