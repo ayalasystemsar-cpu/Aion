@@ -936,15 +936,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
     # 5. Pestaña Mensajería
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
-
-    # 6. Pestaña Pánico (MODIFICADA: AUTOMÁTICA)
+# 6. Pestaña Pánico (DIRECTA: SIN CHECKBOX)
     with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         st.warning("⚠️ AL PRESIONAR EL BOTÓN, SE NOTIFICARÁ A MONITOREO Y A SU SUPERVISOR.")
         
         # BUSCAR OBJETIVO AUTOMÁTICO
         df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
-        # Asumimos que user_sel es el nombre del vigilador
         jornada_actual = df_jornada[df_jornada['SUPERVISOR'] == st.session_state.user_sel].tail(1)
         
         if not jornada_actual.empty:
@@ -954,19 +952,22 @@ elif st.session_state.rol_sel == "VIGILADOR":
             obj_detectado = "SIN_OBJETIVO_ASIGNADO"
             st.error("⚠️ No se detectó objetivo activo. Por favor, realice su fichaje.")
 
-        if st.checkbox("HABILITAR BOTÓN DE ALERTA"):
-            if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="btn_panico_final", type="primary", use_container_width=True):
-                nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR"))
-                sup_asignado = "MONITOREO"
-                if not df_objetivos.empty:
-                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
-                    if not filtro.empty:
-                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-                
-                fecha = obtener_hora_argentina()
-                carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
-                escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
-                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
+        # EL BOTÓN AHORA ES DIRECTO
+        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="btn_panico_directo", type="primary", use_container_width=True):
+            nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR"))
+            sup_asignado = "MONITOREO"
+            if not df_objetivos.empty:
+                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
+                if not filtro.empty:
+                    sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+            
+            fecha = obtener_hora_argentina()
+            carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
+            
+            escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
+            
+            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
+   
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
