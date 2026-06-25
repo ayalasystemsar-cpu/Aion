@@ -1051,7 +1051,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.success("✅ Petición Elevada Exitosamente")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    #with t_auditoria:
+     with t_auditoria:
             st.subheader("📋 AUDITORÍA DE SUPERVISIÓN")
             df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
             
