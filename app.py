@@ -708,37 +708,29 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
                 st.success(f"Jornada cerrada en {obj_seleccionado}")
 
+      # --- BOTÓN DE PÁNICO (CORREGIDO) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 1. DEFINIMOS LAS COLUMNAS AQUÍ
+        _, col_panico, _ = st.columns([1, 2, 1]) 
+        
+        # 2. LAS USAMOS INMEDIATAMENTE
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                # FORMA SEGURA DE OBTENER EL OBJETIVO ACTUAL
-                # Si el supervisor eligió uno en el selectbox, lo tomamos.
-                # Si no, buscamos el último movimiento registrado en la base de datos.
+                # Usamos el estado del selectbox definido arriba
+                obj_alerta = st.session_state.get("obj_jornada_sel", "UBICACIÓN DESCONOCIDA")
                 
-                obj_alerta = st.session_state.get("obj_jornada_sel", "SIN OBJETIVO SELECCIONADO")
-                
-                # Si el selectbox tiene un valor por defecto o raro, forzamos la lectura de la nube
-                if obj_alerta == "SIN OBJETIVO SELECCIONADO":
-                    df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
-                    if not df_jornadas.empty:
-                        df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
-                        # Filtramos por supervisor para ver cuál fue su último objetivo
-                        movs = df_jornadas[df_jornadas['SUPERVISOR'] == st.session_state.user_sel.upper()]
-                        if not movs.empty:
-                            obj_alerta = movs.iloc[-1]['OBJETIVO']
-
-                # Geolocalización
                 lat_envio, lon_envio = 0.0, 0.0
                 try:
                     loc = get_geolocation()
                     if loc and isinstance(loc, dict) and 'coords' in loc:
                         lat_envio = loc['coords'].get('latitude', 0.0)
                         lon_envio = loc['coords'].get('longitude', 0.0)
-                except: pass
+                except: 
+                    pass
                 
-                # ENVÍO FINAL
                 carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-                
                 st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
      
 
