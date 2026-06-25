@@ -1138,15 +1138,36 @@ elif st.session_state.rol_sel == "GERENCIA":
     with t_mensajeria_ger:
         renderizar_mensajeria_global("GERENCIA")
         
+# 3. Definición de pestañas
+    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs([label_msg, "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+    
+    # 4. Pestaña Mensajería
+    with t_mensajeria_ger:
+        renderizar_mensajeria_global("GERENCIA")
+        
+    # 5. Pestaña Ejecución
     with t_ejecucion_ger:
-        # ... (tu código de ALTA/BAJA) ...
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            st.subheader("ALTA DE RECURSO")
+            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
+            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
+            if st.button("Solicitar Alta"):
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
+                st.success("✅ Petición enviada")
+        with col_g2:
+            st.subheader("BAJA DE OBJETIVO")
+            g_baja_obj = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"], key="ger_baja_obj")
+            if st.button("Solicitar Baja"):
+                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
+                st.success("✅ Petición enviada")
 
-    # AQUÍ ESTÁ LA AUDITORÍA LIMPIA Y CON MENSAJERÍA
+    # 6. Pestaña Auditoría
     with t_tab_auditoria:
         st.subheader("💬 MENSAJERÍA EN TABLERO")
         renderizar_mensajeria_global("GERENCIA")
         st.markdown("---")
-        renderizar_auditoria_completa() # Llama a la función definida al inicio
+        renderizar_auditoria_completa()
 
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
