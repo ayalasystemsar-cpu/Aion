@@ -784,7 +784,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("No hay objetivos asignados.")
 
-     # --- PEGA EL FORMULARIO AQUÍ ABAJO ---
+     # --- FORMULARIO DE FLOTA CON KM FINAL ---
             st.markdown("---") 
             st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
             with st.form(key="form_acta_flota", clear_on_submit=True):
@@ -793,23 +793,29 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     v_patente = st.text_input("PATENTE/MÓVIL:").upper()
                     v_km_inicial = st.number_input("KM INICIAL:", min_value=0)
                 with col2:
-                    v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
+                    v_km_final = st.number_input("KM FINAL:", min_value=0)
                     v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
                 
+                v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
                 v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
                 
                 if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
                     fecha = obtener_hora_argentina()
-                    # Esto enviará los datos directo a la tabla del JEFE DE OPERACIONES
+                    
+                    # Se envía a CONTROL_FLOTA con el KM FINAL ingresado
+                    # Orden: FECHA | SUPERVISOR | MOVIL | KM_INICIAL | KM_FINAL | COMBUSTIBLE
                     escribir_registro_nube("CONTROL_FLOTA", [
                         fecha, 
                         v_vigilador, 
                         v_patente, 
                         v_km_inicial, 
-                        "0", 
+                        v_km_final, 
                         v_combustible
                     ])
-                    st.success(f"✅ Acta registrada para el móvil {v_patente}")
+                    
+                    # Cálculo rápido para informar al supervisor
+                    km_recorridos = v_km_final - v_km_inicial
+                    st.success(f"✅ Acta registrada. Recorridos: {km_recorridos} km")
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
