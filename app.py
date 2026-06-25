@@ -698,15 +698,21 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
                 st.success("Jornada cerrada.")
 
-     # 2. BOTÓN DE PÁNICO (Centrado)
+  # --- 1. BOTÓN DE PÁNICO (CENTRADOS) ---
         st.markdown("<br>", unsafe_allow_html=True)
         _, col_panico, _ = st.columns([1, 2, 1])
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                # ... (Lógica de pánico que ya tienes) ...
-                st.error("🚨 S.O.S ENVIADO")
-         except: pass
+                lat_envio, lon_envio = 0.0, 0.0
+                try:
+                    loc = get_geolocation()
+                    if loc and isinstance(loc, dict) and 'coords' in loc:
+                        lat_envio = loc['coords'].get('latitude', 0.0)
+                        lon_envio = loc['coords'].get('longitude', 0.0)
+                except: 
+                    pass # Este pass está dentro del try, por eso no da error
                 
+                # Buscamos el objetivo actual
                 df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
                 obj_alerta = "UBICACIÓN DESCONOCIDA"
                 if not df_jornadas.empty:
