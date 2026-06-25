@@ -1157,6 +1157,38 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 )
             else:
                 st.info("No hay registros de relevos actualmente.")
+
+# --- AQUÍ EMPIEZA EL CONTROL DE FLOTA ---
+        st.markdown("---")
+        st.subheader("⛽ AUDITORÍA Y CONTROL DE FLOTA")
+        df_flota = leer_matriz_nube("CONTROL_FLOTA")
+        
+        if not df_flota.empty:
+            df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
+            
+            # Aseguramos formato numérico
+            df_flota['KM_INICIAL'] = pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
+            df_flota['KM_FINAL'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce')
+            
+            # Cálculo del rendimiento
+            df_flota['KM_RECORRIDOS'] = df_flota['KM_FINAL'] - df_flota['KM_INICIAL']
+            
+            # Visualización
+            st.dataframe(
+                df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "KM_RECORRIDOS": st.column_config.NumberColumn("KM RECORRIDOS", format="%d km"),
+                    "MOVIL": "PATENTE/MÓVIL"
+                }
+            )
+            
+            # Alerta de Anomalías
+            if (df_flota['KM_RECORRIDOS'] < 0).any():
+                st.error("⚠️ ¡ALERTA! Detectado registro con KM FINAL menor al INICIAL.")
+        else:
+            st.info("Sin registros de flota en el sistema.")
             
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
