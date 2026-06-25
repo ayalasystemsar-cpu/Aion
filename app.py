@@ -936,45 +936,49 @@ elif st.session_state.rol_sel == "VIGILADOR":
     # 5. Pestaña Mensajería
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
-# 6. Pestaña Pánico (SOLUCIÓN SEGURA)
+# 6. Pestaña Pánico (CORRECTA PARA EL MAPA)
     with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
-        st.warning("⚠️ AL PRESIONAR EL BOTÓN, SE NOTIFICARÁ A MONITOREO Y A SU SUPERVISOR.")
         
-        # 1. INTENTO DE DETECCIÓN AUTOMÁTICA
+        # BUSCAR OBJETIVO
         df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
         df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
-        nombre_buscar = st.session_state.user_sel.strip().upper()
+        nombre_user_clean = st.session_state.user_sel.strip().upper()
+        jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
         
-        jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_buscar].tail(1)
-        
-        # 2. DEFINIMOS EL OBJETIVO (AUTO O MANUAL)
         if not jornada_actual.empty:
             obj_detectado = jornada_actual['OBJETIVO'].values[0]
-            st.success(f"📍 OBJETIVO DETECTADO AUTOMÁTICAMENTE: **{obj_detectado}**")
-            obj_final = obj_detectado
+            st.success(f"📍 OBJETIVO DETECTADO: **{obj_detectado}**")
         else:
-            st.error("⚠️ NO SE DETECTÓ OBJETIVO. POR FAVOR, SELECCIONE UNO MANUALMENTE PARA LA ALERTA:")
-            obj_final = st.selectbox("SELECCIONE OBJETIVO:", opciones_globales_obj, key="panico_obj_manual")
+            obj_detectado = "SIN_OBJETIVO"
+            st.error("⚠️ OBJETIVO NO DETECTADO. SELECCIONE MANUALMENTE:")
+            obj_detectado = st.selectbox("OBJETIVO:", opciones_globales_obj)
 
-        # 3. BOTÓN DE ALERTA (Usa siempre obj_final)
         if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
             nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR")).upper()
             sup_asignado = "MONITOREO"
-            
-            # Buscamos el supervisor según el objetivo detectado o seleccionado
             if not df_objetivos.empty:
-                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_final]
+                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                 if not filtro.empty:
                     sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
             
             fecha = obtener_hora_argentina()
-            # La carga útil que el mapa necesita
-            carga_sos = f"VIG:{nombre_real}|OBJ:{obj_final}|SUP:{sup_asignado}"
+            # Esta es la estructura que tu mapa necesita ver:
+            # TIPO debe ser "PÁNICO" y CARGA_UTIL debe tener el formato VIG|OBJ|SUP
+            carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
             
-            escribir_registro_nube("ALERTAS", [fecha, nombre_real, carga_sos, "PENDIENTE"])
+            # ESCRIBIMOS LA FILA EXACTA QUE EL MAPA ESPERA
+            # [FECHA, USUARIO, TIPO, ESTADO, CARGA_UTIL, RESOLUCION]
+            escribir_registro_nube("ALERTAS", [
+                fecha, 
+                nombre_real, 
+                "PÁNICO",        # <-- IMPORTANTE: Esto es lo que el mapa busca en la col TIPO
+                "PENDIENTE", 
+                carga_sos, 
+                "PRUEBA"
+            ])
             
-            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_final}")
+            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
    
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
