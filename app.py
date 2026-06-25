@@ -1007,7 +1007,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
        
 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    
     # 1. Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
