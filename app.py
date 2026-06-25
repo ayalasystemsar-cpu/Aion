@@ -705,7 +705,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
                 # ... (Lógica de pánico que ya tienes) ...
                 st.error("🚨 S.O.S ENVIADO")
-                except: pass
+         except: pass
                 
                 df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
                 obj_alerta = "UBICACIÓN DESCONOCIDA"
