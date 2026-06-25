@@ -1013,8 +1013,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    # 2. Reloj + Botón de Sincronización Profesional
-    hora_actual = obtener_hora_argentina().split(" ")[1]
+   
     
     # Ponemos el reloj y el botón juntos en la misma columna
     col4.metric("🕒 HORA LOCAL", hora_actual)
