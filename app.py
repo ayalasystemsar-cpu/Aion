@@ -553,29 +553,29 @@ if st.session_state.rol_sel == "MONITOREO":
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
                 attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
             )
-            
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
                 
-                # --- LÓGICA HÍBRIDA: Identifica si es VIGILADOR o SUPERVISOR ---
-                info_alerta = "ALERTA TÁCTICA"
+                # --- LÓGICA DE IDENTIFICACIÓN ---
+                texto_tooltip = f"🎯 {r['OBJETIVO']}" # Valor por defecto
+                
                 if es_panico:
                     alerta_activa = df_emergencias[
                         (df_emergencias['CARGA_UTIL'].str.contains(r['OBJETIVO'])) & 
                         (df_emergencias['ESTADO'] == 'PENDIENTE')
                     ]
                     if not alerta_activa.empty:
-                        usuario_alerta = alerta_activa.iloc[-1]['USUARIO']
-                        carga_util = str(alerta_activa.iloc[-1]['CARGA_UTIL'])
-                        # Si es vigilador, el usuario es el nombre; si es sup, es el supervisor
-                        info_alerta = f"🚨 ALERTA: {usuario_alerta}"
+                        # Obtenemos el nombre real del vigilador de la columna USUARIO
+                        nombre_vigilante = alerta_activa.iloc[-1]['USUARIO']
+                        # Aquí tienes la combinación exacta: Nombre Vigilador + Objetivo
+                        texto_tooltip = f"🚨 {nombre_vigilante} | {r['OBJETIVO']}"
 
                 # DIBUJO DEL MARCADOR
                 if es_panico or es_el_seleccionado:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"{info_alerta} | OBJ: {r['OBJETIVO']}",
+                        tooltip=texto_tooltip, # Mostramos la combinación exacta
                         icon=folium.DivIcon(
                             icon_size=(30, 30),
                             icon_anchor=(15, 15),
