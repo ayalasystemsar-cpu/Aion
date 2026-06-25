@@ -990,25 +990,18 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🚨 S.O.S ACTIVOS", "0")
+    col2.metric("📡 RED", "OPERATIVA")
+    col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-        # --- AQUÍ VA TU CABECERA TÁCTICA ---
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("🚨 S.O.S ACTIVOS", "0")
-        col2.metric("📡 RED", "OPERATIVA")
-        col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
-        
-        # Este es el nuevo bloque que sustituye al anterior metric estático
-        hora_placeholder = col4.empty()
-        hora_actual = obtener_hora_argentina().split(" ")[1]
-        hora_placeholder.metric("🕒 HORA LOCAL", hora_actual)
-        
-        # Botón para refrescar y ver avanzar el reloj
-        if st.button("🔄 ACTUALIZAR HORA", key="btn_refresh_reloj", help="Sincronizar hora local"):
-            st.rerun()
-            
-        st.write("---")
-        # Aquí continúa el resto de tu código de Jefe de Operaciones...
-    # 1. Cálculo de mensajes pendientes
+    hora_placeholder = col4.empty()
+    hora_actual = obtener_hora_argentina().split(" ")[1]
+    hora_placeholder.metric("🕒 HORA LOCAL", hora_actual)
+    
+    if st.button("🔄 ACTUALIZAR HORA", key="btn_refresh_reloj"):
+        st.rerun()
+
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
     total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "JEFE DE OPERACIONES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
