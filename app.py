@@ -928,7 +928,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
-    with tab_panico:
+     with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         st.info("Utilice este panel solo en situaciones de riesgo inminente.")
         
