@@ -1233,58 +1233,42 @@ elif st.session_state.rol_sel == "GERENCIA":
     # 4. Pestaña de Tablero
     with t_tab_auditoria:
         st.subheader("📊 AUDITORÍA ESTRATÉGICA DE SEGURIDAD")
-
-        # --- BLOQUE FINAL DE AUDITORÍA ---
-df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-
-if not df_relevos.empty:
-    df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
-    if 'TIPO_EVENTO' in df_relevos.columns:
-        df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
-        if not df_filtro.empty:
-            df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
-            df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
-            df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
-                lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
-            )
-            st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI', 'CUMPLIMIENTO']], 
-                         use_container_width=True, hide_index=True)
-        else:
-            st.info("No hay registros de relevos encontrados.")
-    else:
-        st.warning("No se encuentra la columna 'TIPO_EVENTO' en NOVEDADES_GUARDIA.")
         
+        # --- 1. AUDITORÍA DE RELEVOS ---
+        st.markdown("---")
+        st.subheader("🔄 RELEVOS DE TURNO")
+        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
+        if not df_relevos.empty:
+            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+            if 'TIPO_EVENTO' in df_relevos.columns:
+                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+                if not df_filtro.empty:
+                    df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
+                    df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
+                    df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
+                        lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
+                    )
+                    st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI', 'CUMPLIMIENTO']], 
+                                 use_container_width=True, hide_index=True)
+
         # --- 2. AUDITORÍA DE FLOTA ---
         st.markdown("---")
-        st.subheader("⛽ AUDITORÍA Y CONTROL DE FLOTA (GERENCIA)")
+        st.subheader("⛽ CONTROL DE FLOTA")
         df_flota = leer_matriz_nube("CONTROL_FLOTA")
-        
         if not df_flota.empty:
             df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
             df_flota['KM_INICIAL'] = pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
             df_flota['KM_FINAL'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce')
             df_flota['KM_RECORRIDOS'] = df_flota['KM_FINAL'] - df_flota['KM_INICIAL']
-            
-            st.dataframe(
-                df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']],
-                use_container_width=True, hide_index=True,
-                column_config={"KM_RECORRIDOS": st.column_config.NumberColumn("KM RECORRIDOS", format="%d km")}
-            )
-            
-            if (df_flota['KM_RECORRIDOS'] < 0).any():
-                st.error("⚠️ ¡ALERTA! Detectada anomalía en KM de móvil.")
-        else:
-            st.info("No hay datos de flota registrados.")
-
-        # --- 3. AUDITORÍA DE PÁNICOS ---
-        st.markdown("---")
-        st.subheader("🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
-        df_alertas = leer_matriz_nube("ALERTAS")
-        
-        if not df_alertas.empty:
-            df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
-            st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], 
+            st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']],
                          use_container_width=True, hide_index=True)
+
+        # --- 3. HISTÓRICO DE ALERTAS ---
+        st.markdown("---")
+        st.subheader("🚨 ALERTAS TÁCTICAS")
+        df_alertas = leer_matriz_nube("ALERTAS")
+        if not df_alertas.empty:
+            st.dataframe(df_alertas, use_container_width=True, hide_index=True)
    
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
