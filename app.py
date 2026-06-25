@@ -927,53 +927,46 @@ elif st.session_state.rol_sel == "VIGILADOR":
         renderizar_mensajeria_global("VIGILADOR")
 
     # 4. Pestaña de Relevo (Misma lógica)
-    with tab_relevo:
-        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
-        with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
-            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            vig_saliente = st.text_input("SALE:").upper().strip()
-            vig_entrante = st.text_input("ENTRA:").upper().strip()
-            v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
-            btn_relevo = st.form_submit_button("SANCIONAR CAMBIO")
-            
-            if btn_relevo and vig_saliente and vig_entrante and v_dni_relevo:
-                sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                fecha = obtener_hora_argentina()
-                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
-                escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
-                st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
-    with tab_panico:
+ with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
-        st.info("Utilice este panel solo en situaciones de riesgo inminente.")
-        
         obj_vigilador = st.selectbox("CONFIRME SU OBJETIVO ACTUAL:", opciones_globales_obj)
         
+        # EL VIGILADOR DEBE INGRESAR SU DNI PARA IDENTIFICARSE
+        dni_vigilador = st.text_input("INGRESE SU DNI/LEGAJO PARA IDENTIFICACIÓN:")
+
         if st.checkbox("HABILITAR BOTÓN DE ALERTA"):
             if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="panico-fino"):
-                
-                # 1. BUSCAR SUPERVISOR ASIGNADO AL OBJETIVO (Definimos la variable aquí)
-                sup_asignado = "MONITOREO" # Valor por defecto
-                if not df_objetivos.empty:
-                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_vigilador]
-                    if not filtro.empty:
-                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-                
-                # 2. OBTENER DATOS DEL VIGILADOR
-                nombre_vigilador = st.session_state.get("user_sel", "VIGILADOR")
-                legajo_vigilador = st.session_state.get("legajo_vigilador", "S/L")
-                
-                # 3. AHORA SÍ CONSTRUIMOS LA VARIABLE (Ya existen todas)
-                carga_sos = f"VIG:{nombre_vigilador}|LEG:{legajo_vigilador}|OBJ:{obj_vigilador}|SUP:{sup_asignado}"
-                
-                # 4. ENVÍO A LA NUBE
-                fecha = obtener_hora_argentina()
-                escribir_registro_nube("ALERTAS", [fecha, st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
-                
-                # Aviso al supervisor
-                datos_aviso = [fecha, st.session_state.user_sel, sup_asignado, "ALERTA PÁNICO", f"OBJ:{obj_vigilador} - REQUIERE APOYO", "PENDIENTE", "ROJA"]
-                escribir_registro_nube("MENSAJERIA", datos_aviso)
-                
-                st.error(f"⚠️ ALERTA ENVIADA A MONITOREO Y A {sup_asignado}")
+                if not dni_vigilador:
+                    st.error("⚠️ DEBE INGRESAR SU DNI/LEGAJO PARA EMITIR LA ALERTA")
+                else:
+                    # 1. BUSCAR NOMBRE DEL VIGILADOR EN LA HOJA 'VIGILADORES'
+                    df_padrero = leer_matriz_nube("VIGILADORES")
+                    nombre_vigilador = "DESCONOCIDO"
+                    if not df_padrero.empty:
+                        df_padrero.columns = df_padrero.columns.str.strip().str.upper()
+                        # Buscamos por la columna DNI o LEGAJO (Ajusta el nombre de la columna según tu hoja)
+                        filtro_vig = df_padrero[df_padrero['DNI'].astype(str) == dni_vigilador.strip()]
+                        if not filtro_vig.empty:
+                            nombre_vigilador = filtro_vig.iloc[0]['NOMBRE'] # Ajusta 'NOMBRE' al encabezado real de tu hoja
+
+                    # 2. BUSCAR SUPERVISOR ASIGNADO
+                    sup_asignado = "MONITOREO"
+                    if not df_objetivos.empty:
+                        filtro_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_vigilador]
+                        if not filtro_obj.empty:
+                            sup_asignado = str(filtro_obj['SUPERVISOR'].iloc[0]).strip()
+
+                    # 3. ENVÍO CON DATOS COMPLETOS
+                    fecha = obtener_hora_argentina()
+                    carga_sos = f"VIG:{nombre_vigilador}|LEG:{dni_vigilador}|OBJ:{obj_vigilador}|SUP:{sup_asignado}"
+                    
+                    escribir_registro_nube("ALERTAS", [fecha, nombre_vigilador, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
+                    
+                    # Mensaje a la red
+                    datos_aviso = [fecha, nombre_vigilador, sup_asignado, "ALERTA PÁNICO", f"VIG:{nombre_vigilador} EN OBJ:{obj_vigilador}", "PENDIENTE", "ROJA"]
+                    escribir_registro_nube("MENSAJERIA", datos_aviso)
+                    
+                    st.error(f"⚠️ ALERTA ENVIADA: {nombre_vigilador} (Legajo: {dni_vigilador})")
                 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
