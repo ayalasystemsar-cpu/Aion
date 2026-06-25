@@ -1003,7 +1003,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
     # 3. Definición de pestañas (AGREGAMOS T_AUDITORIA)
-    t_mensajeria_jefe, t_crisis, t_ejecucion, t_auditoria = st.tabs([label_msg, "Centro de Crisis", "Ejecución", "📋 AUDITORÍA"])
+    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs([label_msg, "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
 
     # Pestaña 1: Mensajería Global
     with t_mensajeria_jefe:
