@@ -1069,7 +1069,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Pestaña 4: Auditoría de Supervisión (NUEVA)
-   with t_tab_auditoria:
+    with t_tab_auditoria:
         
         # 1. AUDITORÍA DE JORNADA (SISTEMA DE TIEMPO)
         st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
