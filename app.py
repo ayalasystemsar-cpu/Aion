@@ -990,9 +990,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    # 1. Activamos el refresco automático para este rol
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=1000, key="jefe_autorefresh")
+    
     
     # 2. Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
