@@ -698,27 +698,31 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
                 st.success("Jornada cerrada.")
 
-        # --- 1. BOTÓN DE PÁNICO ---
-        if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-            lat_envio, lon_envio = 0.0, 0.0
-            try:
-                loc = get_geolocation()
-                if loc and isinstance(loc, dict) and 'coords' in loc:
-                    lat_envio = loc['coords'].get('latitude', 0.0)
-                    lon_envio = loc['coords'].get('longitude', 0.0)
-            except: pass
-            
-            df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
-            obj_alerta = "UBICACIÓN DESCONOCIDA"
-            if not df_jornadas.empty:
-                df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
-                movs = df_jornadas[df_jornadas['SUPERVISOR'] == st.session_state.user_sel.upper()]
-                if not movs.empty:
-                    obj_alerta = movs.iloc[-1]['OBJETIVO']
-            
-            carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-            escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-            st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+     # --- 1. BOTÓN DE PÁNICO (Centrado y con captura de objetivo) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        _, col_panico, _ = st.columns([1, 2, 1])
+        with col_panico:
+            if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
+                # CAPTURA EXACTA DEL OBJETIVO SELECCIONADO
+                obj_alerta = st.session_state.get("obj_jornada_sel", "UBICACIÓN DESCONOCIDA")
+                
+                # Intentamos geolocalizar
+                lat_envio, lon_envio = 0.0, 0.0
+                try:
+                    loc = get_geolocation()
+                    if loc and isinstance(loc, dict) and 'coords' in loc:
+                        lat_envio = loc['coords'].get('latitude', 0.0)
+                        lon_envio = loc['coords'].get('longitude', 0.0)
+                except: 
+                    pass
+                
+                # ENVIAMOS EL REGISTRO CON EL OBJETIVO CAPTURADO
+                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                
+                if escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos]):
+                    st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+                else:
+                    st.warning("⚠️ El Pánico se disparó pero hubo un error de conexión con la nube.")
 
         # --- 2. REGISTRO DIRECTO ---
         st.markdown("---")
