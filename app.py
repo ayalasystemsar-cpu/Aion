@@ -927,7 +927,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
         renderizar_mensajeria_global("VIGILADOR")
 
     # 4. Pestaña de Relevo (Misma lógica)
- with tab_panico:
+    with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         obj_vigilador = st.selectbox("CONFIRME SU OBJETIVO ACTUAL:", opciones_globales_obj)
         
