@@ -1069,8 +1069,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Pestaña 4: Auditoría de Supervisión (NUEVA)
-
-    with t_tab_auditoria:
+ with t_tab_auditoria:
         
 
         # 1. AUDITORÍA DE JORNADA (SISTEMA DE TIEMPO)
@@ -1127,6 +1126,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                          column_config={"KM_RECORRIDOS": st.column_config.NumberColumn("KM RECORRIDOS", format="%d km")})
             if (df_flota['KM_RECORRIDOS'] < 0).any():
                 st.error("⚠️ ¡ALERTA! Detectado registro con KM FINAL menor al INICIAL.")
+   
             
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
