@@ -429,6 +429,8 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
+    col1, col2, col3, col4 = st.columns(4)
+    
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
@@ -455,26 +457,32 @@ if st.session_state.rol_sel == "MONITOREO":
                 except: pass
     else: 
         sos_activos = 0
-    # 1. Cabecera operativa para Monitoreo
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🚨 ALERTAS PENDIENTES", "0")
-    col2.metric("📡 ESTADO RED", "EN LÍNEA")
+    
+    # 1. CONTADOR DE PANICOS (El mismo que el Jefe)
+    with col1.container():
+        @st.fragment(run_every=5)
+        def contar_panicos_monitoreo():
+            # Asegúrate de que esta función 'leer_matriz_nube' esté accesible aquí
+            df_alertas = leer_matriz_nube("ALERTAS")
+            if not df_alertas.empty:
+                df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
+                # Filtramos igual que en Jefe para que los datos coincidan
+                total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"])
+                st.metric("🚨 S.O.S ACTIVOS", total_sos)
+            else:
+                st.metric("🚨 S.O.S ACTIVOS", "0")
+        contar_panicos_monitoreo()
+
+    col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
     
-    # 2. Contenedor para el reloj con fragmento
-    hora_container = col4.container()
-    
-    # 3. Función de refresco rápido
-    @st.fragment(run_every=1)
-    def mostrar_reloj_monitoreo():
-        hora_actual = obtener_hora_argentina().split(" ")[1]
-        st.metric("🕒 HORA LOCAL", hora_actual)
-    
-    with hora_container:
-        mostrar_reloj_monitoreo()
-        
-    st.write("---")
-    
+    # 2. RELOJ DINAMICO (Para sincronización visual)
+    with col4.container():
+        @st.fragment(run_every=1)
+        def mostrar_reloj_monitoreo():
+            hora_actual = obtener_hora_argentina().split(" ")[1]
+            st.metric("🕒 HORA LOCAL", hora_actual)
+        mostrar_reloj_monitoreo() 
   # 1. Calculamos el total de nuevos ANTES de definir la etiqueta
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
