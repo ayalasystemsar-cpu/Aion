@@ -1007,7 +1007,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
        
 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    c1.metric("🚨 S.O.S ACTIVOS", sos_activos)
+    col1.metric("🚨 S.O.S ACTIVOS", "0")
     c2.metric("📡 RED", "OPERATIVA")
     c3.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
     
