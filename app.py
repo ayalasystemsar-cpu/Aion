@@ -323,6 +323,22 @@ def aplicar_identidad_alfa():
         </style>
         """, unsafe_allow_html=True
     )
+
+# --- SCRIPT PARA RELOJ EN TIEMPO REAL (SIN RERUNS NI ERRORES) ---
+st.markdown("""
+<script>
+    function updateClock() {
+        var now = new Date();
+        var timeString = now.toLocaleTimeString('es-AR', {hour12: false});
+        var reloj = document.getElementById('mi-reloj');
+        if (reloj) {
+            reloj.innerText = timeString;
+        }
+    }
+    setInterval(updateClock, 1000);
+</script>
+""", unsafe_allow_html=True)
+
 aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
@@ -990,21 +1006,19 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    # --- REFRESCO ESPECÍFICO PARA JEFE DE OPERACIONES ---
-    # Esto solo se ejecuta cuando el rol es JEFE DE OPERACIONES
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=60000, key="refresh_jefe_operaciones")
-
-    # Cabecera métricas
-    col1, col2, col3, col4 = st.columns(4)
+    # 1. Métrica estática para evitar el error de recarga
+   # En la columna donde quieres el reloj:
+    col4.markdown(f'<div id="mi-reloj">{obtener_hora_argentina().split(" ")[1]}</div>', unsafe_allow_html=True)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    # Reloj
+    # 2. Reloj simple (sin bucles, sin sleep, sin reruns)
+    # Esto mostrará la hora exacta en la que se cargó la página.
     hora_actual = obtener_hora_argentina().split(" ")[1]
     col4.metric("🕒 HORA LOCAL", hora_actual)
     
+    # 3. Mensajería
 
     # 4. Cálculo de mensajes (el código que tenías)
     df_msg = leer_matriz_nube("MENSAJERIA")
