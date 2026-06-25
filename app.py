@@ -1007,20 +1007,25 @@ elif st.session_state.rol_sel == "VIGILADOR":
        
 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # 1. Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    # 2. Reloj + Botón de Sincronización Profesional
+    # 2. Reloj (Se mostrará la hora real al cargar la página)
     hora_actual = obtener_hora_argentina().split(" ")[1]
-    
-    # Ponemos el reloj y el botón juntos en la misma columna
     col4.metric("🕒 HORA LOCAL", hora_actual)
-    if col4.button("📡 SINCRONIZAR HORA"):
-        st.rerun()
     
+    # 3. EL TRUCO: Refresco automático cada 5 segundos
+    # Esto le dice al navegador: "recarga la página cada 5000 milisegundos"
+    st.markdown("""
+        <meta http-equiv="refresh" content="5">
+    """, unsafe_allow_html=True)
+    
+    st.write("---")
+    # ... (resto de tu código de mensajes)
     # 3. Mensajería (Tu lógica que SÍ funciona)
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
