@@ -1005,22 +1005,21 @@ elif st.session_state.rol_sel == "VIGILADOR":
             
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
+
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    # 1. Métrica estática para evitar el error de recarga
-   # En la columna donde quieres el reloj:
+    # 1. Cabecera fija (La versión que no daba error)
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    # 2. Reloj simple (sin bucles, sin sleep, sin reruns)
-    # Esto mostrará la hora exacta en la que se cargó la página.
-    hora_actual = obtener_hora_argentina().split(" ")[1]
-    col4.metric("🕒 HORA LOCAL", hora_actual)
+    # 2. Reloj fijo (ESTABLE - Sin errores)
+    # Esta línea muestra la hora correctamente al cargar
+    col4.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
     
-    # 3. Mensajería
-
-    # 4. Cálculo de mensajes (el código que tenías)
+    st.write("---")
+    
+    # 3. Mensajería (Tu lógica que SÍ funciona)
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
     total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | 
@@ -1029,6 +1028,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                              (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
     
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
+    # ... sigue el resto de tu lógica de renderizado
     
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: JEFE DE OPERACIONES</h2>', unsafe_allow_html=True)
     
