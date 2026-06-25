@@ -1131,21 +1131,25 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.info("La hoja está vacía o no se pudo leer.")
 elif st.session_state.rol_sel == "GERENCIA":
-    # ... (tu cálculo de mensajes) ...
+    # 1. Cálculo de mensajes
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
+    total_nuevos = 0
+    if not df_msg.empty:
+        mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "GERENCIA") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
+        total_nuevos = len(df_msg[mask])
+    label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
 
+    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
+    
+    # 2. Definición de pestañas
     t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs([label_msg, "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     
+    # 3. Pestaña Mensajería
     with t_mensajeria_ger:
         renderizar_mensajeria_global("GERENCIA")
         
-# 3. Definición de pestañas
-    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs([label_msg, "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    
-    # 4. Pestaña Mensajería
-    with t_mensajeria_ger:
-        renderizar_mensajeria_global("GERENCIA")
-        
-    # 5. Pestaña Ejecución
+    # 4. Pestaña Ejecución
     with t_ejecucion_ger:
         col_g1, col_g2 = st.columns(2)
         with col_g1:
@@ -1162,7 +1166,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
                 st.success("✅ Petición enviada")
 
-    # 6. Pestaña Auditoría
+    # 5. Pestaña Auditoría (La que me preguntaste)
     with t_tab_auditoria:
         st.subheader("💬 MENSAJERÍA EN TABLERO")
         renderizar_mensajeria_global("GERENCIA")
