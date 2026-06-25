@@ -152,9 +152,14 @@ def renderizar_mensajeria_global(rol_contexto):
     # 1. ESTADO DE RESPUESTA
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
-
 def renderizar_auditoria_completa():
-    # 1. AUDITORÍA DE JORNADA
+    # 1. MENSAJERÍA EN TABLERO
+    st.subheader("💬 MENSAJERÍA GLOBAL")
+    renderizar_mensajeria_global("GERENCIA") # Cambia "GERENCIA" por "JEFE DE OPERACIONES" si estás en ese rol
+    
+    st.markdown("---")
+    
+    # 2. AUDITORÍA DE SUPERVISIÓN
     st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
     df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
     if not df_jornadas.empty:
@@ -166,32 +171,16 @@ def renderizar_auditoria_completa():
         ).reset_index()
         df_reporte['DURACION_TOTAL'] = ((df_reporte['FIN_DT'] - df_reporte['INICIO_DT']).dt.total_seconds() / 60).round(2)
         st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], 
-                        use_container_width=True, hide_index=True, column_config={"DURACION_TOTAL": st.column_config.NumberColumn("DURACIÓN (MIN)", format="%d min")})
+                        use_container_width=True, hide_index=True)
 
-    # 2. HISTÓRICO DE ALERTAS
+    # 3. HISTÓRICO DE ALERTAS
     st.markdown("---")
     st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
     df_alertas = leer_matriz_nube("ALERTAS")
     if not df_alertas.empty:
-        df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
-        if {'FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO'}.issubset(df_alertas.columns):
-            st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
+        st.dataframe(df_alertas, use_container_width=True, hide_index=True)
 
-    # 3. AUDITORÍA DE RELEVOS
-    st.markdown("---")
-    st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
-    df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-    if not df_relevos.empty:
-        df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
-        if 'TIPO_EVENTO' in df_relevos.columns:
-            df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
-            if not df_filtro.empty:
-                df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
-                df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
-                df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})")
-                st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI', 'CUMPLIMIENTO']], use_container_width=True, hide_index=True)
-
-    # 4. AUDITORÍA DE FLOTA
+    # 4. AUDITORÍA DE FLOTA (Lo que faltaba)
     st.markdown("---")
     st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
     df_flota = leer_matriz_nube("CONTROL_FLOTA")
@@ -202,92 +191,6 @@ def renderizar_auditoria_completa():
         df_flota['KM_RECORRIDOS'] = df_flota['KM_FINAL'] - df_flota['KM_INICIAL']
         st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']],
                         use_container_width=True, hide_index=True)
-
-    # 2. LECTURA DE DATOS
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    
-    st.subheader("💬 COMUNICACIONES OPERATIVAS")
-
-    # 3. FORMULARIO DE ENVÍO
-    with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
-        if st.session_state.asunto_respuesta:
-            st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
-            asunto_input = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
-        else:
-            asunto_input = st.text_input("ASUNTO:")
-
-        col_a, col_b = st.columns([3, 1])
-        with col_a:
-            txt_msg = st.text_input("MENSAJE:")
-        with col_b:
-            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + LISTA_SUPS_TACTICOS
-            destinatario = st.selectbox("PARA:", destinatarios_posibles)
-            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
-
-        # DENTRO DEL BOTÓN DE TRANSMITIR
-        if st.form_submit_button("TRANSMITIR A LA RED"):
-            if txt_msg.strip():
-                escribir_registro_nube("MENSAJERIA", [
-                    obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
-                    (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
-                ])
-                
-                # GUARDAMOS EL ESTADO PARA MOSTRAR EL CARTEL
-                st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
-                st.session_state.asunto_respuesta = None
-                st.rerun()
-
-    # ESTO DEBE IR JUSTO DESPUÉS DEL FORMULARIO PARA QUE SE VEA BIEN
-    if 'mensaje_enviado' in st.session_state:
-        if st.session_state.mensaje_enviado == "RESPUESTA":
-            st.success("✅ RESPUESTA ENVIADA")
-        else:
-            st.success("✅ MENSAJE ENVIADO")
-        
-        # BORRAMOS LA VARIABLE PARA QUE EL CARTEL SE VAYA AL RECARGAR
-        del st.session_state.mensaje_enviado
-
-    # 4. VISUALIZACIÓN POR HILOS
-    if not df_msg.empty:
-        # Agrupamos por ASUNTO para ver las conversaciones
-        # Aseguramos que la columna ASUNTO exista
-        if 'ASUNTO' in df_msg.columns:
-            for asunto, grupo in df_msg.groupby('ASUNTO'):
-                with st.expander(f"💬 Hilo: {asunto}"):
-                    for _, msg in grupo.iterrows():
-                        st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
-                    
-                    if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
-                        st.session_state.asunto_respuesta = asunto
-                        st.rerun()
-        else:
-            st.warning("La base de datos no tiene una columna 'ASUNTO'. Verifica tu Google Sheet.")
-            
-def obtener_etiqueta_mensajeria(rol_contexto):
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    if df_msg.empty:
-        return "💬 MENSAJERÍA"
-    
-    nombre_user = st.session_state.user_sel.upper()
-    mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
-            (df_msg['DESTINATARIO'] == rol_contexto.upper()) | 
-            (df_msg['DESTINATARIO'] == nombre_user)) & \
-           (df_msg['ESTADO'] == "PENDIENTE")
-    
-    total_nuevos = len(df_msg[mask])
-    return f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
-
-def registrar_movimiento_supervisor(supervisor, objetivo, accion):
-    fecha_hora_arg = obtener_hora_argentina()
-    fecha = fecha_hora_arg.split(" ")[0]
-    hora = fecha_hora_arg.split(" ")[1]
-    
-    # Esta lista debe coincidir exactamente con el orden de las columnas de tu hoja
-    datos = [fecha, supervisor, objetivo, accion, hora]
-    
-    exito = escribir_registro_nube("JORNADA_SUPERVISORES", datos)
-    return exito
-
 def aplicar_identidad_alfa():
     st.markdown(
         """
@@ -1131,48 +1034,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.info("La hoja está vacía o no se pudo leer.")
 elif st.session_state.rol_sel == "GERENCIA":
-    # 1. Cálculo de mensajes
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = 0
-    if not df_msg.empty:
-        mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "GERENCIA") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
-        total_nuevos = len(df_msg[mask])
-    label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
-
-    st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     
-    # 2. Definición de pestañas
-    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs([label_msg, "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
-    
-    # 3. Pestaña Mensajería
-    with t_mensajeria_ger:
-        renderizar_mensajeria_global("GERENCIA")
-        
-    # 4. Pestaña Ejecución
-    with t_ejecucion_ger:
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.subheader("ALTA DE RECURSO")
-            g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
-            if st.button("Solicitar Alta"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
-                st.success("✅ Petición enviada")
-        with col_g2:
-            st.subheader("BAJA DE OBJETIVO")
-            g_baja_obj = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"], key="ger_baja_obj")
-            if st.button("Solicitar Baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
-                st.success("✅ Petición enviada")
-
-    # 5. Pestaña Auditoría (La que me preguntaste)
-    with t_tab_auditoria:
-        st.subheader("💬 MENSAJERÍA EN TABLERO")
-        renderizar_mensajeria_global("GERENCIA")
-        st.markdown("---")
+with t_tab_auditoria:
+        # Al llamar a la función, esta dibujará la Mensajería, la Auditoría y la Flota automáticamente
         renderizar_auditoria_completa()
-
+    
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
     p_ing = st.text_input("ADMIN_PASS", type="password")
