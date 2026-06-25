@@ -1131,43 +1131,26 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.info("No se registran eventos de pánico.")
 
-# --- AUDITORÍA DE RELEVOS: REGLA ESTRICTA (MENOS CUARTO) ---
-        st.markdown("---")
-        st.subheader("🔄 AUDITORÍA DE RELEVOS (REGLA: MENOS CUARTO)")
-        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        
-        if not df_relevos.empty:
-            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
             
-            # Filtramos los relevos
-            df_filtro = df_relevos[df_relevos['TIPO_NOVEDAD'] == "RELEVO DE TURNO"].copy()
-            
-            if not df_filtro.empty:
-                # 1. Convertimos la FECHA a formato datetime
-                df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
-                df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
+            if not df_relevos.empty:
+                df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
                 
-                # 2. Lógica de cumplimiento estricto
-                # El relevo debe ser a los 45 minutos. 
-                # Damos 1 minuto de margen (44 a 46). Si es menor a 44 o mayor a 46, está fuera de regla.
-                df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
-                    lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
-                )
-
-                # 3. Mostramos tabla
-                df_reporte = df_filtro[['FECHA', 'OBJETIVO', 'VIG_SALIENTE', 'VIG_ENTRANTE', 'LEGAJO', 'CUMPLIMIENTO']]
-                
-                st.dataframe(
-                    df_reporte,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "CUMPLIMIENTO": st.column_config.TextColumn("ESTADO REGLA"),
-                        "FECHA": "HORARIO REAL"
-                    }
-                )
-            else:
-                st.info("No hay registros de relevos actualmente.")
+                if 'TIPO_EVENTO' in df_relevos.columns:
+                    df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+                    
+                    if not df_filtro.empty:
+                        df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
+                        df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
+                        df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
+                            lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
+                        )
+                        st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI', 'CUMPLIMIENTO']], 
+                                     use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No hay registros de relevos encontrados.")
+                else:
+                    st.warning("No se encuentra la columna 'TIPO_EVENTO' en NOVEDADES_GUARDIA.")
 
 # --- AQUÍ EMPIEZA EL CONTROL DE FLOTA ---
         st.markdown("---")
@@ -1251,23 +1234,26 @@ elif st.session_state.rol_sel == "GERENCIA":
     with t_tab_auditoria:
         st.subheader("📊 AUDITORÍA ESTRATÉGICA DE SEGURIDAD")
         
-        # --- 1. AUDITORÍA DE RELEVOS ---
-        st.markdown("---")
-        st.subheader("🔄 AUDITORÍA DE RELEVOS (GERENCIA)")
         df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        
-        if not df_relevos.empty:
-            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
-            df_filtro = df_relevos[df_relevos['TIPO_NOVEDAD'] == "RELEVO DE TURNO"].copy()
             
-            if not df_filtro.empty:
-                df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
-                df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
-                df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
-                    lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
-                )
-                st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIG_SALIENTE', 'VIG_ENTRANTE', 'LEGAJO', 'CUMPLIMIENTO']], 
-                             use_container_width=True, hide_index=True)
+            if not df_relevos.empty:
+                df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+                
+                if 'TIPO_EVENTO' in df_relevos.columns:
+                    df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+                    
+                    if not df_filtro.empty:
+                        df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
+                        df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
+                        df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
+                            lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
+                        )
+                        st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI', 'CUMPLIMIENTO']], 
+                                     use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No hay registros de relevos encontrados.")
+                else:
+                    st.warning("No se encuentra la columna 'TIPO_EVENTO' en NOVEDADES_GUARDIA.")
         
         # --- 2. AUDITORÍA DE FLOTA ---
         st.markdown("---")
