@@ -1231,7 +1231,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.markdown('</div>', unsafe_allow_html=True)
 
     with t_tab_auditoria:
-        st.subheader("📊 TABLERO DE AUDITORÍA INTEGRAL")
+        
 
         # 1. AUDITORÍA DE JORNADA (SISTEMA DE TIEMPO)
         st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
