@@ -238,6 +238,18 @@ def registrar_movimiento_supervisor(supervisor, objetivo, accion):
     exito = escribir_registro_nube("JORNADA_SUPERVISORES", datos)
     return exito
 
+def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
+    fecha = obtener_hora_argentina()
+    mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
+    
+    # Destinatarios fijos
+    destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
+    
+    for dest in destinatarios:
+        if dest and dest != "MONITOREO" and dest != "N/A":
+            # [FECHA, EMISOR, DESTINATARIO, MENSAJE, ESTADO]
+            escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
+
 def aplicar_identidad_alfa():
     st.markdown(
         """
