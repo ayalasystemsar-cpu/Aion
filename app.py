@@ -990,25 +990,24 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    # 1. Cabecera métricas (La de tu imagen)
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🚨 S.O.S ACTIVOS", "0")
-    col2.metric("📡 RED", "OPERATIVA")
-    col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
-    
-    # 2. Reloj en tiempo real sin trabar la app
-    # Creamos un placeholder que se refrescará dinámicamente
-    hora_placeholder = col4.empty()
-    
-    # Esto actualiza la hora instantáneamente y se mantiene al día con la sesión
-    hora_actual = obtener_hora_argentina().split(" ")[1]
-    hora_placeholder.metric("🕒 HORA LOCAL", hora_actual)
-    
-    # 3. Forzar refresco ligero para que el segundero avance
-    # Esto hace que la columna 4 se actualice cada 1 segundo automáticamente
-    if st.button("🔄 ACTUALIZAR HORA", key="btn_refresh_reloj", help="Sincronizar hora local"):
-        st.rerun()
-
+   
+        # --- AQUÍ VA TU CABECERA TÁCTICA ---
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("🚨 S.O.S ACTIVOS", "0")
+        col2.metric("📡 RED", "OPERATIVA")
+        col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
+        
+        # Este es el nuevo bloque que sustituye al anterior metric estático
+        hora_placeholder = col4.empty()
+        hora_actual = obtener_hora_argentina().split(" ")[1]
+        hora_placeholder.metric("🕒 HORA LOCAL", hora_actual)
+        
+        # Botón para refrescar y ver avanzar el reloj
+        if st.button("🔄 ACTUALIZAR HORA", key="btn_refresh_reloj", help="Sincronizar hora local"):
+            st.rerun()
+            
+        st.write("---")
+        # Aquí continúa el resto de tu código de Jefe de Operaciones...
     # 1. Cálculo de mensajes pendientes
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
