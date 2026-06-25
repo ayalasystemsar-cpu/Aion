@@ -1072,10 +1072,28 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
         with t_auditoria:
             
-            # --- PEGA AQUÍ EL BLOQUE DE RELEVOS ---
-            df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-            if not df_relevos.empty:
-                df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]- PEGA AQUÍ EL BLOQUE DE RELEVOS ---
+            # --- AUDITORÍA DE RELEVOS ---
+        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
+        
+        if not df_relevos.empty:
+            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+            
+            if 'TIPO_EVENTO' in df_relevos.columns:
+                df_relevos['TIPO_EVENTO'] = df_relevos['TIPO_EVENTO'].astype(str).str.strip().str.upper()
+                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+                
+                if not df_filtro.empty:
+                    df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
+                    df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
+                    df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
+                        lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
+                    )
+                    st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI', 'CUMPLIMIENTO']], 
+                                 use_container_width=True, hide_index=True)
+                else:
+                    st.info("No se encontraron registros de 'RELEVO DE TURNO'.")
+            else:
+                st.warning("No se encuentra la columna 'TIPO_EVENTO'.")
             
         st.subheader("📋 AUDITORÍA DE SUPERVISIÓN")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
