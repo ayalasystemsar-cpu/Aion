@@ -23,8 +23,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
-
 # --- 2. CONEXIONES (GOOGLE MATRIZ) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
@@ -391,16 +389,6 @@ with st.sidebar:
 # --- 6. CABECERA CENTRAL ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# --- PEGA EL RELOJ AQUÍ ---
-contenedor_reloj = st.empty() # Usamos st.empty para poder actualizarlo
-# Creamos un pequeño contenedor visual
-hora_actual = datetime.now().strftime("%H:%M:%S")
-contenedor_reloj.markdown(f"""
-    <div style="text-align: center; background: #000000; padding: 5px; border-radius: 5px; border: 1px solid #00E5FF; margin-bottom: 20px; width: 200px; margin-left: auto; margin-right: auto;">
-        <p style="color: #00E5FF; margin: 0; font-size: 8px; font-family: 'Orbitron'; letter-spacing: 2px;">HORA LOCAL</p>
-        <h2 style="color: white; margin: 0; font-family: 'Orbitron'; font-size: 18px;">{hora_actual}</h2>
-    </div>
-""", unsafe_allow_html=True)
 titulos = {
     "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
     "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
