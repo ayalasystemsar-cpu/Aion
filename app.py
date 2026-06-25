@@ -1005,8 +1005,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     hora_actual = obtener_hora_argentina().split(" ")[1]
     col4.metric("🕒 HORA LOCAL", hora_actual)
     
-    # ... (resto de tu código de Jefe de Operaciones) 
-    
 
     # 4. Cálculo de mensajes (el código que tenías)
     df_msg = leer_matriz_nube("MENSAJERIA")
