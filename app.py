@@ -1080,7 +1080,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.error(f"Error: La hoja no tiene las columnas esperadas. Columnas detectadas: {df_jornadas.columns.tolist()}")
         else:
             st.info("La hoja está vacía o no se pudo leer.")
-elif st.session_state.rol_sel == "GERENCIA":
+
+   elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
@@ -1126,14 +1127,63 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición enviada")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # 4. Pestaña de Tablero
     with t_tab_auditoria:
-        df_ger_maps = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD'])
-        centro = [df_ger_maps['LATITUD'].mean(), df_ger_maps['LONGITUD'].mean()] if not df_ger_maps.empty else [-34.6, -58.4]
-        m_visor = folium.Map(location=centro, zoom_start=12, tiles="CartoDB dark_matter")
-        for _, r in df_ger_maps.iterrows():
-            folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=r['OBJETIVO'], icon=folium.Icon(color="blue", icon="shield", prefix="fa")).add_to(m_visor)
-        st_folium(m_visor, width="100%", height=450, key="map_gerencia")
+        
+
+        # 1. AUDITORÍA DE JORNADA (SISTEMA DE TIEMPO)
+        st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
+        df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
+        if not df_jornadas.empty:
+            df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
+            df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'] + ' ' + df_jornadas['HORA'], errors='coerce')
+            df_reporte = df_jornadas.groupby(['FECHA', 'SUPERVISOR', 'OBJETIVO']).agg(
+                INGRESO=('HORA', 'first'), EGRESO=('HORA', 'last'),
+                INICIO_DT=('DATETIME', 'first'), FIN_DT=('DATETIME', 'last')
+            ).reset_index()
+            df_reporte['DURACION_TOTAL'] = ((df_reporte['FIN_DT'] - df_reporte['INICIO_DT']).dt.total_seconds() / 60).round(2)
+            st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], 
+                         use_container_width=True, hide_index=True, column_config={"DURACION_TOTAL": st.column_config.NumberColumn("DURACIÓN (MIN)", format="%d min")})
+
+        # 2. HISTÓRICO DE ALERTAS TÁCTICAS
+        st.markdown("---")
+        st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
+        df_alertas = leer_matriz_nube("ALERTAS")
+        if not df_alertas.empty:
+            df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
+            if {'FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO'}.issubset(df_alertas.columns):
+                st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], 
+                             use_container_width=True, hide_index=True, 
+                             column_config={"USUARIO": "EMISOR ALERTA", "CARGA_UTIL": "DETALLE (VIG | OBJ | SUP)", "ESTADO": "RESOLUCIÓN"})
+
+        # 3. AUDITORÍA DE RELEVOS (Novedades)
+        st.markdown("---")
+        st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
+        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
+        if not df_relevos.empty:
+            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+            if 'TIPO_EVENTO' in df_relevos.columns:
+                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+                if not df_filtro.empty:
+                    df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
+                    df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
+                    df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})")
+                    st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI', 'CUMPLIMIENTO']], 
+                                 use_container_width=True, hide_index=True)
+
+        # 4. AUDITORÍA DE FLOTA
+        st.markdown("---")
+        st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
+        df_flota = leer_matriz_nube("CONTROL_FLOTA")
+        if not df_flota.empty:
+            df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
+            df_flota['KM_INICIAL'] = pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
+            df_flota['KM_FINAL'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce')
+            df_flota['KM_RECORRIDOS'] = df_flota['KM_FINAL'] - df_flota['KM_INICIAL']
+            st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']],
+                         use_container_width=True, hide_index=True, 
+                         column_config={"KM_RECORRIDOS": st.column_config.NumberColumn("KM RECORRIDOS", format="%d km")})
+            if (df_flota['KM_RECORRIDOS'] < 0).any():
+                st.error("⚠️ ¡ALERTA! Detectado registro con KM FINAL menor al INICIAL.")
    
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
