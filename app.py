@@ -898,23 +898,28 @@ elif st.session_state.rol_sel == "VIGILADOR":
         
         obj_vigilador = st.selectbox("CONFIRME SU OBJETIVO ACTUAL:", opciones_globales_obj, key="panico_obj")
         
-        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="btn_panico_final", type="primary", use_container_width=True):
-            # Obtiene datos automáticamente del usuario logueado
-            nombre_v = st.session_state.get("user_sel", "VIGILADOR")
-            
-            sup_asignado = "MONITOREO"
-            if not df_objetivos.empty:
-                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_vigilador]
-                if not filtro.empty:
-                    sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-            
-            fecha = obtener_hora_argentina()
-            carga_sos = f"VIG:{nombre_v}|OBJ:{obj_vigilador}|SUP:{sup_asignado}"
-            
-            escribir_registro_nube("ALERTAS", [fecha, nombre_v, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
-            escribir_registro_nube("MENSAJERIA", [fecha, nombre_v, sup_asignado, "ALERTA PÁNICO", f"OBJ:{obj_vigilador}", "PENDIENTE", "ROJA"])
-            
-            st.error(f"🚨 ALERTA ENVIADA: {nombre_v}")
+        if st.checkbox("HABILITAR BOTÓN DE ALERTA"):
+            if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="btn_panico_final", type="primary", use_container_width=True):
+                
+                # --- AQUÍ ESTÁ EL CAMBIO ---
+                # Buscamos el nombre que el vigilador puso en el formulario de fichaje
+                # Si no existe, al menos intentamos leerlo de la sesión
+                nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR"))
+                
+                sup_asignado = "MONITOREO"
+                if not df_objetivos.empty:
+                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_vigilador]
+                    if not filtro.empty:
+                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                
+                fecha = obtener_hora_argentina()
+                # Registramos el nombre real (nombre_real) en lugar de user_sel
+                carga_sos = f"VIG:{nombre_real}|OBJ:{obj_vigilador}|SUP:{sup_asignado}"
+                
+                # EN LA HOJA ALERTAS, GUARDAMOS EL NOMBRE REAL EN LA COLUMNA USUARIO
+                escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
+                
+                st.error(f"🚨 ALERTA ENVIADA: {nombre_real}")
                 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
