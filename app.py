@@ -1125,6 +1125,27 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
             
 elif st.session_state.rol_sel == "GERENCIA":
+
+    # 1. Cabecera ejecutiva
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("📊 KPI OPERATIVO", "98%")
+    col2.metric("👥 PERSONAL ACTIVO", "12")
+    col3.metric("👤 GERENTE", f"{st.session_state.user_sel}")
+    
+    # 2. Contenedor para el reloj ejecutivo
+    hora_container = col4.container()
+    
+    # 3. Función de refresco adaptada para Gerencia (cada 5 segundos)
+    @st.fragment(run_every=1)
+    def mostrar_reloj_gerencia():
+        hora_actual = obtener_hora_argentina().split(" ")[1]
+        st.metric("🕒 HORA LOCAL", hora_actual)
+    
+    with hora_container:
+        mostrar_reloj_gerencia()
+        
+    st.write("---")
+    # ... (Aquí irían tus gráficos de rendimiento, reportes de costos o KPIs)
     # 1. Cálculo de mensajes pendientes
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
