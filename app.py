@@ -1057,15 +1057,22 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_jornadas.empty:
             df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
             
-            # Convertimos a datetime para ordenar cronológicamente
+            # Convertimos a datetime para ordenar
             df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'] + ' ' + df_jornadas['HORA'], errors='coerce')
             df_jornadas = df_jornadas.sort_values(by=['DATETIME'])
             
-            # AGRUPAMOS PARA VER INICIO Y FIN POR DÍA Y OBJETIVO
+            # Agrupamos
             df_reporte = df_jornadas.groupby(['FECHA', 'SUPERVISOR', 'OBJETIVO']).agg(
                 INICIO=('HORA', 'first'),
                 FIN=('HORA', 'last')
             ).reset_index()
+
+            st.markdown("#### 🕒 RESUMEN DE JORNADAS")
+            # Mostramos solo el resumen
+            st.dataframe(df_reporte, use_container_width=True, hide_index=True)
+            
+        else:
+            st.info("No hay datos de jornada para auditar.")
 
             st.markdown("#### 🕒 RESUMEN DE JORNADAS")
             st.dataframe(df_reporte, use_container_width=True, hide_index=True)
