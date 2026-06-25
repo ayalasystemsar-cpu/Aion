@@ -1057,25 +1057,31 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         
         if not df_jornadas.empty:
-            # 1. Normalizamos columnas
-            df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
+            # Limpiamos nombres de columnas: quitamos espacios y pasamos a mayúsculas
+            df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
             
-            # 2. DEBUG: Mostramos las columnas detectadas si no encuentra la que buscamos
-            if 'OBJETIVO' not in df_jornadas.columns:
-                st.error(f"❌ La columna 'OBJETIVO' no existe. Las columnas en la hoja son: {list(df_jornadas.columns)}")
-            else:
-                # 3. Si existe, procedemos al resumen
-                df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'].astype(str) + ' ' + df_jornadas['HORA'].astype(str), errors='coerce')
+            # Verificamos si las columnas que necesita el código existen
+            if {'FECHA', 'HORA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN'}.issubset(df_jornadas.columns):
                 
-                df_reporte = df_jornadas.groupby(['FECHA', 'SUPERVISOR', 'OBJETIVO'], as_index=False).agg(
-                    INICIO=('HORA', 'first'),
-                    FIN=('HORA', 'last')
-                )
+                # Función de cálculo segura
+                def calcular_duracion(df):
+                    df['DATETIME'] = pd.to_datetime(df['FECHA'].astype(str) + ' ' + df['HORA'].astype(str), errors='coerce')
+                    df = df.sort_values(by=['SUPERVISOR', 'OBJETIVO', 'DATETIME'])
+                    df['DURACION'] = df.groupby(['SUPERVISOR', 'OBJETIVO'])['DATETIME'].diff()
+                    # Solo marcamos duración en RETIROS
+                    df.loc[df['ACCIÓN'] != 'RETIRO', 'DURACION'] = pd.NaT
+                    return df
 
-                st.markdown("#### 🕒 RESUMEN DE JORNADAS")
-                st.dataframe(df_reporte, use_container_width=True, hide_index=True)
+                df_procesado = calcular_duracion(df_jornadas)
+                df_procesado['DURACION_MINUTOS'] = df_procesado['DURACION'].dt.total_seconds() / 60
+                
+                st.dataframe(df_procesado[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN', 'HORA', 'DURACION_MINUTOS']], use_container_width=True)
+            else:
+                st.error(f"Error: La hoja no tiene las columnas esperadas. Columnas detectadas: {df_jornadas.columns.tolist()}")
         else:
-            st.info("No hay datos de jornada para auditar.")
+            st.info("La hoja está vacía o no se pudo leer.")
+elif st.session_state.rol_sel == "GERENCIA":
+    # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
     
