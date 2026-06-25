@@ -1019,29 +1019,28 @@ elif st.session_state.rol_sel == "VIGILADOR":
             
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
-
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    
-    # 1. Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🚨 S.O.S ACTIVOS", "0")
+    
+    # 1. CONTADOR DE PANICOS (Fragmento)
+    with col1.container():
+        @st.fragment(run_every=5)
+        def mostrar_sos():
+            df_alertas = leer_matriz_nube("ALERTAS")
+            total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if not df_alertas.empty else 0
+            st.metric("🚨 S.O.S ACTIVOS", total_sos)
+        mostrar_sos()
+
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    # 2. Creamos un contenedor específico para la hora
-    hora_container = col4.container()
-    
-    # 3. Definimos una función que solo refresca este pequeño pedazo
-    @st.fragment(run_every=1) # <--- ESTO ES LA MAGIA: Refresca solo esto cada 5 segundos
-    def mostrar_reloj_fragmento():
-        hora_actual = obtener_hora_argentina().split(" ")[1]
-        st.metric("🕒 HORA LOCAL", hora_actual)
-    
-    # Llamamos a la función dentro del contenedor
-    with hora_container:
-        mostrar_reloj_fragmento()
-        
-    st.write("---")  
+    # 2. RELOJ DINAMICO (Fragmento)
+    with col4.container():
+        @st.fragment(run_every=1)
+        def mostrar_reloj():
+            hora_actual = obtener_hora_argentina().split(" ")[1]
+            st.metric("🕒 HORA LOCAL", hora_actual)
+        mostrar_reloj()
     # ... (resto de tu código de mensajes)
     # 3. Mensajería (Tu lógica que SÍ funciona)
     df_msg = leer_matriz_nube("MENSAJERIA")
