@@ -951,31 +951,22 @@ elif st.session_state.rol_sel == "VIGILADOR":
         
         # Checkbox de seguridad para evitar disparos accidentales
         if st.checkbox("HABILITAR BOTÓN DE ALERTA"):
-            # Este es el botón que usa la clase CSS 'panico-fino' que definimos
             if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="panico-fino"):
+                # 1. Obtenemos datos del usuario (Asegúrate de que el Vigilador los haya ingresado)
+                # Si no los ingresó, usamos un valor por defecto
+                nombre_vigilador = st.session_state.get("nombre_vigilador", "DESCONOCIDO")
+                legajo_vigilador = st.session_state.get("legajo_vigilador", "S/L")
                 
-                # 1. BUSCAR SUPERVISOR ASIGNADO AL OBJETIVO
-                sup_asignado = "MONITOREO" # Valor por defecto si no encuentra supervisor
-                if not df_objetivos.empty:
-                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_vigilador]
-                    if not filtro.empty:
-                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                # 2. Construimos la carga con los nuevos datos
+                # Cambiamos el formato para que sea fácil de leer en el mapa
+                carga_sos = f"VIG:{nombre_vigilador}|LEG:{legajo_vigilador}|OBJ:{obj_vigilador}|SUP:{sup_asignado}"
                 
-                # 2. PROCESAR EL ENVÍO
+                # 3. Enviamos a la base de alertas
                 fecha = obtener_hora_argentina()
-                
-                # A) Registro en la base de ALERTAS (Para que Monitoreo lo vea en su Radar)
-                escribir_registro_nube("ALERTAS", [fecha, st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"OBJ:{obj_vigilador}", "SIN INFORME"])
-                
-                # B) Mensaje directo al Supervisor y Monitoreo (Para que les aparezca en su bandeja)
-                datos_aviso = [fecha, st.session_state.user_sel, sup_asignado, "ALERTA PÁNICO", f"OBJ:{obj_vigilador} - REQUIERE APOYO", "PENDIENTE", "ROJA"]
-                escribir_registro_nube("MENSAJERIA", datos_aviso)
-                
-                datos_monitoreo = [fecha, st.session_state.user_sel, "MONITOREO", "ALERTA PÁNICO", f"OBJ:{obj_vigilador} - ALERTA VIGILADOR", "PENDIENTE", "ROJA"]
-                escribir_registro_nube("MENSAJERIA", datos_monitoreo)
-                
-                st.error(f"⚠️ ALERTA ENVIADA A MONITOREO Y A {sup_asignado}")
-
+                escribir_registro_nube("ALERTAS", [
+                    fecha, st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"
+                ])
+                st.error(f"⚠️ ALERTA ENVIADA: {nombre_vigilador}")
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
