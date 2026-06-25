@@ -698,19 +698,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 registrar_movimiento_supervisor(st.session_state.user_sel, "N/A", "FIN")
                 st.success("Jornada cerrada.")
 
-        # --- 1. BOTÓN DE PÁNICO (CENTRALIZADO) ---
+     # 2. BOTÓN DE PÁNICO (Centrado)
         st.markdown("<br>", unsafe_allow_html=True)
-        # Usamos columnas para darle un ancho fijo y centrarlo visualmente
-        _, col_panico, _ = st.columns([1, 2, 1]) 
+        _, col_panico, _ = st.columns([1, 2, 1])
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                # (Aquí va tu lógica de pánico intacta)
-                lat_envio, lon_envio = 0.0, 0.0
-                try:
-                    loc = get_geolocation()
-                    if loc and isinstance(loc, dict) and 'coords' in loc:
-                        lat_envio = loc['coords'].get('latitude', 0.0)
-                        lon_envio = loc['coords'].get('longitude', 0.0)
+                # ... (Lógica de pánico que ya tienes) ...
+                st.error("🚨 S.O.S ENVIADO")
                 except: pass
                 
                 df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
