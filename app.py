@@ -784,6 +784,27 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("No hay objetivos asignados.")
 
+        # --- AQUÍ EMPIEZA EL FORMULARIO DE FLOTA ---
+            st.markdown("---") # Línea divisoria para que quede prolijo
+            st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
+            with st.form(key="form_acta_flota", clear_on_submit=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    v_patente = st.text_input("PATENTE/MÓVIL:").upper()
+                    v_km_inicial = st.number_input("KM INICIAL:", min_value=0)
+                with col2:
+                    v_vigilador = st.text_input("VIGILADOR RESPONSABLE:").upper()
+                    v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
+                
+                v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
+                
+                if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
+                    fecha = obtener_hora_argentina()
+                    escribir_registro_nube("ACTAS_FLOTA", [
+                        fecha, v_patente, v_vigilador, v_km_inicial, v_combustible, v_novedad, "PENDIENTE"
+                    ])
+                    st.success(f"✅ Acta registrada para el móvil {v_patente}")
+
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
