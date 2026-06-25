@@ -990,20 +990,22 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    
-    
-    # 2. Cabecera métricas
+   elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    # Cabecera limpia
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    # 3. El reloj se actualizará solo cada segundo gracias al st_autorefresh
+    # Reloj dinámico seguro
+    hora_placeholder = col4.empty()
     hora_actual = obtener_hora_argentina().split(" ")[1]
-    col4.metric("🕒 HORA LOCAL", hora_actual)
+    hora_placeholder.metric("🕒 HORA LOCAL", hora_actual)
     
-    # Nota: Ya no hace falta el botón de "ACTUALIZAR HORA", 
-    # la página se refresca sola cada 1 segundo.
+    # --- Actualización automática sin fallos ---
+    time.sleep(1) # Espera 1 segundo
+    st.rerun()    # Recarga la página suavemente 
+    
 
     # 4. Cálculo de mensajes (el código que tenías)
     df_msg = leer_matriz_nube("MENSAJERIA")
