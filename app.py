@@ -1229,7 +1229,8 @@ with t_tab_auditoria:
                          column_config={"KM_RECORRIDOS": st.column_config.NumberColumn("KM RECORRIDOS", format="%d km")})
             if (df_flota['KM_RECORRIDOS'] < 0).any():
                 st.error("⚠️ ¡ALERTA! Detectado registro con KM FINAL menor al INICIAL.")
-        
+
+      
  elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
@@ -1242,6 +1243,7 @@ with t_tab_auditoria:
                 (df_msg['DESTINATARIO'] == nombre_user)) & \
                (df_msg['ESTADO'] == "PENDIENTE")
         total_nuevos = len(df_msg[mask])
+
 
     # 2. Creamos la etiqueta dinámica
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
