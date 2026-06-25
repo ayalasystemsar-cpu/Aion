@@ -754,6 +754,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
+
+        # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
       
 
         with t_vis_qr:
@@ -1055,33 +1057,29 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         
         if not df_jornadas.empty:
+            # Limpiamos nombres de columnas: quitamos espacios y pasamos a mayúsculas
             df_jornadas.columns = df_jornadas.columns.str.strip().str.upper()
             
-            # Convertimos a datetime para ordenar
-            df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'] + ' ' + df_jornadas['HORA'], errors='coerce')
-            df_jornadas = df_jornadas.sort_values(by=['DATETIME'])
-            
-            # Agrupamos
-            df_reporte = df_jornadas.groupby(['FECHA', 'SUPERVISOR', 'OBJETIVO']).agg(
-                INICIO=('HORA', 'first'),
-                FIN=('HORA', 'last')
-            ).reset_index()
+            # Verificamos si las columnas que necesita el código existen
+            if {'FECHA', 'HORA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN'}.issubset(df_jornadas.columns):
+                
+                # Función de cálculo segura
+                def calcular_duracion(df):
+                    df['DATETIME'] = pd.to_datetime(df['FECHA'].astype(str) + ' ' + df['HORA'].astype(str), errors='coerce')
+                    df = df.sort_values(by=['SUPERVISOR', 'OBJETIVO', 'DATETIME'])
+                    df['DURACION'] = df.groupby(['SUPERVISOR', 'OBJETIVO'])['DATETIME'].diff()
+                    # Solo marcamos duración en RETIROS
+                    df.loc[df['ACCIÓN'] != 'RETIRO', 'DURACION'] = pd.NaT
+                    return df
 
-            st.markdown("#### 🕒 RESUMEN DE JORNADAS")
-            # Mostramos solo el resumen
-            st.dataframe(df_reporte, use_container_width=True, hide_index=True)
-            
+                df_procesado = calcular_duracion(df_jornadas)
+                df_procesado['DURACION_MINUTOS'] = df_procesado['DURACION'].dt.total_seconds() / 60
+                
+                st.dataframe(df_procesado[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN', 'HORA', 'DURACION_MINUTOS']], use_container_width=True)
+            else:
+                st.error(f"Error: La hoja no tiene las columnas esperadas. Columnas detectadas: {df_jornadas.columns.tolist()}")
         else:
-            st.info("No hay datos de jornada para auditar.")
-
-            st.markdown("#### 🕒 RESUMEN DE JORNADAS")
-            st.dataframe(df_reporte, use_container_width=True, hide_index=True)
-            
-            # Detalle por si necesita auditar el minuto a minuto
-            with st.expander("🔍 VER DETALLE DE MOVIMIENTOS"):
-                st.dataframe(df_jornadas[['FECHA', 'HORA', 'SUPERVISOR', 'OBJETIVO', 'ACCIÓN']], use_container_width=True, hide_index=True)
-        else:
-            st.info("No hay datos de jornada para auditar.")
+            st.info("La hoja está vacía o no se pudo leer.")
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
