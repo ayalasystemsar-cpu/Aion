@@ -1018,7 +1018,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     hora_container = col4.container()
     
     # 3. Definimos una función que solo refresca este pequeño pedazo
-    @st.fragment(run_every=5) # <--- ESTO ES LA MAGIA: Refresca solo esto cada 5 segundos
+    @st.fragment(run_every=1) # <--- ESTO ES LA MAGIA: Refresca solo esto cada 5 segundos
     def mostrar_reloj_fragmento():
         hora_actual = obtener_hora_argentina().split(" ")[1]
         st.metric("🕒 HORA LOCAL", hora_actual)
