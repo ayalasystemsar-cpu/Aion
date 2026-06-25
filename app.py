@@ -990,21 +990,31 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    # 1. Activamos el refresco automático para este rol
+    from streamlit_autorefresh import st_autorefresh
+    st_autorefresh(interval=1000, key="jefe_autorefresh")
+    
+    # 2. Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    hora_placeholder = col4.empty()
+    # 3. El reloj se actualizará solo cada segundo gracias al st_autorefresh
     hora_actual = obtener_hora_argentina().split(" ")[1]
-    hora_placeholder.metric("🕒 HORA LOCAL", hora_actual)
+    col4.metric("🕒 HORA LOCAL", hora_actual)
     
-    if st.button("🔄 ACTUALIZAR HORA", key="btn_refresh_reloj"):
-        st.rerun()
+    # Nota: Ya no hace falta el botón de "ACTUALIZAR HORA", 
+    # la página se refresca sola cada 1 segundo.
 
+    # 4. Cálculo de mensajes (el código que tenías)
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "JEFE DE OPERACIONES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
+    total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | 
+                              (df_msg['DESTINATARIO'] == "JEFE DE OPERACIONES") | 
+                              (df_msg['DESTINATARIO'] == nombre_user)) & 
+                             (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
+    
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
     
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: JEFE DE OPERACIONES</h2>', unsafe_allow_html=True)
