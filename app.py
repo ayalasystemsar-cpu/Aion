@@ -1098,6 +1098,44 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.warning("La hoja 'ALERTAS' no contiene las columnas necesarias.")
         else:
             st.info("No se registran eventos de pánico.")
+
+# --- AUDITORÍA DE RELEVOS: REGLA ESTRICTA (MENOS CUARTO) ---
+        st.markdown("---")
+        st.subheader("🔄 AUDITORÍA DE RELEVOS (REGLA: MENOS CUARTO)")
+        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
+        
+        if not df_relevos.empty:
+            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+            
+            # Filtramos los relevos
+            df_filtro = df_relevos[df_relevos['TIPO_NOVEDAD'] == "RELEVO DE TURNO"].copy()
+            
+            if not df_filtro.empty:
+                # 1. Convertimos la FECHA a formato datetime
+                df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
+                df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
+                
+                # 2. Lógica de cumplimiento estricto
+                # El relevo debe ser a los 45 minutos. 
+                # Damos 1 minuto de margen (44 a 46). Si es menor a 44 o mayor a 46, está fuera de regla.
+                df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
+                    lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
+                )
+
+                # 3. Mostramos tabla
+                df_reporte = df_filtro[['FECHA', 'OBJETIVO', 'VIG_SALIENTE', 'VIG_ENTRANTE', 'LEGAJO', 'CUMPLIMIENTO']]
+                
+                st.dataframe(
+                    df_reporte,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "CUMPLIMIENTO": st.column_config.TextColumn("ESTADO REGLA"),
+                        "FECHA": "HORARIO REAL"
+                    }
+                )
+            else:
+                st.info("No hay registros de relevos actualmente.")
             
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
