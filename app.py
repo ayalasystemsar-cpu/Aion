@@ -957,7 +957,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
         df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
         nombre_user_clean = st.session_state.user_sel.strip().upper()
         jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
-        
+       # Lógica de detección (Ya la tienes)
         if not jornada_actual.empty:
             obj_detectado = jornada_actual['OBJETIVO'].values[0]
             st.success(f"📍 OBJETIVO DETECTADO: **{obj_detectado}**")
@@ -966,32 +966,29 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error("⚠️ OBJETIVO NO DETECTADO. SELECCIONE MANUALMENTE:")
             obj_detectado = st.selectbox("OBJETIVO:", opciones_globales_obj)
 
+        # Botón de Pánico Unificado
         if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
             nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR")).upper()
             sup_asignado = "MONITOREO"
+            
             if not df_objetivos.empty:
                 filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                 if not filtro.empty:
                     sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
             
             fecha = obtener_hora_argentina()
-            # Esta es la estructura que tu mapa necesita ver:
-            # TIPO debe ser "PÁNICO" y CARGA_UTIL debe tener el formato VIG|OBJ|SUP
             carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
             
-            # ESCRIBIMOS LA FILA EXACTA QUE EL MAPA ESPERA
-            # [FECHA, USUARIO, TIPO, ESTADO, CARGA_UTIL, RESOLUCION]
+            # 1. Escritura para el MAPA (No se toca)
             escribir_registro_nube("ALERTAS", [
-                fecha, 
-                nombre_real, 
-                "PÁNICO",        # <-- IMPORTANTE: Esto es lo que el mapa busca en la col TIPO
-                "PENDIENTE", 
-                carga_sos, 
-                "PRUEBA"
+                fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"
             ])
             
-            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
-   
+            # 2. DISPARO DE MENSAJES (Integración del nuevo sistema)
+            enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
+            
+            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
+       
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
