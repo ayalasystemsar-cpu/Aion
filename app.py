@@ -1160,9 +1160,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
                 st.success("✅ Petición enviada")
 
-    # 5. Pestaña Auditoría
-    with t_tab_auditoria:
-        renderizar_auditoria_completa()
+    
    
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     u_ing = st.text_input("ADMIN_USER")
