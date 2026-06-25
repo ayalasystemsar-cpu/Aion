@@ -24,25 +24,7 @@ st.set_page_config(
 )
 
 
-# --- 1.5. RELOJ TIEMPO REAL ---
-if 'reloj_placeholder' not in st.session_state:
-    st.session_state.reloj_placeholder = st.sidebar.empty()
 
-def actualizar_reloj():
-    # Usamos hora real
-    hora = datetime.now().strftime("%H:%M:%S")
-    st.session_state.reloj_placeholder.markdown(f"""
-        <div style="text-align: center; background: #000000; padding: 10px; border-radius: 10px; border: 1px solid #00E5FF;">
-            <p style="color: #00E5FF; margin: 0; font-size: 10px; font-family: 'Orbitron'; letter-spacing: 2px;">HORA LOCAL</p>
-            <h2 style="color: white; margin: 0; font-family: 'Orbitron'; font-size: 24px;">{hora}</h2>
-        </div>
-    """, unsafe_allow_html=True)
-
-# Lógica para que se actualice solo
-actualizar_reloj()
-time.sleep(1)
-# Esto le dice a Streamlit que vuelva a ejecutar el script después de 1 segundo
-st.rerun()
 # --- 2. CONEXIONES (GOOGLE MATRIZ) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
