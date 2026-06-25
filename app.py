@@ -153,7 +153,7 @@ def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
 
-    def renderizar_auditoria_completa():
+def renderizar_auditoria_completa():
     # 1. AUDITORÍA DE JORNADA
     st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
     df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
