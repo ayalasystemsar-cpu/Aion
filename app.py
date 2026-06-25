@@ -1230,7 +1230,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición enviada")
             st.markdown('</div>', unsafe_allow_html=True)
 
-   with t_tab_auditoria:
+    with t_tab_auditoria:
         st.subheader("📊 TABLERO DE AUDITORÍA INTEGRAL")
 
         # 1. AUDITORÍA DE JORNADA (SISTEMA DE TIEMPO)
