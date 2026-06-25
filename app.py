@@ -1070,9 +1070,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
     # Pestaña 4: Auditoría de Supervisión (NUEVA)
 
-        with t_auditoria:
+    with t_auditoria:
             
-            # --- AUDITORÍA DE RELEVOS ---
         df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
         
         if not df_relevos.empty:
