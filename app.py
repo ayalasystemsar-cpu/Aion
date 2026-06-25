@@ -1069,6 +1069,36 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             )
         else:
             st.info("No hay registros de jornada disponibles.")
+
+# --- NUEVA SECCIÓN DE AUDITORÍA DE PÁNICOS ---
+        st.markdown("---")
+        st.subheader("🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
+        df_alertas = leer_matriz_nube("ALERTAS")
+        
+        if not df_alertas.empty:
+            df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
+            
+            # Filtramos para mostrar lo que pediste:
+            # Seleccionamos solo las columnas relevantes para la Auditoría
+            if {'FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO'}.issubset(df_alertas.columns):
+                df_historial = df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']]
+                
+                # Mostramos la tabla
+                st.dataframe(
+                    df_historial, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    column_config={
+                        "USUARIO": "EMISOR ALERTA",
+                        "CARGA_UTIL": "DETALLE (VIG | OBJ | SUP)",
+                        "ESTADO": st.column_config.TextColumn("RESOLUCIÓN")
+                    }
+                )
+            else:
+                st.warning("La hoja 'ALERTAS' no contiene las columnas necesarias.")
+        else:
+            st.info("No se registran eventos de pánico.")
+            
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Calculamos el total de mensajes pendientes para GERENCIA
     df_msg = leer_matriz_nube("MENSAJERIA")
