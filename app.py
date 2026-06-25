@@ -1014,17 +1014,20 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    # 2. Reloj (Se mostrará la hora real al cargar la página)
-    hora_actual = obtener_hora_argentina().split(" ")[1]
-    col4.metric("🕒 HORA LOCAL", hora_actual)
+    # 2. Creamos un contenedor específico para la hora
+    hora_container = col4.container()
     
-    # 3. EL TRUCO: Refresco automático cada 5 segundos
-    # Esto le dice al navegador: "recarga la página cada 5000 milisegundos"
-    st.markdown("""
-        <meta http-equiv="refresh" content="5">
-    """, unsafe_allow_html=True)
+    # 3. Definimos una función que solo refresca este pequeño pedazo
+    @st.fragment(run_every=5) # <--- ESTO ES LA MAGIA: Refresca solo esto cada 5 segundos
+    def mostrar_reloj_fragmento():
+        hora_actual = obtener_hora_argentina().split(" ")[1]
+        st.metric("🕒 HORA LOCAL", hora_actual)
     
-    st.write("---")
+    # Llamamos a la función dentro del contenedor
+    with hora_container:
+        mostrar_reloj_fragmento()
+        
+    st.write("---")  
     # ... (resto de tu código de mensajes)
     # 3. Mensajería (Tu lógica que SÍ funciona)
     df_msg = leer_matriz_nube("MENSAJERIA")
