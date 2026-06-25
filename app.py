@@ -1099,44 +1099,20 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                              column_config={"USUARIO": "EMISOR ALERTA", "CARGA_UTIL": "DETALLE (VIG | OBJ | SUP)", "ESTADO": "RESOLUCIÓN"})
 
         # 3. AUDITORÍA DE RELEVOS (Novedades)
-        # --- AUDITORÍA DE RELEVOS (CÓDIGO ROBUSTO) ---
+        st.markdown("---")
         st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
-        
-        # 1. Intentamos leer la hoja
-        try:
-            df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        except Exception as e:
-            st.error(f"Error al leer hoja: {e}")
-            df_relevos = pd.DataFrame()
-
+        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
         if not df_relevos.empty:
-            # 2. Limpieza básica de columnas
             df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
-            
-            # 3. Verificación de columna necesaria
             if 'TIPO_EVENTO' in df_relevos.columns:
-                # Filtrado seguro
-                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'].astype(str).str.strip().str.upper() == "RELEVO DE TURNO"].copy()
-                
+                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
                 if not df_filtro.empty:
-                    # Procesamiento de tiempo con manejo de errores
                     df_filtro['DT'] = pd.to_datetime(df_filtro['FECHA'], errors='coerce')
                     df_filtro['MINUTO'] = df_filtro['DT'].dt.minute
-                    
-                    # Cálculo de cumplimiento
-                    df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(
-                        lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})"
-                    )
-                    
-                    # Mostrar tabla
+                    df_filtro['CUMPLIMIENTO'] = df_filtro['MINUTO'].apply(lambda x: "✅ EN HORARIO" if 44 <= x <= 46 else f"⚠️ FUERA DE REGLA (Min:{x})")
                     st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI', 'CUMPLIMIENTO']], 
                                  use_container_width=True, hide_index=True)
-                else:
-                    st.info("No hay registros de relevos activos para auditar.")
-            else:
-                st.warning("No se encontró la columna 'TIPO_EVENTO' en la hoja.")
-        else:
-            st.info("La hoja de Novedades está vacía o no responde.")
+
         # 4. AUDITORÍA DE FLOTA
         st.markdown("---")
         st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
