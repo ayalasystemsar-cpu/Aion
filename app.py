@@ -989,8 +989,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
             
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
-elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-   
+    elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    
         # --- AQUÍ VA TU CABECERA TÁCTICA ---
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("🚨 S.O.S ACTIVOS", "0")
@@ -1009,11 +1009,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         st.write("---")
         # Aquí continúa el resto de tu código de Jefe de Operaciones...
     # 1. Cálculo de mensajes pendientes
-  df_msg = leer_matriz_nube("MENSAJERIA")
+    df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
     total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "JEFE DE OPERACIONES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
-
+    
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: JEFE DE OPERACIONES</h2>', unsafe_allow_html=True)
     
     # 2. Definición de pestañas
@@ -1039,7 +1039,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             if st.button("Solicitar Baja"):
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
                 st.success("✅ Petición enviada")
-
+    
     # 5. Pestaña Auditoría
     with t_tab_auditoria:
         # 1. AUDITORÍA DE JORNADA
@@ -1055,7 +1055,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             df_reporte['DURACION_TOTAL'] = ((df_reporte['FIN_DT'] - df_reporte['INICIO_DT']).dt.total_seconds() / 60).round(2)
             st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], 
                         use_container_width=True, hide_index=True)
-
+    
         # 2. HISTÓRICO DE ALERTAS
         st.markdown("---")
         st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
@@ -1063,7 +1063,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_alertas.empty:
             df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
             st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
-
+    
         # 3. AUDITORÍA DE RELEVOS
         st.markdown("---")
         st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
@@ -1073,7 +1073,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             if 'TIPO_EVENTO' in df_relevos.columns:
                 df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
                 st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
-
+    
         # 4. AUDITORÍA DE FLOTA
         st.markdown("---")
         st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
@@ -1082,7 +1082,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
             df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
             st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
- 
+
             
 elif st.session_state.rol_sel == "GERENCIA":
     # 1. Cálculo de mensajes pendientes
