@@ -1131,7 +1131,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.info("No se registran eventos de pánico.")
 
-# --- BLOQUE AUDITORÍA DE RELEVOS CORREGIDO ---
+ # --- BLOQUE AUDITORÍA DE RELEVOS CORREGIDO ---
         df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
         
         if not df_relevos.empty:
