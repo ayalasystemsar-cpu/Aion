@@ -14,4 +14,3 @@ streamlit-drawable-canvas
 osmnx
 networkx
 qrcode
-pip install streamlit-autorefresh
