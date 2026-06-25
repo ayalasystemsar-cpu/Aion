@@ -784,7 +784,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("No hay objetivos asignados.")
 
-       # --- FORMULARIO DE FLOTA (MANTENIENDO TU ESTRUCTURA ORIGINAL) ---
+     # --- PEGA EL FORMULARIO AQUÍ ABAJO ---
             st.markdown("---") 
             st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
             with st.form(key="form_acta_flota", clear_on_submit=True):
@@ -800,18 +800,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
                     fecha = obtener_hora_argentina()
-                    # Mantenemos la estructura pero enviamos a CONTROL_FLOTA
-                    # Orden: FECHA | SUPERVISOR | MOVIL | KM_INICIAL | KM_FINAL | COMBUSTIBLE
+                    # Esto enviará los datos directo a la tabla del JEFE DE OPERACIONES
                     escribir_registro_nube("CONTROL_FLOTA", [
                         fecha, 
                         v_vigilador, 
                         v_patente, 
                         v_km_inicial, 
-                        "0", # KM_FINAL inicializado en 0 para que el Jefe lo complete o audite
+                        "0", 
                         v_combustible
                     ])
                     st.success(f"✅ Acta registrada para el móvil {v_patente}")
-
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
