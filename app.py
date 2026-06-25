@@ -558,42 +558,37 @@ if st.session_state.rol_sel == "MONITOREO":
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
                 
+                # --- LÓGICA HÍBRIDA: Identifica si es VIGILADOR o SUPERVISOR ---
+                info_alerta = "ALERTA TÁCTICA"
+                if es_panico:
+                    alerta_activa = df_emergencias[
+                        (df_emergencias['CARGA_UTIL'].str.contains(r['OBJETIVO'])) & 
+                        (df_emergencias['ESTADO'] == 'PENDIENTE')
+                    ]
+                    if not alerta_activa.empty:
+                        usuario_alerta = alerta_activa.iloc[-1]['USUARIO']
+                        carga_util = str(alerta_activa.iloc[-1]['CARGA_UTIL'])
+                        # Si es vigilador, el usuario es el nombre; si es sup, es el supervisor
+                        info_alerta = f"🚨 ALERTA: {usuario_alerta}"
+
+                # DIBUJO DEL MARCADOR
                 if es_panico or es_el_seleccionado:
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=f"🚨 {'[EN ENFOQUE TÁCTICO]' if es_el_seleccionado else '¡ALERTA PÁNICO!'} | {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}",
+                        tooltip=f"{info_alerta} | OBJ: {r['OBJETIVO']}",
                         icon=folium.DivIcon(
                             icon_size=(30, 30),
                             icon_anchor=(15, 15),
-                            html='''
-                            <div style="
-                                background-color: #FF0000;
-                                width: 16px;
-                                height: 16px;
-                                border-radius: 50%;
-                                border: 2px solid white;
-                                box-shadow: 0 0 10px #FF0000;
-                                animation: pulse 1s infinite alternate;
-                            "></div>
-                            <style>
-                                @keyframes pulse {
-                                    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-                                    100% { transform: scale(1.2); box-shadow: 0 0 0 12px rgba(255, 0, 0, 0); }
-                                }
-                            </style>
-                            '''
+                            html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; animation: pulse 1s infinite alternate;"></div>'''
                         )
                     ).add_to(m_mon)
                 else:
                     folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], 
-                        radius=7,
-                        color="#00E5FF",
-                        fill=True, 
-                        fill_color="#00E5FF",
+                        location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True,
                         tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
-            
+
+           
         df_com = cargar_datos_comisarias()
         for _, c in df_com.iterrows():
             es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
