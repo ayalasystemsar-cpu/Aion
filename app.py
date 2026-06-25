@@ -990,7 +990,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-  elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # --- REFRESCO ESPECÍFICO PARA JEFE DE OPERACIONES ---
     # Esto solo se ejecuta cuando el rol es JEFE DE OPERACIONES
     from streamlit_autorefresh import st_autorefresh
