@@ -936,35 +936,46 @@ elif st.session_state.rol_sel == "VIGILADOR":
     # 5. Pestaña Mensajería
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
-# 6. Pestaña Pánico (DIRECTA: SIN CHECKBOX)
+# 6. Pestaña Pánico (CORREGIDA PARA QUE ENVÍE DATOS AL MAPA)
     with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         st.warning("⚠️ AL PRESIONAR EL BOTÓN, SE NOTIFICARÁ A MONITOREO Y A SU SUPERVISOR.")
         
-        # BUSCAR OBJETIVO AUTOMÁTICO
+        # BUSCAR OBJETIVO AUTOMÁTICO - MÁS ROBUSTO
         df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
-        jornada_actual = df_jornada[df_jornada['SUPERVISOR'] == st.session_state.user_sel].tail(1)
+        # Aseguramos que los nombres coincidan quitando espacios y pasando a mayúsculas
+        df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
+        nombre_user_clean = st.session_state.user_sel.strip().upper()
+        
+        jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
         
         if not jornada_actual.empty:
             obj_detectado = jornada_actual['OBJETIVO'].values[0]
-            st.success(f"📍 OBJETIVO DETECTADO AUTOMÁTICAMENTE: **{obj_detectado}**")
+            st.success(f"📍 OBJETIVO DETECTADO: **{obj_detectado}**")
         else:
-            obj_detectado = "SIN_OBJETIVO_ASIGNADO"
+            obj_detectado = "SIN_OBJETIVO"
             st.error("⚠️ No se detectó objetivo activo. Por favor, realice su fichaje.")
 
-        # EL BOTÓN AHORA ES DIRECTO
+        # EL BOTÓN
         if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="btn_panico_directo", type="primary", use_container_width=True):
-            nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR"))
+            # Usamos el nombre real del vigilador guardado en la sesión durante el fichaje
+            nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR")).upper()
+            
             sup_asignado = "MONITOREO"
             if not df_objetivos.empty:
+                # Buscamos el supervisor de ese objetivo
                 filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                 if not filtro.empty:
                     sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
             
             fecha = obtener_hora_argentina()
+            # ESTA ES LA ESTRUCTURA QUE TU MAPA NECESITA
+            # Asegúrate que el formato de 'carga_sos' sea el que tu función de mapa espera
             carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
             
-            escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
+            # GUARDAMOS EN LA HOJA ALERTAS CON LA ESTRUCTURA CORRECTA
+            # [FECHA, USUARIO, CARGA_UTIL, ESTADO, ...]
+            escribir_registro_nube("ALERTAS", [fecha, nombre_real, carga_sos, "PENDIENTE"])
             
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
    
