@@ -1133,7 +1133,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
  df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
             
-            if not df_relevos.empty:
+             if not df_relevos.empty:
                 df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
                 
                 if 'TIPO_EVENTO' in df_relevos.columns:
