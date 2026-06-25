@@ -1024,7 +1024,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     
     # 1. CONTADOR DE PANICOS (Fragmento)
     with col1.container():
-        @st.fragment(run_every=5)
+        @st.fragment(run_every=1)
         def mostrar_sos():
             df_alertas = leer_matriz_nube("ALERTAS")
             total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if not df_alertas.empty else 0
