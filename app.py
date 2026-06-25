@@ -1009,6 +1009,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # 1. Métrica estática para evitar el error de recarga
    # En la columna donde quieres el reloj:
     col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
