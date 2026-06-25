@@ -784,8 +784,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("No hay objetivos asignados.")
 
-        # --- AQUÍ EMPIEZA EL FORMULARIO DE FLOTA ---
-            st.markdown("---") # Línea divisoria para que quede prolijo
+       # --- FORMULARIO DE FLOTA (MANTENIENDO TU ESTRUCTURA ORIGINAL) ---
+            st.markdown("---") 
             st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
             with st.form(key="form_acta_flota", clear_on_submit=True):
                 col1, col2 = st.columns(2)
@@ -800,8 +800,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
                     fecha = obtener_hora_argentina()
-                    escribir_registro_nube("ACTAS_FLOTA", [
-                        fecha, v_patente, v_vigilador, v_km_inicial, v_combustible, v_novedad, "PENDIENTE"
+                    # Mantenemos la estructura pero enviamos a CONTROL_FLOTA
+                    # Orden: FECHA | SUPERVISOR | MOVIL | KM_INICIAL | KM_FINAL | COMBUSTIBLE
+                    escribir_registro_nube("CONTROL_FLOTA", [
+                        fecha, 
+                        v_vigilador, 
+                        v_patente, 
+                        v_km_inicial, 
+                        "0", # KM_FINAL inicializado en 0 para que el Jefe lo complete o audite
+                        v_combustible
                     ])
                     st.success(f"✅ Acta registrada para el móvil {v_patente}")
 
