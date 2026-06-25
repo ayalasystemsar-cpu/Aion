@@ -946,27 +946,35 @@ elif st.session_state.rol_sel == "VIGILADOR":
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         st.info("Utilice este panel solo en situaciones de riesgo inminente.")
         
-        # Selección de objetivo para que el sistema sepa a qué supervisor avisar
         obj_vigilador = st.selectbox("CONFIRME SU OBJETIVO ACTUAL:", opciones_globales_obj)
         
-        # Checkbox de seguridad para evitar disparos accidentales
         if st.checkbox("HABILITAR BOTÓN DE ALERTA"):
             if st.button("🚨 ACTIVAR ALERTA TÁCTICA", key="panico-fino"):
-                # 1. Obtenemos datos del usuario (Asegúrate de que el Vigilador los haya ingresado)
-                # Si no los ingresó, usamos un valor por defecto
-                nombre_vigilador = st.session_state.get("nombre_vigilador", "DESCONOCIDO")
+                
+                # 1. BUSCAR SUPERVISOR ASIGNADO AL OBJETIVO (Definimos la variable aquí)
+                sup_asignado = "MONITOREO" # Valor por defecto
+                if not df_objetivos.empty:
+                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_vigilador]
+                    if not filtro.empty:
+                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                
+                # 2. OBTENER DATOS DEL VIGILADOR
+                nombre_vigilador = st.session_state.get("user_sel", "VIGILADOR")
                 legajo_vigilador = st.session_state.get("legajo_vigilador", "S/L")
                 
-                # 2. Construimos la carga con los nuevos datos
-                # Cambiamos el formato para que sea fácil de leer en el mapa
+                # 3. AHORA SÍ CONSTRUIMOS LA VARIABLE (Ya existen todas)
                 carga_sos = f"VIG:{nombre_vigilador}|LEG:{legajo_vigilador}|OBJ:{obj_vigilador}|SUP:{sup_asignado}"
                 
-                # 3. Enviamos a la base de alertas
+                # 4. ENVÍO A LA NUBE
                 fecha = obtener_hora_argentina()
-                escribir_registro_nube("ALERTAS", [
-                    fecha, st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"
-                ])
-                st.error(f"⚠️ ALERTA ENVIADA: {nombre_vigilador}")
+                escribir_registro_nube("ALERTAS", [fecha, st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos, "SIN INFORME"])
+                
+                # Aviso al supervisor
+                datos_aviso = [fecha, st.session_state.user_sel, sup_asignado, "ALERTA PÁNICO", f"OBJ:{obj_vigilador} - REQUIERE APOYO", "PENDIENTE", "ROJA"]
+                escribir_registro_nube("MENSAJERIA", datos_aviso)
+                
+                st.error(f"⚠️ ALERTA ENVIADA A MONITOREO Y A {sup_asignado}")
+                
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     # Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
