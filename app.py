@@ -990,20 +990,23 @@ elif st.session_state.rol_sel == "VIGILADOR":
             st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-    # Cabecera limpia
+  elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    # --- REFRESCO ESPECÍFICO PARA JEFE DE OPERACIONES ---
+    # Esto solo se ejecuta cuando el rol es JEFE DE OPERACIONES
+    from streamlit_autorefresh import st_autorefresh
+    st_autorefresh(interval=60000, key="refresh_jefe_operaciones")
+
+    # Cabecera métricas
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🚨 S.O.S ACTIVOS", "0")
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
-    # Reloj dinámico seguro
-    hora_placeholder = col4.empty()
+    # Reloj
     hora_actual = obtener_hora_argentina().split(" ")[1]
-    hora_placeholder.metric("🕒 HORA LOCAL", hora_actual)
+    col4.metric("🕒 HORA LOCAL", hora_actual)
     
-    # --- Actualización automática sin fallos ---
-    time.sleep(1) # Espera 1 segundo
-    st.rerun()    # Recarga la página suavemente 
+    # ... (resto de tu código de Jefe de Operaciones) 
     
 
     # 4. Cálculo de mensajes (el código que tenías)
