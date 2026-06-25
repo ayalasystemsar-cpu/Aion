@@ -793,7 +793,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     v_patente = st.text_input("PATENTE/MÓVIL:").upper()
                     v_km_inicial = st.number_input("KM INICIAL:", min_value=0)
                 with col2:
-                    v_vigilador = st.text_input("VIGILADOR RESPONSABLE:").upper()
+                    v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
                     v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
                 
                 v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
