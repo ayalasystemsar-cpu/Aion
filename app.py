@@ -48,7 +48,10 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
             return True
+        else:
+            return False
     except Exception as e:
+        # Esto captura el error y evita que la app se caiga
         st.error(f"Error al escribir en la nube: {e}")
         return False
 
