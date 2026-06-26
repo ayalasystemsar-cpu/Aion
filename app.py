@@ -52,7 +52,7 @@ def conectar_google():
     except Exception as e:
         st.error(f"Error al conectar con Google: {e}")
         return None
-
+@st.cache_data(ttl=600)
 def leer_matriz_nube(pestana):
     try:
         gc = conectar_google()
