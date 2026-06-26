@@ -107,8 +107,6 @@ else:
     # --- 7. FLUJO POR ROLES ---
     # ESTA ESTRUCTURA ES LA ÚNICA QUE FUNCIONA:
     
-    if st.session_state.rol_sel == "MONITOREO":
-        # Todo el código de MONITOREO aquí
 if st.session_state.rol_sel == "MONITOREO":
         col1, col2, col3, col4 = st.columns(4)
         
