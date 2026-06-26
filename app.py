@@ -12,7 +12,7 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
-im# --- 1. CONFIGURACIÓN ---
+# --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
 if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
@@ -74,17 +74,12 @@ else:
     
     if st.sidebar.button("🚪 CERRAR SESIÓN"):
         st.session_state.usuario_logueado = False
-        st.rerun()port requests
-from branca.element import Element
-import qrcode
-
-
+        st.rerun()
 
 
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
-    
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
