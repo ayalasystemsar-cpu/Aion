@@ -22,20 +22,6 @@ st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layo
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 ROLES_VALIDOS = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "VIGILADOR", "ADMINISTRADOR"]
 
-# INICIALIZACIÓN DE ESTADOS
-if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
-if 'rol_sel' not in st.session_state or st.session_state.rol_sel not in ROLES_VALIDOS: st.session_state.rol_sel = "MONITOREO"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
-if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
-
-# --- 2. FUNCIONES DE LÓGICA Y GOOGLE ---
-
-    # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
-st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
-
-ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-ROLES_VALIDOS = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "VIGILADOR", "ADMINISTRADOR"]
-
 if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
 if 'rol_sel' not in st.session_state or st.session_state.rol_sel not in ROLES_VALIDOS: st.session_state.rol_sel = "MONITOREO"
 
@@ -49,47 +35,34 @@ def conectar_google():
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
-    except Exception as e:
-        st.error(f"Error al conectar con Google: {e}")
+    except Exception:
         return None
+
 @st.cache_data(ttl=600)
 def leer_matriz_nube(pestana):
-    try:
-        gc = conectar_google()
-        if gc:
+    gc = conectar_google()
+    if gc:
+        try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            todas_filas = hoja.get_all_values()
-            if not todas_filas: return pd.DataFrame()
-            df = pd.DataFrame(todas_filas[1:], columns=[str(h).strip().upper() for h in todas_filas[0]])
-            return df.loc[:, ~df.columns.duplicated()]
-        return pd.DataFrame()
-    except Exception as e:
-        st.warning(f"Error leyendo {pestana}: {e}")
-        return pd.DataFrame()
+            data = hoja.get_all_values()
+            return pd.DataFrame(data[1:], columns=data[0]) if data else pd.DataFrame()
+        except Exception:
+            return pd.DataFrame()
+    return pd.DataFrame()
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=600)
 def cargar_objetivos():
-    try:
-        df = leer_matriz_nube("OBJETIVOS")
-        if df.empty:
-            return pd.DataFrame(columns=['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD'])
-        
+    df = leer_matriz_nube("OBJETIVOS")
+    if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
-        df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
-        
-        if 'LATITUD' in df.columns:
-            df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        if 'LONGITUD' in df.columns:
-            df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        return df 
-    except Exception as e:
-        st.warning(f"Error cargando objetivos: {e}")
-        return pd.DataFrame(columns=['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD'])
+        return df
+    return pd.DataFrame(columns=['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD'])
 
 # --- 3. LANDING Y SEGURIDAD ---
 def mostrar_landing():
     st.markdown("<h2 style='text-align: center; color: #00E5FF;'>AION-YAROKU | COMMAND</h2>", unsafe_allow_html=True)
-    modo = st.radio("Acceso:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
+    st.markdown('<div style="display: flex; justify-content: center;"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" width="400"></div>', unsafe_allow_html=True)
+    
     with st.form("form_acceso"):
         user = st.text_input("Usuario")
         password = st.text_input("Contraseña", type="password")
@@ -103,14 +76,16 @@ def mostrar_landing():
 if not st.session_state.usuario_logueado:
     mostrar_landing()
 else:
+    # --- PANEL PRIVADO (SOLO SE VE TRAS LOGUEARSE) ---
     st.sidebar.subheader("🛡️ PANEL DE CONTROL")
-    # Ahora puedes llamar a cargar_objetivos() aquí abajo, ya que está definida arriba
+    
+    # Carga de datos solo cuando el usuario está dentro
     objetivos = cargar_objetivos()
     st.write(f"Objetivos cargados: {len(objetivos)}")
     
     if st.sidebar.button("🚪 CERRAR SESIÓN"):
         st.session_state.usuario_logueado = False
-        st.rerun()        
+        st.rerun()
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
