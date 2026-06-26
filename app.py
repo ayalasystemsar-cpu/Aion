@@ -16,49 +16,16 @@ import requests
 from branca.element import Element
 import qrcode
 
-# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
-st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+import streamlit as st
 
-ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-ROLES_VALIDOS = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "VIGILADOR", "ADMINISTRADOR"]
+# --- 1. CONFIGURACIÓN ---
+st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide")
 
-if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
-if 'rol_sel' not in st.session_state or st.session_state.rol_sel not in ROLES_VALIDOS: st.session_state.rol_sel = "MONITOREO"
+# Inicialización de estado
+if 'usuario_logueado' not in st.session_state: 
+    st.session_state.usuario_logueado = False
 
-# --- 2. FUNCIONES DE LÓGICA Y GOOGLE ---
-def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
-def conectar_google():
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        return gspread.authorize(creds)
-    except Exception:
-        return None
-
-@st.cache_data(ttl=600)
-def leer_matriz_nube(pestana):
-    gc = conectar_google()
-    if gc:
-        try:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            data = hoja.get_all_values()
-            return pd.DataFrame(data[1:], columns=data[0]) if data else pd.DataFrame()
-        except Exception:
-            return pd.DataFrame()
-    return pd.DataFrame()
-
-@st.cache_data(ttl=600)
-def cargar_objetivos():
-    df = leer_matriz_nube("OBJETIVOS")
-    if not df.empty:
-        df.columns = df.columns.str.strip().str.upper()
-        return df
-    return pd.DataFrame(columns=['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD'])
-
-# --- 3. LANDING Y SEGURIDAD ---
+# --- 2. DISEÑO DE LA PÁGINA DE LOGIN ---
 def mostrar_landing():
     st.markdown("<h2 style='text-align: center; color: #00E5FF;'>AION-YAROKU | COMMAND</h2>", unsafe_allow_html=True)
     st.markdown('<div style="display: flex; justify-content: center;"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" width="400"></div>', unsafe_allow_html=True)
@@ -70,18 +37,17 @@ def mostrar_landing():
             if user == "admin" and password == "1234":
                 st.session_state.usuario_logueado = True
                 st.rerun()
-            else: st.error("Acceso denegado.")
+            else: 
+                st.error("Acceso denegado.")
 
-# --- 4. FLUJO PRINCIPAL ---
+# --- 3. FLUJO PRINCIPAL ---
 if not st.session_state.usuario_logueado:
+    # Si no estás logueado, se muestra ESTO y NADA MÁS.
     mostrar_landing()
 else:
-    # --- PANEL PRIVADO (SOLO SE VE TRAS LOGUEARSE) ---
+    # Si estás logueado, aquí va tu sistema (Radar, funciones, etc.)
     st.sidebar.subheader("🛡️ PANEL DE CONTROL")
-    
-    # Carga de datos solo cuando el usuario está dentro
-    objetivos = cargar_objetivos()
-    st.write(f"Objetivos cargados: {len(objetivos)}")
+    st.write("Bienvenida al sistema operativo AION-YAROKU.")
     
     if st.sidebar.button("🚪 CERRAR SESIÓN"):
         st.session_state.usuario_logueado = False
