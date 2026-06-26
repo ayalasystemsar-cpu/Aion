@@ -109,7 +109,8 @@ if st.session_state.usuario_logueado:
         st.write("---")
         st.button("🚪 CERRAR SESIÓN", on_click=lambda: setattr(st.session_state, 'usuario_logueado', False), use_container_width=True)
 
-    # --- 2. FLUJO POR ROLES ---
+
+# --- 2. FLUJO POR ROLES ---
     # Ahora todos estos son 'if' / 'elif' alineados al mismo margen
     if st.session_state.rol_sel == "MONITOREO":
         col1, col2, col3, col4 = st.columns(4)
@@ -759,4 +760,5 @@ if st.session_state.usuario_logueado:
             
             # Ejemplo de acceso a configuración global
             st.write("Configuración del sistema AION-YAROKU activa.")
-        pass
+        
+
