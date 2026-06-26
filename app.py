@@ -444,7 +444,7 @@ if st.session_state.usuario_logueado:
                 renderizar_mensajeria_global("SUPERVISOR")
             with t_pres_sup:
                 st.subheader("📋 NOVEDADES DE MI GRUPO")
-        else:
+            else:
             st.error("❌ CREDENCIALES INVÁLIDAS. Acceda a través del Sidebar.")
         pass
         
