@@ -185,8 +185,7 @@ if st.session_state.rol_sel == "MONITOREO":
         @st.fragment(run_every=1)
         def mostrar_reloj_monitoreo():
             st.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
-            
-        mostrar_reloj_monitoreo() s igual que la tenías...)
+    
     # ... mostrar_reloj_monitoreo() s igual que la tenías...)
     
     
