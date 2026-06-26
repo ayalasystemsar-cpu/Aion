@@ -20,24 +20,18 @@ import qrcode
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-
-# Definición de roles permitidos para control de acceso
 ROLES_VALIDOS = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "VIGILADOR", "ADMINISTRADOR"]
 
 # INICIALIZACIÓN DE ESTADOS
-if 'usuario_logueado' not in st.session_state: 
-    st.session_state.usuario_logueado = False
+if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
+if 'rol_sel' not in st.session_state or st.session_state.rol_sel not in ROLES_VALIDOS: st.session_state.rol_sel = "MONITOREO"
+if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
+if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 
-if 'rol_sel' not in st.session_state or st.session_state.rol_sel not in ROLES_VALIDOS: 
-    st.session_state.rol_sel = "MONITOREO"  # Valor por defecto seguro
-
-if 'user_sel' not in st.session_state: 
-    st.session_state.user_sel = "OPERADOR CENTRAL"
-
-if 'sup_autenticado' not in st.session_state: 
-    st.session_state.sup_autenticado = False
-
-# --- 2. FUNCIONES DE LÓGICA Y GOOGLE (CORREGIDAS) ---
+# --- 2. FUNCIONES DE LÓGICA Y GOOGLE ---
+def obtener_hora_argentina():
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
 def conectar_google():
     try:
@@ -45,7 +39,6 @@ def conectar_google():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
     except Exception as e:
-        # Capturamos el error para que la app no se bloquee
         st.error(f"Error al conectar con Google: {e}")
         return None
 
@@ -69,7 +62,6 @@ def leer_matriz_nube(pestana):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
             if not todas_filas or len(todas_filas) == 0: return pd.DataFrame()
-            
             encabezados = [str(h).strip().upper() for h in todas_filas[0]]
             df = pd.DataFrame(todas_filas[1:], columns=encabezados)
             df.columns = [str(c).strip().upper() for c in df.columns]
@@ -80,28 +72,6 @@ def leer_matriz_nube(pestana):
         st.warning(f"No se pudo leer la pestaña {pestana}: {e}")
         return pd.DataFrame()
 
-@st.cache_data(ttl=60)
-def cargar_datos_comisarias():
-    data = {
-        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
-        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
-        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
-    }
-    return pd.DataFrame(data)
-
-@st.cache_data(ttl=60)
-def cargar_objetivos():
-    df = leer_matriz_nube("OBJETIVOS")
-    if not df.empty:
-        df.columns = df.columns.str.strip().str.upper()
-        df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
-        df = df[df['OBJETIVO'].notna()]
-        if 'SUPERVISOR' in df.columns: df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
-        df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        return df 
-    return pd.DataFrame()
-
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
@@ -110,12 +80,7 @@ def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asigna
         if dest and dest != "MONITOREO" and dest != "N/A":
             escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
 
-
-# --- 2. LANDING Y SEGURIDAD ---
-if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
-
-    
-# --- 3. IDENTIDAD Y LANDING (DEFINICIÓN) ---
+# --- 3. IDENTIDAD Y LANDING ---
 def aplicar_identidad_alfa():
     st.markdown("""
         <style>
@@ -125,7 +90,6 @@ def aplicar_identidad_alfa():
         .logo-phoenix { width: 400px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         .estacion-titulo { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 32px; text-align: center; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); margin-bottom: 30px; }
         .stButton > button { background-color: #0A192F !important; color: #00E5FF !important; border: 1px solid #00E5FF !important; border-radius: 5px !important; font-family: 'Orbitron', sans-serif !important; }
-        .stButton > button:hover { background-color: #00E5FF !important; color: #000 !important; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -135,44 +99,29 @@ def mostrar_landing():
     st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
     
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
-    
     with st.form("form_acceso"):
         user = st.text_input("Usuario")
         password = st.text_input("Contraseña", type="password")
-        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
-        
-        btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
-        if st.form_submit_button(btn_texto):
-            if modo == "Iniciar Sesión":
-                # Validación simple, reemplaza con tu lógica de DB real
-                if user == "admin" and password == "1234":
-                    st.session_state.usuario_logueado = True
-                    st.session_state.user_sel = user
-                    st.session_state.rol_sel = rol_usuario
-                    st.rerun()
-                else: st.error("Credenciales incorrectas.")
-            else:
-                st.success(f"Solicitud de registro como {rol_usuario} enviada.")
+        rol_usuario = st.selectbox("Seleccione su Rol:", ROLES_VALIDOS)
+        if st.form_submit_button("ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"):
+            if modo == "Iniciar Sesión" and user == "admin" and password == "1234":
+                st.session_state.usuario_logueado = True
+                st.session_state.user_sel = user
+                st.session_state.rol_sel = rol_usuario
+                st.rerun()
+            else: st.error("Acceso denegado.")
 
 # --- 4. LÓGICA DE CONTROL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
 else:
-    # --- PANEL OPERATIVO (Solo visible si usuario_logueado es True) ---
-    # Limpiamos el diseño para que no arrastre cosas de la landing
-    
     with st.sidebar:
-        # Logo sidebar
-        st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
         st.subheader("🛡️ PANEL DE CONTROL")
-        
-        # Botones de navegación
         if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
         if st.button("📋 JEFE DE OPERACIONES"): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
         if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
         if st.button("👤 VIGILADOR"): st.session_state.rol_sel = "VIGILADOR"; st.rerun()
         if st.button("⚙️ ADMINISTRADOR"): st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
-        
         st.write("---")
         if st.button("🚪 CERRAR SESIÓN"):
             st.session_state.usuario_logueado = False
