@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -54,23 +53,50 @@ def mostrar_landing():
                 st.session_state.usuario_logueado = True
                 st.rerun()
             else: st.error("Acceso denegado.")
-
 # --- 4. LÓGICA PRINCIPAL (PROTEGIDA) ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
 else:
-    # AQUÍ ADENTRO puedes pegar TODAS tus funciones originales de mapas, 
-    # folium, y lógica que tenías en tu archivo original.
-    # Como están dentro de este 'else', el error de 'pandas' y 'gspread'
-    # no ocurrirá porque solo se llamarán cuando tú ya estés adentro.
-    st.sidebar.subheader("🛡️ PANEL DE CONTROL")
+    # --- PANEL PRIVADO (SOLO EJECUTA SI ESTÁS LOGUEADA) ---
+    
+    # 1. Carga de datos de forma segura
+    df_objetivos = cargar_objetivos()
+    df_comisarias = cargar_datos_comisarias()
+    
+    # 2. Procesamiento de mapas sin errores (Cálculo protegido)
+    if not df_objetivos.empty and 'LATITUD' in df_objetivos.columns:
+        df_objetivos['LATITUD'] = pd.to_numeric(df_objetivos['LATITUD'], errors='coerce')
+        df_objetivos['LONGITUD'] = pd.to_numeric(df_objetivos['LONGITUD'], errors='coerce')
+        # Esto calcula el centro solo si hay datos numéricos válidos
+        centro_mapa = [df_objetivos['LATITUD'].mean(), df_objetivos['LONGITUD'].mean()]
+    else:
+        # Valor por defecto si no hay datos o la tabla está vacía
+        centro_mapa = [-34.6037, -58.3816]
+
+    # 3. Sidebar y componentes operativos
+    with st.sidebar:
+        st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
+        st.subheader("🛡️ PANEL DE CONTROL")
+        
+        # Aquí puedes pegar tus botones originales de navegación
+        if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
+        if st.button("📋 JEFE DE OPERACIONES"): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
+        if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
+        
+        st.write("---")
+        
+        # Botón de cierre de sesión corregido
+        if st.button("🚪 CERRAR SESIÓN"):
+            st.session_state.usuario_logueado = False
+            st.rerun()
+
+    # 4. Panel principal de la app (aquí iría tu código de folium, mapas, etc.)
     st.write("Bienvenida al sistema operativo AION-YAROKU.")
+    st.write(f"Rol activo: {st.session_state.rol_sel}")
     
-    # PEGA AQUÍ EL RESTO DE TU CÓDIGO ORIGINAL (Mapas, etc.)
-    
-    if st.sidebar.button("🚪 CERRAR SESIÓN"):
-        st.session_state.usuario_logueado = False
-        st.rerun()
+    # --- AQUÍ ABAJO PEGA EL RESTO DE TU CÓDIGO ORIGINAL ---
+    # (Mapas, gráficos, tablas que no quieres que se vean en el login)
+
 
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
