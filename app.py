@@ -53,6 +53,8 @@ def mostrar_landing():
                 st.session_state.usuario_logueado = True
                 st.rerun()
             else: st.error("Acceso denegado.")
+
+
 # --- 4. LÓGICA PRINCIPAL (PROTEGIDA) ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
