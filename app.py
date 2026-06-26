@@ -134,7 +134,7 @@ else:
     if not df_objetivos.empty and 'LATITUD' in df_objetivos.columns:
         df_objetivos['LATITUD'] = pd.to_numeric(df_objetivos['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df_objetivos['LONGITUD'] = pd.to_numeric(df_objetivos['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     # --- 1. LÓGICA DE MONITOREO CORREGIDA ---
     if st.session_state.rol_sel == "MONITOREO":
         col1, col2, col3, col4 = st.columns(4)
@@ -211,8 +211,18 @@ else:
                 st_folium(m_mon, width="100%", height=550)
             else:
                 st.warning("No hay objetivos válidos.")
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    u_ing = st.text_input("ADMIN_USER")
+    p_ing = st.text_input("ADMIN_PASS", type="password")
+    if u_ing == "admin" and p_ing == "aion2026": 
+        st.success("Núcleo Maestro desbloqueado.")
+    else:
+        st.error("Acceso denegado al núcleo.")
 
+else:
+    st.info("Rol no reconocido. Por favor, contacte a soporte.")
 
 
 
