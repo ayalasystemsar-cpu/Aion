@@ -143,24 +143,29 @@ def mostrar_landing():
             else:
                 st.success(f"Solicitud de registro como {rol_usuario} enviada.")
 
-# --- 4. LÓGICA PRINCIPAL (EJECUCIÓN) ---
+# --- 4. LÓGICA DE CONTROL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
 else:
-    # --- PANEL OPERATIVO (Usuario Logueado) ---
-    df_objetivos = cargar_objetivos()
-    df_comisarias = cargar_datos_comisarias()
+    # --- PANEL OPERATIVO (Solo visible si usuario_logueado es True) ---
+    # Limpiamos el diseño para que no arrastre cosas de la landing
     
     with st.sidebar:
+        # Logo sidebar
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
         st.subheader("🛡️ PANEL DE CONTROL")
+        
+        # Botones de navegación
         if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
         if st.button("📋 JEFE DE OPERACIONES"): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
         if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
         if st.button("👤 VIGILADOR"): st.session_state.rol_sel = "VIGILADOR"; st.rerun()
         if st.button("⚙️ ADMINISTRADOR"): st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
+        
         st.write("---")
-        st.button("🚪 CERRAR SESIÓN", on_click=lambda: setattr(st.session_state, 'usuario_logueado', False), use_container_width=True)
+        if st.button("🚪 CERRAR SESIÓN"):
+            st.session_state.usuario_logueado = False
+            st.rerun()
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
