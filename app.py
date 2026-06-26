@@ -16,19 +16,30 @@ import requests
 from branca.element import Element
 import qrcode
 
-# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
-st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-# (Aquí mantienes todas tus funciones de: conectar_google, leer_matriz_nube, obtener_hora_argentina, etc.)
-# --- INSERTA AQUÍ TUS FUNCIONES DE "INTENTO 1" ---
-# --- 2. FUNCIONES DE LÓGICA Y GOOGLE (EXTRAÍDAS DE INTENTO 1) ---
-ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
 def conectar_google():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        return gspread.authorize(creds)
+        return gspread.authorize(creds)# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
+st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+
+# Definición de roles permitidos para control de acceso
+ROLES_VALIDOS = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "VIGILADOR", "ADMINISTRADOR"]
+
+# INICIALIZACIÓN DE ESTADOS
+if 'usuario_logueado' not in st.session_state: 
+    st.session_state.usuario_logueado = False
+
+if 'rol_sel' not in st.session_state or st.session_state.rol_sel not in ROLES_VALIDOS: 
+    st.session_state.rol_sel = "MONITOREO"  # Valor por defecto seguro
+
+if 'user_sel' not in st.session_state: 
+    st.session_state.user_sel = "OPERADOR CENTRAL"
+
+if 'sup_autenticado' not in st.session_state: 
+    st.session_state.sup_autenticado = False
     except: return None
 
 def obtener_hora_argentina():
@@ -166,6 +177,7 @@ else:
         if st.button("🚪 CERRAR SESIÓN"):
             st.session_state.usuario_logueado = False
             st.rerun()
+            
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
