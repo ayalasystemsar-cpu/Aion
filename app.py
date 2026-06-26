@@ -434,21 +434,19 @@ if st.session_state.usuario_logueado:
                     st.caption("⚠️ Al presionar el botón, se abrirá la aplicación de Google Maps con el trazado listo para iniciar la navegación.")
             else:
                 st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
+
+    with t_car_tac:
+                novedad_sup = st.text_area("Novedad / Registro Operativo:")
                 
-           with t_car_tac:
-            novedad_sup = st.text_area("Novedad / Registro Operativo:")
-            
-            # Este 'if' debe estar alineado a la misma altura que 'novedad_sup ='
-            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
-                st.success("✅ Cargado")
+                if st.button("CARGAR REGISTRO") and novedad_sup.strip():
+                    escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
+                    st.success("✅ Cargado")
 
-        with t_mensajeria_sup:
-            renderizar_mensajeria_global("SUPERVISOR")
+            with t_mensajeria_sup:
+                renderizar_mensajeria_global("SUPERVISOR")
 
-        with t_pres_sup:
-            st.subheader("📋 NOVEDADES DE MI GRUPO")
-            # ... resto de tu lógica ...
+            with t_pres_sup:
+                st.subheader("📋 NOVEDADES DE MI GRUPO")
  
         
     elif st.session_state.rol_sel == "VIGILADOR":
