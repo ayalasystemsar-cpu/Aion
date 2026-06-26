@@ -29,6 +29,17 @@ if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CEN
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 
 # --- 2. FUNCIONES DE LÓGICA Y GOOGLE ---
+
+    # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
+st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+
+ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+ROLES_VALIDOS = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "VIGILADOR", "ADMINISTRADOR"]
+
+if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
+if 'rol_sel' not in st.session_state or st.session_state.rol_sel not in ROLES_VALIDOS: st.session_state.rol_sel = "MONITOREO"
+
+# --- 2. FUNCIONES DE LÓGICA Y GOOGLE ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -42,91 +53,64 @@ def conectar_google():
         st.error(f"Error al conectar con Google: {e}")
         return None
 
-def escribir_registro_nube(pestana, datos_fila):
-    try:
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.append_row(datos_fila)
-            return True
-        return False
-    except Exception as e:
-        st.error(f"Error al escribir en la nube: {e}")
-        return False
-
-@st.cache_data(ttl=60)
 def leer_matriz_nube(pestana):
     try:
         gc = conectar_google()
         if gc:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
-            if not todas_filas or len(todas_filas) == 0: return pd.DataFrame()
-            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-            df = pd.DataFrame(todas_filas[1:], columns=encabezados)
-            df.columns = [str(c).strip().upper() for c in df.columns]
-            df = df.loc[:, ~df.columns.duplicated()]
-            return df
+            if not todas_filas: return pd.DataFrame()
+            df = pd.DataFrame(todas_filas[1:], columns=[str(h).strip().upper() for h in todas_filas[0]])
+            return df.loc[:, ~df.columns.duplicated()]
         return pd.DataFrame()
     except Exception as e:
-        st.warning(f"No se pudo leer la pestaña {pestana}: {e}")
+        st.warning(f"Error leyendo {pestana}: {e}")
         return pd.DataFrame()
 
-def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
-    fecha = obtener_hora_argentina()
-    mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
-    destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
-    for dest in destinatarios:
-        if dest and dest != "MONITOREO" and dest != "N/A":
-            escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
+@st.cache_data(ttl=60)
+def cargar_objetivos():
+    try:
+        df = leer_matriz_nube("OBJETIVOS")
+        if df.empty:
+            return pd.DataFrame(columns=['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD'])
+        
+        df.columns = df.columns.str.strip().str.upper()
+        df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
+        
+        if 'LATITUD' in df.columns:
+            df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        if 'LONGITUD' in df.columns:
+            df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        return df 
+    except Exception as e:
+        st.warning(f"Error cargando objetivos: {e}")
+        return pd.DataFrame(columns=['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD'])
 
-# --- 3. IDENTIDAD Y LANDING ---
-def aplicar_identidad_alfa():
-    st.markdown("""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin: 20px 0; }
-        .logo-phoenix { width: 400px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        .estacion-titulo { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 32px; text-align: center; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); margin-bottom: 30px; }
-        .stButton > button { background-color: #0A192F !important; color: #00E5FF !important; border: 1px solid #00E5FF !important; border-radius: 5px !important; font-family: 'Orbitron', sans-serif !important; }
-        </style>
-    """, unsafe_allow_html=True)
-
+# --- 3. LANDING Y SEGURIDAD ---
 def mostrar_landing():
-    aplicar_identidad_alfa()
-    st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
-    
-    modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
+    st.markdown("<h2 style='text-align: center; color: #00E5FF;'>AION-YAROKU | COMMAND</h2>", unsafe_allow_html=True)
+    modo = st.radio("Acceso:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
     with st.form("form_acceso"):
         user = st.text_input("Usuario")
         password = st.text_input("Contraseña", type="password")
-        rol_usuario = st.selectbox("Seleccione su Rol:", ROLES_VALIDOS)
-        if st.form_submit_button("ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"):
-            if modo == "Iniciar Sesión" and user == "admin" and password == "1234":
+        if st.form_submit_button("ENTRAR"):
+            if user == "admin" and password == "1234":
                 st.session_state.usuario_logueado = True
-                st.session_state.user_sel = user
-                st.session_state.rol_sel = rol_usuario
                 st.rerun()
             else: st.error("Acceso denegado.")
 
-# --- 4. LÓGICA DE CONTROL ---
+# --- 4. FLUJO PRINCIPAL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
 else:
-    with st.sidebar:
-        st.subheader("🛡️ PANEL DE CONTROL")
-        if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
-        if st.button("📋 JEFE DE OPERACIONES"): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
-        if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
-        if st.button("👤 VIGILADOR"): st.session_state.rol_sel = "VIGILADOR"; st.rerun()
-        if st.button("⚙️ ADMINISTRADOR"): st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
-        st.write("---")
-        if st.button("🚪 CERRAR SESIÓN"):
-            st.session_state.usuario_logueado = False
-            st.rerun()
-            
+    st.sidebar.subheader("🛡️ PANEL DE CONTROL")
+    # Ahora puedes llamar a cargar_objetivos() aquí abajo, ya que está definida arriba
+    objetivos = cargar_objetivos()
+    st.write(f"Objetivos cargados: {len(objetivos)}")
+    
+    if st.sidebar.button("🚪 CERRAR SESIÓN"):
+        st.session_state.usuario_logueado = False
+        st.rerun()        
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
