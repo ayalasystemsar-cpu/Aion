@@ -214,32 +214,7 @@ else:
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
         
-    elif st.session_state.rol_sel == "SUPERVISOR":
-        # ... (Tu código de SUPERVISOR)
-
-    elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
-        # ... (Tu código de JEFE)
-
-    elif st.session_state.rol_sel == "GERENCIA":
-        # ... (Tu código de GERENCIA)
-
-    elif st.session_state.rol_sel == "VIGILADOR":
-        # ... (Tu código de VIGILADOR)
-
-    elif st.session_state.rol_sel == "ADMINISTRADOR":
-        u_ing = st.text_input("ADMIN_USER")
-        p_ing = st.text_input("ADMIN_PASS", type="password")
-        if u_ing == "admin" and p_ing == "aion2026": 
-            st.success("Núcleo Maestro desbloqueado.")
     
-    # OPCIONAL: Solo un 'else' al final de todo, si quieres
-    else:
-        st.write("Seleccione un rol válido.")
-
-
-
-
-
 
 
 
