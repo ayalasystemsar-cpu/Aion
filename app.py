@@ -12,18 +12,16 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
-import requests # Importante para conectar con el servidor de mapas de calles
-from branca.element import Element # Para inyección de z-index nativo seguro
+import requests
+from branca.element import Element
+import qrcode
 
-# Configuración de página OLED
-st.set_page_config(
-    page_title="AION-YAROKU | CORE",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
+st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. CONEXIONES (GOOGLE MATRIZ) ---
+# (Aquí mantienes todas tus funciones de: conectar_google, leer_matriz_nube, obtener_hora_argentina, etc.)
+# --- INSERTA AQUÍ TUS FUNCIONES DE "INTENTO 1" ---
+# --- 2. FUNCIONES DE LÓGICA Y GOOGLE (EXTRAÍDAS DE INTENTO 1) ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
 def conectar_google():
@@ -31,10 +29,8 @@ def conectar_google():
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
-    except: 
-        return None
+    except: return None
 
-# --- 3. FUNCIONES DE LÓGICA E DATOS ---
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -46,8 +42,7 @@ def actualizar_celda(pestana, fila, columna, valor):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.update_acell(f"{columna}{fila}", valor)
             return True
-    except: 
-        return False
+    except: return False
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -56,69 +51,22 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
             return True
-    except: 
-        return False
-        
-@st.cache_resource
-def obtener_grafo_zona(lat, lon):
-    try:
-        return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
-    except:
-        return None
+    except: return False
 
-def calcular_ruta_real(orig, dest):
-    mid_lat = (orig[0] + dest[0]) / 2
-    mid_lon = (orig[1] + dest[1]) / 2
-    G = obtener_grafo_zona(mid_lat, mid_lon)
-    
-    if G is None: 
-        return [orig, dest]
-        
-    try:
-        orig_node = ox.distance.nearest_nodes(G, X=orig[1], Y=orig[0])
-        dest_node = ox.distance.nearest_nodes(G, X=dest[1], Y=dest[0])
-        ruta = nx.shortest_path(G, orig_node, dest_node, weight='length')
-        return [(G.nodes[n]['y'], G.nodes[n]['x']) for n in ruta]
-    except:
-        return [orig, dest]
-
-# Función dedicada a obtener el trazado exacto calle por calle vía OSRM (Estilo GPS)
-def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
-    try:
-        url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson"
-        response = requests.get(url, timeout=5).json()
-        if response.get("code") == "Ok":
-            coordenadas = response["routes"][0]["geometry"]["coordinates"]
-            return [[point[1], point[0]] for point in coordenadas]
-    except:
-        pass
-    return [[lat1, lon1], [lat2, lon2]]
-
-@st.cache_data(ttl=60) 
+@st.cache_data(ttl=60)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
-            
-            if not todas_filas or len(todas_filas) == 0:
-                return pd.DataFrame()
-                
+            if not todas_filas or len(todas_filas) == 0: return pd.DataFrame()
             encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-            datos_cuerpo = todas_filas[1:]
-            
-            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
-            
-            # --- BLINDAJE CONTRA DUPLICADOS ---
-            # 1. Quitar espacios accidentales
+            df = pd.DataFrame(todas_filas[1:], columns=encabezados)
             df.columns = [str(c).strip().upper() for c in df.columns]
-            # 2. Eliminar columnas duplicadas (mantiene la primera ocurrencia)
             df = df.loc[:, ~df.columns.duplicated()]
-            
             return df
-        except Exception as e: 
-            return pd.DataFrame()
+        except: return pd.DataFrame()
     return pd.DataFrame()
 
 @st.cache_data(ttl=60)
@@ -137,295 +85,79 @@ def cargar_objetivos():
         df.columns = df.columns.str.strip().str.upper()
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
-        
-        if 'SUPERVISOR' in df.columns:
-            df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
-        
-        df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
-        df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
-        df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
-        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
+        if 'SUPERVISOR' in df.columns: df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
+        df['LATITUD'] = pd.to_numeric(df['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df 
     return pd.DataFrame()
-
-def renderizar_mensajeria_global(rol_contexto):
-    # 1. ESTADO DE RESPUESTA
-    if 'asunto_respuesta' not in st.session_state:
-        st.session_state.asunto_respuesta = None
-
-    # 2. LECTURA DE DATOS
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    
-    st.subheader("💬 COMUNICACIONES OPERATIVAS")
-
-    # 3. FORMULARIO DE ENVÍO
-    with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
-        if st.session_state.asunto_respuesta:
-            st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
-            asunto_input = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
-        else:
-            asunto_input = st.text_input("ASUNTO:")
-
-        col_a, col_b = st.columns([3, 1])
-        with col_a:
-            txt_msg = st.text_input("MENSAJE:")
-        with col_b:
-            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + LISTA_SUPS_TACTICOS
-            destinatario = st.selectbox("PARA:", destinatarios_posibles)
-            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
-
-        # DENTRO DEL BOTÓN DE TRANSMITIR
-        if st.form_submit_button("TRANSMITIR A LA RED"):
-            if txt_msg.strip():
-                escribir_registro_nube("MENSAJERIA", [
-                    obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
-                    (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
-                ])
-                
-                # GUARDAMOS EL ESTADO PARA MOSTRAR EL CARTEL
-                st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
-                st.session_state.asunto_respuesta = None
-                st.rerun()
-
-    # ESTO DEBE IR JUSTO DESPUÉS DEL FORMULARIO PARA QUE SE VEA BIEN
-    if 'mensaje_enviado' in st.session_state:
-        if st.session_state.mensaje_enviado == "RESPUESTA":
-            st.success("✅ RESPUESTA ENVIADA")
-        else:
-            st.success("✅ MENSAJE ENVIADO")
-        
-        # BORRAMOS LA VARIABLE PARA QUE EL CARTEL SE VAYA AL RECARGAR
-        del st.session_state.mensaje_enviado
-
-    # 4. VISUALIZACIÓN POR HILOS
-    if not df_msg.empty:
-        # Agrupamos por ASUNTO para ver las conversaciones
-        # Aseguramos que la columna ASUNTO exista
-        if 'ASUNTO' in df_msg.columns:
-            for asunto, grupo in df_msg.groupby('ASUNTO'):
-                with st.expander(f"💬 Hilo: {asunto}"):
-                    for _, msg in grupo.iterrows():
-                        st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
-                    
-                    if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
-                        st.session_state.asunto_respuesta = asunto
-                        st.rerun()
-        else:
-            st.warning("La base de datos no tiene una columna 'ASUNTO'. Verifica tu Google Sheet.")
-            
-def obtener_etiqueta_mensajeria(rol_contexto):
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    if df_msg.empty:
-        return "💬 MENSAJERÍA"
-    
-    nombre_user = st.session_state.user_sel.upper()
-    mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
-            (df_msg['DESTINATARIO'] == rol_contexto.upper()) | 
-            (df_msg['DESTINATARIO'] == nombre_user)) & \
-           (df_msg['ESTADO'] == "PENDIENTE")
-    
-    total_nuevos = len(df_msg[mask])
-    return f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
-
-def registrar_movimiento_supervisor(supervisor, objetivo, accion):
-    fecha_hora_arg = obtener_hora_argentina()
-    fecha = fecha_hora_arg.split(" ")[0]
-    hora = fecha_hora_arg.split(" ")[1]
-    
-    # Esta lista debe coincidir exactamente con el orden de las columnas de tu hoja
-    datos = [fecha, supervisor, objetivo, accion, hora]
-    
-    exito = escribir_registro_nube("JORNADA_SUPERVISORES", datos)
-    return exito
 
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
-    
-    # Destinatarios fijos
     destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
-    
     for dest in destinatarios:
         if dest and dest != "MONITOREO" and dest != "N/A":
-            # [FECHA, EMISOR, DESTINATARIO, MENSAJE, ESTADO]
             escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
 
-def aplicar_identidad_alfa():
-    st.markdown(
-        """
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
-        .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        
-        .estacion-titulo {
-            font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important; font-size: 24px; margin-top: 15px;
-            display: flex; align-items: center; justify-content: center; gap: 12px;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
-        }
 
-        .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
-        .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
-        .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
-        .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
-
-        .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
-            color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; 
-            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; 
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
-        }
-        
-        .message-box { border-left: 3px solid #00e5ff; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
-        .message-box-red { border-left: 3px solid #ff0000; padding-left: 10px; margin-bottom: 15px; background: rgba(255,255,255,0.02); padding-top: 5px; padding-bottom: 5px; }
-        .message-info { color: #00e5ff; font-size: 13px; font-weight: bold; font-family: 'Orbitron', sans-serif; }
-        .message-text { color: #e0e0e0; font-size: 14px; margin-top: 4px; font-family: 'Rajdhani', sans-serif; }
-        
-        .panel-info { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; border: 1px solid #333; border-radius: 4px; background: rgba(10, 10, 11, 0.9); }
-        .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
-
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
-        .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.4) !important; border: 1px solid #2D313E !important;
-            color: #A0A5B5 !important; border-radius: 4px 4px 0px 0px !important; padding: 6px 16px !important;
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
-        }
-        .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
-        
-        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
-        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
-        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
-        
-        .btn-google-maps {
-            display: inline-flex; align-items: center; justify-content: center;
-            background-color: #ffffff !important; color: #1a73e8 !important;
-            font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 14px;
-            padding: 12px 24px; border-radius: 6px; border: 2px solid #1a73e8;
-            text-decoration: none !important; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
-            width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
-        }
-        .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
-
-        /* NUEVO: Botón Pánico Fino */
-        div.stButton > button[kind="secondary"].panico-fino { 
-            border: 1px solid #FF4B4B !important;
-            background: transparent !important;
-            color: #FF4B4B !important;
-            font-family: 'Orbitron', sans-serif !important;
-            letter-spacing: 2px !important;
-            width: 100% !important;
-            transition: all 0.3s ease !important;
-        }
-        div.stButton > button[kind="secondary"].panico-fino:hover { background: rgba(255, 75, 75, 0.1) !important; }
-        </style>
-        """, unsafe_allow_html=True
-    )
-
-# --- SCRIPT PARA RELOJ EN TIEMPO REAL (SIN RERUNS NI ERRORES) ---
-st.markdown("""
-<script>
-    function updateClock() {
-        var now = new Date();
-        var timeString = now.toLocaleTimeString('es-AR', {hour12: false});
-        var reloj = document.getElementById('mi-reloj');
-        if (reloj) {
-            reloj.innerText = timeString;
-        }
-    }
-    setInterval(updateClock, 1000);
-</script>
-""", unsafe_allow_html=True)
-
-aplicar_identidad_alfa()
-
-# --- 5. SIDEBAR TÁCTICO ---
-df_objetivos = cargar_objetivos()
-df_comisarias = cargar_datos_comisarias()
-LISTA_SUPS_TACTICOS = [
-    "AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"
-]
-
+# --- 2. LANDING Y SEGURIDAD ---
+if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
-if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 
-with st.sidebar:
-    st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
-    st.subheader("🛡️ PANEL DE CONTROL")
+def mostrar_landing():
+    # ... (Tu función mostrar_landing con el formulario de acceso y selección de ROL) ...
+   aplicar_identidad_alfa()
+    st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
     
-    if st.button("🛰️ MONITOREO", use_container_width=True):
-        st.session_state.rol_sel = "MONITOREO"
-        st.session_state.user_sel = "OPERADOR CENTRAL"
-        st.session_state.sup_autenticado = False
-        st.rerun()
+    # Selector de Modo
+    modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
+    
+    with st.form("form_acceso"):
+        user = st.text_input("Usuario")
+        password = st.text_input("Contraseña", type="password")
         
-    if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
-        st.session_state.rol_sel = "JEFE DE OPERACIONES"
-        st.session_state.user_sel = "JEFE DE OPERACIONES"
-        st.session_state.sup_autenticado = False
-        st.rerun()
+        # Campo para seleccionar el rol
+        rol_usuario = st.selectbox("Seleccione su Rol:", 
+                                   ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
         
-    if st.button("🏢 GERENCIA", use_container_width=True):
-        st.session_state.rol_sel = "GERENCIA"
-        st.session_state.user_sel = "DIRECCIÓN GENERAL"
-        st.session_state.sup_autenticado = False
-        st.rerun()
-
-    with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
-        nom_sup = st.selectbox("RESPONSABLE ACTIVO:", LISTA_SUPS_TACTICOS, key="cambio_supervisor_directo")
-        user_sup = st.text_input("USUARIO RECURSO (APELLIDO)", key="auth_user_sup")
-        pass_sup = st.text_input("CONTRASEÑA CRÍTICA", type="password", key="auth_pass_sup")
+        btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
-        if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
-            st.session_state.intentando_sup = True
-            if "NOCTURNO" in nom_sup: usuario_esperado = "nocturno"
-            elif "AYALA" in nom_sup: usuario_esperado = "ayala"
-            else: usuario_esperado = nom_sup.split(" ")[1]
-            
-            if user_sup.strip().lower() == usuario_esperado and pass_sup == "1234":
-                st.session_state.rol_sel = "SUPERVISOR"
-                st.session_state.user_sel = nom_sup
-                st.session_state.sup_autenticado = True
-                if 'intentando_sup' in st.session_state: del st.session_state.intentando_sup
-                st.success(f"🔓 ACCESO CONCEDIDO: {nom_sup}")
-                st.rerun()
+        if st.form_submit_button(btn_texto):
+            if modo == "Iniciar Sesión":
+                # Lógica de validación
+                if user == "admin" and password == "1234":
+                    st.session_state.usuario_logueado = True
+                    st.session_state.user_sel = user
+                    st.session_state.rol_sel = rol_usuario  # Guardamos el rol seleccionado
+                    st.rerun()
+                else: 
+                    st.error("Credenciales incorrectas.")
             else:
-                st.session_state.sup_autenticado = False
-                st.error("❌ CREDENCIALES INVÁLIDAS EN BASE")
-
-    st.write("---")
-    if st.button("👮 VIGILADOR (ACCESO PUESTO)", use_container_width=True):
-        st.session_state.rol_sel = "VIGILADOR"
-        st.session_state.user_sel = "VIGILADOR EN PUESTO"
-        st.session_state.sup_autenticado = False
-        st.rerun()
-
-    st.write("---")
-    st.markdown("**⚙️ ADMINISTRADOR**")
-    if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
-        st.session_state.rol_sel = "ADMINISTRADOR"
-        st.session_state.user_sel = "ADMIN CENTRAL"
-        st.session_state.sup_autenticado = False
-        st.rerun()
-
-    st.write("---")
+                # Aquí guardarías los datos en tu Google Sheet de "USUARIOS"
+                st.success(f"Solicitud de registro como {rol_usuario} enviada.")
     
 
-# --- 6. CABECERA CENTRAL ---
-st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
-
-titulos = {
-    "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
-    "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
-    "VIGILADOR": "👮 TERMINAL OPERATIVO VIGILADORES",
-    "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
-    "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
-    "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
-}
-st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
+# --- 4. LÓGICA DE CONTROL ---
+if not st.session_state.usuario_logueado:
+    mostrar_landing()
+else:
+    # --- 3. PANEL OPERATIVO (Usuario Logueado) ---
+    df_objetivos = cargar_objetivos()
+    df_comisarias = cargar_datos_comisarias()
+    
+    with st.sidebar:
+        st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
+        st.subheader("🛡️ PANEL DE CONTROL")
+        
+        if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
+        if st.button("📋 JEFE DE OPERACIONES"): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
+        if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
+        if st.button("👤 VIGILADOR"): st.session_state.rol_sel = "VIGILADOR"; st.rerun()
+        if st.button("⚙️ ADMINISTRADOR"): st.session_state.rol_sel = "ADMINISTRADOR"; st.rerun()
+        
+        st.write("---")
+        st.button("🚪 CERRAR SESIÓN", on_click=lambda: setattr(st.session_state, 'usuario_logueado', False), use_container_width=True)
 
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
