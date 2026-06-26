@@ -130,7 +130,7 @@ if st.session_state.rol_sel == "MONITOREO":
             df_mapa_monitoreo = df_mapa_monitoreo.dropna(subset=['LATITUD', 'LONGITUD'])
 
     # Lógica de Pánicos
-    lista_objetivos_en_panico = []
+ lista_objetivos_en_panico = []
     if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
         pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
         sos_activos = len(pendientes)
