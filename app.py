@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -83,39 +82,38 @@ def mostrar_landing():
         st.session_state.usuario_logueado = True
         st.rerun()
 
-# --- 4. LÓGICA PRINCIPAL ---
+# --- 4. LÓGICA PRINCIPAL (PORTERO + CÓDIGO CORREGIDO) ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
 else:
-    # Carga inicial de datos tácticos
+  # 1. CARGA SEGURA DE DATOS
     df_objetivos = cargar_objetivos()
     df_comisarias = cargar_datos_comisarias()
     LISTA_SUPS_TACTICOS = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
 
+    # 2. SIDEBAR TÁCTICO (Único y limpio)
     with st.sidebar:
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
         st.subheader("🛡️ PANEL DE CONTROL")
-        
         if st.button("🛰️ MONITOREO", use_container_width=True):
             st.session_state.rol_sel = "MONITOREO"; st.session_state.user_sel = "OPERADOR CENTRAL"; st.rerun()
         if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
             st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
         if st.button("🏢 GERENCIA", use_container_width=True):
             st.session_state.rol_sel = "GERENCIA"; st.rerun()
-            
         st.write("---")
         st.button("🚪 CERRAR SESIÓN", on_click=lambda: setattr(st.session_state, 'usuario_logueado', False), use_container_width=True)
 
-    # Cabecera Dinámica
-    st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:200px; border:2px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
+    
+# 3. CABECERA
     titulos = {
         "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
         "SUPERVISOR": f"📱 Estación de Control: {st.session_state.user_sel}",
-        "VIGILADOR": "👮 TERMINAL OPERATIVO VIGILADORES",
         "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
         "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL"
     }
     st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO")}</div>', unsafe_allow_html=True)
+
 # --- 7. FLUJO POR ROLES ---
 if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
@@ -130,13 +128,12 @@ if st.session_state.rol_sel == "MONITOREO":
 
     df_mapa_monitoreo = pd.DataFrame()
     if not df_objetivos.empty:
-        df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
-        if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
-            df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
-
+       
     lista_objetivos_en_panico = []
     if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
-        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENdf_mapa_monitoreo['LATITUD'] = pd.to_numeric(df_mapa_monitoreo['LATITUD'], errors='coerce')
+        df_mapa_monitoreo['LONGITUD'] = pd.to_numeric(df_mapa_monitoreo['LONGITUD'], errors='coerce')
+        centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]DIENTE']
         sos_activos = len(pendientes)
         for _, row in pendientes.iterrows():
             carga = str(row['CARGA_UTIL'])
@@ -923,8 +920,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026": 
         st.success("Núcleo Maestro desbloqueado.")
-    # --- AQUÍ VA TODO TU FLUJO DE ROLES ORIGINAL (MONITOREO, SUPERVISOR, ETC) ---
-    # (Pega aquí debajo el resto de tus IF/ELIF que ya tenías programados)
+   
 
     
 
