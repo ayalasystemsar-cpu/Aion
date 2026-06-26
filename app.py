@@ -68,13 +68,7 @@ else:
         df_objetivos['LATITUD'] = pd.to_numeric(df_objetivos['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df_objetivos['LONGITUD'] = pd.to_numeric(df_objetivos['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
 
-    # Aquí va TODO TU CÓDIGO ORIGINAL DE PESTAÑAS Y MAPAS
-    st.sidebar.subheader("🛡️ PANEL DE CONTROL")
-    st.write(f"Bienvenida {st.session_state.user_sel}")
-    
-    if st.sidebar.button("🚪 CERRAR SESIÓN"):
-        st.session_state.usuario_logueado = False
-        st.rerun()
+   
 
 
 # --- 7. FLUJO POR ROLES ---
