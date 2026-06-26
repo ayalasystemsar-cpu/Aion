@@ -107,20 +107,24 @@ def mostrar_landing():
             else:
                 # Aquí guardarías los datos en tu Google Sheet de "USUARIOS"
                 st.success(f"Solicitud de registro como {rol_usuario} enviada.")
-
-
-
+#--------------------------------------------------------------------------------------------------------------------------------#
 
 # --- 4. LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
 else:
-    # 1. CARGA DE DATOS (Solo si está logueado)
+    # 1. CARGA DE DATOS (Carga los datos una sola vez aquí)
     df_objetivos = cargar_objetivos()
     df_comisarias = cargar_datos_comisarias()
-    
-    # 2. PANEL LATERAL (NO TOCAR, MANTENER TU DISEÑO)
+  #---------------------------------------------------------------------------------------------------------------------------------------#  
+    # 2. EL BLINDAJE QUE QUERÍAS AGREGAR (Va justo aquí)
+    if not df_objetivos.empty and 'LATITUD' in df_objetivos.columns:
+        df_objetivos['LATITUD'] = pd.to_numeric(df_objetivos['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        df_objetivos['LONGITUD'] = pd.to_numeric(df_objetivos['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+    #---------------------------------------------------------------------------------------------------------------------------------------#
+    # 3. PANEL LATERAL
     with st.sidebar:
+        # ... (aquí sigue tu código del menú lateral)
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
         st.subheader("🛡️ PANEL DE CONTROL")
         if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
@@ -128,13 +132,9 @@ else:
         if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
         st.write("---")
         st.button("🚪 CERRAR SESIÓN", on_click=lambda: setattr(st.session_state, 'usuario_logueado', False), use_container_width=True)
-
-    # 3. LÓGICA DE ROLES (CORREGIDA PARA EVITAR EL ERROR DEL MAPA)
-    # APLICAMOS EL BLINDAJE AQUÍ ANTES DE CUALQUIER ROL
-    if not df_objetivos.empty and 'LATITUD' in df_objetivos.columns:
-        df_objetivos['LATITUD'] = pd.to_numeric(df_objetivos['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        df_objetivos['LONGITUD'] = pd.to_numeric(df_objetivos['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+      #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------#  
+    
+    # 4. ROLES (Aquí empiezan tus if/elif que cargan el Monitoreo, Jefe, etc.)
     # --- 1. LÓGICA DE MONITOREO CORREGIDA ---
     if st.session_state.rol_sel == "MONITOREO":
         col1, col2, col3, col4 = st.columns(4)
@@ -211,22 +211,7 @@ else:
                 st_folium(m_mon, width="100%", height=550)
             else:
                 st.warning("No hay objetivos válidos.")
-#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-
-        
-    
-
-
-
-
-
-
-
-
-
-
-
-
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
 
 
