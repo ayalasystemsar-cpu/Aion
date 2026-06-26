@@ -105,7 +105,7 @@ else:
             st.session_state.rol_sel = "GERENCIA"; st.rerun()
         
         st.welif st.session_state.rol_sel == "MONITOREO":
-    col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4 = st.columns(4)
     
     # --- LIMPIEZA Y CARGA DE DATOS ---
     df_emergencias = leer_matriz_nube("ALERTAS")
