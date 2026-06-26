@@ -40,6 +40,10 @@ def conectar_google():
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
+    except Exception as e:
+        # Capturamos el error para que la app no se bloquee
+        st.error(f"Error al conectar con Google: {e}")
+        return None
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -48,28 +52,29 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
             return True
-        else:
-            return False
+        return False
     except Exception as e:
-        # Esto captura el error y evita que la app se caiga
         st.error(f"Error al escribir en la nube: {e}")
         return False
 
 @st.cache_data(ttl=60)
 def leer_matriz_nube(pestana):
-    gc = conectar_google()
-    if gc:
-        try:
+    try:
+        gc = conectar_google()
+        if gc:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
             if not todas_filas or len(todas_filas) == 0: return pd.DataFrame()
+            
             encabezados = [str(h).strip().upper() for h in todas_filas[0]]
             df = pd.DataFrame(todas_filas[1:], columns=encabezados)
             df.columns = [str(c).strip().upper() for c in df.columns]
             df = df.loc[:, ~df.columns.duplicated()]
             return df
-        except: return pd.DataFrame()
-    return pd.DataFrame()
+        return pd.DataFrame()
+    except Exception as e:
+        st.warning(f"No se pudo leer la pestaña {pestana}: {e}")
+        return pd.DataFrame()
 
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
