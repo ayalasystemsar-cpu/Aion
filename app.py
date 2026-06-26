@@ -434,23 +434,22 @@ if st.session_state.usuario_logueado:
                     st.caption("⚠️ Al presionar el botón, se abrirá la aplicación de Google Maps con el trazado listo para iniciar la navegación.")
             else:
                 st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
-                pass
-            with t_car_tac:
-                novedad_sup = st.text_area("Novedad / Registro Operativo:")
-       # Asegúrate de que este bloque de carga esté bien cerrado
-        if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-            escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
-            st.success("✅ Cargado")
-        
-        # Estas pestañas deben estar fuera del IF anterior
+                
+           with t_car_tac:
+            novedad_sup = st.text_area("Novedad / Registro Operativo:")
+            
+            # Este 'if' debe estar alineado a la misma altura que 'novedad_sup ='
+            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
+                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
+                st.success("✅ Cargado")
+
         with t_mensajeria_sup:
             renderizar_mensajeria_global("SUPERVISOR")
-            
+
         with t_pres_sup:
             st.subheader("📋 NOVEDADES DE MI GRUPO")
-            # ... resto de tu lógica aquí ...
-            st.error("❌ CREDENCIALES INVÁLIDAS. Acceda a través del Sidebar.")
-        pass
+            # ... resto de tu lógica ...
+ 
         
     elif st.session_state.rol_sel == "VIGILADOR":
         # ... (Tu código de Vigilador) ...
