@@ -19,6 +19,8 @@ import qrcode
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
+ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+
 # Definición de roles permitidos para control de acceso
 ROLES_VALIDOS = ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "VIGILADOR", "ADMINISTRADOR"]
 
@@ -36,7 +38,6 @@ if 'sup_autenticado' not in st.session_state:
     st.session_state.sup_autenticado = False
 
 # --- 2. FUNCIONES DE LÓGICA Y GOOGLE (CORREGIDAS) ---
-ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
 def conectar_google():
     try:
