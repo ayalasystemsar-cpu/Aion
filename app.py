@@ -48,7 +48,9 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
             return True
-      except: return False
+    except Exception as e:
+        st.error(f"Error al escribir en la nube: {e}")
+        return False
 
 @st.cache_data(ttl=60)
 def leer_matriz_nube(pestana):
