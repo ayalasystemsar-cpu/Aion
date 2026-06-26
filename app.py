@@ -16,13 +16,7 @@ import requests
 from branca.element import Element
 import qrcode
 
-
-
-def conectar_google():
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        return gspread.authorize(creds)# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
+# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
 # Definición de roles permitidos para control de acceso
@@ -40,20 +34,12 @@ if 'user_sel' not in st.session_state:
 
 if 'sup_autenticado' not in st.session_state: 
     st.session_state.sup_autenticado = False
-    except: return None
 
-def obtener_hora_argentina():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
-def actualizar_celda(pestana, fila, columna, valor):
+def conectar_google():
     try:
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-            hoja.update_acell(f"{columna}{fila}", valor)
-            return True
-    except: return False
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+        return gspread.authorize(creds)
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
