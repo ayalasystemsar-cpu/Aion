@@ -35,6 +35,9 @@ if 'user_sel' not in st.session_state:
 if 'sup_autenticado' not in st.session_state: 
     st.session_state.sup_autenticado = False
 
+# --- 2. FUNCIONES DE LÓGICA Y GOOGLE (CORREGIDAS) ---
+ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+
 def conectar_google():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
