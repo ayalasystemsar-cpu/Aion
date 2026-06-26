@@ -288,7 +288,7 @@ if st.session_state.usuario_logueado:
             if not df_padrero.empty:
                 df_padrero.columns = df_padrero.columns.str.strip().str.upper()
                 st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
-             else:
+            else:
                 st.info("No hay datos en la pestaña de relevos (Vigiladores).")
 
         with t_nov:
