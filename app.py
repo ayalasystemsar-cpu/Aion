@@ -88,18 +88,25 @@ def mostrar_landing():
     with st.form("form_acceso"):
         user = st.text_input("Usuario")
         password = st.text_input("Contraseña", type="password")
+        # Nuevo campo para seleccionar el rol
+        rol_usuario = st.selectbox("Seleccione su Rol:", 
+                                   ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "ADMINISTRADOR"])
+        
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
+        
         if st.form_submit_button(btn_texto):
             if modo == "Iniciar Sesión":
-                # Lógica de validación real (puedes conectarlo con tu DB aquí)
+                # Lógica de validación (ejemplo simple)
                 if user == "admin" and password == "1234":
                     st.session_state.usuario_logueado = True
                     st.session_state.user_sel = user
+                    st.session_state.rol_sel = rol_usuario  # <--- GUARDAMOS EL ROL AQUÍ
                     st.rerun()
-                else: st.error("Credenciales incorrectas.")
+                else: 
+                    st.error("Credenciales incorrectas.")
             else:
-                st.success("Solicitud de registro enviada.")
-
+                # Aquí guardarías los datos en tu Google Sheet de "USUARIOS"
+                st.success(f"Solicitud de registro como {rol_usuario} enviada.")
 # --- 4. LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
