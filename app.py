@@ -107,26 +107,25 @@ else:
     
 if st.session_state.rol_sel == "MONITOREO":
         col1, col2, col3, col4 = st.columns(4)
-    
-    # --- LIMPIEZA Y CARGA DE DATOS ---
-    df_emergencias = leer_matriz_nube("ALERTAS")
-    df_objetivos = cargar_objetivos()
-    
-    if not df_emergencias.empty:
-        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
-    else:
-        df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
+        
+        # --- CARGA DE DATOS ---
+        df_emergencias = leer_matriz_nube("ALERTAS")
+        df_objetivos = cargar_objetivos()
+        
+        # --- LIMPIEZA DE DATOS ---
+        if not df_emergencias.empty:
+            df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
+        else:
+            df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
 
-    # CORRECCIÓN PARA EVITAR ERROR DEL MAPA
-    df_mapa_monitoreo = pd.DataFrame()
-    if not df_objetivos.empty:
-        df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
-        if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
-            # Filtramos nulos primero
-            df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
-            # FORZAMOS A NÚMERO AQUÍ (Esto soluciona tu error)
-            df_mapa_monitoreo['LATITUD'] = pd.to_numeric(df_mapa_monitoreo['LATITUD'], errors='coerce')
-            df_mapa_monitoreo['LONGITUD'] = pd.to_numeric(df_mapa_monitoreo['LONGITUD'], errors='coerce')
+        # --- MAPA Y CORRECCIÓN DE NUMÉRICOS ---
+        df_mapa_monitoreo = pd.DataFrame()
+        if not df_objetivos.empty:
+            df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
+            if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
+                df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+                df_mapa_monitoreo['LATITUD'] = pd.to_numeric(df_mapa_monitoreo['LATITUD'], errors='coerce')
+                df_mapa_monitoreo['LONGITUD'] = pd.to_numeric(df_mapa_monitoreo['LONGITUD'], errors='coerce')
             # Eliminamos filas que no pudieron convertirse a número
             df_mapa_monitoreo = df_mapa_monitoreo.dropna(subset=['LATITUD', 'LONGITUD'])
 
