@@ -103,12 +103,11 @@ def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asigna
 # --- 2. LANDING Y SEGURIDAD ---
 if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-
+    
 def mostrar_landing():
-    # ... (Tu función mostrar_landing con el formulario de acceso y selección de ROL) ...
-   aplicar_identidad_alfa()
-    st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
+    aplicar_identidad_alfa()
+    st.markdown('<div class="contenedor-logo-central">...</div>', unsafe_allow_html=True)
+
     
     # Selector de Modo
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
