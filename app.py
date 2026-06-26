@@ -442,10 +442,10 @@ if st.session_state.usuario_logueado:
                     escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
                     st.success("✅ Cargado")
 
-            with t_mensajeria_sup:
+    with t_mensajeria_sup:
                 renderizar_mensajeria_global("SUPERVISOR")
 
-            with t_pres_sup:
+    with t_pres_sup:
                 st.subheader("📋 NOVEDADES DE MI GRUPO")
  
         
