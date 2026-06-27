@@ -16,7 +16,7 @@ import requests
 from branca.element import Element
 import qrcode
 
-# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
+# --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
 if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
@@ -24,9 +24,9 @@ if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 
-# --- 2. FUNCIONES DE LÓGICA Y GOOGLE ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
+# --- 2. FUNCIONES BASE ---
 def conectar_google():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -57,49 +57,51 @@ def leer_matriz_nube(pestana):
         except: return pd.DataFrame()
     return pd.DataFrame()
 
-def cargar_objetivos(): return leer_matriz_nube("OBJETIVOS")
-def cargar_datos_comisarias(): return leer_matriz_nube("COMISARIAS")
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-# --- 3. IDENTIDAD Y LANDING ---
+def actualizar_celda(pestana, fila, columna, valor):
+    try:
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            hoja.update_acell(f"{columna}{fila}", valor)
+            return True
+    except: return False
+
+# --- 3. LANDING Y SEGURIDAD ---
 def aplicar_identidad_alfa():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
+        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; }
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin: 20px 0; }
         .logo-phoenix { width: 400px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         .estacion-titulo { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 32px; text-align: center; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); margin-bottom: 30px; }
-        .stButton > button { background-color: #0A192F !important; color: #00E5FF !important; border: 1px solid #00E5FF !important; border-radius: 5px !important; font-family: 'Orbitron', sans-serif !important; }
-        .stButton > button:hover { background-color: #00E5FF !important; color: #000 !important; }
         </style>
     """, unsafe_allow_html=True)
-    
+
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
     st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
     
-    # AGREGAMOS KEY ÚNICO
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="modo_radio_landing")
     
-    with st.form("form_acceso_landing"):
-        # AGREGAMOS KEYS ÚNICOS A CADA INPUT
+    with st.form("form_acceso_unico"):
         user = st.text_input("Usuario", key="input_user_landing")
         password = st.text_input("Contraseña", type="password", key="input_pass_landing")
-        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "AYALA BRIAN", "ADMINISTRADOR"], key="select_rol_landing")
+        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "ADMINISTRADOR"], key="select_rol_landing")
         
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
         if st.form_submit_button(btn_texto):
             if modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
-                
                 if df_usuarios.empty:
                     st.error("Error: No se pudo conectar a la base de usuarios.")
                 else:
+                    # Filtramos por usuario, pass y estado APROBADO
                     usuario_ok = df_usuarios[
                         (df_usuarios['USUARIO'] == user) & 
                         (df_usuarios['CONTRASEÑA'] == password) & 
@@ -115,41 +117,15 @@ def mostrar_landing():
                         st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación.")
                     else:
                         st.error("❌ Credenciales incorrectas o cuenta no autorizada.")
-            
             else:
                 escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
                 st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
-    # Selector de Modo
-    modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
-    
-    with st.form("form_acceso"):
-        user = st.text_input("Usuario")
-        password = st.text_input("Contraseña", type="password")
-        # Nuevo campo para seleccionar el rol
-        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR","ADMINISTRADOR"])
-        
-        btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
-        
-        if st.form_submit_button(btn_texto):
-            if modo == "Iniciar Sesión":
-                # Lógica de validación (ejemplo simple)
-                if user == "admin" and password == "1234":
-                    st.session_state.usuario_logueado = True
-                    st.session_state.user_sel = user
-                    st.session_state.rol_sel = rol_usuario  # <--- GUARDAMOS EL ROL AQUÍ
-                    st.rerun()
-                else: 
-                    st.error("Credenciales incorrectas.")
-            else:
-                # Aquí guardarías los datos en tu Google Sheet de "USUARIOS"
-                st.success(f"Solicitud de registro como {rol_usuario} enviada.")
-
-
-    # --- 4. LÓGICA PRINCIPAL ---
+# --- LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
-    st.stop()  # <--- ESTA ES LA LLAVE QUE DETIENE TODO SI NO HAY LOGIN
+    st.stop()
+
 
 # --- A PARTIR DE AQUÍ COMIENZA TU CÓDIGO ORIGINAL ---
 # (Tal cual lo tenías: sidebar, roles, mapas, etc.)
