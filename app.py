@@ -465,5 +465,19 @@ else:
             if not df_flota.empty:
                 df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
-                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)elif st.session_state.rol_sel == "GERENCIA":
+        # ... (todo tu código de GERENCIA) ...
+        # ¡IMPORTANTE!: Asegúrate de que aquí NO haya un else: al final de este bloque.
+
+    elif st.session_state.rol_sel == "VIGILADOR":
+        # ... (todo tu código de VIGILADOR) ...
+
+    elif st.session_state.rol_sel == "ADMINISTRADOR":
+        # ... (todo tu código de ADMINISTRADOR) ...
+
+    else:
+        # ESTE ES EL ÚNICO ELSE, VA AL FINAL DE TODO Y ES OBLIGATORIO
+        st.info("Seleccione una opción en el panel lateral.")
+
+
                 
