@@ -516,14 +516,15 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-    st.write("---")
+         st.write("---")
     st.markdown("**⚙️ ADMINISTRADOR**")
     if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
+        st.session_state.usuario_logueado = True  # <--- ESTO ES LO QUE TE FALTABA
         st.session_state.rol_sel = "ADMINISTRADOR"
         st.session_state.user_sel = "ADMIN CENTRAL"
         st.session_state.sup_autenticado = False
         st.rerun()
-        
+
         st.markdown("---")
     if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
         st.session_state.usuario_logueado = False
