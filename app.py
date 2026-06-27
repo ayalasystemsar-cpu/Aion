@@ -89,8 +89,10 @@ def mostrar_landing():
     with st.form("form_acceso_real"):
         user = st.text_input("Usuario", key="u")
         password = st.text_input("Contraseña", type="password", key="p")
-        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "ADMINISTRADOR"], key="r")
-        
+            # Rol modificado para eliminar "ADMINISTRADOR" de la lista de registros
+        roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
+        rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
+
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
         if st.form_submit_button(btn_texto):
