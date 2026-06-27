@@ -77,7 +77,8 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-def mostrar_landing():
+
+     def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
     st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
@@ -124,6 +125,9 @@ def mostrar_landing():
             
             else:
                 # CREAR CUENTA
+                escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
+                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
+           # CREAR CUENTA
                 escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
                 st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
