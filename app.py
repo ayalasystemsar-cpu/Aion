@@ -216,14 +216,159 @@ else:
                 st_folium(m_mon, width="100%", height=550)
             else:
                 st.warning("No hay objetivos válidos.")
-
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
         
 
     elif st.session_state.rol_sel == "SUPERVISOR":
         # --- Código de SUPERVISOR que extrajimos antes ---
         if st.session_state.sup_autenticado:
             st.subheader("⏱️ GESTIÓN DE JORNADA")
-            # ... (el resto del código que ya tenías de Supervisor) ...
+            
+            sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+            df_objs_sup = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+            opciones_obj = df_objs_sup['OBJETIVO'].unique() if not df_objs_sup.empty else ["SIN OBJETIVOS ASIGNADOS"]
+
+            obj_seleccionado = st.selectbox("🎯 SELECCIONE OBJETIVO:", opciones_obj, key="obj_jornada_sel")
+            
+            col_j1, col_j2 = st.columns(2)
+            with col_j1:
+                if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
+                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "INICIO")
+                    st.success(f"Jornada iniciada en {obj_seleccionado}")
+            with col_j2:
+                if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
+                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
+                    st.success(f"Jornada cerrada en {obj_seleccionado}")
+
+            # --- BOTÓN DE PÁNICO ---
+            st.markdown("<br>", unsafe_allow_html=True)
+            _, col_panico, _ = st.columns([1, 2, 1]) 
+            with col_panico:
+                if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
+                    obj_alerta = st.session_state.get("obj_jornada_sel", "UBICACIÓN DESCONOCIDA")
+                    lat_envio, lon_envio = 0.0, 0.0
+                    try:
+                        loc = get_geolocation()
+                        if loc and isinstance(loc, dict) and 'coords' in loc:
+                            lat_envio = loc['coords'].get('latitude', 0.0)
+                            lon_envio = loc['coords'].get('longitude', 0.0)
+                    except: pass
+                    
+                    carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                    escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+                    st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+
+            # --- 2. REGISTRO DIRECTO ---
+            st.markdown("---")
+            st.subheader("📍 REGISTRO DIRECTO (SIN QR)")
+            df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+            
+            opciones_obj_dir = df_objetivos_filtrados['OBJETIVO'].unique()
+            if len(opciones_obj_dir) > 0:
+                obj_select = st.selectbox("Seleccione Objetivo:", opciones_obj_dir, key="obj_select_directo")
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button("✅ ARRIBO DIRECTO", use_container_width=True):
+                        registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "ARRIBO")
+                        st.success(f"Arribo en {obj_select}")
+                with c2:
+                    if st.button("🚪 RETIRO DIRECTO", use_container_width=True):
+                        registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "RETIRO")
+                        st.success(f"Retiro en {obj_select}")
+            else:
+                st.warning("No hay objetivos asignados para registro directo.")
+
+            # --- 3. TABS Y FUNCIONES ---
+            df_msg = leer_matriz_nube("MENSAJERIA")
+            nombre_user = st.session_state.user_sel.upper()
+            total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "SUPERVISORES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
+            label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+
+            t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
+                "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
+            ])
+
+            with t_vis_qr:
+                st.markdown("### 📱 ESCANEO TÁCTICO")
+                if not df_objetivos_filtrados.empty:
+                    obj_a_generar = st.selectbox("Seleccione objetivo:", df_objetivos_filtrados['OBJETIVO'].unique())
+                    if obj_a_generar:
+                        url_final = f"https://tu-app-de-aion.streamlit.app/?obj={obj_a_generar.replace(' ', '%20')}"
+                        qr = qrcode.QRCode(version=1, box_size=10, border=3)
+                        qr.add_data(url_final)
+                        qr.make(fit=True)
+                        st.image(qr.make_image(fill_color="black", back_color="white").get_image(), width=250)
+                
+                st.markdown("---") 
+                st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
+                with st.form(key="form_acta_flota", clear_on_submit=True):
+                    col1, col2 = st.columns(2)
+                    v_patente = col1.text_input("PATENTE/MÓVIL:").upper()
+                    v_km_ini = col1.number_input("KM INICIAL:", min_value=0)
+                    v_km_fin = col2.number_input("KM FINAL:", min_value=0)
+                    v_comb = col2.selectbox("COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
+                    
+                    if st.form_submit_button("REGISTRAR ACTA"):
+                        escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), st.session_state.user_sel, v_patente, v_km_ini, v_km_fin, v_comb])
+                        st.success("✅ Acta registrada.")
+
+            with t_ruta_gmaps:
+                st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
+                opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
+                
+                if len(opciones_servicios_r) > 0:
+                    obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_servicios_r, key="sup_ruta_gmaps_target")
+                    
+                    datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
+                    lat_target = datos_obj_r['LATITUD']
+                    lon_target = datos_obj_r['LONGITUD']
+                    
+                    comisaria_r_name = None
+                    com_lat_target, com_lon_target = None, None
+                    dist_min_r = float('inf')
+                    
+                    for _, com in df_comisarias.iterrows():
+                        ln1, lt1, ln2, lt2 = map(math.radians, [lon_target, lat_target, com['LONGITUD'], com['LATITUD']])
+                        dln = ln2 - ln1
+                        dlt = lt2 - lt1
+                        a = math.sin(dlt/2)**2 + math.cos(lt1) * math.cos(lt2) * math.sin(dln/2)**2
+                        c = 2 * math.asin(math.sqrt(a))
+                        km = 6371 * c
+                        
+                        if km < dist_min_r:
+                            dist_min_r = km
+                            comisaria_r_name = com['COMISARIA']
+                            com_lat_target = com['LATITUD']
+                            com_lon_target = com['LONGITUD']
+                    
+                    if comisaria_r_name:
+                        st.info(f"👮 **Comisaría Encontrada:** {comisaria_r_name} (Distancia: {dist_min_r:.2f} Km)")
+                        
+                        # Generamos el enlace para Google Maps
+                        url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_target},{com_lon_target}&destination={lat_target},{lon_target}&travelmode=driving"
+                        
+                        st.markdown(
+                            f'<a href="{url_gmaps}" target="_blank" class="btn-google-maps" style="background-color: #4285F4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: block; text-align: center;">🗺️ ABRIR ASISTENTE GPS EN GOOGLE MAPS</a>',
+                            unsafe_allow_html=True
+                        )
+                        st.caption("⚠️ Al presionar el botón, se abrirá la aplicación de Google Maps en tu dispositivo.")
+                else:
+                    st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
+
+            with t_car_tac:
+                novedad_sup = st.text_area("Novedad / Registro Operativo:")
+                if st.button("CARGAR REGISTRO") and novedad_sup.strip():
+                    escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
+                    st.success("✅ Cargado")
+
+            with t_mensajeria_sup:
+                renderizar_mensajeria_global("SUPERVISOR")
+           
+            with t_pres_sup:
+                st.markdown("### 📋 NOVEDADES DE MI GRUPO")
+        else:
+            st.warning("Supervisor no autenticado.")
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
     elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         # --- Código de JEFE DE OPERACIONES ---
