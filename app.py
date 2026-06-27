@@ -107,7 +107,6 @@ def mostrar_landing():
             else:
                 # Aquí guardarías los datos en tu Google Sheet de "USUARIOS"
                 st.success(f"Solicitud de registro como {rol_usuario} enviada.")
-#--------------------------------------------------------------------------------------------------------------------------------#
 
 # --- 4. LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
@@ -116,12 +115,12 @@ else:
     # 1. CARGA DE DATOS (Carga los datos una sola vez aquí)
     df_objetivos = cargar_objetivos()
     df_comisarias = cargar_datos_comisarias()
-  #---------------------------------------------------------------------------------------------------------------------------------------#  
+  
     # 2. EL BLINDAJE QUE QUERÍAS AGREGAR (Va justo aquí)
     if not df_objetivos.empty and 'LATITUD' in df_objetivos.columns:
         df_objetivos['LATITUD'] = pd.to_numeric(df_objetivos['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df_objetivos['LONGITUD'] = pd.to_numeric(df_objetivos['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-    #---------------------------------------------------------------------------------------------------------------------------------------#
+    
 # 2. PANEL LATERAL (NO TOCAR, MANTENER TU DISEÑO)
     
     with st.sidebar:
@@ -137,7 +136,7 @@ else:
         
         st.write("---")
         st.button("🚪 CERRAR SESIÓN", on_click=lambda: setattr(st.session_state, 'usuario_logueado', False), use_container_width=True)
-      #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------#  
+      
 # 3. FLUJO POR ROLES (Estructura IF/ELIF impecable)
     if st.session_state.rol_sel == "MONITOREO":
         # ... (Tu código de MONITOREO que ya funciona) ...
@@ -216,7 +215,6 @@ else:
                 st_folium(m_mon, width="100%", height=550)
             else:
                 st.warning("No hay objetivos válidos.")
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
         
 
     elif st.session_state.rol_sel == "SUPERVISOR":
@@ -368,7 +366,7 @@ else:
                 st.markdown("### 📋 NOVEDADES DE MI GRUPO")
         else:
             st.warning("Supervisor no autenticado.")
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
 
     elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         # --- Código de JEFE DE OPERACIONES ---
@@ -469,7 +467,6 @@ else:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
 
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
 
     elif st.session_state.rol_sel == "GERENCIA":
@@ -578,7 +575,6 @@ else:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
 
-#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
 elif st.session_state.rol_sel == "VIGILADOR":
         # --- Código de VIGILADOR ---
@@ -681,9 +677,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     st.warning("La tabla está vacía.")
         elif u_ing or p_ing:
             st.error("❌ Acceso Denegado.")
-
-    else:
         st.info("Seleccione una opción en el panel lateral.")
     
-#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
     
