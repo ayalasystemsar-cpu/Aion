@@ -636,9 +636,12 @@ elif st.session_state.rol_sel == "VIGILADOR":
         with tab_panico:
             st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
             df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
-            df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
-            nombre_user_clean = st.session_state.user_sel.strip().upper()
-            jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
+            if not df_jornada.empty:
+                df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
+                nombre_user_clean = st.session_state.user_sel.strip().upper()
+                jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
+            else:
+                jornada_actual = pd.DataFrame()
             
             if not jornada_actual.empty:
                 obj_detectado = jornada_actual['OBJETIVO'].values[0]
@@ -658,7 +661,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 fecha = obtener_hora_argentina()
                 carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
                 escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
-                enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
 
     elif st.session_state.rol_sel == "ADMINISTRADOR":
@@ -680,4 +682,3 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
     else:
         st.info("Seleccione una opción en el panel lateral.")
-    
