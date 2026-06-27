@@ -128,7 +128,7 @@ def mostrar_landing():
                 st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
             
-            
+            else:
                 # CREAR CUENTA
                 escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
                 st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
