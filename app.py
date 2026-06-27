@@ -473,11 +473,25 @@ else:
         # ... (todo tu código de VIGILADOR) ...
 
     elif st.session_state.rol_sel == "ADMINISTRADOR":
-        # ... (todo tu código de ADMINISTRADOR) ...
+        st.subheader("🔧 NÚCLEO MAESTRO")
+        u_ing = st.text_input("ADMIN_USER")
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        
+        if u_ing == "admin" and p_ing == "aion2026": 
+            st.success("✅ Acceso Maestro Autorizado.")
+            tablas = ["ALERTAS", "PRESENTISMO", "JORNADA_SUPERVISORES", "MENSAJERIA", "CONTROL_FLOTA", "NOVEDADES_GUARDIA"]
+            seleccion = st.selectbox("Seleccione tabla para auditar:", tablas)
+            
+            if st.button("👁️ CARGAR DATOS"):
+                df_admin = leer_matriz_nube(seleccion)
+                if not df_admin.empty:
+                    st.dataframe(df_admin, use_container_width=True)
+                else:
+                    st.warning("La tabla está vacía.")
+        elif u_ing or p_ing:
+            st.error("❌ Acceso Denegado.")
 
     else:
-        # ESTE ES EL ÚNICO ELSE, VA AL FINAL DE TODO Y ES OBLIGATORIO
         st.info("Seleccione una opción en el panel lateral.")
-
 
                 
