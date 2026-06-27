@@ -677,8 +677,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     st.warning("La tabla está vacía.")
         elif u_ing or p_ing:
             st.error("❌ Acceso Denegado.")
-        else:
-             st.info("Seleccione una opción en el panel lateral.")
-    
 
+    else:
+        st.info("Seleccione una opción en el panel lateral.")
     
