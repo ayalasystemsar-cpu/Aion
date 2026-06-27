@@ -467,7 +467,7 @@ else:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
                 
-   elif st.session_state.rol_sel == "GERENCIA":
+    elif st.session_state.rol_sel == "GERENCIA":
         # ... (aquí va tu código de GERENCIA) ...
         # ¡IMPORTANTE! Asegúrate de que aquí no termine con un 'else'
 
