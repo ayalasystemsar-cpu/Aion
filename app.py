@@ -53,8 +53,4 @@ if not st.session_state.usuario_logueado:
                 st.session_state.rol_sel = rol_usuario
                 st.rerun()
             else: st.error("Credenciales incorrectas.")
-else:
-    # 4. AQUÍ ADENTRO VA TODO TU CÓDIGO TÁCTICO DE INTENTO 1.txt
-    # Al estar dentro de este "else", no se toca el diseño hasta que el login pase.
-    
-    # [PEGÁ ACÁ TU CÓDIGO TÁCTICO DE INTENTO 1.txt DESDE EL SIDEBAR HASTA EL FINAL]
+
