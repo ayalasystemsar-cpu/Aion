@@ -679,8 +679,8 @@ else:
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
     
-#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#File "/mount/src/aion/app.py", line 684
-    elif st.session_state.rol_sel == "ADMINISTRADOR":
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+elif st.session_state.rol_sel == "ADMINISTRADOR":
                                                     
 
 
