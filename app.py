@@ -373,7 +373,110 @@ else:
     elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         # --- Código de JEFE DE OPERACIONES ---
         col1, col2, col3, col4 = st.columns(4)
-        # ... (tu lógica de métricas y pestañas de Jefe) ...
+
+        LISTA_SUPS_TACTICOS = ["SUP 1", "SUP 2"] 
+        
+        
+        # 1. CONTADOR DE PANICOS (Fragmento)
+        with col1.container():
+            @st.fragment(run_every=1)
+            def mostrar_sos():
+                df_alertas = leer_matriz_nube("ALERTAS")
+                total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if not df_alertas.empty else 0
+                st.metric("🚨 S.O.S ACTIVOS", total_sos)
+            mostrar_sos()
+
+        col2.metric("📡 RED", "OPERATIVA")
+        col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
+        
+        # 2. RELOJ DINAMICO (Fragmento)
+        with col4.container():
+            @st.fragment(run_every=1)
+            def mostrar_reloj():
+                hora_actual = obtener_hora_argentina().split(" ")[1]
+                st.metric("🕒 HORA LOCAL", hora_actual)
+            mostrar_reloj()
+
+        # 3. Mensajería
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        nombre_user = st.session_state.user_sel.upper()
+        total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | 
+                                   (df_msg['DESTINATARIO'] == "JEFE DE OPERACIONES") | 
+                                   (df_msg['DESTINATARIO'] == nombre_user)) & 
+                                  (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
+        
+        label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
+        
+        st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: JEFE DE OPERACIONES</h2>', unsafe_allow_html=True)
+        
+        # Definición de pestañas
+        t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "Ejecución", "📍 TABLERO DE AUDITORÍA"])
+        
+        with t_mensajeria_jefe:
+            renderizar_mensajeria_global("JEFE DE OPERACIONES")
+            
+        with t_ejecucion:
+            col_g1, col_g2 = st.columns(2)
+            with col_g1:
+                st.subheader("ALTA DE RECURSO")
+                g_alta_nom = st.text_input("Nombre:", key="jefe_alta_nom")
+                g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="jefe_alta_asig")
+                if st.button("Solicitar Alta"):
+                    escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
+                    st.success("✅ Petición enviada")
+            with col_g2:
+                st.subheader("BAJA DE OBJETIVO")
+                g_baja_obj = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"], key="jefe_baja_obj")
+                if st.button("Solicitar Baja"):
+                    escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
+                    st.success("✅ Petición enviada")
+        
+        with t_tab_auditoria:
+            st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
+            df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
+            if not df_jornadas.empty:
+                df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
+                df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'] + ' ' + df_jornadas['HORA'], errors='coerce')
+                df_reporte = df_jornadas.groupby(['FECHA', 'SUPERVISOR', 'OBJETIVO']).agg(
+                    INGRESO=('HORA', 'first'), EGRESO=('HORA', 'last'),
+                    INICIO_DT=('DATETIME', 'first'), FIN_DT=('DATETIME', 'last')
+                ).reset_index()
+                df_reporte['DURACION_TOTAL'] = ((df_reporte['FIN_DT'] - df_reporte['INICIO_DT']).dt.total_seconds() / 60).round(2)
+                st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], 
+                             use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
+            df_alertas = leer_matriz_nube("ALERTAS")
+            if not df_alertas.empty:
+                df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
+                st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+            st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
+            df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
+            if not df_relevos.empty:
+                df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+                if 'TIPO_EVENTO' in df_relevos.columns:
+                    df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+                    st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+            st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
+            df_flota = leer_matriz_nube("CONTROL_FLOTA")
+            if not df_flota.empty:
+                df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
+                df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
+                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+
+
+
+
+
+    
 
     elif st.session_state.rol_sel == "GERENCIA":
         # --- Código de GERENCIA ---
@@ -477,7 +580,7 @@ else:
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
     
-
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     elif st.session_state.rol_sel == "ADMINISTRADOR":
         # --- Código de ADMINISTRADOR ---fecha = obtener_hora_argentina()
         
