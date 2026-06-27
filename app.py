@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -5,148 +6,53 @@ import pandas as pd
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from streamlit_js_eval import get_geolocation
-import osmnx as ox
-import networkx as nx
-import folium
-from folium.plugins import AntPath
-from streamlit_folium import st_folium
-import math
-import requests
-from branca.element import Element
-import qrcode
+# ... (mantén tus otros imports de mapas y librerías aquí)
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. ESTADO INICIAL ---
-if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
-if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
-if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
-
-ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-
-# --- 3. FUNCIONES DE GOOGLE (Mantén tus funciones aquí) ---
-def conectar_google():
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        return gspread.authorize(creds)
-    except: return None
-
-def leer_matriz_nube(pestana):
-    gc = conectar_google()
-    if not gc: return pd.DataFrame()
-    try:
-        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-        rows = hoja.get_all_values()
-        if not rows: return pd.DataFrame()
-        df = pd.DataFrame(rows[1:], columns=[str(h).strip().upper() for h in rows[0]])
-        return df.loc[:, ~df.columns.duplicated()]
-    except: return pd.DataFrame()
-
-def escribir_registro_nube(pestana, datos_fila):
-    gc = conectar_google()
-    if gc:
-        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-        hoja.append_row(datos_fila)
-
-def actualizar_celda(pestana, fila, columna, valor):
-    gc = conectar_google()
-    if gc:
-        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
-        hoja.update_acell(f"{columna}{fila}", valor)
-
-# --- 4. LANDING PAGE ---
+# --- 2. LÓGICA DE LOGIN ---
 def mostrar_landing():
-    st.markdown("""<style>.stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; }</style>""", unsafe_allow_html=True)
-    st.markdown('<div style="display:flex; justify-content:center;"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" width="400"></div>', unsafe_allow_html=True)
-    st.markdown('<h1 style="color:#00E5FF; text-align:center;">AION-YAROKU | COMMAND</h1>', unsafe_allow_html=True)
+    aplicar_identidad_alfa()
+    st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
     
-    modo = st.radio("Acceso:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
+    modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="modo_radio_landing")
     
-    with st.form("form_unico"):
+    # ÚNICO FORMULARIO CON TODA LA LÓGICA
+    with st.form("form_acceso_unificado"):
         user = st.text_input("Usuario")
         password = st.text_input("Contraseña", type="password")
-        rol = st.selectbox("Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "ADMINISTRADOR"])
+        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "ADMINISTRADOR"])
         
-        if st.form_submit_button("EJECUTAR"):
+        btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
+        
+        if st.form_submit_button(btn_texto):
             if modo == "Iniciar Sesión":
-                df = leer_matriz_nube("USUARIOS")
-                usr = df[(df['USUARIO']==user) & (df['CONTRASEÑA']==password) & (df['ESTADO']=="APROBADO")]
-                if not usr.empty:
-                    st.session_state.usuario_logueado = True
-                    st.session_state.user_sel = user
-                    st.session_state.rol_sel = usr.iloc[0]['ROL']
-                    st.rerun()
+                df_usuarios = leer_matriz_nube("USUARIOS")
+                if df_usuarios.empty:
+                    st.error("Error de conexión con la base.")
                 else:
-                    st.error("Credenciales incorrectas o cuenta PENDIENTE.")
-            else:
-                escribir_registro_nube("USUARIOS", [user, password, rol, "PENDIENTE"])
-                st.success("Solicitud enviada.")
-
-# --- 5. CONTROL DE ACCESO ---
-if not st.session_state.usuario_logueado:
-    mostrar_landing()
-    st.stop()
-
-# --- 6. CORE DEL SISTEMA (Solo se carga si usuario_logueado es True) ---
-# Aquí pegas todo tu código de Monitoreo, Mapas, Sidebars, etc.
-# ESTE CÓDIGO NO SE DUPLICARÁ PORQUE EL st.stop() ARRIBA LO PROTEGE.
-
-if not df_flota.empty:
-            df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
-            df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
-            st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
-    
-   
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.subheader("⚙️ NÚCLEO MAESTRO: CONTROL DE ACCESOS")
-    
-    # 1. Autenticación de Administrador
-    if 'admin_autenticado' not in st.session_state:
-        st.session_state.admin_autenticado = False
-        
-    if not st.session_state.admin_autenticado:
-        u_ing = st.text_input("ADMIN_USER")
-        p_ing = st.text_input("ADMIN_PASS", type="password")
-        if st.button("DESBLOQUEAR NÚCLEO"):
-            if u_ing == "admin" and p_ing == "aion2026":
-                st.session_state.admin_autenticado = True
-                st.rerun()
-            else:
-                st.error("Credenciales de Administrador incorrectas.")
-    
-    # 2. Panel de Aprobación (solo visible si está autenticado)
-    if st.session_state.admin_autenticado:
-        st.success("✅ Núcleo Maestro desbloqueado.")
-        
-        df_usuarios = leer_matriz_nube("USUARIOS")
-        if not df_usuarios.empty:
-            pendientes = df_usuarios[df_usuarios['ESTADO'] == "PENDIENTE"]
-            
-            if not pendientes.empty:
-                st.warning(f"⚠️ Hay {len(pendientes)} solicitudes pendientes de aprobación.")
-                st.dataframe(pendientes, use_container_width=True)
-                
-                usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes['USUARIO'].tolist())
-                
-                if st.button("✅ DAR ACCESO Y APROBAR"):
-                    idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
-                    fila_nube = idx + 2 
-                    
-                    if actualizar_celda("USUARIOS", fila_nube, "D", "APROBADO"):
-                        st.success(f"Usuario {usuario_a_aprobar} autorizado correctamente.")
+                    usuario_ok = df_usuarios[
+                        (df_usuarios['USUARIO'] == user) & 
+                        (df_usuarios['CONTRASEÑA'] == password) & 
+                        (df_usuarios['ESTADO'] == "APROBADO")
+                    ]
+                    if not usuario_ok.empty:
+                        st.session_state.usuario_logueado = True
+                        st.session_state.user_sel = user
+                        st.session_state.rol_sel = usuario_ok.iloc[0]['ROL']
                         st.rerun()
                     else:
-                        st.error("Error al actualizar la base de datos.")
+                        st.error("❌ Credenciales incorrectas o cuenta no autorizada.")
             else:
-                st.info("No hay solicitudes pendientes.")
+                escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
+                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
-
-
-
+# --- 3. CONTROL DE FLUJO (ESTO ES LA LLAVE) ---
+if not st.session_state.usuario_logueado:
+    mostrar_landing()
+    st.stop()  # Detiene la carga del resto si no hay login
 
 
 
