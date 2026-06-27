@@ -680,8 +680,30 @@ else:
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
     
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-                                                    
+        st.subheader("🔧 NÚCLEO MAESTRO")
+        u_ing = st.text_input("ADMIN_USER")
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        
+        if u_ing == "admin" and p_ing == "aion2026": 
+            st.success("✅ Acceso Maestro Autorizado.")
+            st.markdown("### 📊 TABLAS DEL SISTEMA")
+            tablas = ["ALERTAS", "PRESENTISMO", "JORNADA_SUPERVISORES", "MENSAJERIA", "CONTROL_FLOTA", "NOVEDADES_GUARDIA"]
+            seleccion = st.selectbox("Seleccione tabla para auditar:", tablas)
+            
+            if st.button("👁️ CARGAR DATOS"):
+                df_admin = leer_matriz_nube(seleccion)
+                if not df_admin.empty:
+                    st.dataframe(df_admin, use_container_width=True)
+                else:
+                    st.warning("La tabla está vacía.")
+        else:
+            if u_ing or p_ing: 
+                st.error("❌ Acceso Denegado.")
+
+
 
 
     
