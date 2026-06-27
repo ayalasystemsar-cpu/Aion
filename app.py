@@ -95,7 +95,7 @@ if not st.session_state.usuario_logueado:
 # Aquí pegas todo tu código de Monitoreo, Mapas, Sidebars, etc.
 # ESTE CÓDIGO NO SE DUPLICARÁ PORQUE EL st.stop() ARRIBA LO PROTEGE.
 
-        if not df_flota.empty:
+if not df_flota.empty:
             df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
             df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
             st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
