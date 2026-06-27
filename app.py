@@ -18,36 +18,39 @@ import qrcode
 
 import streamlit as st
 import pandas as pd
-# ... (aquí van todas tus importaciones de INTENTO 1.txt) ...
+import pytz
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+# ... (aquí van todas tus importaciones originales de INTENTO 1.txt)
 
-# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
-st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide")
+# --- CONFIGURACIÓN E INICIALIZACIÓN ---
+st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
+# Variables de estado
 if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
 
-# --- 2. TODAS TUS FUNCIONES ORIGINALES (conectar_google, leer_matriz, etc) ---
-# [PEGÁ ACÁ TODAS TUS FUNCIONES ORIGINALES DE INTENTO 1.txt]
+# --- AQUÍ VAN TODAS TUS FUNCIONES (conectar_google, leer_matriz, etc.) ---
+# [PEGÁ ACÁ TU BLOQUE COMPLETO DE FUNCIONES ORIGINALES DE INTENTO 1.txt]
 
-# --- 3. LÓGICA DE LOGIN (DE APP !!!.txt) ---
+# --- LÓGICA DE LOGIN (LO QUE QUERÍAS) ---
 if not st.session_state.usuario_logueado:
-    # Esta es tu pantalla de login original de APP !!!.txt
-    st.markdown("### Pantalla de Login")
+    st.markdown("### 🔐 ACCESO AION-YAROKU")
     user = st.text_input("Usuario")
     password = st.text_input("Contraseña", type="password")
     if st.button("ENTRAR"):
-        if user == "admin" and password == "1234":
+        if user == "admin" and password == "1234": # Ajustá acá tu clave
             st.session_state.usuario_logueado = True
             st.rerun()
         else:
             st.error("Credenciales incorrectas")
 else:
-    # --- 4. AQUÍ ADENTRO VA TODO TU CÓDIGO TÁCTICO DE INTENTO 1.txt ---
-    # Al estar aquí, solo se ejecuta si el usuario ya se logueó
+    # --- AQUÍ ADENTRO VA TODO TU CÓDIGO ORIGINAL (INTENTO 1.txt) ---
+    # TODO lo que ya tenías: Menús, Mapas, Roles, etc.
+    # Al estar dentro de este "else", solo se muestra si el login fue exitoso.
     
-    # [PEGÁ ACÁ TODO EL CÓDIGO TÁCTICO DE INTENTO 1.txt]
-    # No toques nada de tu lógica de roles, el "if not st.session_state.usuario_logueado" 
-    # ya protege todo el código de abajo sin que tengas que cambiar nada de tus elif.
-    
+    # [PEGÁ ACÁ TU CÓDIGO TÁCTICO ORIGINAL DE INTENTO 1.txt]
+    # No cambies nada de su estructura de roles, al estar acá dentro, funcionará igual.
+
     if st.sidebar.button("🚪 CERRAR SESIÓN"):
         st.session_state.usuario_logueado = False
         st.rerun()
