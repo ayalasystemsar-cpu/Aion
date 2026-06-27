@@ -534,4 +534,31 @@ else:
         with tab_panico:
             st.write("Módulo Pánico")
 
+# ... (esto va después del último elif que funcione bien)
+
+    elif st.session_state.rol_sel == "ADMINISTRADOR":
+        # Bloque de Administrador blindado
+        st.subheader("🔧 NÚCLEO MAESTRO")
+        u_ing = st.text_input("ADMIN_USER")
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        
+        # Aquí validamos sin usar 'else' para no romper la cadena
+        if u_ing.strip() == "admin" and p_ing.strip() == "aion2026": 
+            st.success("✅ Acceso Maestro Autorizado.")
+            tablas = ["ALERTAS", "PRESENTISMO", "JORNADA_SUPERVISORES", "MENSAJERIA", "CONTROL_FLOTA", "NOVEDADES_GUARDIA"]
+            seleccion = st.selectbox("Seleccione tabla para auditar:", tablas)
+            if st.button("👁️ CARGAR DATOS"):
+                df_admin = leer_matriz_nube(seleccion)
+                if not df_admin.empty:
+                    st.dataframe(df_admin, use_container_width=True)
+                else:
+                    st.warning("La tabla está vacía.")
+        
+        # Usamos una variable de control en lugar de un 'else' que rompa el flujo
+        if u_ing and p_ing and (u_ing.strip() != "admin" or p_ing.strip() != "aion2026"):
+            st.error("❌ Acceso Denegado.")
+
+    # Este else final debe ser el ÚNICO else en todo tu archivo
+    else:
+        st.info("Seleccione una opción en el panel lateral.")
 
