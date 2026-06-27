@@ -13,7 +13,8 @@ from streamlit_folium import st_folium
 import math
 import requests
 from branca.element import Element
-impo1. ESTADO DE LOGIN
+
+# 1. ESTADO DE LOGIN
 if 'usuario_logueado' not in st.session_state: 
     st.session_state.usuario_logueado = False
 
@@ -33,5 +34,4 @@ if not st.session_state.usuario_logueado:
 
 # 3. SI PASÓ EL LOGIN, CARGA TU CÓDIGO ORIGINAL (INTENTO 1.txt)
 # A partir de acá, pegá el resto de tu archivo INTENTO 1.txt (importaciones, funciones, roles...)
-# No hace falta que esté dentro de un else, porque el st.stop() arriba ya lo protegió.rt qrcode
-
+# No hace falta que esté dentro de un else, porque el st.stop() arriba ya lo protegió.
