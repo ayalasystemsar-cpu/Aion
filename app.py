@@ -467,18 +467,18 @@ else:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
                 
-   elif st.session_state.rol_sel == "GERENCIA":
+    elif st.session_state.rol_sel == "GERENCIA":
         # ... (aquí va tu código de GERENCIA) ...
         # ¡IMPORTANTE! Asegúrate de que aquí no termine con un 'else'
 
-   elif st.session_state.rol_sel == "VIGILADOR":
+    elif st.session_state.rol_sel == "VIGILADOR":
         # --- Código de VIGILADOR ---
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
         
         # ... (resto de tu código de VIGILADOR) ...
 
-   elif st.session_state.rol_sel == "ADMINISTRADOR":
+    elif st.session_state.rol_sel == "ADMINISTRADOR":
         st.subheader("🔧 NÚCLEO MAESTRO")
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
