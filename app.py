@@ -534,16 +534,27 @@ else:
         with tab_panico:
             st.write("Módulo Pánico")
 
-    elif st.session_state.rol_sel == "ADMINISTRADOR":
+elif st.session_state.rol_sel == "ADMINISTRADOR":
         st.subheader("🔧 NÚCLEO MAESTRO")
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
         
-        # Agregamos .strip() para ignorar espacios accidentales
+        # --- DEBUG VISUAL ---
+        if u_ing or p_ing:
+            st.write(f"DEBUG: Escribiste User: '{u_ing}' y Pass: '{p_ing}'")
+
         if u_ing.strip() == "admin" and p_ing.strip() == "aion2026": 
+            st.session_state.admin_ok = True # Creamos una marca de seguridad
+        
+        if st.session_state.get("admin_ok", False):
             st.success("✅ Acceso Maestro Autorizado.")
-            # ... resto de tu código ...
+            tablas = ["ALERTAS", "PRESENTISMO", "JORNADA_SUPERVISORES", "MENSAJERIA", "CONTROL_FLOTA", "NOVEDADES_GUARDIA"]
+            seleccion = st.selectbox("Seleccione tabla para auditar:", tablas)
+            if st.button("👁️ CARGAR DATOS"):
+                df_admin = leer_matriz_nube(seleccion)
+                if not df_admin.empty:
+                    st.dataframe(df_admin, use_container_width=True)
         elif u_ing or p_ing:
             st.error("❌ Credenciales incorrectas.")
 
-                
+
