@@ -516,7 +516,7 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-         st.write("---")
+    st.write("---")
     st.markdown("**⚙️ ADMINISTRADOR**")
     if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
         st.session_state.usuario_logueado = True  # <--- ESTO ES LO QUE TE FALTABA
@@ -525,7 +525,7 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-        st.markdown("---")
+    st.markdown("---")
     if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
         st.session_state.usuario_logueado = False
         st.rerun()
