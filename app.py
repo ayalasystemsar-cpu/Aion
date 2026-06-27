@@ -89,7 +89,7 @@ def mostrar_landing():
         user = st.text_input("Usuario")
         password = st.text_input("Contraseña", type="password")
         # Nuevo campo para seleccionar el rol
-        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "AYALA BRIAN", "ADMINISTRADOR"])
+        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA",  "SUPERVISOR" , "ADMINISTRADOR"])
         
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
