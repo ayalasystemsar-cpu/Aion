@@ -470,29 +470,86 @@ else:
 
 
    
+    elif st.session_state.rol_sel == "GERENCIA":
+        # 1. CÁLCULO DE DATOS EN TIEMPO REAL
+        df_novedades = leer_matriz_nube("NOVEDADES_GUARDIA")
+        df_novedades.columns = [str(c).strip().upper() for c in df_novedades.columns]
+        
+        cobertura_kpi = "0%"
+        if not df_novedades.empty and not df_objetivos.empty:
+            objs_con_ingreso = df_novedades[df_novedades['TIPO_EVENTO'] == 'MARCACIÓN_INGRESO']['OBJETIVO'].unique()
+            total_objs = len(df_objetivos['OBJETIVO'].unique())
+            if total_objs > 0:
+                porcentaje = (len(objs_con_ingreso) / total_objs) * 100
+                cobertura_kpi = f"{int(porcentaje)}%"
+        
+        personal_activo = len(df_novedades['DNI'].unique()) if 'DNI' in df_novedades.columns else 0
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("📊 COBERTURA", cobertura_kpi)
+        col2.metric("👥 PERSONAL ACTIVO", personal_activo)
+        col3.metric("👤 GERENTE", f"{st.session_state.user_sel}")
+        
+        hora_container = col4.container()
+        @st.fragment(run_every=1)
+        def mostrar_reloj_gerencia():
+            st.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+        with hora_container:
+            mostrar_reloj_gerencia()
+            
+        st.write("---")
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        nombre_user = st.session_state.user_sel.upper()
+        total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "GERENCIA") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
+        label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
+
+        st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
+        t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+        
+        with t_mensajeria_ger:
+            renderizar_mensajeria_global("GERENCIA")
+        with t_ejecucion_ger:
+            st.write("Módulo de ejecución activo")
+        with t_tab_auditoria:
+            st.write("Módulo de auditoría activo")
+
     elif st.session_state.rol_sel == "VIGILADOR":
-        # Asegúrate de que TODAS estas líneas tengan exactamente 8 espacios a la izquierda
+        # --- Código de VIGILADOR ---
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        # ... (aquí va el resto de tu código de VIGILADOR)
-        st.write("Módulo Vigilador Cargado")
-        pass
+        opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        nombre_user = st.session_state.user_sel.upper()
+        total_nuevos = 0
+        if not df_msg.empty:
+            mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "VIGILADOR") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
+            total_nuevos = len(df_msg[mask])
+        label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+        tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg, "🚨 PÁNICO"])
+        with tab_presentismo:
+            st.write("Módulo Fichaje")
+        with tab_relevo:
+            st.write("Módulo Relevo")
+        with tab_mensajeria:
+            renderizar_mensajeria_global("VIGILADOR")
+        with tab_panico:
+            st.write("Módulo Pánico")
 
     elif st.session_state.rol_sel == "ADMINISTRADOR":
-        # Asegúrate de que TODAS estas líneas tengan exactamente 8 espacios a la izquierda
         st.subheader("🔧 NÚCLEO MAESTRO")
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
-        
         if u_ing == "admin" and p_ing == "aion2026": 
             st.success("✅ Acceso Maestro Autorizado.")
+            tablas = ["ALERTAS", "PRESENTISMO", "JORNADA_SUPERVISORES", "MENSAJERIA", "CONTROL_FLOTA", "NOVEDADES_GUARDIA"]
+            seleccion = st.selectbox("Seleccione tabla para auditar:", tablas)
+            if st.button("👁️ CARGAR DATOS"):
+                df_admin = leer_matriz_nube(seleccion)
+                if not df_admin.empty:
+                    st.dataframe(df_admin, use_container_width=True)
         elif u_ing or p_ing:
             st.error("❌ Acceso Denegado.")
-        pass
 
     else:
-        # Este es el cierre obligatorio
-        st.info("Seleccione una opción en el panel lateral.")
-    
         st.info("Seleccione una opción en el panel lateral.")
 
                 
