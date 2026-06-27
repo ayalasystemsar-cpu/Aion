@@ -1,44 +1,34 @@
 import streamlit as st
-import datetime
-from datetime import datetime
-import pandas as pd
-import pytz
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-from streamlit_js_eval import get_geolocation
-import osmnx as ox
-import networkx as nx
-import folium
-from folium.plugins import AntPath
-from streamlit_folium import st_folium
-import math
-import requests
-from branca.element import Element
-import qrcode
+# ... (MANTENÉ TODOS TUS IMPORTS ORIGINALES DE INTENTO 1.txt) ...
 
-# 1. INICIALIZACIÓN DE SESIÓN (OBLIGATORIO)
-if 'usuario_logueado' not in st.session_state:
-    st.session_state.usuario_logueado = False
+# 1. CONFIGURACIÓN DE PÁGINA (Solo una vez)
+st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-# --- AQUÍ VA TU PANTALLA DE LOGIN ---
+# 2. INICIALIZACIÓN DE ESTADO
+if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
+
+# 3. LÓGICA DE LOGIN (Lo que querés ver al entrar)
 if not st.session_state.usuario_logueado:
-    st.set_page_config(page_title="LOGIN AION", page_icon="🔒")
-    st.markdown("### 🔐 ACCESO RESTRINGIDO AION-YAROKU")
+    # --- Estilo para que la pantalla de Login no sea negra ---
+    st.markdown("""<style>.stApp { background: #0A0F1E !important; }</style>""", unsafe_allow_html=True)
+    
+    st.image("https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg", width=300)
+    st.subheader("🔐 ACCESO AION-YAROKU")
+    
     user = st.text_input("Usuario")
     password = st.text_input("Contraseña", type="password")
-    if st.button("INGRESAR"):
+    
+    if st.button("ENTRAR"):
         if user == "admin" and password == "1234":
             st.session_state.usuario_logueado = True
             st.rerun()
         else:
             st.error("Credenciales incorrectas")
-    st.stop() # Esto detiene el resto del código hasta que se loguee
+            
+    st.stop() # ESTO ES LO QUE EVITA QUE EL CÓDIGO OPERATIVO APAREZCA ANTES DE TIEMPO
 
-# --- SI LLEGA HASTA ACÁ, ES PORQUE EL LOGIN FUE EXITOSO ---
-# AHORA PEGÁS TODO TU CÓDIGO ORIGINAL DESDE EL "set_page_config" HASTA EL FINAL
-# (Como ya se ejecutó el set_page_config arriba, no pongas otro aquí)
+# 4. SI LLEGAMOS ACÁ, EL LOGIN FUE EXITOSO. 
+# AQUÍ PEGÁS TODO TU CÓDIGO DE INTENTO 1.txt (DESDE LAS FUNCIONES HASTA EL FINAL)
 
-st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
-
-# ... (PEGÁ AQUÍ TODO TU CÓDIGO TÁCTICO DE INTENTO 1.TXT) ...
-# ... (DESDE LAS FUNCIONES, LOS MAPAS, HASTA EL FINAL) ...
+# --- TU LÓGICA DE ROLES (INTENTO 1.txt) ---
+# ... (Pegá aquí desde 'def conectar_google():' hasta el final de tu archivo original) ...
