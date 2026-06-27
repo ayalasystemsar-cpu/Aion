@@ -1377,20 +1377,16 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 st.error("Credenciales incorrectas.")
     
     # 2. Panel de Aprobación
-    
     elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.subheader("⚙️ NÚCLEO MAESTRO: CONTROL DE ACCESOS")
     
-    # 1. AUTENTICACIÓN: El Admin entra directo si viene del login, 
-    # o por clave interna si entra desde el sidebar.
+    # 1. Autenticación de Administrador
     if 'admin_autenticado' not in st.session_state:
         st.session_state.admin_autenticado = False
-        
-    # Acceso automático si el usuario viene logueado como "ADMIN CENTRAL"
+
     if st.session_state.user_sel == "ADMIN CENTRAL":
         st.session_state.admin_autenticado = True
         
-    # Login interno por si se accede desde otro punto
     if not st.session_state.admin_autenticado:
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
@@ -1401,32 +1397,31 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             else:
                 st.error("Credenciales incorrectas.")
     
-    # 2. PANEL DE APROBACIÓN
+    # 2. Panel de Aprobación
     if st.session_state.admin_autenticado:
         st.success("✅ Núcleo Maestro desbloqueado.")
-        
         df_usuarios = leer_matriz_nube("USUARIOS")
         
         if not df_usuarios.empty:
-            # Limpieza segura
             df_usuarios = df_usuarios.map(lambda x: str(x).strip() if isinstance(x, str) else x)
             
-            # Filtro de pendientes
             if 'ESTADO' in df_usuarios.columns:
                 pendientes = df_usuarios[df_usuarios['ESTADO'].str.contains('PENDIENTE', case=False, na=False)]
                 
                 if not pendientes.empty:
-                    st.warning(f"⚠️ Hay {len(pendientes)} solicitudes pendientes.")
+                    st.warning(f"⚠️ Hay {len(pendientes)} solicitudes pendientes de aprobación.")
                     st.dataframe(pendientes, use_container_width=True)
                     
-                    usuario_a_aprobar = st.selectbox("Seleccionar usuario:", pendientes['USUARIO'].tolist())
+                    usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes['USUARIO'].tolist())
                     
                     if st.button("✅ DAR ACCESO Y APROBAR"):
                         idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
                         if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
-                            st.success(f"Usuario {usuario_a_aprobar} autorizado.")
+                            st.success(f"Usuario {usuario_a_aprobar} autorizado correctamente.")
                             st.rerun()
                 else:
                     st.info("No hay solicitudes pendientes.")
             else:
-                st.error("Error: La columna 'ESTADO' no se encuentra en la base de datos.")
+                st.error("Error: La columna 'ESTADO' no se encuentra.")
+
+    
