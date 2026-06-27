@@ -1376,11 +1376,14 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         
         df_usuarios = leer_matriz_nube("USUARIOS")
         
-        # Limpieza de espacios en los datos
-        df_usuarios = df_usuarios.applymap(lambda x: str(x).strip() if isinstance(x, str) else x)
+ 
+         # Limpieza: eliminamos espacios en los datos (compatible con versiones nuevas de Pandas)
+                # Limpieza: eliminamos espacios en los datos (compatible con versiones nuevas de Pandas)
+        df_usuarios = df_usuarios.map(lambda x: str(x).strip() if isinstance(x, str) else x)
         
-        # Buscamos filas pendientes
-        pendientes = df_usuarios[df_usuarios.apply(lambda row: row.astype(str).str.contains('PENDIENTE', case=False).any(), axis=1)]
+        # Buscamos filas pendientes (filtramos específicamente la columna ESTADO)
+        # Esto es mucho más preciso que buscar en todo el DataFrame
+        pendientes = df_usuarios[df_usuarios['ESTADO'].str.contains('PENDIENTE', case=False, na=False)]
         
         if not pendientes.empty:
             st.warning(f"⚠️ Hay {len(pendientes)} solicitudes pendientes de aprobación.")
@@ -1389,13 +1392,15 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes['USUARIO'].tolist())
             
             if st.button("✅ DAR ACCESO Y APROBAR"):
+                # Obtenemos el índice original
                 idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
+                # La fila real en Google Sheet es el índice + 2 (por el encabezado)
                 if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
                     st.success(f"Usuario {usuario_a_aprobar} autorizado correctamente.")
                     st.rerun()
+                else:
+                    st.error("Error al actualizar la base de datos.")
         else:
             st.info("No hay solicitudes pendientes.")
 
 
-    
- 
