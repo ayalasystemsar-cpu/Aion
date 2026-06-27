@@ -539,22 +539,9 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
         
-        # --- DEBUG VISUAL ---
-        if u_ing or p_ing:
-            st.write(f"DEBUG: Escribiste User: '{u_ing}' y Pass: '{p_ing}'")
-
+        # Agregamos .strip() para ignorar espacios accidentales
         if u_ing.strip() == "admin" and p_ing.strip() == "aion2026": 
-            st.session_state.admin_ok = True # Creamos una marca de seguridad
-        
-        if st.session_state.get("admin_ok", False):
             st.success("✅ Acceso Maestro Autorizado.")
-            tablas = ["ALERTAS", "PRESENTISMO", "JORNADA_SUPERVISORES", "MENSAJERIA", "CONTROL_FLOTA", "NOVEDADES_GUARDIA"]
-            seleccion = st.selectbox("Seleccione tabla para auditar:", tablas)
-            if st.button("👁️ CARGAR DATOS"):
-                df_admin = leer_matriz_nube(seleccion)
-                if not df_admin.empty:
-                    st.dataframe(df_admin, use_container_width=True)
+            # ... resto de tu código ...
         elif u_ing or p_ing:
             st.error("❌ Credenciales incorrectas.")
-
-
