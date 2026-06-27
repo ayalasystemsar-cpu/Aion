@@ -379,11 +379,104 @@ else:
         # --- Código de GERENCIA ---
         col1, col2, col3, col4 = st.columns(4)
         # ... (tu lógica de métricas y pestañas de Gerencia) ...
-
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     elif st.session_state.rol_sel == "VIGILADOR":
         # --- Código de VIGILADOR ---
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        # ... (tu lógica de fichaje, relevo y pánico) ...
+        
+        # ... (tu lógica deelif st.session_state.rol_sel == "VIGILADOR":
+        opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+        
+        # 1. Calculamos el total de mensajes pendientes
+        df_msg = leer_matriz_nube("MENSAJERIA")
+        nombre_user = st.session_state.user_sel.upper()
+        total_nuevos = 0
+        if not df_msg.empty:
+            mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "VIGILADOR") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
+            total_nuevos = len(df_msg[mask])
+
+        label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+        
+        # 2. Definimos los tabs
+        tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs([
+            "📋 FICHAJE", "🔄 RELEVO", label_msg, "🚨 PÁNICO"
+        ])
+    
+        # 3. Pestaña Fichaje
+        with tab_presentismo:
+            st.markdown("### 📸 REGISTRO BIOMÉTRICO")
+            with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
+                v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:").strip() 
+                v_dni = st.text_input("LEGAJO:").strip() 
+                v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
+                v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
+                img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
+                
+                if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
+                    if v_nombre_completo and v_dni and img_facial:
+                        st.session_state.v_nombre_completo = v_nombre_completo.upper()
+                        st.session_state.legajo_vigilador = v_dni
+                        
+                        fecha_hora_arg = obtener_hora_argentina()
+                        sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                        tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
+                        
+                        escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
+                        escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
+                        
+                        st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
+                    else:
+                        st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
+
+        # 4. Pestaña de Relevo
+        with tab_relevo:
+            st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
+            with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
+                v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
+                vig_saliente = st.text_input("SALE:").upper().strip()
+                vig_entrante = st.text_input("ENTRA:").upper().strip()
+                v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
+                if st.form_submit_button("SANCIONAR CAMBIO"):
+                    sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                    fecha = obtener_hora_argentina()
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
+                    escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
+                    st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
+
+        # 5. Pestaña Mensajería
+        with tab_mensajeria:
+            renderizar_mensajeria_global("VIGILADOR")
+
+        # 6. Pestaña Pánico
+        with tab_panico:
+            st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
+            df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
+            df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
+            nombre_user_clean = st.session_state.user_sel.strip().upper()
+            jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
+            
+            if not jornada_actual.empty:
+                obj_detectado = jornada_actual['OBJETIVO'].values[0]
+                st.success(f"📍 OBJETIVO DETECTADO: **{obj_detectado}**")
+            else:
+                obj_detectado = "SIN_OBJETIVO"
+                st.error("⚠️ OBJETIVO NO DETECTADO. SELECCIONE MANUALMENTE:")
+                obj_detectado = st.selectbox("OBJETIVO:", opciones_globales_obj)
+
+            if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
+                nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR")).upper()
+                sup_asignado = "MONITOREO"
+                if not df_objetivos.empty:
+                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
+                    if not filtro.empty:
+                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                
+                fecha = obtener_hora_argentina()
+                carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
+                escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
+                enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
+                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") fichaje, relevo y pánico) ...
+    
 
     elif st.session_state.rol_sel == "ADMINISTRADOR":
         # --- Código de ADMINISTRADOR ---
