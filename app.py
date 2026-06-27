@@ -114,19 +114,5 @@ def mostrar_landing():
 # --- 4. LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
-else:
-    # 1. CARGA DE DATOS (Solo si está logueado)
-    df_objetivos = cargar_objetivos()
-    df_comisarias = cargar_datos_comisarias()
-    
-    # 2. PANEL LATERAL (NO TOCAR, MANTENER TU DISEÑO)
-    with st.sidebar:
-        st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
-        st.subheader("🛡️ PANEL DE CONTROL")
-        if st.button("🛰️ MONITOREO"): st.session_state.rol_sel = "MONITOREO"; st.rerun()
-        if st.button("📋 JEFE DE OPERACIONES"): st.session_state.rol_sel = "JEFE DE OPERACIONES"; st.rerun()
-        if st.button("🏢 GERENCIA"): st.session_state.rol_sel = "GERENCIA"; st.rerun()
-        st.write("---")
-        st.button("🚪 CERRAR SESIÓN", on_click=lambda: setattr(st.session_state, 'usuario_logueado', False), use_container_width=True)
 
     
