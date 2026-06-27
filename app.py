@@ -108,10 +108,15 @@ def mostrar_landing():
                 # Aquí guardarías los datos en tu Google Sheet de "USUARIOS"
                 st.success(f"Solicitud de registro como {rol_usuario} enviada.")
 
-# --- 4. LÓGICA PRINCIPAL ---
+
+    # --- 4. LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
-    
+    st.stop()  # <--- ESTA ES LA LLAVE QUE DETIENE TODO SI NO HAY LOGIN
+
+# --- A PARTIR DE AQUÍ COMIENZA TU CÓDIGO ORIGINAL ---
+# (Tal cual lo tenías: sidebar, roles, mapas, etc.)
+# Al no haber un 'else', este código corre igual que siempre.
 
 
 
