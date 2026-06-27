@@ -77,36 +77,49 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
+
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
     st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
     
-    # Selector de Modo
-    modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
+    modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
     
-    with st.form("form_acceso"):
-        user = st.text_input("Usuario")
-        password = st.text_input("Contraseña", type="password")
-        # Nuevo campo para seleccionar el rol
-        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA",  "SUPERVISOR" , "ADMINISTRADOR"])
+    # UN SOLO FORMULARIO QUE MANEJA TODO
+    with st.form("form_acceso_real"):
+        user = st.text_input("Usuario", key="u")
+        password = st.text_input("Contraseña", type="password", key="p")
+        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "ADMINISTRADOR"], key="r")
         
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
         if st.form_submit_button(btn_texto):
             if modo == "Iniciar Sesión":
-                # Lógica de validación (ejemplo simple)
-                if user == "admin" and password == "1234":
-                    st.session_state.usuario_logueado = True
-                    st.session_state.user_sel = user
-                    st.session_state.rol_sel = rol_usuario  # <--- GUARDAMOS EL ROL AQUÍ
-                    st.rerun()
-                else: 
-                    st.error("Credenciales incorrectas.")
+                # AQUÍ ESTÁ LA LÓGICA QUE CONSULTA GOOGLE SHEETS
+                df_usuarios = leer_matriz_nube("USUARIOS")
+                
+                # Buscamos fila donde usuario y pass coincidan
+                usuario_ok = df_usuarios[
+                    (df_usuarios['USUARIO'].str.strip() == user.strip()) & 
+                    (df_usuarios['CONTRASEÑA'].str.strip() == password.strip())
+                ]
+                
+                if not usuario_ok.empty:
+                    estado = usuario_ok.iloc[0]['ESTADO']
+                    if estado == "APROBADO":
+                        st.session_state.usuario_logueado = True
+                        st.session_state.user_sel = user
+                        st.session_state.rol_sel = usuario_ok.iloc[0]['ROL']
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación.")
+                else:
+                    st.error("❌ Credenciales inválidas.")
+            
             else:
-                # Aquí guardarías los datos en tu Google Sheet de "USUARIOS"
-                st.success(f"Solicitud de registro como {rol_usuario} enviada.")
-
+                # CREAR CUENTA
+                escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
+                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
     # --- 4. LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
