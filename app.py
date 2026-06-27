@@ -1384,10 +1384,39 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     if u_ing == "admin" and p_ing == "aion2026": 
         st.success("Núcleo Maestro desbloqueado.")
 
-# Asegúrate de que estas dos líneas tengan 4 espacios (o 1 tab) de sangría respecto al "if"
-    if st.sidebar.button("🚪 CERRAR SESIÓN", use_container_width=True):
-        st.session_state.usuario_logueado = False
-        st.rerun()
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    st.subheader("🛠️ PANEL DE AUTORIZACIÓN DE USUARIOS")
+    
+    # 1. Traemos la lista de usuarios
+    df_usuarios = leer_matriz_nube("USUARIOS")
+    
+    if not df_usuarios.empty:
+        # Filtramos solo los pendientes
+        pendientes = df_usuarios[df_usuarios['ESTADO'] == "PENDIENTE"]
+        
+        if not pendientes.empty:
+            st.warning(f"Hay {len(pendientes)} solicitudes pendientes.")
+            st.dataframe(pendientes)
+            
+            # Selector para elegir a quién aprobar
+            usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes['USUARIO'])
+            
+            if st.button("✅ DAR ACCESO Y APROBAR"):
+                # Buscamos la fila: el índice del dataframe + 2 (por la cabecera y el base 1 de Sheets)
+                idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
+                fila_nube = idx + 2 
+                
+                # Actualizamos la columna D (ESTADO) en la hoja "USUARIOS"
+                if actualizar_celda("USUARIOS", fila_nube, "D", "APROBADO"):
+                    st.success(f"Usuario {usuario_a_aprobar} autorizado exitosamente.")
+                    st.rerun()
+                else:
+                    st.error("Error al actualizar la base de datos.")
+        else:
+            st.info("No hay solicitudes pendientes de aprobación.")
+    
+
+
 
 
 
