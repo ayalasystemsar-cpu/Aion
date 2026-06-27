@@ -111,6 +111,7 @@ def mostrar_landing():
 # --- 4. LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
     mostrar_landing()
+    
 
 
 
