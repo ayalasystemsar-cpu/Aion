@@ -1403,4 +1403,3 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         else:
             st.info("No hay solicitudes pendientes.")
 
-
