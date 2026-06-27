@@ -95,8 +95,16 @@ def mostrar_landing():
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
         if st.form_submit_button(btn_texto):
-            if modo == "Iniciar Sesión":
-                # AQUÍ ESTÁ LA LÓGICA QUE CONSULTA GOOGLE SHEETS
+            
+            # --- NUEVA LÓGICA: ACCESO ADMINISTRADOR SIN APROBACIÓN ---
+            if modo == "Iniciar Sesión" and user.strip() == "admin" and password.strip() == "aion2026":
+                st.session_state.usuario_logueado = True
+                st.session_state.user_sel = "ADMIN CENTRAL"
+                st.session_state.rol_sel = "ADMINISTRADOR"
+                st.rerun()
+            
+            # --- LÓGICA NORMAL PARA LOS DEMÁS ---
+            elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
                 
                 # Buscamos fila donde usuario y pass coincidan
