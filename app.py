@@ -1350,12 +1350,14 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
     
 
+
+
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.subheader("⚙️ NÚCLEO MAESTRO: CONTROL DE ACCESOS")
     
-    # 1. Autenticación de Administrador
-    if 'admin_autenticado' not in st.session_state:
-        st.session_state.admin_autenticado = False
+    # 1. Autenticación de Administrador (Forzada si entra como ADMIN CENTRAL)
+    if st.session_state.user_sel == "ADMIN CENTRAL":
+        st.session_state.admin_autenticado = True
         
     if not st.session_state.admin_autenticado:
         u_ing = st.text_input("ADMIN_USER")
@@ -1365,35 +1367,41 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 st.session_state.admin_autenticado = True
                 st.rerun()
             else:
-                st.error("Credenciales de Administrador incorrectas.")
+                st.error("Credenciales incorrectas.")
     
     # 2. Panel de Aprobación
     if st.session_state.admin_autenticado:
         st.success("✅ Núcleo Maestro desbloqueado.")
         
         df_usuarios = leer_matriz_nube("USUARIOS")
-        if not df_usuarios.empty:
-            pendientes = df_usuarios[df_usuarios['ESTADO'] == "PENDIENTE"]
+        
+        # --- DIAGNÓSTICO ---
+        if df_usuarios.empty:
+            st.error("La hoja 'USUARIOS' está vacía o no se pudo leer.")
+        else:
+            st.write("Columnas detectadas en la hoja:", df_usuarios.columns.tolist())
+            # Esto nos mostrará si existe la columna 'ESTADO'
+            
+            # Buscamos filas donde cualquier columna contenga 'PENDIENTE'
+            # (Esto es a prueba de errores si el nombre de la columna cambió)
+            pendientes = df_usuarios[df_usuarios.apply(lambda row: row.astype(str).str.contains('PENDIENTE', case=False).any(), axis=1)]
             
             if not pendientes.empty:
-                st.warning(f"⚠️ Hay {len(pendientes)} solicitudes pendientes de aprobación.")
+                st.warning(f"⚠️ Se encontraron {len(pendientes)} filas en estado PENDIENTE.")
                 st.dataframe(pendientes, use_container_width=True)
                 
-                usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes['USUARIO'].tolist())
+                # Para aprobar, necesitamos saber el índice. 
+                # Como el DataFrame de leer_matriz_nube pierde el índice real, 
+                # vamos a usar el índice de la tabla mostrada
+                seleccion = st.selectbox("Seleccionar fila para autorizar:", pendientes.index.tolist())
                 
                 if st.button("✅ DAR ACCESO Y APROBAR"):
-                    idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
-                    fila_nube = idx + 2 
-                    
-                    if actualizar_celda("USUARIOS", fila_nube, "D", "APROBADO"):
-                        st.success(f"Usuario {usuario_a_aprobar} autorizado correctamente.")
+                    # La fila real en Excel es el índice + 2
+                    if actualizar_celda("USUARIOS", seleccion + 2, "D", "APROBADO"):
+                        st.success("Autorizado correctamente.")
                         st.rerun()
-                    else:
-                        st.error("Error al actualizar la base de datos.")
             else:
-                st.info("No hay solicitudes pendientes.")
-
-
+                st.info("No se encontraron registros con estado PENDIENTE.")
 
 
 
