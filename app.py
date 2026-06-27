@@ -468,30 +468,29 @@ else:
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
         # ... (todo tu código de GERENCIA) ...
         # ¡IMPORTANTE!: Asegúrate de que aquí NO haya un else: al final de este bloque.
-
-    elif st.session_state.rol_sel == "VIGILADOR":
-        # ... (todo tu código de VIGILADOR) ...
+elif st.session_state.rol_sel == "VIGILADOR":
+        # Asegúrate de que TODAS estas líneas tengan exactamente 8 espacios a la izquierda
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        # ... (aquí va el resto de tu código de VIGILADOR)
+        st.write("Módulo Vigilador Cargado")
+        pass
 
     elif st.session_state.rol_sel == "ADMINISTRADOR":
+        # Asegúrate de que TODAS estas líneas tengan exactamente 8 espacios a la izquierda
         st.subheader("🔧 NÚCLEO MAESTRO")
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
         
         if u_ing == "admin" and p_ing == "aion2026": 
             st.success("✅ Acceso Maestro Autorizado.")
-            tablas = ["ALERTAS", "PRESENTISMO", "JORNADA_SUPERVISORES", "MENSAJERIA", "CONTROL_FLOTA", "NOVEDADES_GUARDIA"]
-            seleccion = st.selectbox("Seleccione tabla para auditar:", tablas)
-            
-            if st.button("👁️ CARGAR DATOS"):
-                df_admin = leer_matriz_nube(seleccion)
-                if not df_admin.empty:
-                    st.dataframe(df_admin, use_container_width=True)
-                else:
-                    st.warning("La tabla está vacía.")
         elif u_ing or p_ing:
             st.error("❌ Acceso Denegado.")
+        pass
 
     else:
+        # Este es el cierre obligatorio
+        st.info("Seleccione una opción en el panel lateral.")
+    
         st.info("Seleccione una opción en el panel lateral.")
 
                 
