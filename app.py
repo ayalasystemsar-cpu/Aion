@@ -467,21 +467,3 @@ else:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
                 
-elif st.session_state.rol_sel == "GERENCIA":
-        # ... (Tu código de GERENCIA que ya funcionaba) ...
-        # Asegúrate de que este bloque esté cerrado correctamente
-        st.write("Módulo Gerencia Finalizado")
-
-elif st.session_state.rol_sel == "VIGILADOR":
-        # Código de VIGILADOR
-        st.write("Módulo Vigilador Cargando...")
-        # (Aquí pegarás luego tu código de Vigilador, pero con esto debería arrancar)
-        pass 
-
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-        # Código de ADMINISTRADOR
-        st.write("Módulo Admin Cargando...")
-        pass
-
-    else:
-        st.info("Seleccione una opción en el panel lateral.")
