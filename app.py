@@ -468,7 +468,7 @@ else:
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
         # ... (todo tu código de GERENCIA) ...
         # ¡IMPORTANTE!: Asegúrate de que aquí NO haya un else: al final de este bloque.
-elif st.session_state.rol_sel == "VIGILADOR":
+    elif st.session_state.rol_sel == "VIGILADOR":
         # Asegúrate de que TODAS estas líneas tengan exactamente 8 espacios a la izquierda
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         # ... (aquí va el resto de tu código de VIGILADOR)
