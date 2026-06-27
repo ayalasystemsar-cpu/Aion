@@ -681,7 +681,7 @@ else:
     
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     
-elif st.session_state.rol_sel == "ADMINISTRADOR":
+ elif st.session_state.rol_sel == "ADMINISTRADOR":
         st.subheader("🔧 NÚCLEO MAESTRO")
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
