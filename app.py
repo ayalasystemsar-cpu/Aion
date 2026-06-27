@@ -108,7 +108,9 @@ def mostrar_landing():
                 # Aquí guardarías los datos en tu Google Sheet de "USUARIOS"
                 st.success(f"Solicitud de registro como {rol_usuario} enviada.")
 
-
+# --- 4. LÓGICA PRINCIPAL ---
+if not st.session_state.usuario_logueado:
+    mostrar_landing()
 
 
 
