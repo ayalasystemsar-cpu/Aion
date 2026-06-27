@@ -138,5 +138,121 @@ else:
         st.write("---")
         st.button("🚪 CERRAR SESIÓN", on_click=lambda: setattr(st.session_state, 'usuario_logueado', False), use_container_width=True)
       #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------#  
+# 3. FLUJO POR ROLES (Estructura IF/ELIF impecable)
+    if st.session_state.rol_sel == "MONITOREO":
+        # ... (Tu código de MONITOREO que ya funciona) ...
+        # (Asegúrate de mantenerlo dentro de este bloque)
+        col1, col2, col3, col4 = st.columns(4)
+        
+        # Carga de datos
+        df_emergencias = leer_matriz_nube("ALERTAS")
+        df_objetivos = cargar_objetivos()
+        
+        # --- BLINDAJE: Conversión a números antes de cualquier cálculo ---
+        if not df_objetivos.empty:
+            df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
+            df_objetivos['LATITUD'] = pd.to_numeric(df_objetivos['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+            df_objetivos['LONGITUD'] = pd.to_numeric(df_objetivos['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+            df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        else:
+            df_mapa_monitoreo = pd.DataFrame()
+    
+        # (Aquí va el resto de tu lógica de contadore# 2. LÓGICA DE PÁNICO
+        lista_objetivos_en_panico = []
+        if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
+            pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
+            sos_activos = len(pendientes)
+            for _, row in pendientes.iterrows():
+                carga = str(row['CARGA_UTIL'])
+                if "OBJ:" in carga:
+                    try: 
+                        lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
+                    except: pass
+        else: 
+            sos_activos = 0
+        
+        # 3. CONTADORES Y RELOJ
+        with col1.container():
+            @st.fragment(run_every=5)
+            def contar_panicos_monitoreo():
+                df_alertas = leer_matriz_nube("ALERTAS")
+                if not df_alertas.empty:
+                    df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
+                    total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"])
+                    st.metric("🚨 S.O.S ACTIVOS", total_sos)
+                else: st.metric("🚨 S.O.S ACTIVOS", "0")
+            contar_panicos_monitoreo()
+    
+        col2.metric("📡 RED", "OPERATIVA")
+        col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
+        
+        with col4.container():
+            @st.fragment(run_every=1)
+            def mostrar_reloj_monitoreo():
+                st.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
+        
+        # ... mostrar_reloj_monitoreo() s igual que la tenías...)
+        
+        
+        # --- TABS Y RADAR ---
+        t_radar, t_mensajeria, t_vig, t_nov = st.tabs(["🚨 RADAR S.O.S", "💬 MENSAJERÍA", "👥 PADRÓN", "🔄 NOVEDADES"]) 
+        
+        with t_radar:
+            st.subheader("📡 RADAR GLOBAL")
+            
+            # --- AQUÍ ESTÁ EL MAPA BIEN UBICADO ---
+            if not df_mapa_monitoreo.empty:
+                # Ahora el mean() no fallará porque los datos son números
+                centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+                
+                m_mon = folium.Map(location=centro_mapa, zoom_start=11)
+                
+                for _, r in df_mapa_monitoreo.iterrows():
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']], 
+                        radius=7, color="#00E5FF", fill=True
+                    ).add_to(m_mon)
+                
+                st_folium(m_mon, width="100%", height=550)
+            else:
+                st.warning("No hay objetivos válidos.")
+
+        
+
+    elif st.session_state.rol_sel == "SUPERVISOR":
+        # --- Código de SUPERVISOR que extrajimos antes ---
+        if st.session_state.sup_autenticado:
+            st.subheader("⏱️ GESTIÓN DE JORNADA")
+            # ... (el resto del código que ya tenías de Supervisor) ...
+
+    elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+        # --- Código de JEFE DE OPERACIONES ---
+        col1, col2, col3, col4 = st.columns(4)
+        # ... (tu lógica de métricas y pestañas de Jefe) ...
+
+    elif st.session_state.rol_sel == "GERENCIA":
+        # --- Código de GERENCIA ---
+        col1, col2, col3, col4 = st.columns(4)
+        # ... (tu lógica de métricas y pestañas de Gerencia) ...
+
+    elif st.session_state.rol_sel == "VIGILADOR":
+        # --- Código de VIGILADOR ---
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        # ... (tu lógica de fichaje, relevo y pánico) ...
+
+    elif st.session_state.rol_sel == "ADMINISTRADOR":
+        # --- Código de ADMINISTRADOR ---
+        u_ing = st.text_input("ADMIN_USER")
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        if u_ing == "admin" and p_ing == "aion2026": 
+            st.success("Núcleo Maestro desbloqueado.")
+            # Aquí puedes agregar las herramientas de admin
+        else:
+            if u_ing or p_ing: st.error("Acceso denegado.")
+            
+    else:
+        st.info("Seleccione una función en el panel lateral para comenzar.")
+
+
     
    
