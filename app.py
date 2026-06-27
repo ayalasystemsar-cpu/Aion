@@ -1334,8 +1334,9 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     p_ing = st.text_input("ADMIN_PASS", type="password")
     if u_ing == "admin" and p_ing == "aion2026": 
         st.success("Núcleo Maestro desbloqueado.")
-        
-        if st.sidebar.button("🚪 CERRAR SESIÓN"):
+
+# Asegúrate de que estas dos líneas tengan 4 espacios (o 1 tab) de sangría respecto al "if"
+    if st.sidebar.button("🚪 CERRAR SESIÓN", use_container_width=True):
         st.session_state.usuario_logueado = False
         st.rerun()
 
