@@ -534,14 +534,4 @@ else:
         with tab_panico:
             st.write("Módulo Pánico")
 
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-        st.subheader("🔧 NÚCLEO MAESTRO")
-        u_ing = st.text_input("ADMIN_USER")
-        p_ing = st.text_input("ADMIN_PASS", type="password")
-        
-        # Agregamos .strip() para ignorar espacios accidentales
-        if u_ing.strip() == "admin" and p_ing.strip() == "aion2026": 
-            st.success("✅ Acceso Maestro Autorizado.")
-            # ... resto de tu código ...
-        elif u_ing or p_ing:
-            st.error("❌ Credenciales incorrectas.")
+
