@@ -708,5 +708,9 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         else:
             if u_ing or p_ing: 
                 st.error("❌ Acceso Denegado.")
+
+    else:
+        # ESTE ES EL ÚNICO ELSE QUE DEBE IR AQUÍ, AL FINAL DE TODO
+        st.info("Seleccione una opción en el panel lateral para comenzar.")
     
    
