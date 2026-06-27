@@ -578,18 +578,13 @@ else:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
 
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-
-    
-#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-    elif st.session_state.rol_sel == "VIGILADOR":
+elif st.session_state.rol_sel == "VIGILADOR":
         # --- Código de VIGILADOR ---
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        
-        # ... (tu lógica deelif st.session_state.rol_sel == "VIGILADOR":
         opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
         
-        # 1. Calculamos el total de mensajes pendientes
         df_msg = leer_matriz_nube("MENSAJERIA")
         nombre_user = st.session_state.user_sel.upper()
         total_nuevos = 0
@@ -599,12 +594,10 @@ else:
 
         label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
         
-        # 2. Definimos los tabs
         tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs([
             "📋 FICHAJE", "🔄 RELEVO", label_msg, "🚨 PÁNICO"
         ])
     
-        # 3. Pestaña Fichaje
         with tab_presentismo:
             st.markdown("### 📸 REGISTRO BIOMÉTRICO")
             with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
@@ -618,19 +611,15 @@ else:
                     if v_nombre_completo and v_dni and img_facial:
                         st.session_state.v_nombre_completo = v_nombre_completo.upper()
                         st.session_state.legajo_vigilador = v_dni
-                        
                         fecha_hora_arg = obtener_hora_argentina()
                         sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                         tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
-                        
                         escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
                         escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
-                        
                         st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
                     else:
                         st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
 
-        # 4. Pestaña de Relevo
         with tab_relevo:
             st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
             with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
@@ -645,11 +634,9 @@ else:
                     escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                     st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
-        # 5. Pestaña Mensajería
         with tab_mensajeria:
             renderizar_mensajeria_global("VIGILADOR")
 
-        # 6. Pestaña Pánico
         with tab_panico:
             st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
             df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
@@ -672,39 +659,31 @@ else:
                     filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                     if not filtro.empty:
                         sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-                
                 fecha = obtener_hora_argentina()
                 carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
                 escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
-    
-#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-
-elif st.session_state.rol_sel == "ADMINISTRADOR":
+    elif st.session_state.rol_sel == "ADMINISTRADOR":
         st.subheader("🔧 NÚCLEO MAESTRO")
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
-        
         if u_ing == "admin" and p_ing == "aion2026": 
             st.success("✅ Acceso Maestro Autorizado.")
-            st.markdown("### 📊 TABLAS DEL SISTEMA")
             tablas = ["ALERTAS", "PRESENTISMO", "JORNADA_SUPERVISORES", "MENSAJERIA", "CONTROL_FLOTA", "NOVEDADES_GUARDIA"]
             seleccion = st.selectbox("Seleccione tabla para auditar:", tablas)
-            
             if st.button("👁️ CARGAR DATOS"):
                 df_admin = leer_matriz_nube(seleccion)
                 if not df_admin.empty:
                     st.dataframe(df_admin, use_container_width=True)
                 else:
                     st.warning("La tabla está vacía.")
-        else:
-            if u_ing or p_ing: 
-                st.error("❌ Acceso Denegado.")
+        elif u_ing or p_ing:
+            st.error("❌ Acceso Denegado.")
 
-
-
-
+    else:
+        st.info("Seleccione una opción en el panel lateral.")
     
- 
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+    
