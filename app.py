@@ -77,7 +77,6 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -85,7 +84,6 @@ def mostrar_landing():
     
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
     
-    # UN SOLO FORMULARIO QUE MANEJA TODO
     with st.form("form_acceso_real"):
         user = st.text_input("Usuario", key="u")
         password = st.text_input("Contraseña", type="password", key="p")
@@ -94,15 +92,15 @@ def mostrar_landing():
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
         if st.form_submit_button(btn_texto):
-            # --- ACCESO DIRECTO ADMINISTRADOR ---
+            # 1. ACCESO DIRECTO ADMINISTRADOR
             if modo == "Iniciar Sesión" and user.strip() == "admin" and password.strip() == "aion2026":
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = "ADMIN CENTRAL"
                 st.session_state.rol_sel = "ADMINISTRADOR"
                 st.rerun()
 
+            # 2. LOGIN USUARIO NORMAL
             elif modo == "Iniciar Sesión":
-                # LÓGICA NORMAL PARA LOS DEMÁS
                 df_usuarios = leer_matriz_nube("USUARIOS")
                 
                 # Buscamos fila donde usuario y pass coincidan
@@ -123,19 +121,12 @@ def mostrar_landing():
                 else:
                     st.error("❌ Credenciales inválidas.")
             
+            # 3. CREAR CUENTA
             else:
-                # CREAR CUENTA
-                escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
-                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
-           # CREAR CUENTA
                 escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
                 st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
-            
-            else:
-                # CREAR CUENTA
-                escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
-                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
+
 
     # --- 4. LÓGICA PRINCIPAL ---
 if not st.session_state.usuario_logueado:
