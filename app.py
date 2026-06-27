@@ -77,7 +77,6 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -94,8 +93,15 @@ def mostrar_landing():
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
         if st.form_submit_button(btn_texto):
-            if modo == "Iniciar Sesión":
-                # AQUÍ ESTÁ LA LÓGICA QUE CONSULTA GOOGLE SHEETS
+            # --- ACCESO DIRECTO ADMINISTRADOR ---
+            if modo == "Iniciar Sesión" and user.strip() == "admin" and password.strip() == "aion2026":
+                st.session_state.usuario_logueado = True
+                st.session_state.user_sel = "ADMIN CENTRAL"
+                st.session_state.rol_sel = "ADMINISTRADOR"
+                st.rerun()
+
+            elif modo == "Iniciar Sesión":
+                # LÓGICA NORMAL PARA LOS DEMÁS
                 df_usuarios = leer_matriz_nube("USUARIOS")
                 
                 # Buscamos fila donde usuario y pass coincidan
@@ -115,6 +121,12 @@ def mostrar_landing():
                         st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación.")
                 else:
                     st.error("❌ Credenciales inválidas.")
+            
+            else:
+                # CREAR CUENTA
+                escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
+                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
+
             
             else:
                 # CREAR CUENTA
@@ -1371,35 +1383,55 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     
     # 2. Panel de Aprobación
     
+    elif st.session_state.rol_sel == "ADMINISTRADOR":
+    st.subheader("⚙️ NÚCLEO MAESTRO: CONTROL DE ACCESOS")
+    
+    # 1. AUTENTICACIÓN: El Admin entra directo si viene del login, 
+    # o por clave interna si entra desde el sidebar.
+    if 'admin_autenticado' not in st.session_state:
+        st.session_state.admin_autenticado = False
+        
+    # Acceso automático si el usuario viene logueado como "ADMIN CENTRAL"
+    if st.session_state.user_sel == "ADMIN CENTRAL":
+        st.session_state.admin_autenticado = True
+        
+    # Login interno por si se accede desde otro punto
+    if not st.session_state.admin_autenticado:
+        u_ing = st.text_input("ADMIN_USER")
+        p_ing = st.text_input("ADMIN_PASS", type="password")
+        if st.button("DESBLOQUEAR NÚCLEO"):
+            if u_ing == "admin" and p_ing == "aion2026":
+                st.session_state.admin_autenticado = True
+                st.rerun()
+            else:
+                st.error("Credenciales incorrectas.")
+    
+    # 2. PANEL DE APROBACIÓN
     if st.session_state.admin_autenticado:
         st.success("✅ Núcleo Maestro desbloqueado.")
         
         df_usuarios = leer_matriz_nube("USUARIOS")
         
- 
-         # Limpieza: eliminamos espacios en los datos (compatible con versiones nuevas de Pandas)
-                # Limpieza: eliminamos espacios en los datos (compatible con versiones nuevas de Pandas)
-        df_usuarios = df_usuarios.map(lambda x: str(x).strip() if isinstance(x, str) else x)
-        
-        # Buscamos filas pendientes (filtramos específicamente la columna ESTADO)
-        # Esto es mucho más preciso que buscar en todo el DataFrame
-        pendientes = df_usuarios[df_usuarios['ESTADO'].str.contains('PENDIENTE', case=False, na=False)]
-        
-        if not pendientes.empty:
-            st.warning(f"⚠️ Hay {len(pendientes)} solicitudes pendientes de aprobación.")
-            st.dataframe(pendientes, use_container_width=True)
+        if not df_usuarios.empty:
+            # Limpieza segura
+            df_usuarios = df_usuarios.map(lambda x: str(x).strip() if isinstance(x, str) else x)
             
-            usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes['USUARIO'].tolist())
-            
-            if st.button("✅ DAR ACCESO Y APROBAR"):
-                # Obtenemos el índice original
-                idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
-                # La fila real en Google Sheet es el índice + 2 (por el encabezado)
-                if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
-                    st.success(f"Usuario {usuario_a_aprobar} autorizado correctamente.")
-                    st.rerun()
+            # Filtro de pendientes
+            if 'ESTADO' in df_usuarios.columns:
+                pendientes = df_usuarios[df_usuarios['ESTADO'].str.contains('PENDIENTE', case=False, na=False)]
+                
+                if not pendientes.empty:
+                    st.warning(f"⚠️ Hay {len(pendientes)} solicitudes pendientes.")
+                    st.dataframe(pendientes, use_container_width=True)
+                    
+                    usuario_a_aprobar = st.selectbox("Seleccionar usuario:", pendientes['USUARIO'].tolist())
+                    
+                    if st.button("✅ DAR ACCESO Y APROBAR"):
+                        idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
+                        if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
+                            st.success(f"Usuario {usuario_a_aprobar} autorizado.")
+                            st.rerun()
                 else:
-                    st.error("Error al actualizar la base de datos.")
-        else:
-            st.info("No hay solicitudes pendientes.")
-
+                    st.info("No hay solicitudes pendientes.")
+            else:
+                st.error("Error: La columna 'ESTADO' no se encuentra en la base de datos.")
