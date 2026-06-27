@@ -78,30 +78,29 @@ def aplicar_identidad_alfa():
     """, unsafe_allow_html=True)
 
 
-def mostrar_landing():
+ def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
     st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
     
-    # Selector de Modo
-    modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
+    # AGREGAMOS KEY ÚNICO
+    modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="modo_radio_landing")
     
-    with st.form("form_acceso"):
-        user = st.text_input("Usuario")
-        password = st.text_input("Contraseña", type="password")
-        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "AYALA BRIAN", "ADMINISTRADOR"])
+    with st.form("form_acceso_landing"):
+        # AGREGAMOS KEYS ÚNICOS A CADA INPUT
+        user = st.text_input("Usuario", key="input_user_landing")
+        password = st.text_input("Contraseña", type="password", key="input_pass_landing")
+        rol_usuario = st.selectbox("Seleccione su Rol:", ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "AYALA BRIAN", "ADMINISTRADOR"], key="select_rol_landing")
         
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
         if st.form_submit_button(btn_texto):
             if modo == "Iniciar Sesión":
-                # 1. LEEMOS LA TABLA DE USUARIOS
                 df_usuarios = leer_matriz_nube("USUARIOS")
                 
                 if df_usuarios.empty:
                     st.error("Error: No se pudo conectar a la base de usuarios.")
                 else:
-                    # 2. VALIDAMOS EXISTENCIA Y ESTADO
                     usuario_ok = df_usuarios[
                         (df_usuarios['USUARIO'] == user) & 
                         (df_usuarios['CONTRASEÑA'] == password) & 
@@ -114,15 +113,13 @@ def mostrar_landing():
                         st.session_state.rol_sel = usuario_ok.iloc[0]['ROL']
                         st.rerun()
                     elif not df_usuarios[(df_usuarios['USUARIO'] == user)].empty:
-                        st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
+                        st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación.")
                     else:
                         st.error("❌ Credenciales incorrectas o cuenta no autorizada.")
             
             else:
-                # 3. REGISTRO (Guardamos como PENDIENTE)
-                # Orden: USUARIO | CONTRASEÑA | ROL | ESTADO
                 escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
-                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización administrativa.")
+                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
     # Selector de Modo
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True)
