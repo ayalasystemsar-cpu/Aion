@@ -475,11 +475,12 @@ else:
                 carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
                 escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
-                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") fichaje, relevo y pánico) ...
+                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
     
 
     elif st.session_state.rol_sel == "ADMINISTRADOR":
-        # --- Código de ADMINISTRADOR ---
+        # --- Código de ADMINISTRADOR ---fecha = obtener_hora_argentina()
+        
         u_ing = st.text_input("ADMIN_USER")
         p_ing = st.text_input("ADMIN_PASS", type="password")
         if u_ing == "admin" and p_ing == "aion2026": 
