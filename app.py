@@ -774,54 +774,31 @@ if st.session_state.rol_sel == "MONITOREO":
                     ).add_to(m_mon)
 
            
+
+
+        # --- DIBUJO DE COMISARÍAS ---
         df_com = cargar_datos_comisarias()
         for _, c in df_com.iterrows():
             es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
             
+            # Definir color y tooltip
             if es_la_mas_cercana and obj_seleccionado != "MOSTRAR TODO":
-                color_icono = "#FF9800"
-                tamano_fuente = "26px"
-                sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
-                
-                com_lat, com_lon = c['LATITUD'], c['LONGITUD']
-                coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
-                
-                # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO ---
-                folium.PolyLine(
-                    locations=coordenadas_ruta,
-                    color="#000000",
-                    weight=5,
-                    opacity=0.4
-                ).add_to(m_mon)
-
-                folium.PolyLine(
-                    locations=coordenadas_ruta,
-                    color="#39FF14",       
-                    weight=4,              
-                    opacity=0.25           
-                ).add_to(m_mon)
+                color_icono = "#FF9800" # Naranja para la más cercana
+                sufijo_tooltip = " 🌟 [MÁS CERCANA]"
             else:
-                color_icono = "#0000FF"
-                tamano_fuente = "20px"
+                color_icono = "#0000FF" # Azul para el resto
                 sufijo_tooltip = ""
 
-            # Marcador de la comisaría
+            # Marcador con escudo
             folium.Marker(
                 location=[c['LATITUD'], c['LONGITUD']],
                 tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
-                icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+                icon=folium.DivIcon(html=f"""
+                    <div style="font-size: 20px; color: {color_icono}; text-shadow: 0 0 10px {color_icono};">
+                        <i class="fa fa-shield"></i>
+                    </div>""")
             ).add_to(m_mon)
-        
-        capa_etiquetas = folium.TileLayer(
-            tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
-            attr='© <a href="https://carto.com/attributions">CARTO</a>',
-            name="Etiquetas de Calles",
-            max_zoom=21,         
-            max_native_zoom=20,  
-            overlay=True,
-            control=False
-        )
-        capa_etiquetas.add_to(m_mon)
+
         
         script_z_index = Element("""
             <style>
