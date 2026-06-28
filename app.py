@@ -928,21 +928,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
       
-        with t_vis_qr:
-            st.markdown("### 📱 ESCANEO TÁCTICO")
-            
-            # 1. Selector de Objetivo
-            lista_objs = df_objetivos_filtrados['OBJETIVO'].unique()
-            obj_a_generar = st.selectbox("Seleccione objetivo para QR:", lista_objs, key="qr_gen_sel")
-            
-            if obj_a_generar:
-                # 2. Layout: QR a la izquierda, Botones a la derecha
+                    if obj_a_generar:
+                # 2. Layout: QR a la izquierda, Botón a la derecha
                 col_qr, col_nav = st.columns([1, 1])
                 
                 # --- LÓGICA DE URL ---
                 url_final = f"https://tu-app-de-aion.streamlit.app/?obj={obj_a_generar.replace(' ', '%20')}"
                 
-                # --- GENERAR QR COLOR AGUA ---
+                # --- GENERAR QR COLOR ESMERALDA ---
                 qr = qrcode.QRCode(version=1, box_size=12, border=2)
                 qr.add_data(url_final)
                 qr.make(fit=True)
@@ -951,11 +944,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 with col_qr:
                     st.image(img.get_image(), width=200, caption=f"QR: {obj_a_generar}")
                 
-                # --- BOTÓN DE NAVEGACIÓN (Delicado y en color agua) ---
+                # --- BOTÓN DE NAVEGACIÓN: ESMERALDA TENUE ---
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
                     
-                    # Buscamos coordenadas
+                    # Buscamos coordenadas del objetivo seleccionado
                     datos_obj = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
                     lat, lon = datos_obj['LATITUD'], datos_obj['LONGITUD']
                     url_maps = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&travelmode=driving"
@@ -972,12 +965,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                text-align: center; 
                                font-family: 'Orbitron', sans-serif; 
                                font-size: 13px;
-                               box-shadow: 0 0 8px #00E5FF80;
+                               box-shadow: 0 0 10px #00E5FF40; 
                                transition: 0.3s;">
                         🗺️ IR AL OBJETIVO
                         </a>''', 
                         unsafe_allow_html=True
                     )
+
 
 
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
