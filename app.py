@@ -876,30 +876,35 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
+        
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
                 col_qr, col_nav = st.columns([1, 1])
                 
-                # Definimos el tono Verde Agua tenue (#7FFFD4)
-                color_v = "#7FFFD4" 
+                # Definimos el color verde agua
+                color_v = "#00E5FF" 
                 
                 qr = qrcode.QRCode(version=1, box_size=10, border=1)
                 qr.add_data(f"AION:{obj_seleccionado}")
                 qr.make(fit=True)
                 
-                # QR en blanco y negro (estándar)
+                # QR BLANCO sobre fondo NEGRO (para máximo contraste y escaneo)
                 img = qr.make_image(fill_color="white", back_color="black")
                 
                 with col_qr:
-                    # Enmarcado con tu verdecito agua
-                    st.markdown(f'<div style="border: 2px solid {color_v}; padding: 5px; width: 200px;">', unsafe_allow_html=True)
-                    st.image(img.get_image(), width=190)
+                    # Contenedor con borde verde agua para el marco
+                    st.markdown(
+                        f'''<div style="border: 2px solid {color_v}; padding: 8px; 
+                        display: inline-block; border-radius: 8px;">''', 
+                        unsafe_allow_html=True
+                    )
+                    st.image(img.get_image(), width=160)
                     st.markdown('</div>', unsafe_allow_html=True)
                 
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    # Botón con el mismo color esmeralda suave
+                    # Botón que ya tenías configurado
                     st.markdown(
                         f'''<a href="#" style="display: block; background: transparent; 
                         border: 2px solid {color_v}; color: {color_v}; 
