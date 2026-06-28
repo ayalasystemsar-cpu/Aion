@@ -878,40 +878,42 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         
-        with t_vis_qr:
+                with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
                 col_qr, col_nav = st.columns([1, 1])
                 
-                # Definimos el color esmeralda eléctrico original
-                color_esmeralda = "#00E5FF" 
+                # Definimos el tono Verde Agua tenue que buscás
+                color_v = "#7FFFD4" 
                 
-                # Configuración exacta del QR original: compacto y nítido
-                qr = qrcode.QRCode(version=1, box_size=12, border=2)
+                qr = qrcode.QRCode(version=1, box_size=10, border=1)
                 qr.add_data(f"AION:{obj_seleccionado}")
                 qr.make(fit=True)
                 
-                # Generamos el QR con fondo negro y trazo eléctrico
-                img = qr.make_image(fill_color=color_esmeralda, back_color="#000000")
+                # QR en blanco y negro (estándar para escaneo), 
+                # mantendremos el estilo táctico definido en el borde del contenedor
+                img = qr.make_image(fill_color="white", back_color="black")
                 
                 with col_qr:
-                    st.image(img.get_image(), width=200, caption=f"QR: {obj_seleccionado}")
+                    # Contenedor para que el QR se vea "enmarcado" en tu color
+                    st.markdown(f'<div style="border: 2px solid {color_v}; padding: 5px; width: 200px;">', unsafe_allow_html=True)
+                    st.image(img.get_image(), width=190)
+                    st.markdown('</div>', unsafe_allow_html=True)
                 
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    # Botón con el estilo de borde y sombra esmeralda original
+                    # Botón con el mismo color esmeralda suave
                     st.markdown(
                         f'''<a href="#" style="display: block; background: transparent; 
-                        border: 1px solid {color_esmeralda}; color: {color_esmeralda}; 
-                        padding: 12px; border-radius: 4px; text-decoration: none; 
-                        text-align: center; font-family: 'Orbitron', sans-serif; font-size: 13px;
-                        box-shadow: 0 0 10px {color_esmeralda}40; transition: 0.3s;">
+                        border: 2px solid {color_v}; color: {color_v}; 
+                        padding: 14px; border-radius: 6px; text-decoration: none; 
+                        text-align: center; font-family: 'Orbitron', sans-serif; font-size: 14px;
+                        box-shadow: 0 0 12px {color_v}40; transition: 0.3s;">
                         🗺️ IR AL OBJETIVO
                         </a>''', 
                         unsafe_allow_html=True
                     )
-            else:
-                st.warning("Seleccione un objetivo válido para generar el QR.")
+
 
 
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
