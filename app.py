@@ -928,8 +928,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
       
-
-                with t_vis_qr:
+        with t_vis_qr:
             st.markdown("### 📱 ESCANEO TÁCTICO")
             
             # 1. Selector de Objetivo
