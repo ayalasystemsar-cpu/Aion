@@ -246,23 +246,12 @@ def leer_matriz_nube(pestana):
 
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
-    # 1. Leemos la hoja "COMISARIAS" de tu matriz
-    df = leer_matriz_nube("COMISARIAS")
-    
-    # 2. Verificamos que no esté vacía
-    if df.empty:
-        return pd.DataFrame(columns=["COMISARIA", "LOCALIDAD", "LATITUD", "LONGITUD"])
-    
-    # 3. Limpieza de nombres de columnas
-    df.columns = [c.strip().upper() for c in df.columns]
-    
-    # 4. Aseguramos que Latitud y Longitud sean números puros
-    df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
-    df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
-    
-    # 5. Retornamos en el orden exacto: COMISARIA, LOCALIDAD, LATITUD, LONGITUD
-    return df[['COMISARIA', 'LOCALIDAD', 'LATITUD', 'LONGITUD']]
-
+    data = {
+        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
+        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
+        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
+    }
+    return pd.DataFrame(data)
 
 @st.cache_data(ttl=60)
 def cargar_objetivos():
@@ -644,11 +633,9 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
         "🚨 RADAR S.O.S", label_msg, "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ]) 
-    
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        # Añadimos un key único para que Streamlit sepa que este botón es exclusivo
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True, key="btn_radar_unico_123"):
+        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
@@ -750,76 +737,100 @@ if st.session_state.rol_sel == "MONITOREO":
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
-    with t_radar:
-        st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+                
+                # --- LÓGICA DE IDENTIFICACIÓN ---
+                texto_tooltip = f"🎯 {r['OBJETIVO']}" # Valor por defecto
+                
+                if es_panico:
+                    alerta_activa = df_emergencias[
+                        (df_emergencias['CARGA_UTIL'].str.contains(r['OBJETIVO'])) & 
+                        (df_emergencias['ESTADO'] == 'PENDIENTE')
+                    ]
+                    if not alerta_activa.empty:
+                        # Obtenemos el nombre real del vigilador de la columna USUARIO
+                        nombre_vigilante = alerta_activa.iloc[-1]['USUARIO']
+                        # Aquí tienes la combinación exacta: Nombre Vigilador + Objetivo
+                        texto_tooltip = f"🚨 {nombre_vigilante} | {r['OBJETIVO']}"
 
-        # --- INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        col_sel1, col_sel2 = st.columns([2, 1])
-        
-        if "filtro_radar_valor" not in st.session_state:
-            st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
+                # DIBUJO DEL MARCADOR
+                if es_panico or es_el_seleccionado:
+                    folium.Marker(
+                        location=[r['LATITUD'], r['LONGITUD']],
+                        tooltip=texto_tooltip, # Mostramos la combinación exacta
+                        icon=folium.DivIcon(
+                            icon_size=(30, 30),
+                            icon_anchor=(15, 15),
+                            html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; animation: pulse 1s infinite alternate;"></div>'''
+                        )
+                    ).add_to(m_mon)
+                else:
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True,
+                        tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
+                    ).add_to(m_mon)
 
-        with col_sel1:
-            opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
-            obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO:", opciones_busqueda, index=opciones_busqueda.index(st.session_state["filtro_radar_valor"]), key="buscador_radar_master")
-            st.session_state["filtro_radar_valor"] = obj_seleccionado
-        
-        comisaria_cercana_name = None
-        distancia_minima = float('inf')
-        lat_obj, lon_obj = 0, 0
-        
-        if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
-            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
-            lat_obj, lon_obj = datos_obj['LATITUD'], datos_obj['LONGITUD']
-            
-            df_com_raw = cargar_datos_comisarias()
-            for _, com in df_com_raw.iterrows():
-                lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, float(com['LONGITUD']), float(com['LATITUD'])])
-                km = 6371 * (2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2)))
-                if km < distancia_minima:
-                    distancia_minima = km
-                    comisaria_cercana_name = com['COMISARIA']
-            
-            with col_sel2:
-                st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
-                st.caption(f"Distancia: {distancia_minima:.2f} Km")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # --- DIBUJO DEL MAPA ---
-        centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()] if not df_mapa_monitoreo.empty else [-34.6, -58.4]
-        m_mon = folium.Map(location=centro_mapa, zoom_start=12, tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", attr='CARTO')
-
-        # 1. Dibujar Objetivos
-        for _, r in df_mapa_monitoreo.iterrows():
-            es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
-            if es_panico or r['OBJETIVO'] == obj_seleccionado:
-                folium.Marker([r['LATITUD'], r['LONGITUD']], tooltip=f"🚨 {r['OBJETIVO']}", 
-                              icon=folium.DivIcon(html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; animation: pulse 1s infinite alternate;"></div>''')).add_to(m_mon)
-            else:
-                folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True, tooltip=r['OBJETIVO']).add_to(m_mon)
-
-        # 2. Dibujar Comisarías y Ruta
+           
         df_com = cargar_datos_comisarias()
-        df_com['LATITUD'] = pd.to_numeric(df_com['LATITUD'], errors='coerce')
-        df_com['LONGITUD'] = pd.to_numeric(df_com['LONGITUD'], errors='coerce')
-        
-        for _, c in df_com.dropna(subset=['LATITUD', 'LONGITUD']).iterrows():
-            es_cercana = (c['COMISARIA'] == comisaria_cercana_name)
-            if es_cercana and obj_seleccionado != "MOSTRAR TODO":
-                ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, c['LATITUD'], c['LONGITUD'])
-                folium.PolyLine(locations=ruta, color="#39FF14", weight=4).add_to(m_mon)
-                folium.Marker([c['LATITUD'], c['LONGITUD']], tooltip=f"👮 {c['COMISARIA']} (MÁS CERCANA)", 
-                              icon=folium.DivIcon(html='''<div style="font-size: 26px; color: #FF9800;"><i class="fa fa-shield"></i></div>''')).add_to(m_mon)
+        for _, c in df_com.iterrows():
+            es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
+            
+            if es_la_mas_cercana and obj_seleccionado != "MOSTRAR TODO":
+                color_icono = "#FF9800"
+                tamano_fuente = "26px"
+                sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
+                
+                com_lat, com_lon = c['LATITUD'], c['LONGITUD']
+                coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
+                
+                # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO ---
+                folium.PolyLine(
+                    locations=coordenadas_ruta,
+                    color="#000000",
+                    weight=5,
+                    opacity=0.4
+                ).add_to(m_mon)
+
+                folium.PolyLine(
+                    locations=coordenadas_ruta,
+                    color="#39FF14",       
+                    weight=4,              
+                    opacity=0.25           
+                ).add_to(m_mon)
             else:
-                folium.Marker([c['LATITUD'], c['LONGITUD']], tooltip=f"👮 {c['COMISARIA']}", 
-                              icon=folium.DivIcon(html='''<div style="font-size: 20px; color: #0000FF;"><i class="fa fa-shield"></i></div>''')).add_to(m_mon)
+                color_icono = "#0000FF"
+                tamano_fuente = "20px"
+                sufijo_tooltip = ""
 
+            # Marcador de la comisaría
+            folium.Marker(
+                location=[c['LATITUD'], c['LONGITUD']],
+                tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
+                icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+            ).add_to(m_mon)
+        
+        capa_etiquetas = folium.TileLayer(
+            tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
+            attr='© <a href="https://carto.com/attributions">CARTO</a>',
+            name="Etiquetas de Calles",
+            max_zoom=21,         
+            max_native_zoom=20,  
+            overlay=True,
+            control=False
+        )
+        capa_etiquetas.add_to(m_mon)
+        
+        script_z_index = Element("""
+            <style>
+                .leaflet-pane.leaflet-overlay-pane { z-index: 400 !important; }
+                .leaflet-pane.leaflet-tile-pane { z-index: 200 !important; }
+                .leaflet-layer:nth-last-child(1) { z-index: 500 !important; pointer-events: none; }
+            </style>
+        """)
+        m_mon.get_root().header.add_child(script_z_index)
+        
         st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
-
+    with t_mensajeria:
+        renderizar_mensajeria_global("MONITOREO")
     with t_vig:
         st.subheader("👥 PADRÓN VIGILADORES")
         df_padrero = leer_matriz_nube("VIGILADORES")
