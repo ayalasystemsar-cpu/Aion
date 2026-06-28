@@ -246,12 +246,23 @@ def leer_matriz_nube(pestana):
 
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
-    data = {
-        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
-        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
-        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
-    }
-    return pd.DataFrame(data)
+    # 1. Leemos la hoja "COMISARIAS" de tu matriz
+    df = leer_matriz_nube("COMISARIAS")
+    
+    # 2. Verificamos que no esté vacía
+    if df.empty:
+        return pd.DataFrame(columns=["COMISARIA", "LOCALIDAD", "LATITUD", "LONGITUD"])
+    
+    # 3. Limpieza de nombres de columnas
+    df.columns = [c.strip().upper() for c in df.columns]
+    
+    # 4. Aseguramos que Latitud y Longitud sean números puros
+    df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
+    df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
+    
+    # 5. Retornamos en el orden exacto: COMISARIA, LOCALIDAD, LATITUD, LONGITUD
+    return df[['COMISARIA', 'LOCALIDAD', 'LATITUD', 'LONGITUD']]
+
 
 @st.cache_data(ttl=60)
 def cargar_objetivos():
