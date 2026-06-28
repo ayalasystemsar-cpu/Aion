@@ -878,7 +878,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         
-                with t_vis_qr:
+    with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
                 col_qr, col_nav = st.columns([1, 1])
@@ -894,13 +894,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 # mantendremos el estilo táctico definido en el borde del contenedor
                 img = qr.make_image(fill_color="white", back_color="black")
                 
-                with col_qr:
+     with col_qr:
                     # Contenedor para que el QR se vea "enmarcado" en tu color
                     st.markdown(f'<div style="border: 2px solid {color_v}; padding: 5px; width: 200px;">', unsafe_allow_html=True)
                     st.image(img.get_image(), width=190)
                     st.markdown('</div>', unsafe_allow_html=True)
                 
-                with col_nav:
+     with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
                     # Botón con el mismo color esmeralda suave
                     st.markdown(
