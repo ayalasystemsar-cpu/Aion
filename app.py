@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -876,52 +877,42 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
+
         
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
                 col_qr, col_nav = st.columns([1, 1])
                 
-                # Definimos el color verde agua único para ambos
-                color_agua = "#00E5FF" 
+                # Definimos el color esmeralda eléctrico original
+                color_esmeralda = "#00E5FF" 
                 
-                qr = qrcode.QRCode(version=1, box_size=10, border=1)
+                # Configuración exacta del QR original: compacto y nítido
+                qr = qrcode.QRCode(version=1, box_size=12, border=2)
                 qr.add_data(f"AION:{obj_seleccionado}")
                 qr.make(fit=True)
                 
-                # QR funcional
-                img = qr.make_image(fill_color="white", back_color="black")
+                # Generamos el QR con fondo negro y trazo eléctrico
+                img = qr.make_image(fill_color=color_esmeralda, back_color="#000000")
                 
                 with col_qr:
-                    # Borde aplicado al contenedor del QR
-                    st.markdown(
-                        f'''<div style="border: 2px solid {color_agua}; padding: 10px; 
-                        display: inline-block; border-radius: 10px; box-shadow: 0 0 10px {color_agua}40;">''', 
-                        unsafe_allow_html=True
-                    )
-                    st.image(img.get_image(), width=160)
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.image(img.get_image(), width=200, caption=f"QR: {obj_seleccionado}")
                 
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    # Botón con el MISMO borde y color que el QR
+                    # Botón con el estilo de borde y sombra esmeralda original
                     st.markdown(
                         f'''<a href="#" style="display: block; background: transparent; 
-                        border: 2px solid {color_agua}; color: {color_agua}; 
-                        padding: 14px; border-radius: 8px; text-decoration: none; 
-                        text-align: center; font-family: 'Orbitron', sans-serif; font-size: 14px;
-                        box-shadow: 0 0 10px {color_agua}40; transition: 0.3s;">
+                        border: 1px solid {color_esmeralda}; color: {color_esmeralda}; 
+                        padding: 12px; border-radius: 4px; text-decoration: none; 
+                        text-align: center; font-family: 'Orbitron', sans-serif; font-size: 13px;
+                        box-shadow: 0 0 10px {color_esmeralda}40; transition: 0.3s;">
                         🗺️ IR AL OBJETIVO
                         </a>''', 
                         unsafe_allow_html=True
                     )
-
-        
-
-
-        
-    
-
+            else:
+                st.warning("Seleccione un objetivo válido para generar el QR.")
 
 
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
