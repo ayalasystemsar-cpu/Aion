@@ -840,102 +840,65 @@ if st.session_state.rol_sel == "MONITOREO":
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
     
 
+
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
-     # --- 0. GESTIÓN DE JORNADA ---
+        # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
         
-        # 1. Definimos las opciones de objetivos primero
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objs_sup = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
         opciones_obj = df_objs_sup['OBJETIVO'].unique() if not df_objs_sup.empty else ["SIN OBJETIVOS ASIGNADOS"]
 
-        # 2. Selector de objetivo (DEBE IR ANTES DE LOS BOTONES)
         obj_seleccionado = st.selectbox("🎯 SELECCIONE OBJETIVO:", opciones_obj, key="obj_jornada_sel")
         
         col_j1, col_j2 = st.columns(2)
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
-                # Usamos obj_seleccionado en lugar de "N/A"
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "INICIO")
                 st.success(f"Jornada iniciada en {obj_seleccionado}")
         with col_j2:
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
-                # Usamos obj_seleccionado en lugar de "N/A"
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
                 st.success(f"Jornada cerrada en {obj_seleccionado}")
 
-      # --- BOTÓN DE PÁNICO (CORREGIDO) ---
+        # --- 1. BOTÓN DE PÁNICO CENTRADO ---
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 1. DEFINIMOS LAS COLUMNAS AQUÍ
-        _, col_panico, _ = st.columns([1, 2, 1]) 
-        
-        # 2. LAS USAMOS INMEDIATAMENTE
+        c_p1, col_panico, c_p3 = st.columns([1, 2, 1]) 
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                # Usamos el estado del selectbox definido arriba
                 obj_alerta = st.session_state.get("obj_jornada_sel", "UBICACIÓN DESCONOCIDA")
-                
                 lat_envio, lon_envio = 0.0, 0.0
                 try:
                     loc = get_geolocation()
                     if loc and isinstance(loc, dict) and 'coords' in loc:
                         lat_envio = loc['coords'].get('latitude', 0.0)
                         lon_envio = loc['coords'].get('longitude', 0.0)
-                except: 
-                    pass
-                
+                except: pass
                 carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
                 st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
-     
-
-        # --- 2. REGISTRO DIRECTO ---
-        st.markdown("---")
-        st.subheader("📍 REGISTRO DIRECTO (SIN QR)")
-        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
         
-        opciones_obj = df_objetivos_filtrados['OBJETIVO'].unique()
-        if len(opciones_obj) > 0:
-            obj_select = st.selectbox("Seleccione Objetivo:", opciones_obj, key="obj_select_directo")
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("✅ ARRIBO DIRECTO", use_container_width=True):
-                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "ARRIBO")
-                    st.success(f"Arribo en {obj_select}")
-            with c2:
-                if st.button("🚪 RETIRO DIRECTO", use_container_width=True):
-                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "RETIRO")
-                    st.success(f"Retiro en {obj_select}")
-        else:
-            st.warning("No hay objetivos asignados para registro directo.")
+        st.markdown("<hr>", unsafe_allow_html=True)
 
-        # --- 3. MENSAJERÍA Y TABS ---
+        # --- 2. MENSAJERÍA Y TABS ---
         df_msg = leer_matriz_nube("MENSAJERIA")
         nombre_user = st.session_state.user_sel.upper()
-        total_nuevos = 0
-        if not df_msg.empty:
-            mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "SUPERVISORES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
-            total_nuevos = len(df_msg[mask])
-        
-        label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+        total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "SUPERVISORES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
+        label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
 
-        # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
-      
-        if obj_a_generar:
-                # 2. Layout: QR a la izquierda, Botón a la derecha
+        with t_vis_qr:
+            st.markdown("### 📱 CENTRO TÁCTICO QR")
+            obj_a_generar = obj_seleccionado
+            
+            if obj_a_generar and obj_a_generar != "SIN OBJETIVOS ASIGNADOS":
                 col_qr, col_nav = st.columns([1, 1])
-                
-                # --- LÓGICA DE URL ---
                 url_final = f"https://tu-app-de-aion.streamlit.app/?obj={obj_a_generar.replace(' ', '%20')}"
                 
-                # --- GENERAR QR COLOR ESMERALDA ---
                 qr = qrcode.QRCode(version=1, box_size=12, border=2)
                 qr.add_data(url_final)
                 qr.make(fit=True)
@@ -944,35 +907,26 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 with col_qr:
                     st.image(img.get_image(), width=200, caption=f"QR: {obj_a_generar}")
                 
-                # --- BOTÓN DE NAVEGACIÓN: ESMERALDA TENUE ---
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    
-                    # Buscamos coordenadas del objetivo seleccionado
-                    datos_obj = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
+                    datos_obj = df_objs_sup[df_objs_sup['OBJETIVO'] == obj_a_generar].iloc[0]
                     lat, lon = datos_obj['LATITUD'], datos_obj['LONGITUD']
                     url_maps = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&travelmode=driving"
                     
                     st.markdown(
                         f'''<a href="{url_maps}" target="_blank" 
-                        style="display: block; 
-                               background: transparent; 
-                               border: 1px solid #00E5FF; 
-                               color: #00E5FF; 
-                               padding: 12px; 
-                               border-radius: 4px; 
-                               text-decoration: none; 
-                               text-align: center; 
-                               font-family: 'Orbitron', sans-serif; 
-                               font-size: 13px;
-                               box-shadow: 0 0 10px #00E5FF40; 
-                               transition: 0.3s;">
+                        style="display: block; background: transparent; border: 1px solid #00E5FF; 
+                        color: #00E5FF; padding: 12px; border-radius: 4px; text-decoration: none; 
+                        text-align: center; font-family: 'Orbitron', sans-serif; font-size: 13px;
+                        box-shadow: 0 0 10px #00E5FF40; transition: 0.3s;">
                         🗺️ IR AL OBJETIVO
                         </a>''', 
                         unsafe_allow_html=True
                     )
+            else:
+                st.warning("Seleccione un objetivo válido para generar el QR.")
 
-
+    
 
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
             st.markdown("---") 
