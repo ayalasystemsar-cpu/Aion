@@ -644,9 +644,11 @@ if st.session_state.rol_sel == "MONITOREO":
     t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
         "🚨 RADAR S.O.S", label_msg, "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
     ]) 
+    
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
+        # Añadimos un key único para que Streamlit sepa que este botón es exclusivo
+        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True, key="btn_radar_unico_123"):
             st.cache_data.clear()
             st.rerun()
 
