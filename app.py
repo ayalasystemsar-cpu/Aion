@@ -245,7 +245,6 @@ def leer_matriz_nube(pestana):
     return pd.DataFrame()
 
 @st.cache_data(ttl=60)
-@st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     # Mantenemos tus datos, pero forzamos que sean números desde el inicio
     data = {
