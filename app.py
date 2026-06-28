@@ -900,7 +900,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.image(img.get_image(), width=190)
                     st.markdown('</div>', unsafe_allow_html=True)
                 
-     with col_nav:
+    with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
                     # Botón con el mismo color esmeralda suave
                     st.markdown(
