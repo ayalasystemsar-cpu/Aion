@@ -928,7 +928,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
       
-                    if obj_a_generar:
+        if obj_a_generar:
                 # 2. Layout: QR a la izquierda, Botón a la derecha
                 col_qr, col_nav = st.columns([1, 1])
                 
