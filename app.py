@@ -929,22 +929,57 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
       
 
-        with t_vis_qr:
-            st.markdown("### 📱 ESCANEO TÁCTICO PARA SUPERVISORES")
-            st.subheader("🖨️ GENERADOR DE QR")
-            if not df_objetivos_filtrados.empty:
-                lista_objs = df_objetivos_filtrados['OBJETIVO'].unique()
-                obj_a_generar = st.selectbox("Seleccione objetivo:", lista_objs)
-                if obj_a_generar:
-                    url_final = f"https://tu-app-de-aion.streamlit.app/?obj={obj_a_generar.replace(' ', '%20')}"
-                    import qrcode
-                    qr = qrcode.QRCode(version=1, box_size=15, border=3)
-                    qr.add_data(url_final)
-                    qr.make(fit=True)
-                    img = qr.make_image(fill_color="black", back_color="white")
-                    st.image(img.get_image(), width=300, caption=f"QR para {obj_a_generar}")
-            else:
-                st.warning("No hay objetivos asignados.")
+                with t_vis_qr:
+            st.markdown("### 📱 ESCANEO TÁCTICO")
+            
+            # 1. Selector de Objetivo
+            lista_objs = df_objetivos_filtrados['OBJETIVO'].unique()
+            obj_a_generar = st.selectbox("Seleccione objetivo para QR:", lista_objs, key="qr_gen_sel")
+            
+            if obj_a_generar:
+                # 2. Layout: QR a la izquierda, Botones a la derecha
+                col_qr, col_nav = st.columns([1, 1])
+                
+                # --- LÓGICA DE URL ---
+                url_final = f"https://tu-app-de-aion.streamlit.app/?obj={obj_a_generar.replace(' ', '%20')}"
+                
+                # --- GENERAR QR COLOR AGUA ---
+                qr = qrcode.QRCode(version=1, box_size=12, border=2)
+                qr.add_data(url_final)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="#00E5FF", back_color="#000000")
+                
+                with col_qr:
+                    st.image(img.get_image(), width=200, caption=f"QR: {obj_a_generar}")
+                
+                # --- BOTÓN DE NAVEGACIÓN (Delicado y en color agua) ---
+                with col_nav:
+                    st.markdown("<br><br>", unsafe_allow_html=True)
+                    
+                    # Buscamos coordenadas
+                    datos_obj = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
+                    lat, lon = datos_obj['LATITUD'], datos_obj['LONGITUD']
+                    url_maps = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&travelmode=driving"
+                    
+                    st.markdown(
+                        f'''<a href="{url_maps}" target="_blank" 
+                        style="display: block; 
+                               background: transparent; 
+                               border: 1px solid #00E5FF; 
+                               color: #00E5FF; 
+                               padding: 12px; 
+                               border-radius: 4px; 
+                               text-decoration: none; 
+                               text-align: center; 
+                               font-family: 'Orbitron', sans-serif; 
+                               font-size: 13px;
+                               box-shadow: 0 0 8px #00E5FF80;
+                               transition: 0.3s;">
+                        🗺️ IR AL OBJETIVO
+                        </a>''', 
+                        unsafe_allow_html=True
+                    )
+
 
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
             st.markdown("---") 
