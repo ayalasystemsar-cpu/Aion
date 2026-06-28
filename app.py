@@ -882,21 +882,21 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
                 col_qr, col_nav = st.columns([1, 1])
                 
-                # Definimos el color verde agua
-                color_v = "#00E5FF" 
+                # Definimos el color verde agua único para ambos
+                color_agua = "#00E5FF" 
                 
                 qr = qrcode.QRCode(version=1, box_size=10, border=1)
                 qr.add_data(f"AION:{obj_seleccionado}")
                 qr.make(fit=True)
                 
-                # QR BLANCO sobre fondo NEGRO (para máximo contraste y escaneo)
+                # QR funcional
                 img = qr.make_image(fill_color="white", back_color="black")
                 
                 with col_qr:
-                    # Contenedor con borde verde agua para el marco
+                    # Borde aplicado al contenedor del QR
                     st.markdown(
-                        f'''<div style="border: 2px solid {color_v}; padding: 8px; 
-                        display: inline-block; border-radius: 8px;">''', 
+                        f'''<div style="border: 2px solid {color_agua}; padding: 10px; 
+                        display: inline-block; border-radius: 10px; box-shadow: 0 0 10px {color_agua}40;">''', 
                         unsafe_allow_html=True
                     )
                     st.image(img.get_image(), width=160)
@@ -904,17 +904,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    # Botón que ya tenías configurado
+                    # Botón con el MISMO borde y color que el QR
                     st.markdown(
                         f'''<a href="#" style="display: block; background: transparent; 
-                        border: 2px solid {color_v}; color: {color_v}; 
-                        padding: 14px; border-radius: 6px; text-decoration: none; 
+                        border: 2px solid {color_agua}; color: {color_agua}; 
+                        padding: 14px; border-radius: 8px; text-decoration: none; 
                         text-align: center; font-family: 'Orbitron', sans-serif; font-size: 14px;
-                        box-shadow: 0 0 12px {color_v}40; transition: 0.3s;">
+                        box-shadow: 0 0 10px {color_agua}40; transition: 0.3s;">
                         🗺️ IR AL OBJETIVO
                         </a>''', 
                         unsafe_allow_html=True
                     )
+
+        
 
 
         
