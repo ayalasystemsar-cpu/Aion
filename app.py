@@ -892,39 +892,37 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO QR")
-            obj_a_generar = obj_seleccionado
-            
-            if obj_a_generar and obj_a_generar != "SIN OBJETIVOS ASIGNADOS":
+            st.markdown("### 📱 CENTRO TÁCTICO")
+            if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
                 col_qr, col_nav = st.columns([1, 1])
-                url_final = f"https://tu-app-de-aion.streamlit.app/?obj={obj_a_generar.replace(' ', '%20')}"
                 
-                qr = qrcode.QRCode(version=1, box_size=12, border=2)
-                qr.add_data(url_final)
+                # Definimos el color aquí, pero se usará EXCLUSIVAMENTE en los estilos de abajo
+                color_esmeralda = "#00E5FF" 
+                
+                qr = qrcode.QRCode(version=1, box_size=10, border=1)
+                qr.add_data(f"AION:{obj_seleccionado}")
                 qr.make(fit=True)
-                img = qr.make_image(fill_color="#00E5FF", back_color="#000000")
+                # El QR mantiene el color
+                img = qr.make_image(fill_color=color_esmeralda, back_color="#000000")
                 
                 with col_qr:
-                    st.image(img.get_image(), width=200, caption=f"QR: {obj_a_generar}")
+                    st.image(img.get_image(), width=180)
                 
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    datos_obj = df_objs_sup[df_objs_sup['OBJETIVO'] == obj_a_generar].iloc[0]
-                    lat, lon = datos_obj['LATITUD'], datos_obj['LONGITUD']
-                    url_maps = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&travelmode=driving"
-                    
+                    # El botón mantiene el color esmeralda, pero el resto de la app NO se verá afectado
                     st.markdown(
-                        f'''<a href="{url_maps}" target="_blank" 
-                        style="display: block; background: transparent; border: 1px solid #00E5FF; 
-                        color: #00E5FF; padding: 12px; border-radius: 4px; text-decoration: none; 
-                        text-align: center; font-family: 'Orbitron', sans-serif; font-size: 13px;
-                        box-shadow: 0 0 10px #00E5FF40; transition: 0.3s;">
+                        f'''<a href="#" style="display: block; background: transparent; 
+                        border: 1px solid {color_esmeralda}; color: {color_esmeralda}; 
+                        padding: 12px; border-radius: 4px; text-decoration: none; 
+                        text-align: center; font-family: 'Orbitron'; font-size: 13px;
+                        box-shadow: 0 0 8px {color_esmeralda}40;">
                         🗺️ IR AL OBJETIVO
                         </a>''', 
                         unsafe_allow_html=True
                     )
             else:
-                st.warning("Seleccione un objetivo válido para generar el QR.")
+                st.warning("Seleccione un objetivo válido.")
 
     
 
