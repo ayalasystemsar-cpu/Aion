@@ -933,7 +933,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
 
 
-           # --- AQUÍ ESTÁ EL DISEÑO FINO ---
+# --- AQUÍ ESTÁ EL DISEÑO FINO ---
         c1, c2 = st.columns([1, 2])
         
         with c1:
@@ -949,11 +949,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             url = f"http://maps.google.com/?q={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
             st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
 
-        # Esta línea debe quedar SIN espacios a la izquierda (alineada al inicio)
- st.markdown("---")
+        st.markdown("---")
             
-        # El CSS también debe quedar sin espacios a la izquierda
-  st.markdown("""
+        st.markdown("""
             <style>
             div[data-testid="stLinkButton"] > a {
                 background-color: transparent !important;
@@ -967,9 +965,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 color: black !important;
             }
             </style>
-            """, unsafe_allow_html=True) 
-      
-
+            """, unsafe_allow_html=True)
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
             st.markdown("---") 
             st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
