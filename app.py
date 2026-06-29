@@ -898,19 +898,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 with col_qr:
                     st.image(img.get_image(), width=200, caption=f"QR: {obj_seleccionado}")
                 
-                with col_nav:
+                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    # Botón con el estilo de borde y sombra esmeralda original
+                    
+                    # CORRECCIÓN: Usamos la sintaxis de búsqueda y ruta de Google Maps
+                    # 'dir/' es el comando para direcciones
+                    # destination es el nombre de tu objetivo
+                    url_mapa = f"https://www.google.com/maps/dir/?api=1&destination={obj_seleccionado.replace(' ', '+')}&travelmode=driving"
+                    
                     st.markdown(
-                        f'''<a href="#" style="display: block; background: transparent; 
-                        border: 1px solid {color_esmeralda}; color: {color_esmeralda}; 
-                        padding: 12px; border-radius: 4px; text-decoration: none; 
-                        text-align: center; font-family: 'Orbitron', sans-serif; font-size: 13px;
-                        box-shadow: 0 0 10px {color_esmeralda}40; transition: 0.3s;">
+                        f'''<a href="{url_mapa}" target="_blank" style="display: block; border: 2px solid {color_v}; 
+                        color: {color_v}; padding: 12px; text-decoration: none; text-align: center; 
+                        font-family: 'Orbitron', sans-serif; font-weight: bold; border-radius: 4px;
+                        box-shadow: 0 0 10px {color_v}40;">
                         🗺️ IR AL OBJETIVO
-                        </a>''', 
-                        unsafe_allow_html=True
+                        </a>''', unsafe_allow_html=True
                     )
+
             else:
                 st.warning("Seleccione un objetivo válido para generar el QR.")
 
