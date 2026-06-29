@@ -858,69 +858,45 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
         
-elif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado:
-        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-        obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
-
-        st.subheader("⏱️ GESTIÓN DE JORNADA")
-        _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
-        with col_j1:
-            if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "INICIO")
-                st.success("Jornada iniciada")
-        with col_j2:
-            if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "FIN")
-                st.success("Jornada cerrada")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        _, col_panico, _ = st.columns([1, 1, 1]) 
-        with col_panico:
-            if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                obj_alerta = st.session_state.get("obj_qr_tactico", "UBICACIÓN DESCONOCIDA")
-                lat_envio, lon_envio = 0.0, 0.0
-                try:
-                    loc = get_geolocation()
-                    if loc and isinstance(loc, dict) and 'coords' in loc:
-                        lat_envio = loc['coords'].get('latitude', 0.0)
-                        lon_envio = loc['coords'].get('longitude', 0.0)
-                except: pass
-                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"])
-                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
-
-        t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
-        ])
-
-        with t_vis_qr:
+with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                
                 c1, c2 = st.columns([1, 2])
                 with c1:
+                    # Restauramos el estilo del QR original
                     qr = qrcode.QRCode(box_size=6, border=1)
-                    qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
+                    # Usamos texto plano para que no salte el error de acceso
+                    qr.add_data(f"ID:{datos_sel.get('ID', '0')}")
                     qr.make(fit=True)
                     st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                    # Restauramos el título que aparecía abajo
+                    st.caption(f"QR: {obj_select}")
+                    
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    # Restauramos tu botón original de IR AL OBJETIVO
                     st.link_button("📍 IR AL OBJETIVO", f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}", use_container_width=True)
-                
+
                 st.markdown("---")
+                
+                # Restauramos el formulario de flota
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 with st.form(key="form_acta_flota", clear_on_submit=True):
-                    c_a, c_b = st.columns(2)
-                    v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
-                    v_km_ini = c_a.number_input("KM INICIAL:", min_value=0)
-                    v_km_fin = c_b.number_input("KM FINAL:", min_value=0)
-                    v_comb = c_b.selectbox("COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
-                    v_vig = st.text_input("SUPERVISOR RESPONSABLE:").upper()
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        v_patente = st.text_input("PATENTE/MÓVIL:").upper()
+                        v_km_inicial = st.number_input("KM INICIAL:", min_value=0)
+                    with col2:
+                        v_km_final = st.number_input("KM FINAL:", min_value=0)
+                        v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
+                    
+                    v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
                     if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                        escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vig, v_patente, v_km_ini, v_km_fin, v_comb])
-                        st.success(f"✅ Acta registrada. Distancia: {v_km_fin - v_km_ini} km")
+                        escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vigilador, v_patente, v_km_inicial, v_km_final, v_combustible])
+                        st.success(f"✅ Acta registrada.")
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA")
