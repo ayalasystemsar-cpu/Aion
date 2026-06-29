@@ -886,18 +886,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.markdown(f'<div style="border: 2px solid {color_v}; padding: 5px; display: inline-block; border-radius: 4px;">', unsafe_allow_html=True)
                     st.image(img.get_image(), width=140)
                     st.markdown('</div>', unsafe_allow_html=True)
-                
-                with col_nav:
+
+          with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
+                    # Definimos la URL de navegación (Alineada correctamente)
+                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&destination={obj_seleccionado}&travelmode=driving"
+                    
+                    # Botón con enlace integrado
                     st.markdown(
-                        f'''<a href="#" style="display: block; border: 2px solid {color_v}; 
+                        f'''<a href="{url_gmaps}" target="_blank" style="display: block; border: 2px solid {color_v}; 
                         color: {color_v}; padding: 12px; text-decoration: none; text-align: center; 
                         font-family: 'Orbitron', sans-serif; font-weight: bold; border-radius: 4px;">
                         🗺️ IR AL OBJETIVO
                         </a>''', unsafe_allow_html=True
                     )
-            else:
-                st.warning("Seleccione un objetivo.")
+                
+                
 
         # --- FORMULARIO DE FLOTA ---
         st.markdown("---") 
