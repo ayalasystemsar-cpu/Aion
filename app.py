@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -898,7 +897,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 with col_qr:
                     st.image(img.get_image(), width=200, caption=f"QR: {obj_seleccionado}")
                 
-                 with col_nav:
+                with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
                     
                     # CORRECCIÓN: Usamos la sintaxis de búsqueda y ruta de Google Maps
