@@ -938,7 +938,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 with c1:
                     # QR compacto y elegante
                     qr = qrcode.QRCode(box_size=6, border=1)
-                    qr.add_data(f"ID:{datos_sel.get('ID', '0')}")
+                    qr.add_data(f"OBJETIVO_ID_{datos_sel.get('ID', '0')}")
                     qr.make(fit=True)
                     img = qr.make_image(fill_color="#00E5FF", back_color="black")
                     st.image(img.get_image(), width=150)
