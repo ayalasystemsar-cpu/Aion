@@ -904,15 +904,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
 
         # --- AQUÍ EMPIEZA LA MENSAJERÍA Y TABS ---
-        # (He borrado el bloque 'if len(opciones_obj) > 0:' que creaba la barra)  
-
-       
-        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-        
-        opciones_obj = df_objetivos_filtrados['OBJETIVO'].unique()
-        if len(opciones_obj) > 0:
-            obj_select = st.selectbox("Seleccione Objetivo:", opciones_obj, key="obj_select_directo")
-            c1, c2 = st.columns(2)
+        # (He borrado el bloque 'if len(opciones_obj) > 0:' que creaba la barra) 
            
 
         # --- 3. MENSAJERÍA Y TABS ---
