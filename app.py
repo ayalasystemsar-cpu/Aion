@@ -860,7 +860,7 @@ if st.session_state.rol_sel == "MONITOREO":
     
 
 
-   elif st.session_state.rol_sel == "SUPERVISOR":
+elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
         # 1. Definición necesaria para todo el rol
