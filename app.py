@@ -950,10 +950,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
 
         # Esta línea debe quedar SIN espacios a la izquierda (alineada al inicio)
- st.markdown("---")
+  st.markdown("---")
             
         # El CSS también debe quedar sin espacios a la izquierda
- st.markdown("""
+  st.markdown("""
             <style>
             div[data-testid="stLinkButton"] > a {
                 background-color: transparent !important;
