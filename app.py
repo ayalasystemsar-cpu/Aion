@@ -49,7 +49,8 @@ def leer_matriz_nube(pestana):
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
-            ifezados = [str(h).strip().upper() for h in todas_filas[0]]
+            if not todas_filas: return pd.DataFrame()
+            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
             df = pd.DataFrame(todas_filas[1:], columns=encabezados)
             df.columns = [str(c).strip().upper() for c in df.columns]
             return df.loc[:, ~df.columns.duplicated()]
@@ -245,16 +246,12 @@ def leer_matriz_nube(pestana):
 
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
-    # Mantenemos tus datos, pero forzamos que sean números desde el inicio
     data = {
         "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
         "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
         "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
     }
-    df = pd.DataFrame(data)
-    df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
-    df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
-    return df
+    return pd.DataFrame(data)
 
 @st.cache_data(ttl=60)
 def cargar_objetivos():
@@ -565,11 +562,9 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
     
-    # 1. CARGA DE DATOS
     df_emergencias = leer_matriz_nube("ALERTAS")
     df_objetivos = cargar_objetivos()
     
-    # Limpieza de datos (tu lógica original)
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'CARGA_UTIL', 'INFORME'])
     else:
@@ -581,7 +576,6 @@ if st.session_state.rol_sel == "MONITOREO":
         if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
-    # 2. DETECCIÓN DE PÁNICO
     lista_objetivos_en_panico = []
     if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
         pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
@@ -589,128 +583,387 @@ if st.session_state.rol_sel == "MONITOREO":
         for _, row in pendientes.iterrows():
             carga = str(row['CARGA_UTIL'])
             if "OBJ:" in carga:
-                try: lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
+                try: 
+                    lista_objetivos_en_panico.append(carga.split("OBJ:")[1].split("|")[0].strip().upper())
                 except: pass
-    else: sos_activos = 0
+    else: 
+        sos_activos = 0
+    
+    # 1. CONTADOR DE PANICOS (El mismo que el Jefe)
+    with col1.container():
+        @st.fragment(run_every=5)
+        def contar_panicos_monitoreo():
+            # Asegúrate de que esta función 'leer_matriz_nube' esté accesible aquí
+            df_alertas = leer_matriz_nube("ALERTAS")
+            if not df_alertas.empty:
+                df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
+                # Filtramos igual que en Jefe para que los datos coincidan
+                total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"])
+                st.metric("🚨 S.O.S ACTIVOS", total_sos)
+            else:
+                st.metric("🚨 S.O.S ACTIVOS", "0")
+        contar_panicos_monitoreo()
 
-    # 3. CABECERA Y METRICAS
-    with col1.container(): st.metric("🚨 S.O.S ACTIVOS", sos_activos)
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
-    with col4.container(): st.metric("🕒 HORA LOCAL", obtener_hora_argentina().split(" ")[1])
-
-    # 4. TABS
-    t_radar, t_mensajeria, t_vig, t_nov = st.tabs(["🚨 RADAR S.O.S", "💬 MENSAJERÍA", "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES"])
     
+    # 2. RELOJ DINAMICO (Para sincronización visual)
+    with col4.container():
+        @st.fragment(run_every=1)
+        def mostrar_reloj_monitoreo():
+            hora_actual = obtener_hora_argentina().split(" ")[1]
+            st.metric("🕒 HORA LOCAL", hora_actual)
+        mostrar_reloj_monitoreo() 
+  # 1. Calculamos el total de nuevos ANTES de definir la etiqueta
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
+    
+    total_nuevos = 0
+    if not df_msg.empty:
+        mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
+                (df_msg['DESTINATARIO'] == "MONITOREO") | 
+                (df_msg['DESTINATARIO'] == nombre_user)) & \
+               (df_msg['ESTADO'] == "PENDIENTE")
+        total_nuevos = len(df_msg[mask])
+
+    # 2. Creamos la etiqueta dinámica
+    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+
+    # 3. Definimos los tabs usando esa variable
+    t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
+        "🚨 RADAR S.O.S", label_msg, "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+    ]) 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS")
-        obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO:", ["MOSTRAR TODO"] + (list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else []))
+        if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+        # --- INTERFAZ DE SELECCIÓN Y ANÁLISIS TÁCTICO ---
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        col_sel1, col_sel2 = st.columns([2, 1])
         
-        # --- CÁLCULO DE COMISARÍA Y RUTA ---
+        if "filtro_radar_valor" not in st.session_state:
+            st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
+
+        with col_sel1:
+            opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
+            
+            try:
+                idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
+            except:
+                idx_defecto = 0
+                
+            obj_seleccionado = st.selectbox(
+                "🎯 ENFOCAR OBJETIVO EN RADAR / BUSCADOR:", 
+                opciones_busqueda, 
+                index=idx_defecto,
+                key="buscador_radar_master"
+            )
+            st.session_state["filtro_radar_valor"] = obj_seleccionado
+        
         comisaria_cercana_name = None
-        lat_obj, lon_obj, com_lat_m, com_lon_m = 0, 0, 0, 0
+        distancia_minima = float('inf')
+        com_lat_m, com_lon_m = None, None
         
         if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
             datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
-            lat_obj, lon_obj = datos_obj['LATITUD'], datos_obj['LONGITUD']
-            # (Aquí tu lógica de comisaría más cercana define com_lat_m, com_lon_m, etc.)
+            lat_obj = datos_obj['LATITUD']
+            lon_obj = datos_obj['LONGITUD']
             
-        # 5. MAPA FINAL
-        centro = [lat_obj, lon_obj] if obj_seleccionado != "MOSTRAR TODO" else [-34.6037, -58.3816]
-        m_mon = folium.Map(location=centro, zoom_start=13, tiles="cartodbdark_matter")
-        
-        # Dibujar objetivos
-        for _, r in df_mapa_monitoreo.iterrows():
-            folium.CircleMarker([r['LATITUD'], r['LONGITUD']], radius=8, 
-                                color="#FF0000" if r['OBJETIVO'] in lista_objetivos_en_panico else "#00E5FF").add_to(m_mon)
-        
-        # Dibujar comisarías y RUTA VERDE
+            for _, com in df_comisarias.iterrows():
+                lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
+                dlon = lon2 - lon1
+                dlat = lat2 - lat1
+                a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                c = 2 * math.asin(math.sqrt(a))
+                km = 6371 * c
+                
+                if km < distancia_minima:
+                    distancia_minima = km
+                    comisaria_cercana_name = com['COMISARIA']
+                    com_lat_m = com['LATITUD']
+                    com_lon_m = com['LONGITUD']
+            
+            with col_sel2:
+                st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
+                st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
+                
+                if comisaria_cercana_name:
+                    url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
+                    st.markdown(
+                        f'<a href="{url_gmaps_monitoreo}" target="_blank" class="btn-google-maps" style="font-size:11px; padding:6px 12px; margin-top:5px;">🗺️ ASISTENTE GPS COMPARTIDO</a>',
+                        unsafe_allow_html=True
+                    )
+        else:
+            with col_sel2:
+                st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        if sos_activos > 0:
+            st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
+            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
+            with st.form(key="form_finalizar_panico", clear_on_submit=True):
+                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
+                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
+                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
+                    idx_df = opciones_alertas[alerta_seleccionada]
+                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
+                    actualizar_celda("ALERTAS", idx_df + 2, "F", txt_informe_cierre.strip().upper())
+                    
+                    st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
+                    st.success("✅ Normalizado")
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+   
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        if not df_mapa_monitoreo.empty:
+            if obj_seleccionado != "MOSTRAR TODO":
+                datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+                centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
+                zoom_inicial = 13
+            else:
+                centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+                zoom_inicial = 11
+
+            m_mon = folium.Map(
+                location=centro_mapa, 
+                zoom_start=zoom_inicial, 
+                max_zoom=21,
+                tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
+                attr='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'
+            )
+            for _, r in df_mapa_monitoreo.iterrows():
+                es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
+                es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
+                
+                # --- LÓGICA DE IDENTIFICACIÓN ---
+                texto_tooltip = f"🎯 {r['OBJETIVO']}" # Valor por defecto
+                
+                if es_panico:
+                    alerta_activa = df_emergencias[
+                        (df_emergencias['CARGA_UTIL'].str.contains(r['OBJETIVO'])) & 
+                        (df_emergencias['ESTADO'] == 'PENDIENTE')
+                    ]
+                    if not alerta_activa.empty:
+                        # Obtenemos el nombre real del vigilador de la columna USUARIO
+                        nombre_vigilante = alerta_activa.iloc[-1]['USUARIO']
+                        # Aquí tienes la combinación exacta: Nombre Vigilador + Objetivo
+                        texto_tooltip = f"🚨 {nombre_vigilante} | {r['OBJETIVO']}"
+
+                # DIBUJO DEL MARCADOR
+                if es_panico or es_el_seleccionado:
+                    folium.Marker(
+                        location=[r['LATITUD'], r['LONGITUD']],
+                        tooltip=texto_tooltip, # Mostramos la combinación exacta
+                        icon=folium.DivIcon(
+                            icon_size=(30, 30),
+                            icon_anchor=(15, 15),
+                            html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; animation: pulse 1s infinite alternate;"></div>'''
+                        )
+                    ).add_to(m_mon)
+                else:
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True,
+                        tooltip=f"🎯 {r['OBJETIVO']} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
+                    ).add_to(m_mon)
+
+           
         df_com = cargar_datos_comisarias()
         for _, c in df_com.iterrows():
-            if c['COMISARIA'] == comisaria_cercana_name and obj_seleccionado != "MOSTRAR TODO":
-                ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, c['LATITUD'], c['LONGITUD'])
-                folium.PolyLine(locations=ruta, color="#008000", weight=6).add_to(m_mon)
+            es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
             
-            folium.Marker([c['LATITUD'], c['LONGITUD']], icon=folium.DivIcon(html=f'<i class="fa fa-shield" style="font-size:20px; color: {"#FF9800" if c["COMISARIA"] == comisaria_cercana_name else "#0000FF"};"></i>')).add_to(m_mon)
-            
-        st_folium(m_mon, width="100%", height=550)
-    
-    with t_mensajeria: renderizar_mensajeria_global("MONITOREO")
-    with t_vig: st.dataframe(leer_matriz_nube("VIGILADORES"), use_container_width=True)
-    with t_nov: st.dataframe(leer_matriz_nube("NOVEDADES_GUARDIA"), use_container_width=True)
-elif st.session_state.rol_sel == "SUPERVISOR":
-            # --- 0. GESTIÓN DE JORNADA ---
-        st.subheader("⏱️ GESTIÓN DE JORNADA")
-        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-        opciones_obj = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS ASIGNADOS"]
+            if es_la_mas_cercana and obj_seleccionado != "MOSTRAR TODO":
+                color_icono = "#FF9800"
+                tamano_fuente = "26px"
+                sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
+                
+                com_lat, com_lon = c['LATITUD'], c['LONGITUD']
+                coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
+                
+                # --- SÁNDWICH DE CONTRASTE TRANSLÚCIDO ---
+                folium.PolyLine(
+                    locations=coordenadas_ruta,
+                    color="#000000",
+                    weight=5,
+                    opacity=0.4
+                ).add_to(m_mon)
+
+                folium.PolyLine(
+                    locations=coordenadas_ruta,
+                    color="#39FF14",       
+                    weight=4,              
+                    opacity=0.25           
+                ).add_to(m_mon)
+            else:
+                color_icono = "#0000FF"
+                tamano_fuente = "20px"
+                sufijo_tooltip = ""
+
+            # Marcador de la comisaría
+            folium.Marker(
+                location=[c['LATITUD'], c['LONGITUD']],
+                tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
+                icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+            ).add_to(m_mon)
         
+        capa_etiquetas = folium.TileLayer(
+            tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
+            attr='© <a href="https://carto.com/attributions">CARTO</a>',
+            name="Etiquetas de Calles",
+            max_zoom=21,         
+            max_native_zoom=20,  
+            overlay=True,
+            control=False
+        )
+        capa_etiquetas.add_to(m_mon)
+        
+        script_z_index = Element("""
+            <style>
+                .leaflet-pane.leaflet-overlay-pane { z-index: 400 !important; }
+                .leaflet-pane.leaflet-tile-pane { z-index: 200 !important; }
+                .leaflet-layer:nth-last-child(1) { z-index: 500 !important; pointer-events: none; }
+            </style>
+        """)
+        m_mon.get_root().header.add_child(script_z_index)
+        
+        st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+    with t_mensajeria:
+        renderizar_mensajeria_global("MONITOREO")
+    with t_vig:
+        st.subheader("👥 PADRÓN VIGILADORES")
+        df_padrero = leer_matriz_nube("VIGILADORES")
+        if not df_padrero.empty:
+            df_padrero.columns = df_padrero.columns.str.strip().str.upper()
+            st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
+        else:
+            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
+            
+    with t_nov:
+        st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
+        df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
+        
+        if not df_nov_g.empty:
+            df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
+            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
+            
+            if 'FECHA' in df_nov_g.columns:
+                df_nov_g['FECHA_ORDEN'] = pd.to_datetime(df_nov_g['FECHA'], errors='coerce')
+                df_ordenado = df_nov_g.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
+            else:
+                df_ordenado = df_nov_g
+            
+            st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
+        else:
+            st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
+    
+
+elif st.session_state.rol_sel == "SUPERVISOR":
+    if st.session_state.sup_autenticado:
+     # --- 0. GESTIÓN DE JORNADA ---
+        st.subheader("⏱️ GESTIÓN DE JORNADA")
+        
+        # 1. Definimos las opciones de objetivos primero
+        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+        df_objs_sup = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        opciones_obj = df_objs_sup['OBJETIVO'].unique() if not df_objs_sup.empty else ["SIN OBJETIVOS ASIGNADOS"]
+
+        # 2. Selector de objetivo (DEBE IR ANTES DE LOS BOTONES)
         obj_seleccionado = st.selectbox("🎯 SELECCIONE OBJETIVO:", opciones_obj, key="obj_jornada_sel")
         
         col_j1, col_j2 = st.columns(2)
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
+                # Usamos obj_seleccionado en lugar de "N/A"
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "INICIO")
+                st.success(f"Jornada iniciada en {obj_seleccionado}")
         with col_j2:
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
+                # Usamos obj_seleccionado en lugar de "N/A"
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
+                st.success(f"Jornada cerrada en {obj_seleccionado}")
 
-       # --- BOTÓN DE PÁNICO (IDENTIFICACIÓN COMPLETA) ---
-        _, col_panico, _ = st.columns([1, 2, 1])
+      # --- BOTÓN DE PÁNICO (CORREGIDO) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 1. DEFINIMOS LAS COLUMNAS AQUÍ
+        _, col_panico, _ = st.columns([1, 2, 1]) 
+        
+        # 2. LAS USAMOS INMEDIATAMENTE
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                fecha_panico = obtener_hora_argentina()
-                # Aquí concatenamos TODO: Nombre supervisor + Objetivo
-                carga_sos = f"SUP:{st.session_state.user_sel}|OBJ:{obj_seleccionado}"
+                # Usamos el estado del selectbox definido arriba
+                obj_alerta = st.session_state.get("obj_jornada_sel", "UBICACIÓN DESCONOCIDA")
                 
-                escribir_registro_nube("ALERTAS", [
-                    fecha_panico, 
-                    st.session_state.user_sel, 
-                    "PÁNICO", 
-                    "PENDIENTE", 
-                    carga_sos, 
-                    "ALERTA TÁCTICA"
-                ])
-                st.error(f"🚨 S.O.S ENVIADO: {st.session_state.user_sel} | {obj_seleccionado}")
+                lat_envio, lon_envio = 0.0, 0.0
+                try:
+                    loc = get_geolocation()
+                    if loc and isinstance(loc, dict) and 'coords' in loc:
+                        lat_envio = loc['coords'].get('latitude', 0.0)
+                        lon_envio = loc['coords'].get('longitude', 0.0)
+                except: 
+                    pass
+                
+                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+     
 
-        # --- 2. MENSAJERÍA Y TABS ---
+        # --- 2. REGISTRO DIRECTO ---
+        st.markdown("---")
+        st.subheader("📍 REGISTRO DIRECTO (SIN QR)")
+        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        
+        opciones_obj = df_objetivos_filtrados['OBJETIVO'].unique()
+        if len(opciones_obj) > 0:
+            obj_select = st.selectbox("Seleccione Objetivo:", opciones_obj, key="obj_select_directo")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("✅ ARRIBO DIRECTO", use_container_width=True):
+                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "ARRIBO")
+                    st.success(f"Arribo en {obj_select}")
+            with c2:
+                if st.button("🚪 RETIRO DIRECTO", use_container_width=True):
+                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "RETIRO")
+                    st.success(f"Retiro en {obj_select}")
+        else:
+            st.warning("No hay objetivos asignados para registro directo.")
+
+        # --- 3. MENSAJERÍA Y TABS ---
         df_msg = leer_matriz_nube("MENSAJERIA")
         nombre_user = st.session_state.user_sel.upper()
-        total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "SUPERVISORES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
-        label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
+        total_nuevos = 0
+        if not df_msg.empty:
+            mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "SUPERVISORES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
+            total_nuevos = len(df_msg[mask])
+        
+        label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
+
+        # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
+      
+
         with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO")
-            
-            if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
-                col_qr, col_nav = st.columns([1, 1])
-                color_esmeralda = "#00E5FF" 
-                
-                qr = qrcode.QRCode(version=1, box_size=12, border=2)
-                qr.add_data(f"AION:{obj_seleccionado}")
-                qr.make(fit=True)
-                img = qr.make_image(fill_color=color_esmeralda, back_color="#000000")
-                
-                with col_qr:
-                    st.image(img.get_image(), width=200, caption=f"QR: {obj_seleccionado}")
-                
-                with col_nav:
-                    st.markdown("<br><br>", unsafe_allow_html=True)
-                    url_mapa = f"https://www.google.com/maps/dir/?api=1&destination={obj_seleccionado.replace(' ', '+')}&travelmode=driving"
-                    st.markdown(
-                        f'''<a href="{url_mapa}" target="_blank" style="display: block; border: 2px solid {color_esmeralda}; 
-                        color: {color_esmeralda}; padding: 12px; text-decoration: none; text-align: center; 
-                        font-family: 'Orbitron', sans-serif; font-weight: bold; border-radius: 4px;
-                        box-shadow: 0 0 10px {color_esmeralda}40;">
-                        🗺️ IR AL OBJETIVO
-                        </a>''', unsafe_allow_html=True
-                    )
-            # Este 'else' debe estar alineado con el 'if' de arriba (ocho espacios desde el margen)
+            st.markdown("### 📱 ESCANEO TÁCTICO PARA SUPERVISORES")
+            st.subheader("🖨️ GENERADOR DE QR")
+            if not df_objetivos_filtrados.empty:
+                lista_objs = df_objetivos_filtrados['OBJETIVO'].unique()
+                obj_a_generar = st.selectbox("Seleccione objetivo:", lista_objs)
+                if obj_a_generar:
+                    url_final = f"https://tu-app-de-aion.streamlit.app/?obj={obj_a_generar.replace(' ', '%20')}"
+                    import qrcode
+                    qr = qrcode.QRCode(version=1, box_size=15, border=3)
+                    qr.add_data(url_final)
+                    qr.make(fit=True)
+                    img = qr.make_image(fill_color="black", back_color="white")
+                    st.image(img.get_image(), width=300, caption=f"QR para {obj_a_generar}")
             else:
-                st.warning("Seleccione un objetivo válido para generar el QR.")
+                st.warning("No hay objetivos asignados.")
 
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
             st.markdown("---") 
@@ -1145,8 +1398,3 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 st.info("No hay solicitudes pendientes de aprobación.")
     else:
         st.error("⚠️ Acceso restringido. Debes iniciar sesión como ADMINISTRADOR desde la pantalla principal.")
-
-
-    
- 
-
