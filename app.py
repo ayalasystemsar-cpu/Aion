@@ -859,9 +859,8 @@ if st.session_state.rol_sel == "MONITOREO":
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
     
 
-# --- 0. DETECTOR DE ESCANEO (AL PRINCIPIO DEL TODO) ---
-query_params = st.query_params
-if query_params.get("estado") == "escaneado":
+# --- 0. DETECTOR DE ESCANEO ---
+if st.query_params.get("estado") == "escaneado":
     st.success("✅ ¡Código QR escaneado con éxito!")
     st.balloons()
     st.query_params.clear()
@@ -886,24 +885,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "FIN")
                 st.success("Jornada cerrada")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        _, col_panico, _ = st.columns([1, 1, 1]) 
-        
-        with col_panico:
-            if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                obj_alerta = st.session_state.get("obj_qr_tactico", "UBICACIÓN DESCONOCIDA")
-                lat_envio, lon_envio = 0.0, 0.0
-                try:
-                    loc = get_geolocation()
-                    if loc and isinstance(loc, dict) and 'coords' in loc:
-                        lat_envio = loc['coords'].get('latitude', 0.0)
-                        lon_envio = loc['coords'].get('longitude', 0.0)
-                except: pass
-                
-                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
-                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
-
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES"
         ])
@@ -917,9 +898,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
-                    # REEMPLAZÁ AQUÍ CON TU URL EXACTA
-                    URL_REAL = "https://aion-yaroku.streamlit.app/" 
-                    qr.add_data(f"{URL_REAL}?estado=escaneado&id={datos_sel.get('ID', '0')}")
+                    qr.add_data(f"✅ ÉXITO: {obj_select} - ID:{datos_sel.get('ID', '0')}")
                     qr.make(fit=True)
                     img = qr.make_image(fill_color="#00E5FF", back_color="black")
                     st.image(img.get_image(), width=150)
@@ -942,11 +921,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
                     
                     v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
-                    v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
-                    
                     if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
                         escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vigilador, v_patente, v_km_inicial, v_km_final, v_combustible])
-                        st.success(f"✅ Acta registrada. Recorridos: {v_km_final - v_km_inicial} km")
+                        st.success("✅ Acta registrada.")
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
@@ -956,34 +933,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
                 url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={datos_obj_r['LATITUD']},{datos_obj_r['LONGITUD']}"
                 st.link_button("🗺️ ABRIR ASISTENTE GPS", url_gmaps, use_container_width=True)
-
-                
-                if comisaria_r_name:
-                    st.info(f"👮 **Comisaría Encontrada:** {comisaria_r_name} (Distancia: {dist_min_r:.2f} Km)")
-                    
-                    # Generamos el enlace para Google Maps
-                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_target},{com_lon_target}&destination={lat_target},{lon_target}&travelmode=driving"
-                    
-                    st.markdown(
-                        f'<a href="{url_gmaps}" target="_blank" class="btn-google-maps" style="background-color: #4285F4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: block; text-align: center;">🗺️ ABRIR ASISTENTE GPS EN GOOGLE MAPS</a>',
-                        unsafe_allow_html=True
-                    )
-                    st.caption("⚠️ Al presionar el botón, se abrirá la aplicación de Google Maps en tu dispositivo con el trazado GPS listo para iniciar la navegación.")
             else:
-                st.warning("No tenés objetivos asignados para trazar rutas de emergencia en este turno.")
-
-        with t_car_tac:
-            novedad_sup = st.text_area("Novedad / Registro Operativo:")
-            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
-                st.success("✅ Cargado")
-
-        with t_mensajeria_sup:
-            renderizar_mensajeria_global("SUPERVISOR")
-       
-        with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
-            # Código cerrado correctamente
+                st.warning("No hay objetivos para trazar rutas.")
                 
                 
 elif st.session_state.rol_sel == "VIGILADOR":
