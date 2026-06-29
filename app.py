@@ -841,8 +841,7 @@ if st.session_state.rol_sel == "MONITOREO":
     
 
 elif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado:
-        # --- 0. GESTIÓN DE JORNADA ---
+            # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
@@ -862,10 +861,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         _, col_panico, _ = st.columns([1, 2, 1])
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
+                # IMPORTANTE: Si tenés una función de envío, llamala aquí: registrar_panico()
                 st.error("🚨 S.O.S ENVIADO")
         
         st.markdown("<hr>", unsafe_allow_html=True)
-
 
         # --- 2. MENSAJERÍA Y TABS ---
         df_msg = leer_matriz_nube("MENSAJERIA")
@@ -877,21 +876,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
 
-        
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
                 col_qr, col_nav = st.columns([1, 1])
                 
-                # Definimos el color esmeralda eléctrico original
+                # Definimos el color esmeralda eléctrico
                 color_esmeralda = "#00E5FF" 
                 
-                # Configuración exacta del QR original: compacto y nítido
+                # Generación del QR
                 qr = qrcode.QRCode(version=1, box_size=12, border=2)
                 qr.add_data(f"AION:{obj_seleccionado}")
                 qr.make(fit=True)
-                
-                # Generamos el QR con fondo negro y trazo eléctrico
                 img = qr.make_image(fill_color=color_esmeralda, back_color="#000000")
                 
                 with col_qr:
@@ -900,19 +896,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
                     
-                    # CORRECCIÓN: Usamos la sintaxis de búsqueda y ruta de Google Maps
-                    # 'dir/' es el comando para direcciones
-                    # destination es el nombre de tu objetivo
+                    # URL de navegación directa a Google Maps
                     url_mapa = f"https://www.google.com/maps/dir/?api=1&destination={obj_seleccionado.replace(' ', '+')}&travelmode=driving"
                     
                     st.markdown(
-                        f'''<a href="{url_mapa}" target="_blank" style="display: block; border: 2px solid {color_v}; 
-                        color: {color_v}; padding: 12px; text-decoration: none; text-align: center; 
+                        f'''<a href="{url_mapa}" target="_blank" style="display: block; border: 2px solid {color_esmeralda}; 
+                        color: {color_esmeralda}; padding: 12px; text-decoration: none; text-align: center; 
                         font-family: 'Orbitron', sans-serif; font-weight: bold; border-radius: 4px;
-                        box-shadow: 0 0 10px {color_v}40;">
+                        box-shadow: 0 0 10px {color_esmeralda}40;">
                         🗺️ IR AL OBJETIVO
                         </a>''', unsafe_allow_html=True
                     )
+            else:
+                st.warning("Seleccione un objetivo válido para generar el QR.")
 
             else:
                 st.warning("Seleccione un objetivo válido para generar el QR.")
