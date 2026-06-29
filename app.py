@@ -857,17 +857,17 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
-    
-  elif st.session_state.rol_sel == "SUPERVISOR":
+
+elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
-        # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
         _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
+        
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "INICIO")
@@ -877,9 +877,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "FIN")
                 st.success("Jornada cerrada")
 
-        # --- BOTÓN DE PÁNICO ---
         st.markdown("<br>", unsafe_allow_html=True)
         _, col_panico, _ = st.columns([1, 1, 1]) 
+        
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
                 obj_alerta = st.session_state.get("obj_qr_tactico", "UBICACIÓN DESCONOCIDA")
@@ -890,10 +890,12 @@ if st.session_state.rol_sel == "MONITOREO":
                         lat_envio = loc['coords'].get('latitude', 0.0)
                         lon_envio = loc['coords'].get('longitude', 0.0)
                 except: pass
-                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"])
+                
+                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
                 st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
 
-        # --- TABS COMPLETAS ---
+        # --- TABS ORIGINALES ---
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
@@ -903,6 +905,7 @@ if st.session_state.rol_sel == "MONITOREO":
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
@@ -912,7 +915,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
                     st.link_button("📍 IR AL OBJETIVO", f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}", use_container_width=True)
-                
+
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 with st.form(key="form_acta_flota", clear_on_submit=True):
@@ -924,19 +927,18 @@ if st.session_state.rol_sel == "MONITOREO":
                         v_km_final = st.number_input("KM FINAL:", min_value=0)
                         v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
                     v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
-                    if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
+                    if st.form_submit_button("REGISTRO"):
                         escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vigilador, v_patente, v_km_inicial, v_km_final, v_combustible])
-                        st.success(f"✅ Acta registrada. Recorridos: {v_km_final - v_km_inicial} km")
+                        st.success("✅ Acta registrada")
 
         with t_ruta_gmaps:
-            # Aquí va toda tu lógica de comisarias y rutas original
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
             if len(opciones_servicios_r) > 0:
                 obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_servicios_r, key="sup_ruta_gmaps_target")
                 datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
                 url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={datos_obj_r['LATITUD']},{datos_obj_r['LONGITUD']}"
-                st.link_button("🗺️ ABRIR ASISTENTE GPS EN GOOGLE MAPS", url_gmaps, use_container_width=True)
+                st.link_button("🗺️ ABRIR ASISTENTE GPS", url_gmaps, use_container_width=True)
 
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
@@ -948,7 +950,9 @@ if st.session_state.rol_sel == "MONITOREO":
             renderizar_mensajeria_global("SUPERVISOR")
        
         with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")              
+            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
+    
+     
                 
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
