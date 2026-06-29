@@ -919,11 +919,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
-                    # AQUÍ ESTÁ EL CAMBIO: Ahora apunta a tu app para confirmar el éxito
-                    URL_APP = "https://tu-url-de-streamlit.app/" 
-                    qr.add_data(f"{URL_APP}?estado=escaneado&id={datos_sel.get('ID', '0')}")
+                    # AQUÍ: Poné la dirección real de tu app, por ejemplo:
+                    # 'https://aion-yaroku.streamlit.app/'
+                    URL_REAL = "https://aion-yaroku.streamlit.app/"
+                    qr.add_data(f"{URL_REAL}?estado=escaneado&id={datos_sel.get('ID', '0')}")
                     qr.make(fit=True)
-                    st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                    img = qr.make_image(fill_color="#00E5FF", back_color="black")
+                    st.image(img.get_image(), width=150)
                     st.caption(f"QR: {obj_select}")
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
