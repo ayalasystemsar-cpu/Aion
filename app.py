@@ -932,15 +932,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione Objetivo:", df_filtro['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
                 
-               
-
-        # --- AQUÍ ESTÁ EL DISEÑO FINO ---
+                # --- AQUÍ ESTÁ EL DISEÑO FINO ---
         c1, c2 = st.columns([1, 2])
         
         with c1:
-            # QR profesional (texto plano para evitar errores de URL)
+            # QR profesional
             qr = qrcode.QRCode(box_size=6, border=1)
-            # Pasamos el dato como texto plano
             qr.add_data(f"OBJETIVO_ID:{datos_sel.get('ID', '0')}") 
             qr.make(fit=True)
             img = qr.make_image(fill_color="#00E5FF", back_color="black")
@@ -953,8 +950,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             # Botón fino y profesional
             url = f"http://maps.google.com/?q={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
             st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
+
+        # Esta línea DEBE estar alineada al mismo nivel que 'c1, c2 = ...'
+        st.markdown("---")
             
-        # El CSS va fuera de los bloques 'with' para que se aplique a toda la página
+        # El CSS fuera de los bloques 'with'
         st.markdown("""
             <style>
             div[data-testid="stLinkButton"] > a {
