@@ -861,42 +861,53 @@ if st.session_state.rol_sel == "MONITOREO":
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
-        # --- 0. GESTIÓN DE JORNADA ---
+     # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
         
-        # Eliminamos la barra de selección redundante aquí
+        # 1. Definimos las opciones de objetivos primero
+        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+        df_objs_sup = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        opciones_obj = df_objs_sup['OBJETIVO'].unique() if not df_objs_sup.empty else ["SIN OBJETIVOS ASIGNADOS"]
+
+        # 2. Selector de objetivo (DEBE IR ANTES DE LOS BOTONES)
+        obj_seleccionado = st.selectbox("🎯 SELECCIONE OBJETIVO:", opciones_obj, key="obj_jornada_sel")
+        
         col_j1, col_j2 = st.columns(2)
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, "GLOBAL", "INICIO")
-                st.success("Jornada iniciada")
+                # Usamos obj_seleccionado en lugar de "N/A"
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "INICIO")
+                st.success(f"Jornada iniciada en {obj_seleccionado}")
         with col_j2:
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, "GLOBAL", "FIN")
-                st.success("Jornada cerrada")
+                # Usamos obj_seleccionado en lugar de "N/A"
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
+                st.success(f"Jornada cerrada en {obj_seleccionado}")
 
-        # --- BOTÓN DE PÁNICO ---
+      # --- BOTÓN DE PÁNICO (CORREGIDO) ---
         st.markdown("<br>", unsafe_allow_html=True)
-        # Eliminamos la barra de selección que estaba abajo del botón de pánico
-        if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-            lat_envio, lon_envio = 0.0, 0.0
-            try:
-                loc = get_geolocation()
-                if loc and isinstance(loc, dict) and 'coords' in loc:
-                    lat_envio = loc['coords'].get('latitude', 0.0)
-                    lon_envio = loc['coords'].get('longitude', 0.0)
-            except: 
-                pass
-            
-            carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|SUP:{st.session_state.user_sel}"
-            escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-            st.error("🚨 S.O.S ENVIADO")
-
-        # --- RESTO DE LA LÓGICA (Mantenida tal cual) ---
-        # (Tabs, Centro Táctico, etc. permanecen iguales)
-
-        # --- RESTO DE LA LÓGICA (Mantenida tal cual) ---
-        # (Tabs, Centro Táctico, etc. permanecen iguales)
+        
+        # 1. DEFINIMOS LAS COLUMNAS AQUÍ
+        _, col_panico, _ = st.columns([1, 2, 1]) 
+        
+        # 2. LAS USAMOS INMEDIATAMENTE
+        with col_panico:
+            if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
+                # Usamos el estado del selectbox definido arriba
+                obj_alerta = st.session_state.get("obj_jornada_sel", "UBICACIÓN DESCONOCIDA")
+                
+                lat_envio, lon_envio = 0.0, 0.0
+                try:
+                    loc = get_geolocation()
+                    if loc and isinstance(loc, dict) and 'coords' in loc:
+                        lat_envio = loc['coords'].get('latitude', 0.0)
+                        lon_envio = loc['coords'].get('longitude', 0.0)
+                except: 
+                    pass
+                
+                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
+                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
      
 
        
