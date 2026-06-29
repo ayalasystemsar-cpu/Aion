@@ -907,41 +907,47 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
 
-        with t_vis_qr:
+       with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
             
             if not df_objetivos_filtrados.empty:
                 obj_a_generar = st.selectbox("Seleccione objetivo:", df_objetivos_filtrados['OBJETIVO'].unique())
-                datos_obj = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
+                datos_obj = df_objetivos_filtrados[df_objetivos['SUPERVISOR'] == sup_activo_normalizado][df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
                 
-                # --- AQUÍ CONCATENAMOS QR Y GPS ---
                 col_qr, col_gps = st.columns([1, 1])
                 
                 with col_qr:
-                    # Borde negro y fondo oscuro para el QR
-                    st.markdown('<div style="border: 2px solid #000000; padding: 10px; background-color: #1a1a1a;">', unsafe_allow_html=True)
-                    # Usamos .get('ID', ...) para que NO salte error si la columna se llama distinto
-                    id_valor = datos_obj.get('ID', datos_obj.get('ID_OBJETIVO', 'SIN_ID'))
-                    qr = qrcode.QRCode(version=1, box_size=15, border=3)
+                    st.markdown('<div style="border: 4px solid #000000; padding: 5px;">', unsafe_allow_html=True)
+                    id_valor = datos_obj.get('ID', 'ID')
+                    qr = qrcode.QRCode(version=1, box_size=15, border=2)
                     qr.add_data(f"ID:{id_valor}")
                     qr.make(fit=True)
                     st.image(qr.make_image(fill_color="black", back_color="white").get_image(), use_column_width=True)
                     st.markdown('</div>', unsafe_allow_html=True)
                     
                 with col_gps:
-                    # Botón concatenado: se abre la ruta directamente desde la ubicación actual hacia el objetivo
-                    url_gps = f"https://www.google.com/maps/dir/?api=1&destination={datos_obj['LATITUD']},{datos_obj['LONGITUD']}&destination={datos_obj['LATITUD']},{datos_obj['LONGITUD']}&travelmode=driving"
+                    url_gps = f"https://www.google.com/maps/dir/?api=1&destination={datos_obj['LATITUD']},{datos_obj['LONGITUD']}"
                     
+                    # Botón con el texto exacto de la foto
                     st.markdown(f"""
                         <a href="{url_gps}" target="_blank">
-                            <button style="width:100%; height: 260px; background-color: #00E5FF; color: black; font-weight: bold; border: 2px solid #000000; border-radius: 10px; font-size: 20px;">
-                                🔵 IR AL OBJETIVO<br><br>🗺️ ABRIR RUTA GPS
+                            <button style="width:100%; height: 325px; background-color: #00E5FF; color: black; font-weight: bold; border: 4px solid #000000; border-radius: 10px; font-size: 20px; cursor: pointer;">
+                                🗺️ ABRIR RUTA GPS
                             </button>
                         </a>
                     """, unsafe_allow_html=True)
             else:
-                st.warning("No hay objetivos asignados.") 
+                st.warning("No hay objetivos asignados.")
+
+            # Mantenemos el filtro celeste para el QR
+            st.markdown("""
+                <style>
+                [data-testid="stImage"] img {
+                    filter: invert(68%) sepia(97%) saturate(2465%) hue-rotate(152deg) brightness(101%) contrast(101%);
+                }
+                </style>
+            """, unsafe_allow_html=True) 
                 
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
