@@ -860,19 +860,22 @@ if st.session_state.rol_sel == "MONITOREO":
     
 
 
+
+# --- 0. DETECTOR DE ESCANEO (Pon esto al principio de tu archivo, fuera de los roles) ---
+params = st.query_params
+if "estado" in params and params["estado"] == "escaneado":
+    st.success("✅ ¡Código QR escaneado con éxito!")
+    st.balloons()
+
+# --- BLOQUE DE SUPERVISOR ---
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
-        # 1. Definición necesaria para todo el rol
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-        
-        # Usamos el objetivo seleccionado en el Centro Táctico
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
-        # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
-        # Definimos las 4 columnas (espacio, botón, botón, espacio)
         _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
         
         with col_j1:
@@ -884,15 +887,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "FIN")
                 st.success("Jornada cerrada")
 
-        # --- BOTÓN DE PÁNICO (LIMPIO) ---
         st.markdown("<br>", unsafe_allow_html=True)
         _, col_panico, _ = st.columns([1, 1, 1]) 
         
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                # Captura el objetivo directamente desde la selección del QR
                 obj_alerta = st.session_state.get("obj_qr_tactico", "UBICACIÓN DESCONOCIDA")
-                
                 lat_envio, lon_envio = 0.0, 0.0
                 try:
                     loc = get_geolocation()
@@ -905,70 +905,33 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
                 st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
 
-        # --- AQUÍ EMPIEZA LA MENSAJERÍA Y TABS ---
-        # (He borrado el bloque 'if len(opciones_obj) > 0:' que creaba la barra) 
-           
-
-        # --- 3. MENSAJERÍA Y TABS ---
-        df_msg = leer_matriz_nube("MENSAJERIA")
-        nombre_user = st.session_state.user_sel.upper()
-        total_nuevos = 0
-        if not df_msg.empty:
-            mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "SUPERVISORES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
-            total_nuevos = len(df_msg[mask])
-        
-        label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
-
+        # --- TABS ---
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
+            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES"
         ])
 
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
-            
-            df_filtro = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-            
-            if not df_filtro.empty:
-                obj_select = st.selectbox("Seleccione Objetivo:", df_filtro['OBJETIVO'].unique(), key="obj_qr_tactico")
-                datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
+            if not df_objetivos_filtrados.empty:
+                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
-                # --- AQUÍ ESTÁ EL DISEÑO FINO ---
                 c1, c2 = st.columns([1, 2])
-                
                 with c1:
-                    # QR compacto y elegante
                     qr = qrcode.QRCode(box_size=6, border=1)
-                    qr.add_data(f"OBJETIVO_ID_{datos_sel.get('ID', '0')}")
+                    # AQUÍ ESTÁ EL CAMBIO: Ahora apunta a tu app para confirmar el éxito
+                    URL_APP = "https://tu-url-de-streamlit.app/" 
+                    qr.add_data(f"{URL_APP}?estado=escaneado&id={datos_sel.get('ID', '0')}")
                     qr.make(fit=True)
-                    img = qr.make_image(fill_color="#00E5FF", back_color="black")
-                    st.image(img.get_image(), width=150)
+                    st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
                     st.caption(f"QR: {obj_select}")
-                    
                 with c2:
-                    # Espaciado para alinear el botón con el centro del QR
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    
-                    # Botón fino y profesional
                     url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
                     st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
 
-                # CSS específico para este estilo "fino"
-                st.markdown("""
-                    <style>
-                    div[data-testid="stLinkButton"] > a {
-                        background-color: transparent !important;
-                        border: 1px solid #00E5FF !important;
-                        color: #00E5FF !important;
-                        font-weight: bold !important;
-                        border-radius: 5px !important;
-                    }
-                    div[data-testid="stLinkButton"] > a:hover {
-                        background-color: #00E5FF !important;
-                        color: black !important;
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
-
+                st.markdown("---")
+                # Formulario de flota y CSS aquí... (mantén el tuyo igual)
         
  
       
