@@ -906,30 +906,24 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     qr.make(fit=True)
                     st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
                     st.caption(f"QR: {obj_select}")
+
                 with c2:
-                    # Ajuste de espacio para alineación vertical con el QR
-                    st.markdown("<br><br>", unsafe_allow_html=True)
+                    st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    # La URL ahora usa el parámetro de destino para que Google Maps guíe directo
+                    lat_dest = datos_sel.get('LATITUD', 0)
+                    lon_dest = datos_sel.get('LONGITUD', 0)
+                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&destination={lat_dest},{lon_dest}&travelmode=driving"
                     
-                    # Botón con estilo fino personalizado
-                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
-                    
+                    # El botón ahora muestra el nombre del objetivo dinámicamente
                     st.markdown(f'''
                         <a href="{url_gmaps}" target="_blank" 
-                        style="display: inline-block; 
-                               width: 100%; 
-                               padding: 8px 16px; 
-                               border: 1px solid #00E5FF; 
-                               color: #00E5FF; 
-                               text-decoration: none; 
-                               border-radius: 4px; 
-                               font-family: sans-serif; 
-                               font-size: 14px; 
-                               text-align: center;
-                               transition: 0.3s;">
-                        📍 IR AL OBJETIVO
+                        style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
+                        color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
+                        font-size: 14px; text-align: center; transition: 0.3s;">
+                        📍 IR A {obj_select}
                         </a>
                     ''', unsafe_allow_html=True)
-                    
+                
                 st.markdown("---")
                 
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
