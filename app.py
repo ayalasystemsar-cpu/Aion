@@ -870,14 +870,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
-
-        with t_vis_qr:
-            if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
-                color_v = "#00E5FF" 
-                
-                col_qr, col_nav = st.columns([1, 1])
-                
-                with col_qr:
+              with col_qr:
                     qr = qrcode.QRCode(version=1, box_size=8, border=1)
                     qr.add_data(f"AION:{obj_seleccionado}")
                     qr.make(fit=True)
@@ -886,13 +879,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.markdown(f'<div style="border: 2px solid {color_v}; padding: 5px; display: inline-block; border-radius: 4px;">', unsafe_allow_html=True)
                     st.image(img.get_image(), width=140)
                     st.markdown('</div>', unsafe_allow_html=True)
-
-          with col_nav:
+                
+                with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    # Definimos la URL de navegación (Alineada correctamente)
                     url_gmaps = f"https://www.google.com/maps/dir/?api=1&destination={obj_seleccionado}&travelmode=driving"
-                    
-                    # Botón con enlace integrado
                     st.markdown(
                         f'''<a href="{url_gmaps}" target="_blank" style="display: block; border: 2px solid {color_v}; 
                         color: {color_v}; padding: 12px; text-decoration: none; text-align: center; 
@@ -900,6 +890,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         🗺️ IR AL OBJETIVO
                         </a>''', unsafe_allow_html=True
                     )
+
                 
                 
 
