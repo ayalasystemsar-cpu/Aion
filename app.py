@@ -932,51 +932,45 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
-
-        # ... (Aquí debajo van tus 'with' de cada pestaña como los tenías antes) ...
-      
-
-       with t_vis_qr:
+        
+      with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
+            
+            # Filtramos objetivos del supervisor
             df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
             
             if not df_objetivos_filtrados.empty:
                 obj_a_generar = st.selectbox("Seleccione objetivo:", df_objetivos_filtrados['OBJETIVO'].unique())
-                datos_obj = df_objetivos_filtrados[df_objetivos['SUPERVISOR'] == sup_activo_normalizado][df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
+                datos_obj = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
                 
-                col_qr, col_gps = st.columns([1, 1])
+                # Columnas para tener el QR a la izq y el botón a la der
+                c1, c2 = st.columns([1, 1])
                 
-                with col_qr:
-                    st.markdown('<div style="border: 4px solid #000000; padding: 5px;">', unsafe_allow_html=True)
-                    id_valor = datos_obj.get('ID', 'ID')
-                    qr = qrcode.QRCode(version=1, box_size=15, border=2)
-                    qr.add_data(f"ID:{id_valor}")
-                    qr.make(fit=True)
-                    st.image(qr.make_image(fill_color="black", back_color="white").get_image(), use_column_width=True)
+                with c1:
+                    # Contenedor del QR
+                    st.markdown('<div style="border: 4px solid #000000; padding: 5px; background-color: #ffffff;">', unsafe_allow_html=True)
+                    # Usamos una forma súper segura de obtener el ID
+                    id_val = str(datos_obj.get('ID', 'SIN_ID'))
+                    qr_gen = qrcode.QRCode(version=1, box_size=15, border=2)
+                    qr_gen.add_data(f"ID:{id_val}")
+                    qr_gen.make(fit=True)
+                    st.image(qr_gen.make_image(fill_color="black", back_color="white").get_image(), use_column_width=True)
                     st.markdown('</div>', unsafe_allow_html=True)
-                    
-                with col_gps:
-                    url_gps = f"https://www.google.com/maps/dir/?api=1&destination={datos_obj['LATITUD']},{datos_obj['LONGITUD']}"
-                    
-                    # Botón con el texto exacto de la foto
-                    st.markdown(f"""
+                
+                with c2:
+                    # Botón GPS idéntico al de la foto
+                    url_gps = f"https://www.google.com/maps/dir/?api=1&destination={datos_obj.get('LATITUD', 0)},{datos_obj.get('LONGITUD', 0)}"
+                    st.markdown(f'''
                         <a href="{url_gps}" target="_blank">
-                            <button style="width:100%; height: 325px; background-color: #00E5FF; color: black; font-weight: bold; border: 4px solid #000000; border-radius: 10px; font-size: 20px; cursor: pointer;">
+                            <button style="width:100%; height: 325px; background-color: #00E5FF; color: black; font-weight: bold; border: 4px solid #000000; border-radius: 10px; font-size: 20px;">
                                 🗺️ ABRIR RUTA GPS
                             </button>
                         </a>
-                    """, unsafe_allow_html=True)
+                    ''', unsafe_allow_html=True)
             else:
                 st.warning("No hay objetivos asignados.")
 
-            # Mantenemos el filtro celeste para el QR
-            st.markdown("""
-                <style>
-                [data-testid="stImage"] img {
-                    filter: invert(68%) sepia(97%) saturate(2465%) hue-rotate(152deg) brightness(101%) contrast(101%);
-                }
-                </style>
-            """, unsafe_allow_html=True)
+      
 
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
             st.markdown("---") 
