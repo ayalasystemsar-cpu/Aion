@@ -967,7 +967,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             </style>
             """, unsafe_allow_html=True)
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
-     st.markdown("---") 
+        st.markdown("---") 
             st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
             with st.form(key="form_acta_flota", clear_on_submit=True):
                 col1, col2 = st.columns(2)
