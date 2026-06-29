@@ -905,9 +905,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
-        ])
-
-         with t_vis_qr:
+        ])with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
             
@@ -947,7 +945,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     filter: invert(68%) sepia(97%) saturate(2465%) hue-rotate(152deg) brightness(101%) contrast(101%);
                 }
                 </style>
-            """, unsafe_allow_html=True) 
+            """, unsafe_allow_html=True)
+        
+
                 
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
