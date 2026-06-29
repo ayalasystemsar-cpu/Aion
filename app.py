@@ -864,13 +864,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
      # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
         
-        # 1. Definimos las opciones de objetivos primero
-        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-        df_objs_sup = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-        opciones_obj = df_objs_sup['OBJETIVO'].unique() if not df_objs_sup.empty else ["SIN OBJETIVOS ASIGNADOS"]
+        
 
-        # 2. Selector de objetivo (DEBE IR ANTES DE LOS BOTONES)
-        obj_seleccionado = st.selectbox("🎯 SELECCIONE OBJETIVO:", opciones_obj, key="obj_jornada_sel")
+        
         
         col_j1, col_j2 = st.columns(2)
         with col_j1:
