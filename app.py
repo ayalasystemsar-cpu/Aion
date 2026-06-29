@@ -49,8 +49,7 @@ def leer_matriz_nube(pestana):
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
-            if not todas_filas: return pd.DataFrame()
-            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
+            ifezados = [str(h).strip().upper() for h in todas_filas[0]]
             df = pd.DataFrame(todas_filas[1:], columns=encabezados)
             df.columns = [str(c).strip().upper() for c in df.columns]
             return df.loc[:, ~df.columns.duplicated()]
@@ -563,7 +562,9 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 # --- 7. FLUJO POR ROLES ---
- elif st.session_state.rol_sel == "MONITOREO":
+ 
+    
+elif st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
     
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -687,8 +688,6 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
                 folium.PolyLine(locations=ruta_real, color="#008000", weight=6, opacity=0.8).add_to(m_mon)
 
             st_folium(m_mon, width="100%", height=550)
-    
-
 elif st.session_state.rol_sel == "SUPERVISOR":
             # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
