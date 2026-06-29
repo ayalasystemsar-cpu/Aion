@@ -861,11 +861,14 @@ if st.session_state.rol_sel == "MONITOREO":
 
 
 
-# --- 0. DETECTOR DE ESCANEO (Pon esto al principio de tu archivo, fuera de los roles) ---
-params = st.query_params
-if "estado" in params and params["estado"] == "escaneado":
+
+                        # --- 0. DETECTOR DE ESCANEO (AL PRINCIPIO) ---
+# Usamos st.query_params directamente
+if st.query_params.get("estado") == "escaneado":
     st.success("✅ ¡Código QR escaneado con éxito!")
     st.balloons()
+    # Limpiamos los parámetros para que no vuelva a salir al refrescar
+    st.query_params.clear()
 
 # --- BLOQUE DE SUPERVISOR ---
 elif st.session_state.rol_sel == "SUPERVISOR":
@@ -905,7 +908,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
                 st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
 
-        # --- TABS ---
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES"
         ])
@@ -919,8 +921,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
-                    # AQUÍ: Poné la dirección real de tu app, por ejemplo:
-                    # 'https://aion-yaroku.streamlit.app/'
+                    # AQUÍ TU URL REAL:
                     URL_REAL = "https://aion-yaroku.streamlit.app/"
                     qr.add_data(f"{URL_REAL}?estado=escaneado&id={datos_sel.get('ID', '0')}")
                     qr.make(fit=True)
@@ -933,43 +934,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
 
                 st.markdown("---")
-                # Formulario de flota y CSS aquí... (mantén el tuyo igual)
-        
- 
-      
-
-     # --- FORMULARIO DE FLOTA CON KM FINAL ---
-            st.markdown("---") 
-            st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
-            with st.form(key="form_acta_flota", clear_on_submit=True):
-                col1, col2 = st.columns(2)
-                with col1:
-                    v_patente = st.text_input("PATENTE/MÓVIL:").upper()
-                    v_km_inicial = st.number_input("KM INICIAL:", min_value=0)
-                with col2:
-                    v_km_final = st.number_input("KM FINAL:", min_value=0)
-                    v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
                 
-                v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
-                v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
-                
-                if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                    fecha = obtener_hora_argentina()
+                st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
+                with st.form(key="form_acta_flota", clear_on_submit=True):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        v_patente = st.text_input("PATENTE/MÓVIL:").upper()
+                        v_km_inicial = st.number_input("KM INICIAL:", min_value=0)
+                    with col2:
+                        v_km_final = st.number_input("KM FINAL:", min_value=0)
+                        v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
                     
-                    # Se envía a CONTROL_FLOTA con el KM FINAL ingresado
-                    # Orden: FECHA | SUPERVISOR | MOVIL | KM_INICIAL | KM_FINAL | COMBUSTIBLE
-                    escribir_registro_nube("CONTROL_FLOTA", [
-                        fecha, 
-                        v_vigilador, 
-                        v_patente, 
-                        v_km_inicial, 
-                        v_km_final, 
-                        v_combustible
-                    ])
+                    v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
+                    v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
                     
-                    # Cálculo rápido para informar al supervisor
-                    km_recorridos = v_km_final - v_km_inicial
-                    st.success(f"✅ Acta registrada. Recorridos: {km_recorridos} km")
+                    if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
+                        escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vigilador, v_patente, v_km_inicial, v_km_final, v_combustible])
+                        st.success(f"✅ Acta registrada. Recorridos: {v_km_final - v_km_inicial} km")
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
