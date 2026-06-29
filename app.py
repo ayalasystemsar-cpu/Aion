@@ -905,6 +905,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
                     qr.make(fit=True)
                     st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                    st.caption(f"QR: {obj_select}")
                 with c2:
                     # Ajuste de espacio para alineación vertical con el QR
                     st.markdown("<br><br>", unsafe_allow_html=True)
