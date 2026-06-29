@@ -857,14 +857,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
 
-        # --- BOTÓN DE PÁNICO (Centrado) ---
+       # --- BOTÓN DE PÁNICO (IDENTIFICACIÓN COMPLETA) ---
         _, col_panico, _ = st.columns([1, 2, 1])
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                # IMPORTANTE: Si tenés una función de envío, llamala aquí: registrar_panico()
-                st.error("🚨 S.O.S ENVIADO")
-        
-        st.markdown("<hr>", unsafe_allow_html=True)
+                fecha_panico = obtener_hora_argentina()
+                # Aquí concatenamos TODO: Nombre supervisor + Objetivo
+                carga_sos = f"SUP:{st.session_state.user_sel}|OBJ:{obj_seleccionado}"
+                
+                escribir_registro_nube("ALERTAS", [
+                    fecha_panico, 
+                    st.session_state.user_sel, 
+                    "PÁNICO", 
+                    "PENDIENTE", 
+                    carga_sos, 
+                    "ALERTA TÁCTICA"
+                ])
+                st.error(f"🚨 S.O.S ENVIADO: {st.session_state.user_sel} | {obj_seleccionado}")
 
         # --- 2. MENSAJERÍA Y TABS ---
         df_msg = leer_matriz_nube("MENSAJERIA")
