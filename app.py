@@ -870,7 +870,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
-              with col_qr:
+                with col_qr:
                     qr = qrcode.QRCode(version=1, box_size=8, border=1)
                     qr.add_data(f"AION:{obj_seleccionado}")
                     qr.make(fit=True)
@@ -889,8 +889,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         font-family: 'Orbitron', sans-serif; font-weight: bold; border-radius: 4px;">
                         🗺️ IR AL OBJETIVO
                         </a>''', unsafe_allow_html=True
-                    )
-
+)
                 
                 
 
