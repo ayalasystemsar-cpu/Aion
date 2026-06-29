@@ -932,26 +932,26 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione Objetivo:", df_filtro['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
                 
-                # --- AQUÍ ESTÁ EL DISEÑO FINO ---
-                c1, c2 = st.columns([1, 2])
-                
-                with c1:
-                    # QR compacto y elegante
-                    qr = qrcode.QRCode(box_size=6, border=1)
-                    qr.add_data(f"ID:{datos_sel.get('ID', '0')}")
-                    qr.make(fit=True)
-                    img = qr.make_image(fill_color="#00E5FF", back_color="black")
-                    st.image(img.get_image(), width=150)
-                    st.caption(f"QR: {obj_select}")
-                    
-                with c2:
-                    # Espaciado para alinear el botón con el centro del QR
-                    st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    
-                    # Botón fino y profesional
-                    url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
-                    st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
-
+               
+# --- AQUÍ ESTÁ EL DISEÑO FINO ---
+        c1, c2 = st.columns([1, 2])
+        
+        with c1:
+            # QR profesional (texto plano para evitar errores de URL)
+            qr = qrcode.QRCode(box_size=6, border=1)
+            # Cambiamos la forma en que pasamos el dato
+            qr.add_data(f"OBJETIVO_ID:{datos_sel.get('ID', '0')}") 
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="#00E5FF", back_color="black")
+            st.image(img.get_image(), width=150)
+            st.caption(f"QR: {obj_select}")
+            
+        with c2:
+            st.markdown("<br><br><br>", unsafe_allow_html=True)
+            
+            # Botón fino y profesional
+            url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
+            st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
                 # CSS específico para este estilo "fino"
                 st.markdown("""
                     <style>
