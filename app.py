@@ -886,7 +886,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # --- BOTÓN DE PÁNICO (LIMPIO) ---
         st.markdown("<br>", unsafe_allow_html=True)
-        _, col_panico, _ = st.columns([1.5, 1, 1.5]) 
+        _, col_panico, _ = st.columns([1, 1, 1]) 
         
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
@@ -931,43 +931,50 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if not df_filtro.empty:
                 obj_select = st.selectbox("Seleccione Objetivo:", df_filtro['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
+                
+                # --- AQUÍ ESTÁ EL DISEÑO FINO ---
+                c1, c2 = st.columns([1, 2])
+                
+                with c1:
+                    # QR compacto y elegante
+                    qr = qrcode.QRCode(box_size=6, border=1)
+                    qr.add_data(f"ID:{datos_sel.get('ID', '0')}")
+                    qr.make(fit=True)
+                    img = qr.make_image(fill_color="#00E5FF", back_color="black")
+                    st.image(img.get_image(), width=150)
+                    st.caption(f"QR: {obj_select}")
+                    
+                with c2:
+                    # Espaciado para alinear el botón con el centro del QR
+                    st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    
+                    # Botón fino y profesional
+                    url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
+                    st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
 
+                # CSS específico para este estilo "fino"
+                st.markdown("""
+                    <style>
+                    div[data-testid="stLinkButton"] > a {
+                        background-color: transparent !important;
+                        border: 1px solid #00E5FF !important;
+                        color: #00E5FF !important;
+                        font-weight: bold !important;
+                        border-radius: 5px !important;
+                    }
+                    div[data-testid="stLinkButton"] > a:hover {
+                        background-color: #00E5FF !important;
+                        color: black !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
 
-# --- AQUÍ ESTÁ EL DISEÑO FINO ---
-        c1, c2 = st.columns([1, 2])
         
-        with c1:
-            qr = qrcode.QRCode(box_size=6, border=1)
-            qr.add_data(f"OBJETIVO_ID:{datos_sel.get('ID', '0')}") 
-            qr.make(fit=True)
-            img = qr.make_image(fill_color="#00E5FF", back_color="black")
-            st.image(img.get_image(), width=150)
-            st.caption(f"QR: {obj_select}")
-            
-        with c2:
-            st.markdown("<br><br><br>", unsafe_allow_html=True)
-            url = f"http://maps.google.com/?q={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
-            st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
+ 
+      
 
-        st.markdown("---")
-            
-        st.markdown("""
-            <style>
-            div[data-testid="stLinkButton"] > a {
-                background-color: transparent !important;
-                border: 1px solid #00E5FF !important;
-                color: #00E5FF !important;
-                font-weight: bold !important;
-                border-radius: 5px !important;
-            }
-            div[data-testid="stLinkButton"] > a:hover {
-                background-color: #00E5FF !important;
-                color: black !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
-        st.markdown("---") 
+            st.markdown("---") 
             st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
             with st.form(key="form_acta_flota", clear_on_submit=True):
                 col1, col2 = st.columns(2)
