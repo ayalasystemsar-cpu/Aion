@@ -564,7 +564,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 # --- 7. FLUJO POR ROLES ---
  
     
-elif st.session_state.rol_sel == "MONITOREO":
+if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
     
     df_emergencias = leer_matriz_nube("ALERTAS")
