@@ -859,8 +859,7 @@ if st.session_state.rol_sel == "MONITOREO":
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
     
 
-
-  elif st.session_state.rol_sel == "SUPERVISOR":
+ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
