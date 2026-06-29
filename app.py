@@ -857,13 +857,9 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
-
-
-    
-     
-elif st.seelif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado:
         
+elif st.session_state.rol_sel == "SUPERVISOR":
+    if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
