@@ -917,25 +917,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
-                    
-                    # AQUÍ: Texto simple para evitar errores de navegador
-                    # Esto no abrirá ninguna web, solo mostrará el mensaje en el lector
-                    mensaje_exito = f"✅ ÉXITO: {obj_select} - ID:{datos_sel.get('ID', '0')}"
-                    qr.add_data(mensaje_exito)
-                    
+                    # REEMPLAZÁ AQUÍ CON TU URL EXACTA
+                    URL_REAL = "https://aion-yaroku.streamlit.app/" 
+                    qr.add_data(f"{URL_REAL}?estado=escaneado&id={datos_sel.get('ID', '0')}")
                     qr.make(fit=True)
                     img = qr.make_image(fill_color="#00E5FF", back_color="black")
                     st.image(img.get_image(), width=150)
                     st.caption(f"QR: {obj_select}")
-                    
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
                     url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
                     st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
 
                 st.markdown("---")
-                    
-                
                 
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 with st.form(key="form_acta_flota", clear_on_submit=True):
