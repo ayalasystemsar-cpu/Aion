@@ -910,26 +910,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
      
 
-        # --- 2. REGISTRO DIRECTO ---
-        st.markdown("---")
-        st.subheader("📍 REGISTRO DIRECTO (SIN QR)")
-        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+       
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
         
         opciones_obj = df_objetivos_filtrados['OBJETIVO'].unique()
         if len(opciones_obj) > 0:
             obj_select = st.selectbox("Seleccione Objetivo:", opciones_obj, key="obj_select_directo")
             c1, c2 = st.columns(2)
-            with c1:
-                if st.button("✅ ARRIBO DIRECTO", use_container_width=True):
-                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "ARRIBO")
-                    st.success(f"Arribo en {obj_select}")
-            with c2:
-                if st.button("🚪 RETIRO DIRECTO", use_container_width=True):
-                    registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "RETIRO")
-                    st.success(f"Retiro en {obj_select}")
-        else:
-            st.warning("No hay objetivos asignados para registro directo.")
+           
 
         # --- 3. MENSAJERÍA Y TABS ---
         df_msg = leer_matriz_nube("MENSAJERIA")
