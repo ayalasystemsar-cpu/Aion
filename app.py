@@ -906,11 +906,33 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     qr.make(fit=True)
                     st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
                 with c2:
-                    st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    st.link_button("📍 IR AL OBJETIVO", f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}", use_container_width=True)
-                
+                    # Ajuste de espacio para alineación vertical con el QR
+                    st.markdown("<br><br>", unsafe_allow_html=True)
+                    
+                    # Botón con estilo fino personalizado
+                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
+                    
+                    st.markdown(f'''
+                        <a href="{url_gmaps}" target="_blank" 
+                        style="display: inline-block; 
+                               width: 100%; 
+                               padding: 8px 16px; 
+                               border: 1px solid #00E5FF; 
+                               color: #00E5FF; 
+                               text-decoration: none; 
+                               border-radius: 4px; 
+                               font-family: sans-serif; 
+                               font-size: 14px; 
+                               text-align: center;
+                               transition: 0.3s;">
+                        📍 IR AL OBJETIVO
+                        </a>
+                    ''', unsafe_allow_html=True)
+                    
                 st.markdown("---")
+                
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
+                
                 with st.form(key="form_acta_flota", clear_on_submit=True):
                     c_a, c_b = st.columns(2)
                     v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
