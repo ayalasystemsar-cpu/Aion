@@ -858,7 +858,10 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
 
-elif st.session_state.rol_sel == "SUPERVISOR":
+
+    
+     
+elif st.seelif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -908,29 +911,34 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    # AQUÍ RECUPERÉ TU ESTILO ORIGINAL DE BOTÓN
-                    url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
-                    st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
+                    st.link_button("📍 IR AL OBJETIVO", f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}", use_container_width=True)
+                
                 st.markdown("---")
-                # ... (resto de tu formulario de flota original) ...
+                st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
+                with st.form(key="form_acta_flota", clear_on_submit=True):
+                    c_a, c_b = st.columns(2)
+                    v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
+                    v_km_ini = c_a.number_input("KM INICIAL:", min_value=0)
+                    v_km_fin = c_b.number_input("KM FINAL:", min_value=0)
+                    v_comb = c_b.selectbox("COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
+                    v_vig = st.text_input("SUPERVISOR RESPONSABLE:").upper()
+                    if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
+                        escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vig, v_patente, v_km_ini, v_km_fin, v_comb])
+                        st.success(f"✅ Acta registrada. Distancia: {v_km_fin - v_km_ini} km")
 
         with t_ruta_gmaps:
-            st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
+            st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA")
             opciones_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
             if len(opciones_r) > 0:
-                obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_r, key="sup_ruta_gmaps_target")
-                datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
-                lat, lon = datos_obj_r['LATITUD'], datos_obj_r['LONGITUD']
-                
-                # RECONSTRUCCIÓN DE TU LÓGICA DE COMISARÍA
-                dist_min, com_name, com_lat, com_lon = float('inf'), None, 0.0, 0.0
+                obj_r = st.selectbox("DESTINO:", opciones_r, key="sup_ruta_gmaps_target")
+                datos_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_r].iloc[0]
+                lat, lon = datos_r['LATITUD'], datos_r['LONGITUD']
+                dist_min, com_name, com_lat, com_lon = float('inf'), "Ninguna", 0.0, 0.0
                 for _, com in df_comisarias.iterrows():
                     d = 6371 * 2 * math.asin(math.sqrt(math.sin((math.radians(com['LATITUD'])-math.radians(lat))/2)**2 + math.cos(math.radians(lat))*math.cos(math.radians(com['LATITUD']))*math.sin((math.radians(com['LONGITUD'])-math.radians(lon))/2)**2))
                     if d < dist_min: dist_min, com_name, com_lat, com_lon = d, com['COMISARIA'], com['LATITUD'], com['LONGITUD']
-                
                 st.info(f"👮 **Comisaría Encontrada:** {com_name} ({dist_min:.2f} Km)")
-                url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={com_lat},{com_lon}&destination={lat},{lon}&travelmode=driving"
-                st.markdown(f'<a href="{url_gmaps}" target="_blank" class="btn-google-maps" style="background-color: #4285F4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: block; text-align: center;">🗺️ ABRIR ASISTENTE GPS EN GOOGLE MAPS</a>', unsafe_allow_html=True)
+                st.link_button("🗺️ ABRIR ASISTENTE GPS", f"https://www.google.com/maps/dir/?api=1&origin={com_lat},{com_lon}&destination={lat},{lon}&travelmode=driving", use_container_width=True)
 
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
@@ -942,11 +950,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             renderizar_mensajeria_global("SUPERVISOR")
        
         with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
-    
-     
-                
-elif st.session_state.rol_sel == "VIGILADOR":
+            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")ssion_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
