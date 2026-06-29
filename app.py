@@ -859,19 +859,19 @@ if st.session_state.rol_sel == "MONITOREO":
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
     
 
-elif st.session_state.rol_sel == "SUPERVISOR":
+
+   elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         
         # 1. Definición necesaria para todo el rol
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
         
-        # Obtenemos el objetivo del Centro Táctico o un valor por defecto
-        obj_actual = st.session_state.get("obj_select_central", "SIN OBJETIVO SELECCIONADO")
+        # Usamos el objetivo seleccionado en el Centro Táctico
+        obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
         # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
-        
         col_j1, col_j2 = st.columns(2)
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
@@ -888,20 +888,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
+                # Captura el objetivo directamente desde la selección del QR
+                obj_alerta = st.session_state.get("obj_qr_tactico", "UBICACIÓN DESCONOCIDA")
+                
                 lat_envio, lon_envio = 0.0, 0.0
                 try:
                     loc = get_geolocation()
                     if loc and isinstance(loc, dict) and 'coords' in loc:
                         lat_envio = loc['coords'].get('latitude', 0.0)
                         lon_envio = loc['coords'].get('longitude', 0.0)
-                except: 
-                    pass
+                except: pass
                 
-                # Usamos obj_actual que viene del Centro Táctico
-                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_actual}|SUP:{st.session_state.user_sel}"
+                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_actual}")
-     
+                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+
+        # --- AQUÍ EMPIEZA LA MENSAJERÍA Y TABS ---
+        # (He borrado el bloque 'if len(opciones_obj) > 0:' que creaba la barra)  
 
        
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
