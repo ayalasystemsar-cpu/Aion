@@ -933,13 +933,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
                 
                
-# --- AQUÍ ESTÁ EL DISEÑO FINO ---
+
+        # --- AQUÍ ESTÁ EL DISEÑO FINO ---
         c1, c2 = st.columns([1, 2])
         
         with c1:
             # QR profesional (texto plano para evitar errores de URL)
             qr = qrcode.QRCode(box_size=6, border=1)
-            # Cambiamos la forma en que pasamos el dato
+            # Pasamos el dato como texto plano
             qr.add_data(f"OBJETIVO_ID:{datos_sel.get('ID', '0')}") 
             qr.make(fit=True)
             img = qr.make_image(fill_color="#00E5FF", back_color="black")
@@ -950,26 +951,25 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.markdown("<br><br><br>", unsafe_allow_html=True)
             
             # Botón fino y profesional
-            url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
+            url = f"http://maps.google.com/?q={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
             st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
-                # CSS específico para este estilo "fino"
-                st.markdown("""
-                    <style>
-                    div[data-testid="stLinkButton"] > a {
-                        background-color: transparent !important;
-                        border: 1px solid #00E5FF !important;
-                        color: #00E5FF !important;
-                        font-weight: bold !important;
-                        border-radius: 5px !important;
-                    }
-                    div[data-testid="stLinkButton"] > a:hover {
-                        background-color: #00E5FF !important;
-                        color: black !important;
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
-
-        
+            
+        # El CSS va fuera de los bloques 'with' para que se aplique a toda la página
+        st.markdown("""
+            <style>
+            div[data-testid="stLinkButton"] > a {
+                background-color: transparent !important;
+                border: 1px solid #00E5FF !important;
+                color: #00E5FF !important;
+                font-weight: bold !important;
+                border-radius: 5px !important;
+            }
+            div[data-testid="stLinkButton"] > a:hover {
+                background-color: #00E5FF !important;
+                color: black !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
  
       
 
