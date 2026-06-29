@@ -907,7 +907,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
 
-       with t_vis_qr:
+         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
             
