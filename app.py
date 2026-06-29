@@ -862,7 +862,11 @@ if st.session_state.rol_sel == "MONITOREO":
 
 
 
-                        # --- 0. DETECTOR DE ESCANEO (AL PRINCIPIO) ---
+                       
+        
+            
+            if len(opciones_servicios_r) > 0:
+                obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_servicios_r, key="sup_ruta_gmaps_target# --- 0. DETECTOR DE ESCANEO (AL PRINCIPIO) ---
 # Usamos st.query_params directamente
 if st.query_params.get("estado") == "escaneado":
     st.success("✅ ¡Código QR escaneado con éxito!")
@@ -950,13 +954,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     
                     if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
                         escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vigilador, v_patente, v_km_inicial, v_km_final, v_combustible])
-                        st.success(f"✅ Acta registrada. Recorridos: {v_km_final - v_km_inicial} km")
-        with t_ruta_gmaps:
-            st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
-            opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
-            
-            if len(opciones_servicios_r) > 0:
-                obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_servicios_r, key="sup_ruta_gmaps_target")
+                        st.success(f"✅ Acta registrada. Recorridos: {v_km_final - v_km_inicial} km")")
                 
                 datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
                 lat_target = datos_obj_r['LATITUD']
