@@ -872,15 +872,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
-        col_j1, col_j2 = st.columns([2, 3, 3, 2])
+        # Definimos las 4 columnas (espacio, botón, botón, espacio)
+        _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
+        
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "INICIO")
-                st.success(f"Jornada iniciada en {obj_actual}")
+                st.success("Jornada iniciada")
         with col_j2:
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "FIN")
-                st.success(f"Jornada cerrada en {obj_actual}")
+                st.success("Jornada cerrada")
 
         # --- BOTÓN DE PÁNICO (LIMPIO) ---
         st.markdown("<br>", unsafe_allow_html=True)
