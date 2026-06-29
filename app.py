@@ -894,6 +894,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # --- RESTO DE LA LÓGICA (Mantenida tal cual) ---
         # (Tabs, Centro Táctico, etc. permanecen iguales)
+
+        # --- RESTO DE LA LÓGICA (Mantenida tal cual) ---
+        # (Tabs, Centro Táctico, etc. permanecen iguales)
      
 
        
