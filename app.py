@@ -932,43 +932,40 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
+ with t_vis_qr:
+    st.markdown("### 📱 CENTRO TÁCTICO")
+    
+    # Filtramos objetivos
+    df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+    
+    if not df_objetivos_filtrados.empty:
+        obj_a_generar = st.selectbox("Seleccione objetivo:", df_objetivos_filtrados['OBJETIVO'].unique())
+        datos_obj = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
         
-        with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO")
+        # --- DISEÑO DELICADO (Estilo 1000340118.jpg) ---
+        col_qr, col_btn = st.columns([1, 2])
+        
+        with col_qr:
+            # QR simple, sin bordes negros gruesos, estilo más limpio
+            qr_data = f"ID_OBJETIVO: {datos_obj.get('ID', 'N/A')}"
+            qr = qrcode.QRCode(version=1, box_size=10, border=1) # Borde fino
+            qr.add_data(qr_data)
+            qr.make(fit=True)
+            # QR color celeste para que combine con el botón
+            st.image(qr.make_image(fill_color="#00E5FF", back_color="transparent").get_image(), width=150)
             
-            # Filtramos objetivos del supervisor
-            df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-            
-            if not df_objetivos_filtrados.empty:
-                obj_a_generar = st.selectbox("Seleccione objetivo:", df_objetivos_filtrados['OBJETIVO'].unique())
-                datos_obj = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_a_generar].iloc[0]
-                
-                # Columnas para tener el QR a la izq y el botón a la der
-                c1, c2 = st.columns([1, 1])
-                
-                with c1:
-                    # Contenedor del QR
-                    st.markdown('<div style="border: 4px solid #000000; padding: 5px; background-color: #ffffff;">', unsafe_allow_html=True)
-                    # Usamos una forma súper segura de obtener el ID
-                    id_val = str(datos_obj.get('ID', 'SIN_ID'))
-                    qr_gen = qrcode.QRCode(version=1, box_size=15, border=2)
-                    qr_gen.add_data(f"ID:{id_val}")
-                    qr_gen.make(fit=True)
-                    st.image(qr_gen.make_image(fill_color="black", back_color="white").get_image(), use_column_width=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                
-                with c2:
-                    # Botón GPS idéntico al de la foto
-                    url_gps = f"https://www.google.com/maps/dir/?api=1&destination={datos_obj.get('LATITUD', 0)},{datos_obj.get('LONGITUD', 0)}"
-                    st.markdown(f'''
-                        <a href="{url_gps}" target="_blank">
-                            <button style="width:100%; height: 325px; background-color: #00E5FF; color: black; font-weight: bold; border: 4px solid #000000; border-radius: 10px; font-size: 20px;">
-                                🗺️ ABRIR RUTA GPS
-                            </button>
-                        </a>
-                    ''', unsafe_allow_html=True)
-            else:
-                st.warning("No hay objetivos asignados.")
+        with col_btn:
+            # Botón estilizado como en la foto
+            url_gps = f"https://www.google.com/maps/dir/?api=1&destination={datos_obj.get('LATITUD', 0)},{datos_obj.get('LONGITUD', 0)}"
+            st.markdown(f"""
+                <a href="{url_gps}" target="_blank" style="text-decoration: none;">
+                    <div style="border: 1px solid #00E5FF; padding: 15px; text-align: center; color: #00E5FF; border-radius: 5px; font-weight: bold;">
+                        📖 IR AL OBJETIVO
+                    </div>
+                </a>
+            """, unsafe_allow_html=True)
+    else:
+        st.warning("No hay objetivos asignados.")
 
       
 
