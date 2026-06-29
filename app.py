@@ -861,43 +861,33 @@ if st.session_state.rol_sel == "MONITOREO":
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
-     
-        # --- DEFINICIÓN NECESARIA PARA TODO EL ROL ---
-        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
-        # --- FILTRADO DE DATOS (ESTO ES LO QUE TE FALTA) ---
+        # 1. Definición necesaria para todo el rol
+        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        
+        # Obtenemos el objetivo del Centro Táctico o un valor por defecto
+        obj_actual = st.session_state.get("obj_select_central", "SIN OBJETIVO SELECCIONADO")
 
         # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
         
         col_j1, col_j2 = st.columns(2)
-        # ... (tus botones)
-        
-        col_j1, col_j2 = st.columns(2)
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
-                # Usamos obj_seleccionado en lugar de "N/A"
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "INICIO")
-                st.success(f"Jornada iniciada en {obj_seleccionado}")
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "INICIO")
+                st.success(f"Jornada iniciada en {obj_actual}")
         with col_j2:
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
-                # Usamos obj_seleccionado en lugar de "N/A"
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
-                st.success(f"Jornada cerrada en {obj_seleccionado}")
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "FIN")
+                st.success(f"Jornada cerrada en {obj_actual}")
 
-      # --- BOTÓN DE PÁNICO (CORREGIDO) ---
+        # --- BOTÓN DE PÁNICO (LIMPIO) ---
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 1. DEFINIMOS LAS COLUMNAS AQUÍ
         _, col_panico, _ = st.columns([1, 2, 1]) 
         
-        # 2. LAS USAMOS INMEDIATAMENTE
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                # Usamos el estado del selectbox definido arriba
-                obj_alerta = st.session_state.get("obj_jornada_sel", "UBICACIÓN DESCONOCIDA")
-                
                 lat_envio, lon_envio = 0.0, 0.0
                 try:
                     loc = get_geolocation()
@@ -907,9 +897,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 except: 
                     pass
                 
-                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"
+                # Usamos obj_actual que viene del Centro Táctico
+                carga_sos = f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_actual}|SUP:{st.session_state.user_sel}"
                 escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos])
-                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_actual}")
      
 
        
