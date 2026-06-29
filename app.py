@@ -909,18 +909,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    # La URL ahora usa el parámetro de destino para que Google Maps guíe directo
-                    lat_dest = datos_sel.get('LATITUD', 0)
-                    lon_dest = datos_sel.get('LONGITUD', 0)
-                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&destination={lat_dest},{lon_dest}&travelmode=driving"
                     
-                    # El botón ahora muestra el nombre del objetivo dinámicamente
+                    # 1. Obtenemos las coordenadas
+                    lat = datos_sel.get('LATITUD', 0)
+                    lon = datos_sel.get('LONGITUD', 0)
+                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
+                    
+                    # 2. Construimos la URL de navegación asistida
+                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
+                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
+                    
+                    # 3. El botón con tu estilo fino y delicado
                     st.markdown(f'''
-                        <a href="{url_gmaps}" target="_blank" 
+                        <a href="{url_navegacion}" target="_blank" 
                         style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
                         color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
                         font-size: 14px; text-align: center; transition: 0.3s;">
-                        📍 IR A {obj_select}
+                        📍 IR A {nombre_obj}
                         </a>
                     ''', unsafe_allow_html=True)
                 
