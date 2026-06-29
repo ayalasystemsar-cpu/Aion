@@ -872,7 +872,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
-        col_j1, col_j2 = st.columns(2)
+        col_j1, col_j2 = st.columns([2, 3, 3, 2])
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "INICIO")
@@ -884,7 +884,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # --- BOTÓN DE PÁNICO (LIMPIO) ---
         st.markdown("<br>", unsafe_allow_html=True)
-        _, col_panico, _ = st.columns([1, 2, 1]) 
+        _, col_panico, _ = st.columns([1, 1, 1]) 
         
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
