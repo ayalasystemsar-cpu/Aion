@@ -579,7 +579,6 @@ if st.session_state.rol_sel == "MONITOREO":
         if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
-    # --- LÓGICA DE DETECCIÓN DE PÁNICO ---
     lista_objetivos_en_panico = []
     if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
         pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
@@ -616,27 +615,31 @@ if st.session_state.rol_sel == "MONITOREO":
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.rerun()
 
-        # ... [MANTENEMOS TU LÓGICA DE FILTROS Y DISTANCIA] ...
-        # (Se mantiene igual a tu código original hasta la parte del mapa)
+        obj_seleccionado = st.selectbox("🎯 ENFOCAR OBJETIVO:", ["MOSTRAR TODO"] + (list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else []))
+        
+        comisaria_cercana_name = None
+        lat_obj, lon_obj, com_lat_m, com_lon_m = 0, 0, 0, 0
+        
+        if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
+            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+            lat_obj, lon_obj = datos_obj['LATITUD'], datos_obj['LONGITUD']
+            # ... (cálculo de distancia) ...
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         if not df_mapa_monitoreo.empty:
-            # ... (Cálculo de centro_mapa igual que antes)
+            centro_mapa = [lat_obj, lon_obj] if obj_seleccionado != "MOSTRAR TODO" else [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
             m_mon = folium.Map(location=centro_mapa, zoom_start=13, tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", attr='CARTO')
             
-            # Dibujo de objetivos y pánico
             for _, r in df_mapa_monitoreo.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 folium.CircleMarker(location=[r['LATITUD'], r['LONGITUD']], radius=8, 
                                     color="#FF0000" if es_panico else "#00E5FF", 
                                     fill=True, tooltip=f"🎯 {r['OBJETIVO']}").add_to(m_mon)
             
-            # Dibujo de Comisarías y RUTA VERDE CALLE POR CALLE
             df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
                 es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
                 if es_la_mas_cercana and obj_seleccionado != "MOSTRAR TODO":
-                    # --- LA RUTA VERDE ---
                     coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, c['LATITUD'], c['LONGITUD'])
                     folium.PolyLine(locations=coordenadas_ruta, color="#008000", weight=6, opacity=0.8).add_to(m_mon)
                 
