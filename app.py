@@ -917,9 +917,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
-                    # REEMPLAZÁ AQUÍ CON TU URL EXACTA
-                    URL_REAL = "https://aion-yaroku.streamlit.app/" 
-                    qr.add_data(f"{URL_REAL}?estado=escaneado&id={datos_sel.get('ID', '0')}")
+                    # Cambiamos esto por un texto simple. 
+                    # El lector del celular simplemente mostrará esto en pantalla.
+                    texto_exito = f"✅ ÉXITO: {obj_select} - ID:{datos_sel.get('ID', '0')}"
+                    qr.add_data(texto_exito)
+                    
                     qr.make(fit=True)
                     img = qr.make_image(fill_color="#00E5FF", back_color="black")
                     st.image(img.get_image(), width=150)
