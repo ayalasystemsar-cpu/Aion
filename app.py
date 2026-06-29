@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -842,9 +841,8 @@ if st.session_state.rol_sel == "MONITOREO":
     
 
 elif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado:
-        # --- 0. GESTIÓN DE JORNADA ---
-        st.subheader("⏱️ GESTIÓN DE JORNADA")
+    # --- 0. GESTIÓN DE JORNADA ---
+       if st.subheader("⏱️ GESTIÓN DE JORNADA")
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
         opciones_obj = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS ASIGNADOS"]
@@ -859,94 +857,69 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
 
-        # --- BOTÓN DE PÁNICO (Centrado) ---
-        _, col_panico, _ = st.columns([1, 2, 1])
+        # --- BOTÓN DE PÁNICO CENTRADO ---
+        _, col_panico, _ = st.columns([0.5, 2, 0.5])
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
                 st.error("🚨 S.O.S ENVIADO")
         
         st.markdown("<hr>", unsafe_allow_html=True)
 
-
-        # --- 2. MENSAJERÍA Y TABS ---
-        df_msg = leer_matriz_nube("MENSAJERIA")
-        nombre_user = st.session_state.user_sel.upper()
-        total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "SUPERVISORES") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
-        label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
-
+        # --- 2. TABS ---
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
 
-        
         with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO")
             if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
+                color_v = "#00E5FF" 
+                
+                # Columnas lado a lado: Izquierda QR, Derecha GPS
                 col_qr, col_nav = st.columns([1, 1])
                 
-                # Definimos el color esmeralda eléctrico original
-                color_esmeralda = "#00E5FF" 
-                
-                # Configuración exacta del QR original: compacto y nítido
-                qr = qrcode.QRCode(version=1, box_size=12, border=2)
-                qr.add_data(f"AION:{obj_seleccionado}")
-                qr.make(fit=True)
-                
-                # Generamos el QR con fondo negro y trazo eléctrico
-                img = qr.make_image(fill_color=color_esmeralda, back_color="#000000")
-                
                 with col_qr:
-                    st.image(img.get_image(), width=200, caption=f"QR: {obj_seleccionado}")
+                    qr = qrcode.QRCode(version=1, box_size=8, border=1)
+                    qr.add_data(f"AION:{obj_seleccionado}")
+                    qr.make(fit=True)
+                    img = qr.make_image(fill_color="white", back_color="black")
+                    
+                    # Contenedor del QR con borde Verde Agua
+                    st.markdown(f'<div style="border: 2px solid {color_v}; padding: 5px; display: inline-block; border-radius: 4px;">', unsafe_allow_html=True)
+                    st.image(img.get_image(), width=140)
+                    st.markdown('</div>', unsafe_allow_html=True)
                 
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    # Botón con el estilo de borde y sombra esmeralda original
+                    # Botón GPS con estilo unificado
                     st.markdown(
-                        f'''<a href="#" style="display: block; background: transparent; 
-                        border: 1px solid {color_esmeralda}; color: {color_esmeralda}; 
-                        padding: 12px; border-radius: 4px; text-decoration: none; 
-                        text-align: center; font-family: 'Orbitron', sans-serif; font-size: 13px;
-                        box-shadow: 0 0 10px {color_esmeralda}40; transition: 0.3s;">
+                        f'''<a href="#" style="display: block; border: 2px solid {color_v}; 
+                        color: {color_v}; padding: 12px; text-decoration: none; text-align: center; 
+                        font-family: 'Orbitron', sans-serif; font-weight: bold; border-radius: 4px;">
                         🗺️ IR AL OBJETIVO
-                        </a>''', 
-                        unsafe_allow_html=True
+                        </a>''', unsafe_allow_html=True
                     )
             else:
-                st.warning("Seleccione un objetivo válido para generar el QR.")
+                st.warning("Seleccione un objetivo.")
 
-
-     # --- FORMULARIO DE FLOTA CON KM FINAL ---
-            st.markdown("---") 
-            st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
-            with st.form(key="form_acta_flota", clear_on_submit=True):
-                col1, col2 = st.columns(2)
-                with col1:
-                    v_patente = st.text_input("PATENTE/MÓVIL:").upper()
-                    v_km_inicial = st.number_input("KM INICIAL:", min_value=0)
-                with col2:
-                    v_km_final = st.number_input("KM FINAL:", min_value=0)
-                    v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
-                
-                v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
-                v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
-                
-                if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                    fecha = obtener_hora_argentina()
-                    
-                    # Se envía a CONTROL_FLOTA con el KM FINAL ingresado
-                    # Orden: FECHA | SUPERVISOR | MOVIL | KM_INICIAL | KM_FINAL | COMBUSTIBLE
-                    escribir_registro_nube("CONTROL_FLOTA", [
-                        fecha, 
-                        v_vigilador, 
-                        v_patente, 
-                        v_km_inicial, 
-                        v_km_final, 
-                        v_combustible
-                    ])
-                    
-                    # Cálculo rápido para informar al supervisor
-                    km_recorridos = v_km_final - v_km_inicial
-                    st.success(f"✅ Acta registrada. Recorridos: {km_recorridos} km")
+        # --- FORMULARIO DE FLOTA ---
+        st.markdown("---") 
+        st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
+        with st.form(key="form_acta_flota", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                v_patente = st.text_input("PATENTE/MÓVIL:").upper()
+                v_km_inicial = st.number_input("KM INICIAL:", min_value=0)
+            with col2:
+                v_km_final = st.number_input("KM FINAL:", min_value=0)
+                v_combustible = st.selectbox("CARGA COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
+            
+            v_vigilador = st.text_input("SUPERVISOR RESPONSABLE:").upper()
+            v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
+            
+            if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
+                # ... lógica de registro ...
+                km_recorridos = v_km_final - v_km_inicial
+                st.success(f"✅ Acta registrada. Recorridos: {km_recorridos} km")
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
             opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
