@@ -932,26 +932,52 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", label_msg, "📋 NOVEDADES Y RELEVOS"
         ])
-    with t_vis_qr:
-        st.markdown("### 📱 CENTRO TÁCTICO")
-        
-        df_filtro = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
-        
-        if not df_filtro.empty:
-            obj_select = st.selectbox("Objetivo:", df_filtro['OBJETIVO'].unique())
-            datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
+
+        with t_vis_qr:
+            st.markdown("### 📱 CENTRO TÁCTICO")
             
-            c1, c2 = st.columns([1, 1])
+            df_filtro = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
             
-            with c1:
-                st.markdown('<div style="border: 2px solid #000000; padding: 5px; background: #ffffff;">', unsafe_allow_html=True)
-                img = qrcode.make(f"ID:{datos_sel.get('ID', '0')}")
-                st.image(img.get_image(), use_column_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+            if not df_filtro.empty:
+                obj_select = st.selectbox("Seleccione Objetivo:", df_filtro['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
                 
-            with c2:
-                url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
-                st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%; height: 160px; background-color: #00E5FF; color: black; font-weight: bold; border: 2px solid #000000; border-radius: 5px;">IR AL OBJETIVO</button></a>', unsafe_allow_html=True)
+                # --- AQUÍ ESTÁ EL DISEÑO FINO ---
+                c1, c2 = st.columns([1, 2])
+                
+                with c1:
+                    # QR compacto y elegante
+                    qr = qrcode.QRCode(box_size=6, border=1)
+                    qr.add_data(f"ID:{datos_sel.get('ID', '0')}")
+                    qr.make(fit=True)
+                    img = qr.make_image(fill_color="#00E5FF", back_color="black")
+                    st.image(img.get_image(), width=150)
+                    st.caption(f"QR: {obj_select}")
+                    
+                with c2:
+                    # Espaciado para alinear el botón con el centro del QR
+                    st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    
+                    # Botón fino y profesional
+                    url = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
+                    st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
+
+                # CSS específico para este estilo "fino"
+                st.markdown("""
+                    <style>
+                    div[data-testid="stLinkButton"] > a {
+                        background-color: transparent !important;
+                        border: 1px solid #00E5FF !important;
+                        color: #00E5FF !important;
+                        font-weight: bold !important;
+                        border-radius: 5px !important;
+                    }
+                    div[data-testid="stLinkButton"] > a:hover {
+                        background-color: #00E5FF !important;
+                        color: black !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
 
         
  
