@@ -886,7 +886,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         # --- BOTÓN DE PÁNICO (LIMPIO) ---
         st.markdown("<br>", unsafe_allow_html=True)
-        _, col_panico, _ = st.columns([1, 1, 1]) 
+        _, col_panico, _ = st.columns([1.5, 1, 1.5]) 
         
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
