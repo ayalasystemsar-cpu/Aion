@@ -842,7 +842,8 @@ if st.session_state.rol_sel == "MONITOREO":
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     # --- 0. GESTIÓN DE JORNADA ---
-       if st.subheader("⏱️ GESTIÓN DE JORNADA")
+    # --- 0. GESTIÓN DE JORNADA ---
+        st.subheader("⏱️ GESTIÓN DE JORNADA")
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
         opciones_obj = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else ["SIN OBJETIVOS ASIGNADOS"]
@@ -857,7 +858,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
                 registrar_movimiento_supervisor(st.session_state.user_sel, obj_seleccionado, "FIN")
 
-        # --- BOTÓN DE PÁNICO CENTRADO ---
+        # --- BOTÓN DE PÁNICO (Centrado) ---
         _, col_panico, _ = st.columns([0.5, 2, 0.5])
         with col_panico:
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
@@ -874,7 +875,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if obj_seleccionado != "SIN OBJETIVOS ASIGNADOS":
                 color_v = "#00E5FF" 
                 
-                # Columnas lado a lado: Izquierda QR, Derecha GPS
                 col_qr, col_nav = st.columns([1, 1])
                 
                 with col_qr:
@@ -883,14 +883,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     qr.make(fit=True)
                     img = qr.make_image(fill_color="white", back_color="black")
                     
-                    # Contenedor del QR con borde Verde Agua
                     st.markdown(f'<div style="border: 2px solid {color_v}; padding: 5px; display: inline-block; border-radius: 4px;">', unsafe_allow_html=True)
                     st.image(img.get_image(), width=140)
                     st.markdown('</div>', unsafe_allow_html=True)
                 
                 with col_nav:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    # Botón GPS con estilo unificado
                     st.markdown(
                         f'''<a href="#" style="display: block; border: 2px solid {color_v}; 
                         color: {color_v}; padding: 12px; text-decoration: none; text-align: center; 
@@ -917,40 +915,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             v_novedad = st.text_area("DETALLE DE LA NOVEDAD O ESTADO DEL MÓVIL:")
             
             if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                # ... lógica de registro ...
                 km_recorridos = v_km_final - v_km_inicial
                 st.success(f"✅ Acta registrada. Recorridos: {km_recorridos} km")
-        with t_ruta_gmaps:
-            st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA VÍA GOOGLE MAPS")
-            opciones_servicios_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
-            
-            if len(opciones_servicios_r) > 0:
-                obj_ruta_sup = st.selectbox("SELECCIONE OBJETIVO DESTINO:", opciones_servicios_r, key="sup_ruta_gmaps_target")
-                
-                datos_obj_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_ruta_sup].iloc[0]
-                lat_target = datos_obj_r['LATITUD']
-                lon_target = datos_obj_r['LONGITUD']
-                
-                comisaria_r_name = None
-                com_lat_target, com_lon_target = None, None
-                dist_min_r = float('inf')
-                
-                for _, com in df_comisarias.iterrows():
-                    ln1, lt1, ln2, lt2 = map(math.radians, [lon_target, lat_target, com['LONGITUD'], com['LATITUD']])
-                    dln = ln2 - ln1
-                    dlt = lt2 - lt1
-                    a = math.sin(dlt/2)**2 + math.cos(lt1) * math.cos(lt2) * math.sin(dln/2)**2
-                    c = 2 * math.asin(math.sqrt(a))
-                    km = 6371 * c
-                    
-                    if km < dist_min_r:
-                        dist_min_r = km
-                        comisaria_r_name = com['COMISARIA']
-                        com_lat_target = com['LATITUD']
-                        com_lon_target = com['LONGITUD']
-                
-                if comisaria_r_name:
-                    st.info(f"👮 **Comisaría Encontrada:** {comisaria_r_name} (Distancia: {dist_min_r:.2f} Km)")
                     
                     # Generamos el enlace para Google Maps
                     url_gmaps = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_target},{com_lon_target}&destination={lat_target},{lon_target}&travelmode=driving"
