@@ -898,7 +898,7 @@ with t_vis_qr:
                         escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vigilador, v_patente, v_km_inicial, v_km_final, v_combustible])
                         st.success(f"✅ Acta registrada.")
 
-         with t_ruta_gmaps:
+     with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA")
             opciones_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
             if len(opciones_r) > 0:
