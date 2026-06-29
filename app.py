@@ -861,12 +861,18 @@ if st.session_state.rol_sel == "MONITOREO":
 
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
-     # --- 0. GESTIÓN DE JORNADA ---
+     
+        # --- DEFINICIÓN NECESARIA PARA TODO EL ROL ---
+        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+        
+        # --- FILTRADO DE DATOS (ESTO ES LO QUE TE FALTA) ---
+        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+
+        # --- 0. GESTIÓN DE JORNADA ---
         st.subheader("⏱️ GESTIÓN DE JORNADA")
         
-        
-
-        
+        col_j1, col_j2 = st.columns(2)
+        # ... (tus botones)
         
         col_j1, col_j2 = st.columns(2)
         with col_j1:
