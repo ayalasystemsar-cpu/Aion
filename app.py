@@ -955,7 +955,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
             
         # El CSS va fuera de los bloques 'with' para que se aplique a toda la página
-        st.markdown("""
+         st.markdown("""
             <style>
             div[data-testid="stLinkButton"] > a {
                 background-color: transparent !important;
