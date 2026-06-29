@@ -931,12 +931,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if not df_filtro.empty:
                 obj_select = st.selectbox("Seleccione Objetivo:", df_filtro['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_filtro[df_filtro['OBJETIVO'] == obj_select].iloc[0]
-                
-                # --- AQUÍ ESTÁ EL DISEÑO FINO ---
+
+
+           # --- AQUÍ ESTÁ EL DISEÑO FINO ---
         c1, c2 = st.columns([1, 2])
         
         with c1:
-            # QR profesional
             qr = qrcode.QRCode(box_size=6, border=1)
             qr.add_data(f"OBJETIVO_ID:{datos_sel.get('ID', '0')}") 
             qr.make(fit=True)
@@ -946,15 +946,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             
         with c2:
             st.markdown("<br><br><br>", unsafe_allow_html=True)
-            
-            # Botón fino y profesional
             url = f"http://maps.google.com/?q={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
             st.link_button("📍 IR AL OBJETIVO", url, use_container_width=True)
 
-        # Esta línea DEBE estar alineada al mismo nivel que 'c1, c2 = ...'
+        # Esta línea debe quedar SIN espacios a la izquierda (alineada al inicio)
         st.markdown("---")
             
-        # El CSS fuera de los bloques 'with'
+        # El CSS también debe quedar sin espacios a la izquierda
         st.markdown("""
             <style>
             div[data-testid="stLinkButton"] > a {
@@ -969,8 +967,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 color: black !important;
             }
             </style>
-            """, unsafe_allow_html=True)
- 
+            """, unsafe_allow_html=True) 
       
 
      # --- FORMULARIO DE FLOTA CON KM FINAL ---
