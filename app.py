@@ -505,6 +505,37 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
+# ============================================================
+# LÓGICA DE ESCANEO NATIVO (AION YAROKU)
+# ============================================================
+
+def callback_procesar_qr(frame):
+    # Convertimos el frame a formato BGR que usa OpenCV
+    img = frame.to_ndarray(format="bgr24")
+    
+    # Creamos el detector
+    detector = cv2.QRCodeDetector()
+    
+    # Intentamos detectar y decodificar
+    # data: es el texto oculto en el QR
+    # bbox: es el recuadro que marca el QR (nos sirve para confirmar que lo vio)
+    data, bbox, _ = detector.detectAndDecode(img)
+    
+    if data:
+        # Si encuentra algo, lo guardamos en la sesión
+        st.session_state.qr_detectado = data
+        
+        # Dibujamos un recuadro verde sobre el QR para feedback visual
+        if bbox is not None:
+            n_lines = len(bbox)
+            for i in range(n_lines):
+                point1 = tuple(bbox[i][0].astype(int))
+                point2 = tuple(bbox[(i + 1) % n_lines][0].astype(int))
+                cv2.line(img, point1, point2, (0, 255, 0), 3)
+
+    return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+
 # --- FIN FUNCIONES DE MANTENIMIENTO ---
 aplicar_identidad_alfa()
 
