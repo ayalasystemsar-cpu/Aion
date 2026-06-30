@@ -895,7 +895,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-    st.markdown('<div class="estacion-titulo">📱 CENTRO TÁCTICO</div>', unsafe_allow_html=True)
+            st.markdown('<div class="estacion-titulo">📱 CENTRO TÁCTICO</div>', unsafe_allow_html=True)
     
     # 1. SECCIÓN DE NAVEGACIÓN (Lo que ya tenías)
     if not df_objetivos_filtrados.empty:
