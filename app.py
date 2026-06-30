@@ -15,7 +15,10 @@ import math
 import requests
 from branca.element import Element
 import qrcode
-
+import cv2
+import json
+import av  # Necesario para el manejo de frames de video
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
@@ -501,6 +504,25 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
+
+# ============================================================
+# LÓGICA DE ESCANEO NATIVO (AION YAROKU)
+# ============================================================
+
+def callback_procesar_qr(frame):
+    # Convertimos el frame de video a formato que OpenCV entiende
+    img = frame.to_ndarray(format="bgr24")
+    detector = cv2.QRCodeDetector()
+    data, _, _ = detector.detectAndDecode(img)
+    
+    # Si detecta algo, guardamos el resultado en el session_state
+    if data:
+        st.session_state.qr_detectado = data
+    
+    # Devolvemos el frame para que se siga viendo en pantalla
+    return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+
 # --- FIN FUNCIONES DE MANTENIMIENTO ---
 aplicar_identidad_alfa()
 
@@ -934,12 +956,43 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
 
-        with t_vis_qr:
+       with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
+            
+            # Inicialización de estados
+            if 'qr_detectado' not in st.session_state: st.session_state.qr_detectado = None
+            if 'mostrar_camara' not in st.session_state: st.session_state.mostrar_camara = False
+
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
-                c1, c2 = st.columns([1, 2])
+
+                # Botón disparador (reemplaza la imagen estática)
+                if st.button("📸 ACTIVAR ESCÁNER NATIVO", use_container_width=True):
+                    st.session_state.mostrar_camara = True
+
+                # Lógica de la cámara
+                if st.session_state.mostrar_camara:
+                    webrtc_streamer(key="lector", video_frame_callback=callback_procesar_qr)
+                    if st.button("CERRAR CÁMARA"):
+                        st.session_state.mostrar_camara = False
+
+                # Validación automática al detectar QR
+                if st.session_state.qr_detectado:
+                    try:
+                        datos = json.loads(st.session_state.qr_detectado)
+                        # Registro automático en Firebase
+                        registrar_movimiento_supervisor(st.session_state.user_sel, datos['obj'], "VISITA_QR")
+                        
+                        st.success(f"✅ ¡ÉXITO! {datos['obj']} validado correctamente.")
+                        # Reseteo de estados
+                        st.session_state.qr_detectado = None
+                        st.session_state.mostrar_camara = False
+                    except:
+                        st.error("Error: El código QR no corresponde a Aion Yaroku.")
+                        st.session_state.qr_detectado = None
+
+            
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
