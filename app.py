@@ -462,6 +462,46 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
+# --- FUNCIONES DE MANTENIMIENTO Y CIERRE TÁCTICO ---
+
+def limpiar_matriz_nube(nombre_hoja):
+    """Borra todas las filas de la hoja, excepto los encabezados."""
+    try:
+        gc = conectar_google()
+        if gc:
+            worksheet = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja)
+            worksheet.delete_rows(2, worksheet.row_count)
+            return True
+    except: return False
+
+def ejecutar_cierre_táctico():
+    """Realiza el respaldo y limpieza de las matrices operativas."""
+    matrices = ["JORNADA_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
+    fecha_hoy = obtener_hora_argentina()
+    mes_actual = fecha_hoy.split("-")[1] 
+    
+    try:
+        gc = conectar_google()
+        for mat in matrices:
+            df = leer_matriz_nube(mat)
+            if not df.empty:
+                # A. Crea el respaldo
+                nombre_historico = f"{mat}_{mes_actual}"
+                try:
+                    hoja_hist = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_historico)
+                except:
+                    hoja_hist = gc.open_by_key(ID_MAESTRO_DB).add_worksheet(title=nombre_historico, rows="100", cols="20")
+                
+                # B. Escribe el histórico
+                hoja_hist.clear()
+                hoja_hist.update([df.columns.values.tolist()] + df.values.tolist())
+                
+                # C. Limpia la original
+                limpiar_matriz_nube(mat)
+        return True
+    except: return False
+
+# --- FIN FUNCIONES DE MANTENIMIENTO ---
 aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
