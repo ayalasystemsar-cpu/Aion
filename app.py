@@ -895,7 +895,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-    st.markdown('<div class="estacion-titulo">📱 LECTOR TÁCTICO DE OBJETIVOS</div>', unsafe_allow_html=True)
+            st.markdown('<div class="estacion-titulo">📱 LECTOR TÁCTICO DE OBJETIVOS</div>', unsafe_allow_html=True)
     
     # Este es el lector invisible: solo un recuadro fino
     st.components.v1.html("""
