@@ -1283,6 +1283,8 @@ elif st.session_state.rol_sel == "GERENCIA":
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
             st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
+        else:
+            st.write("*(Sin jornadas registradas)*")
 
         # 2. HISTÓRICO DE ALERTAS
         st.markdown("---")
@@ -1291,16 +1293,22 @@ elif st.session_state.rol_sel == "GERENCIA":
         if not df_alertas.empty:
             df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
             st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
+        else:
+            st.write("*(Sin alertas tácticas)*")
 
         # 3. AUDITORÍA DE RELEVOS
         st.markdown("---")
         st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
         df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_relevos.empty:
-            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
-            if 'TIPO_EVENTO' in df_relevos.columns:
-                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+        
+        if not df_relevos.empty and 'TIPO_EVENTO' in df_relevos.columns:
+            df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+            if not df_filtro.empty:
                 st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
+            else:
+                st.write("*(Sin relevos registrados en el periodo actual)*")
+        else:
+            st.write("*(Sin novedades registradas)*")
 
         # 4. AUDITORÍA DE FLOTA
         st.markdown("---")
@@ -1311,20 +1319,20 @@ elif st.session_state.rol_sel == "GERENCIA":
             if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+        else:
+            st.write("*(Sin registros de flota)*")
 
         # 5. COMANDO DE CIERRE TÁCTICO
         st.markdown("---")
         st.markdown("### ⚠️ COMANDO DE CIERRE TÁCTICO")
         st.info("Esta acción archiva todos los reportes operativos y reinicia los contadores del sistema.")
         
-        confirmar_cierre = st.checkbox("CONFIRMAR EJECUCIÓN DE CIERRE MENSUAL")
-        if confirmar_cierre:
+        if st.checkbox("CONFIRMAR EJECUCIÓN DE CIERRE MENSUAL"):
             if st.button("🚀 EJECUTAR RESPALDO Y REINICIO"):
                 with st.spinner("Procesando archivos históricos..."):
                     if ejecutar_cierre_táctico(): 
                         st.success("Cierre mensual completado. Todo el historial fue archivado.")
                         st.rerun()
-
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.subheader("⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL")
     
