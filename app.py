@@ -958,7 +958,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
-             
+            
             # Inicialización de estados
             if 'qr_detectado' not in st.session_state: st.session_state.qr_detectado = None
             if 'mostrar_camara' not in st.session_state: st.session_state.mostrar_camara = False
@@ -967,52 +967,36 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
 
-                # Botón disparador (reemplaza la imagen estática)
-                if st.button("📸 ACTIVAR ESCÁNER NATIVO", use_container_width=True):
-                    st.session_state.mostrar_camara = True
+                # 1. DEFINIMOS LAS COLUMNAS AL PRINCIPIO (Para evitar NameError)
+                c1, c2 = st.columns([1, 2])
 
-                # Lógica de la cámara
-                if st.session_state.mostrar_camara:
-                    webrtc_streamer(key="lector", video_frame_callback=callback_procesar_qr)
-                    if st.button("CERRAR CÁMARA"):
-                        st.session_state.mostrar_camara = False
-
-                # Validación automática al detectar QR
-                if st.session_state.qr_detectado:
-                    try:
-                        datos = json.loads(st.session_state.qr_detectado)
-                        # Registro automático en Firebase
-                        registrar_movimiento_supervisor(st.session_state.user_sel, datos['obj'], "VISITA_QR")
-                        
-                        st.success(f"✅ ¡ÉXITO! {datos['obj']} validado correctamente.")
-                        # Reseteo de estados
-                        st.session_state.qr_detectado = None
-                        st.session_state.mostrar_camara = False
-                    except:
-                        st.error("Error: El código QR no corresponde a Aion Yaroku.")
-                        st.session_state.qr_detectado = None
-
-            
+                # 2. LÓGICA DENTRO DE C1 (Donde antes iba solo el QR)
                 with c1:
-                    qr = qrcode.QRCode(box_size=6, border=1)
-                    qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
-                    qr.make(fit=True)
-                    st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
-                    st.caption(f"QR: {obj_select}")
+                    if st.session_state.mostrar_camara:
+                        # Si la cámara está activa, mostramos el lector
+                        webrtc_streamer(key="lector", video_frame_callback=callback_procesar_qr)
+                        if st.button("❌ CERRAR CÁMARA"):
+                            st.session_state.mostrar_camara = False
+                    else:
+                        # Si NO está activa, mostramos el QR y el botón para activar
+                        qr = qrcode.QRCode(box_size=6, border=1)
+                        # Usamos el formato JSON que acordamos para la lectura
+                        qr.add_data(json.dumps({"obj": obj_select, "id": str(datos_sel.get('ID', '0')), "sup": st.session_state.user_sel}))
+                        qr.make(fit=True)
+                        st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                        st.caption(f"QR: {obj_select}")
+                        
+                        if st.button("📸 ACTIVAR ESCÁNER", use_container_width=True):
+                            st.session_state.mostrar_camara = True
 
+                # 3. LÓGICA DENTRO DE C2 (Botón de navegación intacto)
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    
-                    # 1. Obtenemos las coordenadas
                     lat = datos_sel.get('LATITUD', 0)
                     lon = datos_sel.get('LONGITUD', 0)
-                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
-                    
-                    # 2. Construimos la URL de navegación asistida
-                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
+                    nombre_obj = obj_select
                     url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
                     
-                    # 3. El botón con tu estilo fino y delicado
                     st.markdown(f'''
                         <a href="{url_navegacion}" target="_blank" 
                         style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
@@ -1021,6 +1005,20 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         📍 IR A {nombre_obj}
                         </a>
                     ''', unsafe_allow_html=True)
+
+                # 4. VALIDACIÓN AUTOMÁTICA (Fuera de las columnas para procesar el resultado)
+                if st.session_state.qr_detectado:
+                    try:
+                        datos = json.loads(st.session_state.qr_detectado)
+                        registrar_movimiento_supervisor(st.session_state.user_sel, datos['obj'], "VISITA_QR")
+                        st.success(f"✅ ¡ÉXITO! {datos['obj']} validado correctamente.")
+                        st.session_state.qr_detectado = None
+                        st.session_state.mostrar_camara = False
+                        st.rerun() # Recargamos para limpiar la vista
+                    except:
+                        st.error("Error: El código QR no corresponde a Aion Yaroku.")
+                        st.session_state.qr_detectado = None
+
                 
                 st.markdown("---")
                 
