@@ -896,7 +896,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         
            with t_vis_qr:
-    st.markdown('<div class="estacion-titulo">📱 CENTRO TÁCTICO</div>', unsafe_allow_html=True)
+               st.markdown('<div class="estacion-titulo">📱 CENTRO TÁCTICO</div>', unsafe_allow_html=True)
     
     # 1. Tu selector original para elegir el objetivo
     obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
