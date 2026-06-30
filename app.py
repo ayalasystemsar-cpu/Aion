@@ -1148,57 +1148,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
-                st.success("✅ Cargado")
 
-        with t_mensajeria_sup:
-            renderizar_mensajeria_global("SUPERVISOR")
-
-elif st.session_state.rol_sel == "VIGILADOR":
-    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-    
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "VIGILADOR") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
-    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
-    
-    tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg, "🚨 PÁNICO"])
-  
-    with tab_presentismo:
-        st.markdown("### 📸 REGISTRO BIOMÉTRICO")
-        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:").strip() 
-            v_dni = st.text_input("LEGAJO:").strip() 
-            v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
-            img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
-            if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
-                if v_nombre_completo and v_dni and img_facial:
-                    fecha_hora_arg = obtener_hora_argentina()
-                    escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
-                    st.success(f"🔒 MARCACIÓN REGISTRADA PARA {v_nombre_completo.upper()}")
-                else:
-                    st.error("⚠️ Complete todos los campos.")
-
-    with tab_relevo:
-        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
-        with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
-            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            vig_saliente = st.text_input("SALE:").upper()
-            vig_entrante = st.text_input("ENTRA:").upper()
-            if st.form_submit_button("SANCIONAR CAMBIO"):
-                escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), v_obj_relevo, "RELEVO", vig_saliente, vig_entrante])
-                st.success("🔒 RELEVO REGISTRADO")
-
-    with tab_mensajeria:
-        renderizar_mensajeria_global("VIGILADOR")
-
-    with tab_panico:
-        st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
-        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
-            fecha = obtener_hora_argentina()
-            escribir_registro_nube("ALERTAS", [fecha, st.session_state.user_sel, "PÁNICO", "PENDIENTE", "OBJ_VIGILADOR", "PRUEBA"])
-            st.error("🚨 ALERTA ENVIADA")
 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
