@@ -14,4 +14,6 @@ streamlit-drawable-canvas
 osmnx
 networkx
 qrcode
-streamlit-autorefresh
+opencv-python
+streamlit-webrtc
+av
