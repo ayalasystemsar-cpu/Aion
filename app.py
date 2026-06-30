@@ -895,50 +895,39 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-            st.markdown('<div class="estacion-titulo">📱 CENTRO TÁCTICO</div>', unsafe_allow_html=True)
-    
-    # 1. SECCIÓN DE NAVEGACIÓN (Lo que ya tenías)
-    if not df_objetivos_filtrados.empty:
-        obj_select = st.selectbox("Seleccione Objetivo para Navegar:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
-        datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
-        
-        # Botón de Navegación Fino
-        lat, lon = datos_sel.get('LATITUD', 0), datos_sel.get('LONGITUD', 0)
-        url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={obj_select}&travelmode=driving"
-        
-        st.markdown(f'''
-            <a href="{url_navegacion}" target="_blank" 
-            style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
-            color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
-            font-size: 14px; text-align: center; margin-bottom: 20px;">
-            📍 NAVEGAR A {obj_select}
-            </a>
-        ''', unsafe_allow_html=True)
+            st.markdown("### 📱 CENTRO TÁCTICO")
+            if not df_objetivos_filtrados.empty:
+                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                c1, c2 = st.columns([1, 2])
+                with c1:
+                    qr = qrcode.QRCode(box_size=6, border=1)
+                    qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
+                    qr.make(fit=True)
+                    st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                    st.caption(f"QR: {obj_select}")
 
-    st.markdown("---")
-    
-    # 2. SECCIÓN DE ESCANEO (Lo nuevo)
-    st.markdown('<p style="color:#A0A5B5; font-size:12px; text-align:center;">LECTOR DE REGISTRO OPERATIVO</p>', unsafe_allow_html=True)
-    img_file = st.camera_input("ACTIVAR CÁMARA PARA ESCANEO")
-
-    if img_file:
-        # Confirmación fina
-        st.markdown(f"""
-            <div style="text-align: center; padding: 15px; border: 1px solid #00E5FF; border-radius: 4px; background: rgba(0, 229, 255, 0.05);">
-                <p style="font-family: 'Orbitron'; color: #00E5FF; font-size: 16px;">ESCANEO EXITOSO</p>
-                <p style="font-family: 'Rajdhani'; color: #FFFFFF; font-size: 20px; font-weight: bold;">OBJETIVO DETECTADO</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        c_ing, c_eg = st.columns(2)
-        with c_ing:
-            if st.button("ACEPTAR INGRESO", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "INGRESO")
-                st.success("Ingreso registrado.")
-        with c_eg:
-            if st.button("ACEPTAR EGRESO", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "EGRESO")
-                st.success("Egreso registrado.")
+                with c2:
+                    st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    
+                    # 1. Obtenemos las coordenadas
+                    lat = datos_sel.get('LATITUD', 0)
+                    lon = datos_sel.get('LONGITUD', 0)
+                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
+                    
+                    # 2. Construimos la URL de navegación asistida
+                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
+                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
+                    
+                    # 3. El botón con tu estilo fino y delicado
+                    st.markdown(f'''
+                        <a href="{url_navegacion}" target="_blank" 
+                        style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
+                        color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
+                        font-size: 14px; text-align: center; transition: 0.3s;">
+                        📍 IR A {nombre_obj}
+                        </a>
+                    ''', unsafe_allow_html=True)
                 
                 st.markdown("---")
                 
