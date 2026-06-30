@@ -931,7 +931,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "EGRESO")
             st.rerun()
                 
-                st.markdown("---")
+            st.markdown("---")
                 
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 
