@@ -969,7 +969,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
 
-with t_vis_qr:
+        with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             
             # Inicializamos estados si no existen
