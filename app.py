@@ -933,9 +933,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
-        
+
+                        
  with t_vis_qr:
-      st.markdown("### 📱 CENTRO TÁCTICO")
+    st.markdown("### 📱 CENTRO TÁCTICO")
     
     # Aseguramos estados
     if 'qr_detectado' not in st.session_state: st.session_state.qr_detectado = None
@@ -1009,7 +1010,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.error("Error: El código QR no corresponde a Aion Yaroku.")
                 st.session_state.qr_detectado = None
 
-                
                 st.markdown("---")
                 
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
