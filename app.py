@@ -1179,7 +1179,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
             
 elif st.session_state.rol_sel == "GERENCIA":
-    # --- 1. CÁLCULOS DINÁMICOS PARA CABECERA (KPIs HOY) ---
+
+    # --- 1. CÁLCULOS DINÁMICOS PARA CABECERA ---
     fecha_hoy = obtener_hora_argentina().split(" ")[0]
     df_jornada_actual = leer_matriz_nube("JORNADA_SUPERVISORES")
     
@@ -1236,14 +1237,42 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición enviada")
 
     with t_tab_auditoria:
-        # Aquí va tu tabla de auditoría (igual que antes)
+        # 1. AUDITORÍA DE JORNADA
         st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
             st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
 
-        # --- COMANDO DE CIERRE TÁCTICO ---
+        # 2. HISTÓRICO DE ALERTAS
+        st.markdown("---")
+        st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
+        df_alertas = leer_matriz_nube("ALERTAS")
+        if not df_alertas.empty:
+            df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
+            st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
+
+        # 3. AUDITORÍA DE RELEVOS
+        st.markdown("---")
+        st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
+        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
+        if not df_relevos.empty:
+            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+            if 'TIPO_EVENTO' in df_relevos.columns:
+                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+                st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
+
+        # 4. AUDITORÍA DE FLOTA
+        st.markdown("---")
+        st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
+        df_flota = leer_matriz_nube("CONTROL_FLOTA")
+        if not df_flota.empty:
+            df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
+            if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
+                df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
+                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+
+        # 5. COMANDO DE CIERRE TÁCTICO
         st.markdown("---")
         st.markdown("### ⚠️ COMANDO DE CIERRE TÁCTICO")
         st.info("Esta acción archiva todos los reportes operativos y reinicia los contadores del sistema.")
@@ -1252,11 +1281,9 @@ elif st.session_state.rol_sel == "GERENCIA":
         if confirmar_cierre:
             if st.button("🚀 EJECUTAR RESPALDO Y REINICIO"):
                 with st.spinner("Procesando archivos históricos..."):
-                    # Llamada a la función que debes tener en tus funciones globales
                     if ejecutar_cierre_táctico(): 
                         st.success("Cierre mensual completado. Todo el historial fue archivado.")
                         st.rerun()
-
 
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.subheader("⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL")
