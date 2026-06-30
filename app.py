@@ -1179,17 +1179,28 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
             
 elif st.session_state.rol_sel == "GERENCIA":
+    # --- CÁLCULOS DINÁMICOS PARA CABECERA ---
+    # 1. Personal Activo: Contamos supervisores únicos registrados hoy
+    df_jornada_actual = leer_matriz_nube("JORNADA_SUPERVISORES")
+    if not df_jornada_actual.empty:
+        df_jornada_actual.columns = [str(c).strip().upper() for c in df_jornada_actual.columns]
+        personal_activo = df_jornada_actual['SUPERVISOR'].nunique()
+    else:
+        personal_activo = 0
 
-    # 1. Cabecera ejecutiva
+    # 2. KPI Operativo: Relación de objetivos cubiertos hoy vs total
+    total_objetivos_db = len(df_objetivos) if not df_objetivos.empty else 1
+    objs_cubiertos = len(df_jornada_actual['OBJETIVO'].unique()) if not df_jornada_actual.empty else 0
+    kpi_operativo = int((objs_cubiertos / total_objetivos_db) * 100) if total_objetivos_db > 0 else 0
+
+    # --- 1. CABECERA EJECUTIVA (Estilo Fijo) ---
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("📊 KPI OPERATIVO", "98%")
-    col2.metric("👥 PERSONAL ACTIVO", "12")
+    col1.metric("📊 KPI OPERATIVO", f"{kpi_operativo}%")
+    col2.metric("👥 PERSONAL ACTIVO", f"{personal_activo}")
     col3.metric("👤 GERENTE", f"{st.session_state.user_sel}")
     
-    # 2. Contenedor para el reloj ejecutivo
     hora_container = col4.container()
     
-    # 3. Función de refresco adaptada para Gerencia (cada 5 segundos)
     @st.fragment(run_every=1)
     def mostrar_reloj_gerencia():
         hora_actual = obtener_hora_argentina().split(" ")[1]
@@ -1199,23 +1210,15 @@ elif st.session_state.rol_sel == "GERENCIA":
         mostrar_reloj_gerencia()
         
     st.write("---")
-    # ... (Aquí irían tus gráficos de rendimiento, reportes de costos o KPIs)
-    # 1. Cálculo de mensajes pendientes
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "GERENCIA") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
-    label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
 
+    # --- 2. COMANDO Y PESTAÑAS ---
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     
-    # 2. Definición de pestañas
     t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     
-    # 3. Pestaña Mensajería
     with t_mensajeria_ger:
         renderizar_mensajeria_global("GERENCIA")
         
-    # 4. Pestaña Ejecución
     with t_ejecucion_ger:
         col_g1, col_g2 = st.columns(2)
         with col_g1:
@@ -1232,9 +1235,8 @@ elif st.session_state.rol_sel == "GERENCIA":
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
                 st.success("✅ Petición enviada")
 
-    # 5. Pestaña Auditoría (Código directo, sin funciones)
     with t_tab_auditoria:
-        # 1. AUDITORÍA DE JORNADA
+        # AUDITORÍA DE JORNADA
         st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
@@ -1245,10 +1247,9 @@ elif st.session_state.rol_sel == "GERENCIA":
                 INICIO_DT=('DATETIME', 'first'), FIN_DT=('DATETIME', 'last')
             ).reset_index()
             df_reporte['DURACION_TOTAL'] = ((df_reporte['FIN_DT'] - df_reporte['INICIO_DT']).dt.total_seconds() / 60).round(2)
-            st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], 
-                        use_container_width=True, hide_index=True)
+            st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], use_container_width=True, hide_index=True)
 
-        # 2. HISTÓRICO DE ALERTAS
+        # HISTÓRICO DE ALERTAS
         st.markdown("---")
         st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
         df_alertas = leer_matriz_nube("ALERTAS")
@@ -1256,7 +1257,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
             st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
 
-        # 3. AUDITORÍA DE RELEVOS
+        # AUDITORÍA DE RELEVOS
         st.markdown("---")
         st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
         df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
@@ -1266,7 +1267,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
                 st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
 
-        # 4. AUDITORÍA DE FLOTA
+        # AUDITORÍA DE FLOTA
         st.markdown("---")
         st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
         df_flota = leer_matriz_nube("CONTROL_FLOTA")
@@ -1274,7 +1275,6 @@ elif st.session_state.rol_sel == "GERENCIA":
             df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
             df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
             st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
-    
 
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.subheader("⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL")
