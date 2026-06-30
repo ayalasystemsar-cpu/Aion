@@ -895,43 +895,41 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-            st.markdown('<div class="estacion-titulo">📱 CENTRO TÁCTICO</div>', unsafe_allow_html=True)
+            st.markdown("### 📱 CENTRO TÁCTICO")
+            if not df_objetivos_filtrados.empty:
+                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                c1, c2 = st.columns([1, 2])
+                with c1:
+                    qr = qrcode.QRCode(box_size=6, border=1)
+                    qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
+                    qr.make(fit=True)
+                    st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                    st.caption(f"QR: {obj_select}")
 
-    # 1. Selector de objetivo (ya lo tienes)
-    obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
-    
-    # 2. QR estético (Sin etiquetas que confundan al celular)
-    qr = qrcode.QRCode(box_size=4, border=1)
-    # Cambiamos el formato para que sea lo más simple posible y no lo confunda con una URL
-    qr.add_data(f"AION:{obj_select}") 
-    qr.make(fit=True)
-    st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=120)
-    
-    st.markdown("---")
-    
-    # 3. BOTÓN DE VALIDACIÓN TÁCTICA
-    # En lugar de que el celular abra una nota, el supervisor toca este botón para confirmar
-    if st.button("✔ VALIDAR ESCANEO Y REGISTRAR"):
-        st.session_state.confirmado = True
-        
-    # 4. Confirmación interna (Sin salir de la app)
-    if st.session_state.get("confirmado"):
-        st.markdown(f"""
-            <div style="text-align: center; padding: 15px; border: 1px solid #39FF14; border-radius: 4px; background: rgba(57, 255, 20, 0.05);">
-                <p style="font-family: 'Orbitron'; color: #39FF14; font-size: 16px;">ESCANEO EXITOSO</p>
-                <p style="font-family: 'Rajdhani'; color: #FFFFFF; font-size: 18px;">{obj_select}</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        c_ing, c_eg = st.columns(2)
-        if c_ing.button("INGRESAR"):
-            registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "INGRESO")
-            st.rerun()
-        if c_eg.button("EGRESAR"):
-            registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "EGRESO")
-            st.rerun()
+                with c2:
+                    st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    
+                    # 1. Obtenemos las coordenadas
+                    lat = datos_sel.get('LATITUD', 0)
+                    lon = datos_sel.get('LONGITUD', 0)
+                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
+                    
+                    # 2. Construimos la URL de navegación asistida
+                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
+                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
+                    
+                    # 3. El botón con tu estilo fino y delicado
+                    st.markdown(f'''
+                        <a href="{url_navegacion}" target="_blank" 
+                        style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
+                        color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
+                        font-size: 14px; text-align: center; transition: 0.3s;">
+                        📍 IR A {nombre_obj}
+                        </a>
+                    ''', unsafe_allow_html=True)
                 
-            st.markdown("---")
+                st.markdown("---")
                 
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 
