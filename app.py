@@ -956,9 +956,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
 
-       with t_vis_qr:
+        with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
-            
+             
             # Inicialización de estados
             if 'qr_detectado' not in st.session_state: st.session_state.qr_detectado = None
             if 'mostrar_camara' not in st.session_state: st.session_state.mostrar_camara = False
