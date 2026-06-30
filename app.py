@@ -969,43 +969,55 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
 
-        with t_vis_qr:
+                with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
+            
+            # Inicializamos estados si no existen
+            if 'qr_detectado' not in st.session_state: st.session_state.qr_detectado = None
+            if 'mostrar_camara' not in st.session_state: st.session_state.mostrar_camara = False
+
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                
                 c1, c2 = st.columns([1, 2])
+                
                 with c1:
-                    qr = qrcode.QRCode(box_size=6, border=1)
-                    qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
-                    qr.make(fit=True)
-                    st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
-                    st.caption(f"QR: {obj_select}")
+                    # Lógica de alternancia: Mostrar cámara o mostrar QR
+                    if st.session_state.mostrar_camara:
+                        webrtc_streamer(
+                            key="lector", 
+                            video_frame_callback=callback_procesar_qr, 
+                            media_stream_constraints={"video": True, "audio": False} # SIN MICRÓFONO
+                        )
+                        if st.button("❌ CERRAR CÁMARA"):
+                            st.session_state.mostrar_camara = False
+                            st.rerun()
+                    else:
+                        # QR Estático
+                        qr = qrcode.QRCode(box_size=6, border=1)
+                        qr.add_data(json.dumps({"obj": obj_select, "id": str(datos_sel.get('ID', '0')), "sup": st.session_state.user_sel}))
+                        qr.make(fit=True)
+                        st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                        
+                        if st.button("📸 ACTIVAR ESCÁNER"):
+                            st.session_state.mostrar_camara = True
+                            st.rerun()
 
                 with c2:
-                    st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    
-                    # 1. Obtenemos las coordenadas
-                    lat = datos_sel.get('LATITUD', 0)
-                    lon = datos_sel.get('LONGITUD', 0)
-                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
-                    
-                    # 2. Construimos la URL de navegación asistida
-                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
-                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
-                    
-                    # 3. El botón con tu estilo fino y delicado
-                    st.markdown(f'''
-                        <a href="{url_navegacion}" target="_blank" 
-                        style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
-                        color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
-                        font-size: 14px; text-align: center; transition: 0.3s;">
-                        📍 IR A {nombre_obj}
-                        </a>
-                    ''', unsafe_allow_html=True)
-                
-                st.markdown("---")
-                
+                    # Solo mostramos el botón de navegación si no estamos usando la cámara
+                    if not st.session_state.mostrar_camara:
+                        st.markdown("<br><br><br>", unsafe_allow_html=True)
+                        url_nav = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}&destination_place_name={obj_select}&travelmode=driving"
+                        st.markdown(f'''<a href="{url_nav}" target="_blank" style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-size: 14px; text-align: center;">📍 IR A {obj_select}</a>''', unsafe_allow_html=True)
+
+                # Feedback al escanear
+                if st.session_state.qr_detectado:
+                    st.success(f"✅ ¡QR Detectado: {st.session_state.qr_detectado}!")
+                    if st.button("Limpiar resultado"):
+                        st.session_state.qr_detectado = None
+                        st.rerun()
+
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 
                 with st.form(key="form_acta_flota", clear_on_submit=True):
