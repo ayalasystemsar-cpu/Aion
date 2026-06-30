@@ -894,47 +894,43 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
 
-        with t_vis_qr:
-            st.markdown('<div class="estacion-titulo">📱 CENTRO TÁCTICO</div>', unsafe_allow_html=True)
+        
+           with t_vis_qr:
+    st.markdown('<div class="estacion-titulo">📱 CENTRO TÁCTICO</div>', unsafe_allow_html=True)
     
-    if not df_objetivos_filtrados.empty:
-        # Mantienes tu selector igual
-        obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
-        datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
-        
-        c1, c2 = st.columns([1, 2])
-        
-        with c1:
-            # Tu QR que ya tienes
-            qr = qrcode.QRCode(box_size=6, border=1)
-            qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
-            qr.make(fit=True)
-            st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+    # 1. Tu selector original para elegir el objetivo
+    obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+    datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+    
+    # 2. QR en tamaño justo, sin que ocupe todo el panel
+    c1, c2 = st.columns([1, 2])
+    with c1:
+        qr = qrcode.QRCode(box_size=4, border=1)
+        qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
+        qr.make(fit=True)
+        st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=100)
+    
+    with c2:
+        # Aquí el botón que reemplaza la "nota" grotesca del celular
+        if st.button("✔ CONFIRMAR ESCANEO DEL QR", use_container_width=True):
+            st.session_state.confirmado = True
             
-            # --- AQUÍ AGREGAMOS EL BOTÓN FINO DE CONFIRMACIÓN ---
-            if st.button("✔ CONFIRMAR ESCANEO", use_container_width=True):
-                st.session_state.escaneo_exitoso = True
-
-        with c2:
-            # Tu botón de navegación original
-            lat, lon = datos_sel.get('LATITUD', 0), datos_sel.get('LONGITUD', 0)
-            url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={obj_select}&travelmode=driving"
-            st.markdown(f'''<a href="{url_navegacion}" target="_blank" style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-size: 14px; text-align: center;">📍 IR A {obj_select}</a>''', unsafe_allow_html=True)
-
-        # --- CARTELITO FINO QUE APARECE SOLO TRAS EL CLIC ---
-        if st.session_state.get("escaneo_exitoso"):
-            st.markdown(f"""
-                <div style="text-align: center; padding: 10px; border: 1px solid #00E5FF; border-radius: 4px; background: rgba(0, 229, 255, 0.1);">
-                    <p style="font-family: 'Orbitron'; color: #00E5FF; font-size: 14px;">ESCANEO EXITOSO: {obj_select}</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            c_ing, c_eg = st.columns(2)
-            if c_ing.button("INGRESO"):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "INGRESO")
-            if c_eg.button("EGRESO"):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "EGRESO")
-                
+    # 3. EL CARTELITO FINO QUE QUERÍAS (Solo aparece tras confirmar)
+    if st.session_state.get("confirmado"):
+        st.markdown(f"""
+            <div style="text-align: center; padding: 15px; border: 1px solid #00E5FF; border-radius: 4px; background: rgba(0, 229, 255, 0.1);">
+                <p style="font-family: 'Orbitron'; color: #00E5FF; font-size: 16px;">ESCANEO EXITOSO</p>
+                <p style="font-family: 'Rajdhani'; color: #FFFFFF; font-size: 18px;">{obj_select} - INGRESO/EGRESO</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        c_ing, c_eg = st.columns(2)
+        if c_ing.button("ACEPTAR INGRESO", use_container_width=True):
+            registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "INGRESO")
+            st.rerun() # Limpia y refresca
+        if c_eg.button("ACEPTAR EGRESO", use_container_width=True):
+            registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, "EGRESO")
+            st.rerun()     
                 st.markdown("---")
                 
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
