@@ -1117,74 +1117,125 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     st.session_state.legajo_vigilador = v_dni
                     
                     fecha_hora_arg = obtener_hora_argentina()
-                    sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                    tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
-                    
-                    escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
-                    
-                    st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
-                else:
-                    st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
+elif st.session_state.rol_sel == "SUPERVISOR":
+    if st.session_state.sup_autenticado:
+        sup_activo_normalizado = st.session_state.user_sel.strip().upper()
+        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
-    # 4. Pestaña de Relevo
+        st.subheader("⏱️ GESTIÓN DE JORNADA")
+        _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
+        with col_j1:
+            if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "INICIO")
+                st.success("Jornada iniciada")
+        with col_j2:
+            if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
+                registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "FIN")
+                st.success("Jornada cerrada")
+
+        t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
+            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
+        ])
+        
+        with t_vis_qr:
+            st.markdown("### 📱 CENTRO TÁCTICO")
+            if 'qr_detectado' not in st.session_state: st.session_state.qr_detectado = None
+            if 'mostrar_camara' not in st.session_state: st.session_state.mostrar_camara = False
+
+            if not df_objetivos_filtrados.empty:
+                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                c1, c2 = st.columns([1, 2])
+                
+                with c1:
+                    if st.session_state.mostrar_camara:
+                        webrtc_streamer(key="lector", video_frame_callback=callback_procesar_qr, media_stream_constraints={"video": True, "audio": False})
+                        if st.button("❌ CERRAR CÁMARA"): st.session_state.mostrar_camara = False
+                    else:
+                        qr = qrcode.QRCode(box_size=6, border=1)
+                        qr.add_data(json.dumps({"obj": obj_select, "id": str(datos_sel.get('ID', '0')), "sup": st.session_state.user_sel}))
+                        qr.make(fit=True)
+                        st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                        if st.button("📸 ACTIVAR ESCÁNER", use_container_width=True): st.session_state.mostrar_camara = True
+
+                with c2:
+                    st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    url_nav = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}&destination_place_name={obj_select}&travelmode=driving"
+                    st.markdown(f'''<a href="{url_nav}" target="_blank" style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-size: 14px; text-align: center;">📍 IR A {obj_select}</a>''', unsafe_allow_html=True)
+
+                if st.session_state.qr_detectado:
+                    try:
+                        datos = json.loads(st.session_state.qr_detectado)
+                        registrar_movimiento_supervisor(st.session_state.user_sel, datos['obj'], "VISITA_QR")
+                        st.success(f"### ✅ ¡QR ESCANEADO CON ÉXITO!\n**Objetivo:** {datos['obj']}\n**Supervisor:** {st.session_state.user_sel}")
+                        st.session_state.qr_detectado = None
+                        st.session_state.mostrar_camara = False
+                        st.rerun()
+                    except:
+                        st.error("Error: QR no válido.")
+                        st.session_state.qr_detectado = None
+
+        with t_ruta_gmaps:
+            st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA")
+            # ... tu lógica original de navegación ...
+
+        with t_car_tac:
+            novedad_sup = st.text_area("Novedad / Registro Operativo:")
+            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
+                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
+                st.success("✅ Cargado")
+
+        with t_mensajeria_sup:
+            renderizar_mensajeria_global("SUPERVISOR")
+
+elif st.session_state.rol_sel == "VIGILADOR":
+    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+    
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
+    total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "VIGILADOR") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
+    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
+    
+    tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg, "🚨 PÁNICO"])
+  
+    with tab_presentismo:
+        st.markdown("### 📸 REGISTRO BIOMÉTRICO")
+        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
+            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:").strip() 
+            v_dni = st.text_input("LEGAJO:").strip() 
+            v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
+            v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
+            img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
+            if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
+                if v_nombre_completo and v_dni and img_facial:
+                    fecha_hora_arg = obtener_hora_argentina()
+                    escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
+                    st.success(f"🔒 MARCACIÓN REGISTRADA PARA {v_nombre_completo.upper()}")
+                else:
+                    st.error("⚠️ Complete todos los campos.")
+
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
-            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
-            vig_saliente = st.text_input("SALE:").upper().strip()
-            vig_entrante = st.text_input("ENTRA:").upper().strip()
-            v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
+            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj)
+            vig_saliente = st.text_input("SALE:").upper()
+            vig_entrante = st.text_input("ENTRA:").upper()
             if st.form_submit_button("SANCIONAR CAMBIO"):
-                sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                fecha = obtener_hora_argentina()
-                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
-                escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
-                st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
+                escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), v_obj_relevo, "RELEVO", vig_saliente, vig_entrante])
+                st.success("🔒 RELEVO REGISTRADO")
 
-    # 5. Pestaña Mensajería
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
-# 6. Pestaña Pánico (CORRECTA PARA EL MAPA)
+
     with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
-        
-        # BUSCAR OBJETIVO
-        df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
-        df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
-        nombre_user_clean = st.session_state.user_sel.strip().upper()
-        jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
-       # Lógica de detección (Ya la tienes)
-        if not jornada_actual.empty:
-            obj_detectado = jornada_actual['OBJETIVO'].values[0]
-            st.success(f"📍 OBJETIVO DETECTADO: **{obj_detectado}**")
-        else:
-            obj_detectado = "SIN_OBJETIVO"
-            st.error("⚠️ OBJETIVO NO DETECTADO. SELECCIONE MANUALMENTE:")
-            obj_detectado = st.selectbox("OBJETIVO:", opciones_globales_obj)
-
-        # Botón de Pánico Unificado
         if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
-            nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR")).upper()
-            sup_asignado = "MONITOREO"
-            
-            if not df_objetivos.empty:
-                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
-                if not filtro.empty:
-                    sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-            
             fecha = obtener_hora_argentina()
-            carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
-            
-            # 1. Escritura para el MAPA (No se toca)
-            escribir_registro_nube("ALERTAS", [
-                fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"
-            ])
-            
-            # 2. DISPARO DE MENSAJES (Integración del nuevo sistema)
-            enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
-            
-            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
+            escribir_registro_nube("ALERTAS", [fecha, st.session_state.user_sel, "PÁNICO", "PENDIENTE", "OBJ_VIGILADOR", "PRUEBA"])
+            st.error("🚨 ALERTA ENVIADA")
+
        
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
