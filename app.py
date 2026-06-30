@@ -1090,8 +1090,8 @@ with t_vis_qr:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
 
 elif st.session_state.rol_sel == "VIGILADOR":
-    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
+     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
     # 1. Calculamos el total de mensajes pendientes
     df_msg = leer_matriz_nube("MENSAJERIA")
