@@ -935,11 +935,30 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO")
-            if not df_objetivos_filtrados.empty:
-                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
-                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
-                c1, c2 = st.columns([1, 2])
+            st.markdown("### 📱 CENTRO TÁCTICO DE ESCANEO")
+            
+            # 1. Creamos un campo de entrada que espera el "tipeo" del escáner
+            codigo_input = st.text_input("ESPERANDO ESCANEO (ACERCÁ EL QR):", key="input_lector_qr", placeholder="El escáner escribirá aquí automáticamente...")
+            
+            if codigo_input:
+                try:
+                    # 2. El escáner envía el texto (JSON), lo convertimos a datos
+                    datos_qr = json.loads(codigo_input)
+                    
+                    # 3. Guardamos en la nube (Ajustá el nombre de la hoja si es necesario)
+                    if "obj" in datos_qr:
+                        st.success(f"✅ ¡INGRESO REGISTRADO EN: {datos_qr['obj']}!")
+                        escribir_registro_nube("NOVEDADES_GUARDIA", [
+                            obtener_hora_argentina(), 
+                            st.session_state.user_sel, 
+                            f"INGRESO {datos_qr['obj']} - ID: {datos_qr['id']}"
+                        ])
+                        # 4. Limpiamos el campo y recargamos para estar listos para el próximo
+                        st.session_state.input_lector_qr = ""
+                        st.rerun()
+                except:
+                    st.error("Formato QR no reconocido. Verificá que sea el código correcto.")
+                    st.session_state.input_lector_qr = ""
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
