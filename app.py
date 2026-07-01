@@ -898,7 +898,10 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
-        
+
+
+
+
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -919,6 +922,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.markdown("<br>", unsafe_allow_html=True)
         _, col_panico, _ = st.columns([1, 1, 1]) 
         with col_panico:
+            # BOTÓN DE PÁNICO CON LEYENDA PERSISTENTE
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
                 obj_alerta = st.session_state.get("obj_qr_tactico", "UBICACIÓN DESCONOCIDA")
                 lat_envio, lon_envio = 0.0, 0.0
@@ -929,10 +933,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         lon_envio = loc['coords'].get('longitude', 0.0)
                 except: pass
                 
-                # Escritura con confirmación visual
+                # Escritura en la base de datos
                 exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"])
+                
                 if exito:
-                    st.error(f"🚨 S.O.S ACTIVADO DESDE: {obj_alerta}")
+                    st.session_state.mensaje_panico = f"🚨 S.O.S ACTIVADO DESDE: {obj_alerta}"
+            
+            # Si existe el mensaje en memoria, lo mostramos
+            if 'mensaje_panico' in st.session_state:
+                st.error(st.session_state.mensaje_panico)
+                # Opcional: borrarlo tras 5 segundos o al recargar
+                if st.button("Cerrar Aviso"):
+                    del st.session_state.mensaje_panico
+                    st.rerun()
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
@@ -1003,33 +1016,32 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             renderizar_mensajeria_global("SUPERVISOR")
        
         with t_pres_sup:
-            st.markdown("### 📋 TABLERO TÁCTICO: RELEVOS Y PÁNICOS")
-            df_nov_sup = leer_matriz_nube("NOVEDADES_GUARDIA")
-            df_pan_sup = leer_matriz_nube("ALERTAS")
+            st.markdown("### 📋 TABLERO TÁCTICO SEPARADO")
             
+            # CUADRO 1: RELEVOS
+            st.markdown("#### 🔄 RELEVOS DE GUARDIA")
+            df_nov_sup = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_nov_sup.empty:
                 df_nov_sup.columns = [str(c).strip().upper() for c in df_nov_sup.columns]
-                df_nov_sup['TIPO'] = '🔄 RELEVO'
+                if 'SUPERVISOR' in df_nov_sup.columns:
+                    df_nov_sup = df_nov_sup[df_nov_sup['SUPERVISOR'].str.upper() == sup_activo_normalizado]
+                    df_nov_sup = df_nov_sup.drop(columns=['SUPERVISOR'])
+                st.dataframe(df_nov_sup.iloc[::-1], use_container_width=True, hide_index=True)
+            else:
+                st.info("Sin relevos registrados.")
+
+            st.markdown("---")
             
+            # CUADRO 2: PÁNICOS
+            st.markdown("#### 🚨 ALERTAS DE PÁNICO")
+            df_pan_sup = leer_matriz_nube("ALERTAS")
             if not df_pan_sup.empty:
                 df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
-                df_pan_sup = df_pan_sup.rename(columns={'CARGA_UTIL': 'DETALLE', 'USUARIO': 'REMITENTE'})
-                df_pan_sup['TIPO'] = '🚨 PÁNICO'
-            
-            if not df_nov_sup.empty or not df_pan_sup.empty:
-                df_final = pd.concat([df_nov_sup, df_pan_sup], ignore_index=True)
-                if 'FECHA' in df_final.columns:
-                    df_final['FECHA_ORDEN'] = pd.to_datetime(df_final['FECHA'], errors='coerce')
-                    df_final = df_final.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
-                
-                # Filtrar por supervisor y luego eliminar la columna
-                if 'SUPERVISOR' in df_final.columns:
-                    df_final = df_final[df_final['SUPERVISOR'].str.upper() == sup_activo_normalizado]
-                    df_final = df_final.drop(columns=['SUPERVISOR'])
-                
-                st.dataframe(df_final, use_container_width=True, hide_index=True)
+                # Filtrar si la alerta contiene el nombre del supervisor
+                df_pan_sup = df_pan_sup[df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False)]
+                st.dataframe(df_pan_sup.iloc[::-1], use_container_width=True, hide_index=True)
             else:
-                st.info("Sin registros de relevos o pánicos activos.")
+                st.info("Sin alertas de pánico registradas.")
 
 
 
