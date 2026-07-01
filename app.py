@@ -968,19 +968,32 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
-
-        with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO")
+with t_vis_qr:
+    st.markdown("### 📱 CENTRO TÁCTICO")
+    
+    # Este campo es el que "atrapa" lo que tu escáner escribe
+    codigo_input = st.text_input("ESCANEÁ EL QR AQUÍ:", key="input_scanner_limpio", label_visibility="visible")
+    
+    if codigo_input:
+        try:
+            # Intentamos convertir el texto JSON que escaneaste a algo legible
+            datos_qr = json.loads(codigo_input)
+            st.success(f"✅ ¡Objetivo detectado: {datos_qr['obj']}!")
             
-            # Inicializamos estados si no existen
-            if 'qr_detectado' not in st.session_state: st.session_state.qr_detectado = None
-            if 'mostrar_camara' not in st.session_state: st.session_state.mostrar_camara = False
-
-            if not df_objetivos_filtrados.empty:
-                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
-                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
-                
-                c1, c2 = st.columns([1, 2])
+            # Acá es donde guardamos ese dato en tu base de datos automáticamente
+            # (Ajustá el nombre de la pestaña si es necesario)
+            escribir_registro_nube("NOVEDADES", [
+                obtener_hora_argentina(), 
+                st.session_state.user_sel, 
+                f"INGRESO EN {datos_qr['obj']} (ID: {datos_qr['id']})"
+            ])
+            st.balloons() # Feedback visual de que se registró
+        except:
+            st.error("Error al leer el QR. Asegurate de que sea el formato correcto.")
+            
+        # Limpiamos el campo para el próximo escaneo
+        st.session_state.input_scanner_limpio = ""
+        
                 
                 with c1:
                     # Lógica de alternancia: Mostrar cámara o mostrar QR
