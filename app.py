@@ -15,10 +15,6 @@ import math
 import requests
 from branca.element import Element
 import qrcode
-import cv2
-import json
-import av  # Necesario para el manejo de frames de video
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
@@ -505,37 +501,6 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
-# ============================================================
-# LÓGICA DE ESCANEO NATIVO (AION YAROKU)
-# ============================================================
-
-def callback_procesar_qr(frame):
-    # Convertimos el frame a formato BGR que usa OpenCV
-    img = frame.to_ndarray(format="bgr24")
-    
-    # Creamos el detector
-    detector = cv2.QRCodeDetector()
-    
-    # Intentamos detectar y decodificar
-    # data: es el texto oculto en el QR
-    # bbox: es el recuadro que marca el QR (nos sirve para confirmar que lo vio)
-    data, bbox, _ = detector.detectAndDecode(img)
-    
-    if data:
-        # Si encuentra algo, lo guardamos en la sesión
-        st.session_state.qr_detectado = data
-        
-        # Dibujamos un recuadro verde sobre el QR para feedback visual
-        if bbox is not None:
-            n_lines = len(bbox)
-            for i in range(n_lines):
-                point1 = tuple(bbox[i][0].astype(int))
-                point2 = tuple(bbox[(i + 1) % n_lines][0].astype(int))
-                cv2.line(img, point1, point2, (0, 255, 0), 3)
-
-    return av.VideoFrame.from_ndarray(img, format="bgr24")
-
-
 # --- FIN FUNCIONES DE MANTENIMIENTO ---
 aplicar_identidad_alfa()
 
@@ -968,69 +933,44 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
-with t_vis_qr:
-    st.markdown("### 📱 CENTRO TÁCTICO")
-    
-    # Este campo es el que "atrapa" lo que tu escáner escribe
-    codigo_input = st.text_input("ESCANEÁ EL QR AQUÍ:", key="input_scanner_limpio", label_visibility="visible")
-    
-    if codigo_input:
-        try:
-            # Intentamos convertir el texto JSON que escaneaste a algo legible
-            datos_qr = json.loads(codigo_input)
-            st.success(f"✅ ¡Objetivo detectado: {datos_qr['obj']}!")
-            
-            # Acá es donde guardamos ese dato en tu base de datos automáticamente
-            # (Ajustá el nombre de la pestaña si es necesario)
-            escribir_registro_nube("NOVEDADES", [
-                obtener_hora_argentina(), 
-                st.session_state.user_sel, 
-                f"INGRESO EN {datos_qr['obj']} (ID: {datos_qr['id']})"
-            ])
-            st.balloons() # Feedback visual de que se registró
-        except:
-            st.error("Error al leer el QR. Asegurate de que sea el formato correcto.")
-            
-        # Limpiamos el campo para el próximo escaneo
-        st.session_state.input_scanner_limpio = ""
-        
- with c1:
-                    # Lógica de alternancia: Mostrar cámara o mostrar QR
-                    if st.session_state.mostrar_camara:
-                        webrtc_streamer(
-                            key="lector", 
-                            video_frame_callback=callback_procesar_qr, 
-                            media_stream_constraints={"video": True, "audio": False}
-                        )
-                        if st.button("❌ CERRAR CÁMARA"):
-                            st.session_state.mostrar_camara = False
-                            st.rerun()
-                    else:
-                        # QR Estático
-                        qr = qrcode.QRCode(box_size=6, border=1)
-                        qr.add_data(json.dumps({"obj": obj_select, "id": str(datos_sel.get('ID', '0')), "sup": st.session_state.user_sel}))
-                        qr.make(fit=True)
-                        st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
-                        
-                        if st.button("📸 ACTIVAR ESCÁNER"):
-                            st.session_state.mostrar_camara = True
-                            st.rerun()
-                
+
+        with t_vis_qr:
+            st.markdown("### 📱 CENTRO TÁCTICO")
+            if not df_objetivos_filtrados.empty:
+                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                c1, c2 = st.columns([1, 2])
+                with c1:
+                    qr = qrcode.QRCode(box_size=6, border=1)
+                    qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
+                    qr.make(fit=True)
+                    st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
+                    st.caption(f"QR: {obj_select}")
 
                 with c2:
-                    # Solo mostramos el botón de navegación si no estamos usando la cámara
-                    if not st.session_state.mostrar_camara:
-                        st.markdown("<br><br><br>", unsafe_allow_html=True)
-                        url_nav = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}&destination_place_name={obj_select}&travelmode=driving"
-                        st.markdown(f'''<a href="{url_nav}" target="_blank" style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-size: 14px; text-align: center;">📍 IR A {obj_select}</a>''', unsafe_allow_html=True)
-
-                # Feedback al escanear
-                if st.session_state.qr_detectado:
-                    st.success(f"✅ ¡QR Detectado: {st.session_state.qr_detectado}!")
-                    if st.button("Limpiar resultado"):
-                        st.session_state.qr_detectado = None
-                        st.rerun()
-
+                    st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    
+                    # 1. Obtenemos las coordenadas
+                    lat = datos_sel.get('LATITUD', 0)
+                    lon = datos_sel.get('LONGITUD', 0)
+                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
+                    
+                    # 2. Construimos la URL de navegación asistida
+                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
+                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
+                    
+                    # 3. El botón con tu estilo fino y delicado
+                    st.markdown(f'''
+                        <a href="{url_navegacion}" target="_blank" 
+                        style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
+                        color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
+                        font-size: 14px; text-align: center; transition: 0.3s;">
+                        📍 IR A {nombre_obj}
+                        </a>
+                    ''', unsafe_allow_html=True)
+                
+                st.markdown("---")
+                
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 
                 with st.form(key="form_acta_flota", clear_on_submit=True):
@@ -1103,9 +1043,77 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 if v_nombre_completo and v_dni and img_facial:
                     st.session_state.v_nombre_completo = v_nombre_completo.upper()
                     st.session_state.legajo_vigilador = v_dni
+                    
+                    fecha_hora_arg = obtener_hora_argentina()
+                    sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                    tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
+                    
+                    escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
+                    
+                    st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
+                else:
+                    st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
 
+    # 4. Pestaña de Relevo
+    with tab_relevo:
+        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
+        with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
+            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
+            vig_saliente = st.text_input("SALE:").upper().strip()
+            vig_entrante = st.text_input("ENTRA:").upper().strip()
+            v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
+            if st.form_submit_button("SANCIONAR CAMBIO"):
+                sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                fecha = obtener_hora_argentina()
+                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
+                escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
+                st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
+    # 5. Pestaña Mensajería
+    with tab_mensajeria:
+        renderizar_mensajeria_global("VIGILADOR")
+# 6. Pestaña Pánico (CORRECTA PARA EL MAPA)
+    with tab_panico:
+        st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
+        
+        # BUSCAR OBJETIVO
+        df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
+        df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
+        nombre_user_clean = st.session_state.user_sel.strip().upper()
+        jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
+       # Lógica de detección (Ya la tienes)
+        if not jornada_actual.empty:
+            obj_detectado = jornada_actual['OBJETIVO'].values[0]
+            st.success(f"📍 OBJETIVO DETECTADO: **{obj_detectado}**")
+        else:
+            obj_detectado = "SIN_OBJETIVO"
+            st.error("⚠️ OBJETIVO NO DETECTADO. SELECCIONE MANUALMENTE:")
+            obj_detectado = st.selectbox("OBJETIVO:", opciones_globales_obj)
 
+        # Botón de Pánico Unificado
+        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
+            nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR")).upper()
+            sup_asignado = "MONITOREO"
+            
+            if not df_objetivos.empty:
+                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
+                if not filtro.empty:
+                    sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+            
+            fecha = obtener_hora_argentina()
+            carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
+            
+            # 1. Escritura para el MAPA (No se toca)
+            escribir_registro_nube("ALERTAS", [
+                fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"
+            ])
+            
+            # 2. DISPARO DE MENSAJES (Integración del nuevo sistema)
+            enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
+            
+            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
+       
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     
@@ -1173,10 +1181,15 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
-            st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
-        else:
-            st.write("*(Sin jornadas registradas)*")
-
+            df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'] + ' ' + df_jornadas['HORA'], errors='coerce')
+            df_reporte = df_jornadas.groupby(['FECHA', 'SUPERVISOR', 'OBJETIVO']).agg(
+                INGRESO=('HORA', 'first'), EGRESO=('HORA', 'last'),
+                INICIO_DT=('DATETIME', 'first'), FIN_DT=('DATETIME', 'last')
+            ).reset_index()
+            df_reporte['DURACION_TOTAL'] = ((df_reporte['FIN_DT'] - df_reporte['INICIO_DT']).dt.total_seconds() / 60).round(2)
+            st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], 
+                        use_container_width=True, hide_index=True)
+    
         # 2. HISTÓRICO DE ALERTAS
         st.markdown("---")
         st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
@@ -1184,34 +1197,26 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_alertas.empty:
             df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
             st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
-        else:
-            st.write("*(Sin alertas tácticas)*")
-
+    
         # 3. AUDITORÍA DE RELEVOS
         st.markdown("---")
         st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
         df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        
-        if not df_relevos.empty and 'TIPO_EVENTO' in df_relevos.columns:
-            df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
-            if not df_filtro.empty:
+        if not df_relevos.empty:
+            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
+            if 'TIPO_EVENTO' in df_relevos.columns:
+                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
                 st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
-            else:
-                st.write("*(Sin relevos registrados en el periodo actual)*")
-        else:
-            st.write("*(Sin novedades registradas)*")
-
+    
         # 4. AUDITORÍA DE FLOTA
         st.markdown("---")
         st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
         df_flota = leer_matriz_nube("CONTROL_FLOTA")
         if not df_flota.empty:
             df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
-            if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
-                df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
-                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
-        else:
-            st.write("*(Sin registros de flota)*")
+            df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
+            st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+
             
 elif st.session_state.rol_sel == "GERENCIA":
 
