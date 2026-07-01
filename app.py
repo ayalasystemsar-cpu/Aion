@@ -957,38 +957,58 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
             
-            # Definimos variables seguras
-            obj_select = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
-            # Usamos un ID por defecto para evitar errores
-            id_obj = str(datos_sel.get('ID', '0')) if 'datos_sel' in locals() else '0'
-            
-            # --- GENERACIÓN DEL QR ---
-            qr = qrcode.QRCode(box_size=6, border=1)
-            qr.add_data(json.dumps({"obj": obj_select, "id": id_obj, "sup": st.session_state.user_sel}))
-            qr.make(fit=True)
-            img_qr = qr.make_image(fill_color="white", back_color="black").get_image()
-            
-            col_qr, col_gps = st.columns([1, 1])
-            with col_qr:
-                st.image(img_qr, width=150)
-            with col_gps:
-                st.markdown("<br><br>", unsafe_allow_html=True)
-                # Tu botón original
-                url_nav = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}&destination_place_name={obj_select}&travelmode=driving"
-                st.markdown(f'''<a href="{url_nav}" target="_blank" style="display: inline-block; width: 100%; padding: 12px; border: 2px solid #00E5FF; color: #00E5FF; text-decoration: none; border-radius: 6px; font-family: sans-serif; font-weight: bold; font-size: 14px; text-align: center;">📍 IR A {obj_select}</a>''', unsafe_allow_html=True)
+            if 'qr_detectado' not in st.session_state: st.session_state.qr_detectado = None
+            if 'mostrar_camara' not in st.session_state: st.session_state.mostrar_camara = False
 
-            # --- ESCÁNER (TECLADO) ---
-            st.markdown("---")
-            codigo_input = st.text_input("ESPERANDO ESCANEO (PASÁ EL LECTOR):", key="input_lector_qr")
-            if codigo_input:
+            # Generamos datos del QR
+            obj_select = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
+            datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+            
+            c1, c2 = st.columns([1, 2])
+            
+            with c1:
+                if st.session_state.mostrar_camara:
+                    webrtc_streamer(
+                        key="lector", 
+                        video_frame_callback=callback_procesar_qr, 
+                        media_stream_constraints={"video": True, "audio": False}
+                    )
+                    if st.button("❌ CERRAR CÁMARA"):
+                        st.session_state.mostrar_camara = False
+                        st.rerun()
+                else:
+                    # QR BLANCO
+                    qr = qrcode.QRCode(box_size=6, border=1)
+                    qr.add_data(json.dumps({"obj": obj_select, "id": str(datos_sel.get('ID', '0')), "sup": st.session_state.user_sel}))
+                    qr.make(fit=True)
+                    st.image(qr.make_image(fill_color="white", back_color="black").get_image(), width=150)
+                    
+                    if st.button("📸 ACTIVAR ESCÁNER", use_container_width=True):
+                        st.session_state.mostrar_camara = True
+                        st.rerun()
+
+            with c2:
+                # BOTÓN GPS ORIGINAL
+                st.markdown("<br><br><br>", unsafe_allow_html=True)
+                url_nav = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}&destination_place_name={obj_select}&travelmode=driving"
+                st.markdown(f'''
+                    <a href="{url_nav}" target="_blank" style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-size: 14px; text-align: center;">
+                        📍 IR A {obj_select}
+                    </a>
+                ''', unsafe_allow_html=True)
+
+            # Lógica de cierre del escaneo
+            if st.session_state.qr_detectado:
                 try:
-                    datos = json.loads(codigo_input)
-                    st.success(f"✅ INGRESO: {datos.get('obj')}")
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), datos.get('sup', ''), f"INGRESO: {datos.get('obj')}"])
-                    st.session_state.input_lector_qr = ""
+                    datos = json.loads(st.session_state.qr_detectado)
+                    registrar_movimiento_supervisor(st.session_state.user_sel, datos['obj'], "VISITA_QR")
+                    st.success(f"✅ ¡QR ESCANEADO EXITOSAMENTE: {datos['obj']}!")
+                    st.session_state.qr_detectado = None
+                    st.session_state.mostrar_camara = False
                     st.rerun()
                 except:
-                    st.error("Error al procesar el código.")
+                    st.error("Error al procesar QR.")
+                    st.session_state.qr_detectado = None
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
