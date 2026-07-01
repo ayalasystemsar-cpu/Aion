@@ -15,7 +15,10 @@ import math
 import requests
 from branca.element import Element
 import qrcode
+import cv2
 import json
+import avfrom streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
