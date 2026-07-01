@@ -17,7 +17,8 @@ from branca.element import Element
 import qrcode
 import cv2
 import json
-import avfrom streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+import av
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
