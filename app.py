@@ -14,6 +14,7 @@ from streamlit_folium import st_folium
 import math
 import requests
 from branca.element import Element
+import json
 import qrcode
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -936,10 +937,45 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
-            if not df_objetivos_filtrados.empty:
-                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
-                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
-                c1, c2 = st.columns([1, 2])
+            
+            # --- 1. SEGUIMOS MOSTRANDO TU QR BLANCO ---
+            # (Tu lógica original para generar el QR)
+            qr = qrcode.QRCode(box_size=6, border=1)
+            qr.add_data(json.dumps({"obj": obj_select, "id": str(datos_sel.get('ID', '0')), "sup": st.session_state.user_sel}))
+            qr.make(fit=True)
+            img_qr = qr.make_image(fill_color="white", back_color="black").get_image()
+            
+            col_qr, col_info = st.columns([1, 2])
+            with col_qr:
+                st.image(img_qr, width=150)
+            with col_info:
+                # --- 2. RECUPERAMOS TU BOTÓN GPS ---
+                url_nav = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}&destination_place_name={obj_select}&travelmode=driving"
+                st.markdown(f'''<a href="{url_nav}" target="_blank" style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; font-size: 14px; text-align: center;">📍 IR A {obj_select}</a>''', unsafe_allow_html=True)
+
+            # --- 3. ZONA DE ESCANEO (EL "OÍDO" PARA TU ESCÁNER) ---
+            st.markdown("---")
+            # Este es el campo donde tu escáner "escribirá" al pasar por el QR
+            codigo_input = st.text_input("ESPERANDO ESCANEO (ACERCÁ EL LECTOR):", key="input_lector_qr")
+            
+            if codigo_input:
+                try:
+                    datos = json.loads(codigo_input)
+                    if "obj" in datos:
+                        st.success(f"✅ ¡INGRESO EXITOSO: {datos['obj']}!")
+                        st.write(f"👤 SUPERVISOR: {datos['sup']}")
+                        
+                        # Registro en Google Sheets
+                        escribir_registro_nube("NOVEDADES_GUARDIA", [
+                            obtener_hora_argentina(), datos['sup'], f"INGRESO: {datos['obj']}"
+                        ])
+                        
+                        # Limpiar y recargar
+                        st.session_state.input_lector_qr = ""
+                        st.rerun()
+                except:
+                    st.warning("Código no reconocido. Asegurate de que sea el formato correcto.")
+                    st.session_state.input_lector_qr = ""
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
