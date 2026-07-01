@@ -1016,7 +1016,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             renderizar_mensajeria_global("SUPERVISOR")
        
         with t_pres_sup:
-            st.markdown("### 📋 TABLERO TÁCTICO SEPARADO")
             
             # CUADRO 1: RELEVOS
             st.markdown("#### 🔄 RELEVOS DE GUARDIA")
