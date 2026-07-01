@@ -167,6 +167,21 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
+def callback_procesar_qr(frame):
+    img = frame.to_ndarray(format="bgr24")
+    detector = cv2.QRCodeDetector()
+    data, bbox, _ = detector.detectAndDecode(img)
+    
+    if data:
+        st.session_state.qr_detectado = data
+        if bbox is not None:
+            n_lines = len(bbox)
+            for i in range(n_lines):
+                point1 = tuple(bbox[i][0].astype(int))
+                point2 = tuple(bbox[(i + 1) % n_lines][0].astype(int))
+                cv2.line(img, point1, point2, (0, 255, 0), 3)
+    return av.VideoFrame.from_ndarray(img, format="bgr24")
+
 def actualizar_celda(pestana, fila, columna, valor):
     try:
         gc = conectar_google()
