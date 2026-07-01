@@ -1010,6 +1010,32 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_pres_sup:
             st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
 
+            
+            # 1. Leemos la base de novedades
+            df_nov = leer_matriz_nube("NOVEDADES_GUARDIA")
+            
+            if not df_nov.empty:
+                # 2. Normalizamos nombres para filtrar correctamente
+                df_nov.columns = [str(c).strip().upper() for c in df_nov.columns]
+                sup_actual = st.session_state.user_sel.strip().upper()
+                
+                # 3. Filtramos por: 
+                # - Que sea un RELEVO
+                # - Que el supervisor coincida con el usuario logueado (si tienes columna SUPERVISOR)
+                filtro_relevos = df_nov[
+                    (df_nov['TIPO_EVENTO'].str.upper() == "RELEVO DE TURNO") & 
+                    (df_nov['SUPERVISOR'].str.upper() == sup_actual)
+                ]
+                
+                if not filtro_relevos.empty:
+                    # Mostramos las más recientes primero
+                    st.dataframe(filtro_relevos.iloc[::-1], use_container_width=True, hide_index=True)
+                else:
+                    st.info("No hay registros de relevos para tu grupo actualmente.")
+            else:
+                st.warning("No se encontraron novedades en la base de datos.")
+
+
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
