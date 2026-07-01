@@ -899,7 +899,6 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
         
-
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -1023,12 +1022,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     df_final['FECHA_ORDEN'] = pd.to_datetime(df_final['FECHA'], errors='coerce')
                     df_final = df_final.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
                 
+                # Filtrar por supervisor y luego eliminar la columna
                 if 'SUPERVISOR' in df_final.columns:
                     df_final = df_final[df_final['SUPERVISOR'].str.upper() == sup_activo_normalizado]
+                    df_final = df_final.drop(columns=['SUPERVISOR'])
                 
                 st.dataframe(df_final, use_container_width=True, hide_index=True)
             else:
                 st.info("Sin registros de relevos o pánicos activos.")
+
 
 
 elif st.session_state.rol_sel == "VIGILADOR":
