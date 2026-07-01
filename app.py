@@ -899,6 +899,7 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
         
+
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -928,8 +929,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         lat_envio = loc['coords'].get('latitude', 0.0)
                         lon_envio = loc['coords'].get('longitude', 0.0)
                 except: pass
-                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"])
-                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+                
+                # Escritura con confirmación visual
+                exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"])
+                if exito:
+                    st.error(f"🚨 S.O.S ACTIVADO DESDE: {obj_alerta}")
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
@@ -950,17 +954,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    
-                    # 1. Obtenemos las coordenadas
                     lat = datos_sel.get('LATITUD', 0)
                     lon = datos_sel.get('LONGITUD', 0)
-                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
-                    
-                    # 2. Construimos la URL de navegación asistida
-                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
+                    nombre_obj = obj_select
                     url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
-                    
-                    # 3. El botón con tu estilo fino y delicado
                     st.markdown(f'''
                         <a href="{url_navegacion}" target="_blank" 
                         style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
@@ -971,9 +968,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
-                
                 with st.form(key="form_acta_flota", clear_on_submit=True):
                     c_a, c_b = st.columns(2)
                     v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
@@ -1009,7 +1004,32 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             renderizar_mensajeria_global("SUPERVISOR")
        
         with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
+            st.markdown("### 📋 TABLERO TÁCTICO: RELEVOS Y PÁNICOS")
+            df_nov_sup = leer_matriz_nube("NOVEDADES_GUARDIA")
+            df_pan_sup = leer_matriz_nube("ALERTAS")
+            
+            if not df_nov_sup.empty:
+                df_nov_sup.columns = [str(c).strip().upper() for c in df_nov_sup.columns]
+                df_nov_sup['TIPO'] = '🔄 RELEVO'
+            
+            if not df_pan_sup.empty:
+                df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
+                df_pan_sup = df_pan_sup.rename(columns={'CARGA_UTIL': 'DETALLE', 'USUARIO': 'REMITENTE'})
+                df_pan_sup['TIPO'] = '🚨 PÁNICO'
+            
+            if not df_nov_sup.empty or not df_pan_sup.empty:
+                df_final = pd.concat([df_nov_sup, df_pan_sup], ignore_index=True)
+                if 'FECHA' in df_final.columns:
+                    df_final['FECHA_ORDEN'] = pd.to_datetime(df_final['FECHA'], errors='coerce')
+                    df_final = df_final.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
+                
+                if 'SUPERVISOR' in df_final.columns:
+                    df_final = df_final[df_final['SUPERVISOR'].str.upper() == sup_activo_normalizado]
+                
+                st.dataframe(df_final, use_container_width=True, hide_index=True)
+            else:
+                st.info("Sin registros de relevos o pánicos activos.")
+
 
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
