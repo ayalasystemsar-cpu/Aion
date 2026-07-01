@@ -936,29 +936,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
-            
-            # --- ZONA DE ESCANEO SEGURA ---
-            codigo_input = st.text_input("ESPERANDO ESCANEO (ACERCÁ EL QR):", key="input_lector_qr")
-            
-            if codigo_input:
-                try:
-                    datos_qr = json.loads(codigo_input)
-                    if "obj" in datos_qr:
-                        st.success(f"✅ ¡INGRESO REGISTRADO EN: {datos_qr['obj']}!")
-                        escribir_registro_nube("NOVEDADES_GUARDIA", [
-                            obtener_hora_argentina(), 
-                            st.session_state.user_sel, 
-                            f"INGRESO {datos_qr['obj']} - ID: {datos_qr['id']}"
-                        ])
-                        st.session_state.input_lector_qr = ""
-                        st.rerun()
-                except:
-                    st.warning("El código no es formato JSON válido.")
-            
-            # --- BOTONES DE LA PESTAÑA ---
-            st.markdown("---")
-            if st.button("🔄 RECARGAR PESTAÑA"):
-                st.rerun()
+            if not df_objetivos_filtrados.empty:
+                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                c1, c2 = st.columns([1, 2])
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
