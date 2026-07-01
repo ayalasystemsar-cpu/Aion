@@ -935,39 +935,35 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO DE ESCANEO")
+            st.markdown("### 📱 CENTRO TÁCTICO")
             
-            # --- 1. SEGUIMOS MOSTRANDO EL QR ---
+            # Aseguramos que las variables existan para evitar el NameError
+            obj_select = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
+            user_actual = st.session_state.get("user_sel", "OPERADOR")
+            
+            # Generación segura del QR
             qr = qrcode.QRCode(box_size=6, border=1)
-            qr.add_data(json.dumps({"obj": obj_select, "id": str(datos_sel.get('ID', '0')), "sup": st.session_state.user_sel}))
+            
+            # Usamos un diccionario simple y verificamos que 'datos_sel' exista
+            datos_qr = {"obj": obj_select, "id": "0", "sup": user_actual}
+            
+            qr.add_data(json.dumps(datos_qr))
             qr.make(fit=True)
-            # QR BLANCO como querías
+            
             img_qr = qr.make_image(fill_color="white", back_color="black").get_image()
             st.image(img_qr, width=150)
-            st.caption("QR activo para escaneo táctico")
-
-            # --- 2. ZONA DE ESCUCHA (El sistema espera que el escáner "escriba") ---
-            # El escáner de hardware escribe aquí automáticamente al pasar por el QR
-            codigo_input = st.text_input("ESPERANDO ESCANEO:", key="input_lector_qr", placeholder="Acercá el escáner al QR...")
             
+            # ZONA DE ESCUCHA
+            codigo_input = st.text_input("ESPERANDO ESCANEO:", key="input_lector_qr")
             if codigo_input:
                 try:
                     datos = json.loads(codigo_input)
-                    if "obj" in datos:
-                        st.success(f"✅ OBJETIVO '{datos['obj']}' ESCANEADO EXITOSAMENTE")
-                        st.write(f"👤 SUPERVISOR: {datos['sup']}")
-                        
-                        # Registro en la base de datos
-                        escribir_registro_nube("NOVEDADES_GUARDIA", [
-                            obtener_hora_argentina(), datos['sup'], f"INGRESO EXITOSO: {datos['obj']}"
-                        ])
-                        
-                        # Limpiamos el campo y recargamos
-                        st.session_state.input_lector_qr = ""
-                        st.rerun()
-                except:
-                    st.warning("El escáner leyó algo, pero no es el formato esperado.")
+                    st.success(f"✅ OBJETIVO '{datos.get('obj', '')}' ESCANEADO")
+                    escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), datos.get('sup', ''), f"INGRESO: {datos.get('obj', '')}"])
                     st.session_state.input_lector_qr = ""
+                    st.rerun()
+                except:
+                    st.error("Error en el formato del QR.")
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
