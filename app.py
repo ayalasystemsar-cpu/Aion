@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -462,6 +463,46 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
+# --- FUNCIONES DE MANTENIMIENTO Y CIERRE TÁCTICO ---
+
+def limpiar_matriz_nube(nombre_hoja):
+    """Borra todas las filas de la hoja, excepto los encabezados."""
+    try:
+        gc = conectar_google()
+        if gc:
+            worksheet = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja)
+            worksheet.delete_rows(2, worksheet.row_count)
+            return True
+    except: return False
+
+def ejecutar_cierre_táctico():
+    """Realiza el respaldo y limpieza de las matrices operativas."""
+    matrices = ["JORNADA_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
+    fecha_hoy = obtener_hora_argentina()
+    mes_actual = fecha_hoy.split("-")[1] 
+    
+    try:
+        gc = conectar_google()
+        for mat in matrices:
+            df = leer_matriz_nube(mat)
+            if not df.empty:
+                # A. Crea el respaldo
+                nombre_historico = f"{mat}_{mes_actual}"
+                try:
+                    hoja_hist = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_historico)
+                except:
+                    hoja_hist = gc.open_by_key(ID_MAESTRO_DB).add_worksheet(title=nombre_historico, rows="100", cols="20")
+                
+                # B. Escribe el histórico
+                hoja_hist.clear()
+                hoja_hist.update([df.columns.values.tolist()] + df.values.tolist())
+                
+                # C. Limpia la original
+                limpiar_matriz_nube(mat)
+        return True
+    except: return False
+
+# --- FIN FUNCIONES DE MANTENIMIENTO ---
 aplicar_identidad_alfa()
 
 # --- 5. SIDEBAR TÁCTICO ---
@@ -906,30 +947,29 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     qr.make(fit=True)
                     st.image(qr.make_image(fill_color="#00E5FF", back_color="black").get_image(), width=150)
                     st.caption(f"QR: {obj_select}")
+
                 with c2:
-                    # Ajuste de espacio para alineación vertical con el QR
-                    st.markdown("<br><br>", unsafe_allow_html=True)
+                    st.markdown("<br><br><br>", unsafe_allow_html=True)
                     
-                    # Botón con estilo fino personalizado
-                    url_gmaps = f"https://www.google.com/maps/dir/?api=1&destination={datos_sel.get('LATITUD', 0)},{datos_sel.get('LONGITUD', 0)}"
+                    # 1. Obtenemos las coordenadas
+                    lat = datos_sel.get('LATITUD', 0)
+                    lon = datos_sel.get('LONGITUD', 0)
+                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
                     
+                    # 2. Construimos la URL de navegación asistida
+                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
+                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
+                    
+                    # 3. El botón con tu estilo fino y delicado
                     st.markdown(f'''
-                        <a href="{url_gmaps}" target="_blank" 
-                        style="display: inline-block; 
-                               width: 100%; 
-                               padding: 8px 16px; 
-                               border: 1px solid #00E5FF; 
-                               color: #00E5FF; 
-                               text-decoration: none; 
-                               border-radius: 4px; 
-                               font-family: sans-serif; 
-                               font-size: 14px; 
-                               text-align: center;
-                               transition: 0.3s;">
-                        📍 IR AL OBJETIVO
+                        <a href="{url_navegacion}" target="_blank" 
+                        style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
+                        color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
+                        font-size: 14px; text-align: center; transition: 0.3s;">
+                        📍 IR A {nombre_obj}
                         </a>
                     ''', unsafe_allow_html=True)
-                    
+                
                 st.markdown("---")
                 
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
@@ -1142,15 +1182,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
-            df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'] + ' ' + df_jornadas['HORA'], errors='coerce')
-            df_reporte = df_jornadas.groupby(['FECHA', 'SUPERVISOR', 'OBJETIVO']).agg(
-                INGRESO=('HORA', 'first'), EGRESO=('HORA', 'last'),
-                INICIO_DT=('DATETIME', 'first'), FIN_DT=('DATETIME', 'last')
-            ).reset_index()
-            df_reporte['DURACION_TOTAL'] = ((df_reporte['FIN_DT'] - df_reporte['INICIO_DT']).dt.total_seconds() / 60).round(2)
-            st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], 
-                        use_container_width=True, hide_index=True)
-    
+            st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
+        else:
+            st.write("*(Sin jornadas registradas)*")
+
         # 2. HISTÓRICO DE ALERTAS
         st.markdown("---")
         st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
@@ -1158,65 +1193,77 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_alertas.empty:
             df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
             st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
-    
+        else:
+            st.write("*(Sin alertas tácticas)*")
+
         # 3. AUDITORÍA DE RELEVOS
         st.markdown("---")
         st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
         df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_relevos.empty:
-            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
-            if 'TIPO_EVENTO' in df_relevos.columns:
-                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+        
+        if not df_relevos.empty and 'TIPO_EVENTO' in df_relevos.columns:
+            df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+            if not df_filtro.empty:
                 st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
-    
+            else:
+                st.write("*(Sin relevos registrados en el periodo actual)*")
+        else:
+            st.write("*(Sin novedades registradas)*")
+
         # 4. AUDITORÍA DE FLOTA
         st.markdown("---")
         st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
         df_flota = leer_matriz_nube("CONTROL_FLOTA")
         if not df_flota.empty:
             df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
-            df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
-            st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
-
+            if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
+                df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
+                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+        else:
+            st.write("*(Sin registros de flota)*")
             
 elif st.session_state.rol_sel == "GERENCIA":
 
-    # 1. Cabecera ejecutiva
+    # --- 1. CÁLCULOS DINÁMICOS PARA CABECERA ---
+    fecha_hoy = obtener_hora_argentina().split(" ")[0]
+    df_jornada_actual = leer_matriz_nube("JORNADA_SUPERVISORES")
+    
+    if not df_jornada_actual.empty:
+        df_jornada_actual.columns = [str(c).strip().upper() for c in df_jornada_actual.columns]
+        df_hoy = df_jornada_actual[df_jornada_actual['FECHA'] == fecha_hoy]
+        personal_activo = df_hoy['SUPERVISOR'].nunique()
+        objs_cubiertos = len(df_hoy['OBJETIVO'].unique())
+    else:
+        personal_activo = 0
+        objs_cubiertos = 0
+
+    total_objetivos_db = len(df_objetivos) if 'df_objetivos' in locals() and not df_objetivos.empty else 1
+    kpi_operativo = int((objs_cubiertos / total_objetivos_db) * 100) if total_objetivos_db > 0 else 0
+
+    # --- 2. CABECERA EJECUTIVA ---
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("📊 KPI OPERATIVO", "98%")
-    col2.metric("👥 PERSONAL ACTIVO", "12")
+    col1.metric("📊 KPI OPERATIVO", f"{kpi_operativo}%")
+    col2.metric("👥 PERSONAL ACTIVO", f"{personal_activo}")
     col3.metric("👤 GERENTE", f"{st.session_state.user_sel}")
     
-    # 2. Contenedor para el reloj ejecutivo
     hora_container = col4.container()
-    
-    # 3. Función de refresco adaptada para Gerencia (cada 5 segundos)
     @st.fragment(run_every=1)
     def mostrar_reloj_gerencia():
         hora_actual = obtener_hora_argentina().split(" ")[1]
         st.metric("🕒 HORA LOCAL", hora_actual)
-    
     with hora_container:
         mostrar_reloj_gerencia()
         
     st.write("---")
-    # ... (Aquí irían tus gráficos de rendimiento, reportes de costos o KPIs)
-    # 1. Cálculo de mensajes pendientes
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "GERENCIA") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
-    label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
 
+    # --- 3. COMANDO Y PESTAÑAS ---
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     
-    # 2. Definición de pestañas
     t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
     
-    # 3. Pestaña Mensajería
     with t_mensajeria_ger:
         renderizar_mensajeria_global("GERENCIA")
         
-    # 4. Pestaña Ejecución
     with t_ejecucion_ger:
         col_g1, col_g2 = st.columns(2)
         with col_g1:
@@ -1233,21 +1280,15 @@ elif st.session_state.rol_sel == "GERENCIA":
                 escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
                 st.success("✅ Petición enviada")
 
-    # 5. Pestaña Auditoría (Código directo, sin funciones)
     with t_tab_auditoria:
         # 1. AUDITORÍA DE JORNADA
         st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
-            df_jornadas['DATETIME'] = pd.to_datetime(df_jornadas['FECHA'] + ' ' + df_jornadas['HORA'], errors='coerce')
-            df_reporte = df_jornadas.groupby(['FECHA', 'SUPERVISOR', 'OBJETIVO']).agg(
-                INGRESO=('HORA', 'first'), EGRESO=('HORA', 'last'),
-                INICIO_DT=('DATETIME', 'first'), FIN_DT=('DATETIME', 'last')
-            ).reset_index()
-            df_reporte['DURACION_TOTAL'] = ((df_reporte['FIN_DT'] - df_reporte['INICIO_DT']).dt.total_seconds() / 60).round(2)
-            st.dataframe(df_reporte[['FECHA', 'SUPERVISOR', 'OBJETIVO', 'INGRESO', 'EGRESO', 'DURACION_TOTAL']], 
-                        use_container_width=True, hide_index=True)
+            st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
+        else:
+            st.write("*(Sin jornadas registradas)*")
 
         # 2. HISTÓRICO DE ALERTAS
         st.markdown("---")
@@ -1256,16 +1297,22 @@ elif st.session_state.rol_sel == "GERENCIA":
         if not df_alertas.empty:
             df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
             st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
+        else:
+            st.write("*(Sin alertas tácticas)*")
 
         # 3. AUDITORÍA DE RELEVOS
         st.markdown("---")
         st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
         df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_relevos.empty:
-            df_relevos.columns = [str(c).strip().upper() for c in df_relevos.columns]
-            if 'TIPO_EVENTO' in df_relevos.columns:
-                df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+        
+        if not df_relevos.empty and 'TIPO_EVENTO' in df_relevos.columns:
+            df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
+            if not df_filtro.empty:
                 st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
+            else:
+                st.write("*(Sin relevos registrados en el periodo actual)*")
+        else:
+            st.write("*(Sin novedades registradas)*")
 
         # 4. AUDITORÍA DE FLOTA
         st.markdown("---")
@@ -1273,10 +1320,23 @@ elif st.session_state.rol_sel == "GERENCIA":
         df_flota = leer_matriz_nube("CONTROL_FLOTA")
         if not df_flota.empty:
             df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
-            df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
-            st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
-    
+            if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
+                df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
+                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+        else:
+            st.write("*(Sin registros de flota)*")
 
+        # 5. COMANDO DE CIERRE TÁCTICO
+        st.markdown("---")
+        st.markdown("### ⚠️ COMANDO DE CIERRE TÁCTICO")
+        st.info("Esta acción archiva todos los reportes operativos y reinicia los contadores del sistema.")
+        
+        if st.checkbox("CONFIRMAR EJECUCIÓN DE CIERRE MENSUAL"):
+            if st.button("🚀 EJECUTAR RESPALDO Y REINICIO"):
+                with st.spinner("Procesando archivos históricos..."):
+                    if ejecutar_cierre_táctico(): 
+                        st.success("Cierre mensual completado. Todo el historial fue archivado.")
+                        st.rerun()
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     st.subheader("⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL")
     
