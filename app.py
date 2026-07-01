@@ -994,7 +994,7 @@ with t_vis_qr:
         # Limpiamos el campo para el próximo escaneo
         st.session_state.input_scanner_limpio = ""
         
-                with c1:
+ with c1:
                     # Lógica de alternancia: Mostrar cámara o mostrar QR
                     if st.session_state.mostrar_camara:
                         webrtc_streamer(
