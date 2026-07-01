@@ -14,7 +14,6 @@ from streamlit_folium import st_folium
 import math
 import requests
 from branca.element import Element
-import json
 import qrcode
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -937,42 +936,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
-            
-            # --- GENERACIÓN SEGURA ---
-            # Definimos variables de forma local para evitar el NameError
-            obj_select = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
-            user_actual = st.session_state.get("user_sel", "OPERADOR")
-            
-            # Crear el diccionario de datos
-            datos_qr = {"obj": obj_select, "id": "0", "sup": user_actual}
-            
-            # Generar el QR
-            qr = qrcode.QRCode(box_size=6, border=1)
-            # Usamos json.dumps explícito
-            qr.add_data(json.dumps(datos_qr)) 
-            qr.make(fit=True)
-            
-            img = qr.make_image(fill_color="white", back_color="black")
-            st.image(img.get_image(), width=150)
-            
-            # --- ZONA DE ESCUCHA (SIN RIESGOS) ---
-            codigo_input = st.text_input("ESPERANDO ESCANEO:", key="input_lector_qr")
-            
-            if codigo_input:
-                try:
-                    # Usamos json.loads para procesar
-                    datos = json.loads(codigo_input)
-                    st.success(f"✅ INGRESO: {datos.get('obj')}")
-                    
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [
-                        obtener_hora_argentina(), 
-                        datos.get('sup', 'N/A'), 
-                        f"INGRESO: {datos.get('obj')}"
-                    ])
-                    st.session_state.input_lector_qr = ""
-                    st.rerun()
-                except:
-                    st.error("Error al leer el código.")
+            if not df_objetivos_filtrados.empty:
+                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                c1, c2 = st.columns([1, 2])
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
