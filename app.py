@@ -994,14 +994,13 @@ with t_vis_qr:
         # Limpiamos el campo para el próximo escaneo
         st.session_state.input_scanner_limpio = ""
         
-                
                 with c1:
                     # Lógica de alternancia: Mostrar cámara o mostrar QR
                     if st.session_state.mostrar_camara:
                         webrtc_streamer(
                             key="lector", 
                             video_frame_callback=callback_procesar_qr, 
-                            media_stream_constraints={"video": True, "audio": False} # SIN MICRÓFONO
+                            media_stream_constraints={"video": True, "audio": False}
                         )
                         if st.button("❌ CERRAR CÁMARA"):
                             st.session_state.mostrar_camara = False
@@ -1016,6 +1015,7 @@ with t_vis_qr:
                         if st.button("📸 ACTIVAR ESCÁNER"):
                             st.session_state.mostrar_camara = True
                             st.rerun()
+                
 
                 with c2:
                     # Solo mostramos el botón de navegación si no estamos usando la cámara
