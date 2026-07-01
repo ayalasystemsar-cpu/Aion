@@ -935,17 +935,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO DE ESCANEO")
+            st.markdown("### 📱 CENTRO TÁCTICO")
             
-            # 1. Creamos un campo de entrada que espera el "tipeo" del escáner
-            codigo_input = st.text_input("ESPERANDO ESCANEO (ACERCÁ EL QR):", key="input_lector_qr", placeholder="El escáner escribirá aquí automáticamente...")
+            # --- ZONA DE ESCANEO SEGURA ---
+            codigo_input = st.text_input("ESPERANDO ESCANEO (ACERCÁ EL QR):", key="input_lector_qr")
             
             if codigo_input:
                 try:
-                    # 2. El escáner envía el texto (JSON), lo convertimos a datos
                     datos_qr = json.loads(codigo_input)
-                    
-                    # 3. Guardamos en la nube (Ajustá el nombre de la hoja si es necesario)
                     if "obj" in datos_qr:
                         st.success(f"✅ ¡INGRESO REGISTRADO EN: {datos_qr['obj']}!")
                         escribir_registro_nube("NOVEDADES_GUARDIA", [
@@ -953,12 +950,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             st.session_state.user_sel, 
                             f"INGRESO {datos_qr['obj']} - ID: {datos_qr['id']}"
                         ])
-                        # 4. Limpiamos el campo y recargamos para estar listos para el próximo
                         st.session_state.input_lector_qr = ""
                         st.rerun()
                 except:
-                    st.error("Formato QR no reconocido. Verificá que sea el código correcto.")
-                    st.session_state.input_lector_qr = ""
+                    st.warning("El código no es formato JSON válido.")
+            
+            # --- BOTONES DE LA PESTAÑA ---
+            st.markdown("---")
+            if st.button("🔄 RECARGAR PESTAÑA"):
+                st.rerun()
                 with c1:
                     qr = qrcode.QRCode(box_size=6, border=1)
                     qr.add_data(f"OBJETIVO:{obj_select}|ID:{datos_sel.get('ID', '0')}")
