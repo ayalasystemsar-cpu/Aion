@@ -900,12 +900,12 @@ if st.session_state.rol_sel == "MONITOREO":
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
 
 
-
-
-elif st.session_state.rol_sel == "SUPERVISOR":
+Elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        
+        # Obtenemos el objetivo de la sesión (del selectbox del QR)
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
         st.subheader("⏱️ GESTIÓN DE JORNADA")
@@ -920,36 +920,43 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.success("Jornada cerrada")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        _, col_panico, _ = st.columns([1, 1, 1]) 
-        with col_panico:
-            # BOTÓN DE PÁNICO CON LEYENDA PERSISTENTE
-            if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
-                obj_alerta = st.session_state.get("obj_qr_tactico", "UBICACIÓN DESCONOCIDA")
-                lat_envio, lon_envio = 0.0, 0.0
-                try:
-                    loc = get_geolocation()
-                    if loc and isinstance(loc, dict) and 'coords' in loc:
-                        lat_envio = loc['coords'].get('latitude', 0.0)
-                        lon_envio = loc['coords'].get('longitude', 0.0)
-                except: pass
-                
-                # Escritura en la base de datos
-                exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"])
-                
-                if exito:
-                    st.session_state.mensaje_panico = f"🚨 S.O.S ACTIVADO DESDE: {obj_alerta}"
+        
+        # --- BLOQUE PÁNICO MODIFICADO ---
+        st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
+        if obj_actual != "SIN OBJETIVO":
+            st.success(f"📍 OBJETIVO DETECTADO PARA PÁNICO: **{obj_actual}**")
+        else:
+            st.warning("⚠️ Selecciona un objetivo en 'Visita QR' para activar el pánico correctamente.")
+
+        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
+            lat_envio, lon_envio = 0.0, 0.0
+            try:
+                loc = get_geolocation()
+                if loc and isinstance(loc, dict) and 'coords' in loc:
+                    lat_envio = loc['coords'].get('latitude', 0.0)
+                    lon_envio = loc['coords'].get('longitude', 0.0)
+            except: pass
             
-            # Si existe el mensaje en memoria, lo mostramos
-            if 'mensaje_panico' in st.session_state:
-                st.error(st.session_state.mensaje_panico)
-                # Opcional: borrarlo tras 5 segundos o al recargar
-                if st.button("Cerrar Aviso"):
-                    del st.session_state.mensaje_panico
-                    st.rerun()
+            # Carga unificada para el sistema
+            carga_sos = f"SUP:{st.session_state.user_sel}|OBJ:{obj_actual}|LAT:{lat_envio}|LON:{lon_envio}"
+            
+            # Escritura en la base de datos
+            exito = escribir_registro_nube("ALERTAS", [
+                obtener_hora_argentina(), 
+                st.session_state.user_sel, 
+                "PÁNICO", 
+                "PENDIENTE", 
+                carga_sos
+            ])
+            
+            if exito:
+                st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
+        # --- FIN BLOQUE PÁNICO ---
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
+        
 
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO")
