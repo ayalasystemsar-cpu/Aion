@@ -1129,8 +1129,7 @@ if st.session_state.rol_sel == "VIGILADOR":
             
             # Botón de Pánico Unificado - Sin selecciones manuales
             if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
-
-if st.session_state.rol_sel == "VIGILADOR":
+If st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
@@ -1144,35 +1143,9 @@ if st.session_state.rol_sel == "VIGILADOR":
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
     
-    # --- PROTOCOLO DE EMERGENCIA INTEGRADO (FUERA DE TABS) ---
-    st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
-    obj_detectado = st.session_state.get("obj_actual_vig", None)
-
-    if obj_detectado:
-        st.success(f"📍 OBJETIVO DETECTADO PARA PÁNICO: **{obj_detectado}**")
-        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
-            nombre_real = st.session_state.get("v_nombre_completo", "VIGILADOR").upper()
-            sup_asignado = "MONITOREO"
-            
-            if not df_objetivos.empty:
-                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
-                if not filtro.empty:
-                    sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-            
-            fecha = obtener_hora_argentina()
-            carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
-            
-            escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
-            enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
-            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
-    else:
-        st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
-    
-    st.markdown("---")
-    
-    # 2. Definimos los tabs (SIN LA PESTAÑA DE PÁNICO)
-    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs([
-        "📋 FICHAJE", "🔄 RELEVO", label_msg
+    # 2. Definimos los tabs
+    tab_presentismo, tab_relevo, tab_mensajeria, tab_panico = st.tabs([
+        "📋 FICHAJE", "🔄 RELEVO", label_msg, "🚨 PÁNICO"
     ])
   
     # 3. Pestaña Fichaje
@@ -1189,6 +1162,7 @@ if st.session_state.rol_sel == "VIGILADOR":
                 if v_nombre_completo and v_dni and img_facial:
                     st.session_state.v_nombre_completo = v_nombre_completo.upper()
                     st.session_state.legajo_vigilador = v_dni
+                    # PERSISTENCIA DEL OBJETIVO PARA EL PÁNICO
                     st.session_state.obj_actual_vig = v_obj
                     
                     fecha_hora_arg = obtener_hora_argentina()
@@ -1211,7 +1185,9 @@ if st.session_state.rol_sel == "VIGILADOR":
             vig_entrante = st.text_input("ENTRA:").upper().strip()
             v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
             if st.form_submit_button("SANCIONAR CAMBIO"):
+                # Actualizamos también el objetivo al hacer relevo
                 st.session_state.obj_actual_vig = v_obj_relevo
+                
                 sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                 fecha = obtener_hora_argentina()
                 escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
@@ -1222,6 +1198,40 @@ if st.session_state.rol_sel == "VIGILADOR":
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
 
+    # 6. Pestaña Pánico (MODIFICADA PARA AUTOMATIZACIÓN)
+    with tab_panico:
+        st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
+        
+        # Recuperamos el objetivo guardado en la sesión
+        obj_detectado = st.session_state.get("obj_actual_vig", None)
+
+        if obj_detectado:
+            st.success(f"📍 ESTÁS ASIGNADO AL OBJETIVO: **{obj_detectado}**")
+            
+            # Botón de Pánico Unificado - Sin selecciones manuales
+            if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
+                nombre_real = st.session_state.get("v_nombre_completo", "VIGILADOR").upper()
+                sup_asignado = "MONITOREO"
+                
+                if not df_objetivos.empty:
+                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
+                    if not filtro.empty:
+                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                
+                fecha = obtener_hora_argentina()
+                carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
+                
+                # Escritura para el sistema de alertas
+                escribir_registro_nube("ALERTAS", [
+                    fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"
+                ])
+                
+                # Disparo automático a supervisión
+                enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
+                
+                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
+        else:
+            st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
 
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
