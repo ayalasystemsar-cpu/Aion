@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -899,7 +898,10 @@ if st.session_state.rol_sel == "MONITOREO":
             st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
-        
+
+
+
+
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
@@ -920,6 +922,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.markdown("<br>", unsafe_allow_html=True)
         _, col_panico, _ = st.columns([1, 1, 1]) 
         with col_panico:
+            # BOTÓN DE PÁNICO CON LEYENDA PERSISTENTE
             if st.button("🚨 ACTIVAR PÁNICO", type="primary", use_container_width=True):
                 obj_alerta = st.session_state.get("obj_qr_tactico", "UBICACIÓN DESCONOCIDA")
                 lat_envio, lon_envio = 0.0, 0.0
@@ -929,8 +932,20 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         lat_envio = loc['coords'].get('latitude', 0.0)
                         lon_envio = loc['coords'].get('longitude', 0.0)
                 except: pass
-                escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"])
-                st.error(f"🚨 S.O.S ENVIADO DESDE: {obj_alerta}")
+                
+                # Escritura en la base de datos
+                exito = escribir_registro_nube("ALERTAS", [obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", f"LAT:{lat_envio}|LON:{lon_envio}|OBJ:{obj_alerta}|SUP:{st.session_state.user_sel}"])
+                
+                if exito:
+                    st.session_state.mensaje_panico = f"🚨 S.O.S ACTIVADO DESDE: {obj_alerta}"
+            
+            # Si existe el mensaje en memoria, lo mostramos
+            if 'mensaje_panico' in st.session_state:
+                st.error(st.session_state.mensaje_panico)
+                # Opcional: borrarlo tras 5 segundos o al recargar
+                if st.button("Cerrar Aviso"):
+                    del st.session_state.mensaje_panico
+                    st.rerun()
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
@@ -951,17 +966,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 with c2:
                     st.markdown("<br><br><br>", unsafe_allow_html=True)
-                    
-                    # 1. Obtenemos las coordenadas
                     lat = datos_sel.get('LATITUD', 0)
                     lon = datos_sel.get('LONGITUD', 0)
-                    nombre_obj = obj_select # Este es el nombre que elegiste en el selectbox
-                    
-                    # 2. Construimos la URL de navegación asistida
-                    # El parámetro 'destination' con el nombre del objetivo hace que aparezca en el mapa
+                    nombre_obj = obj_select
                     url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={nombre_obj}&travelmode=driving"
-                    
-                    # 3. El botón con tu estilo fino y delicado
                     st.markdown(f'''
                         <a href="{url_navegacion}" target="_blank" 
                         style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
@@ -972,9 +980,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
-                
                 with st.form(key="form_acta_flota", clear_on_submit=True):
                     c_a, c_b = st.columns(2)
                     v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
@@ -1010,9 +1016,33 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             renderizar_mensajeria_global("SUPERVISOR")
        
         with t_pres_sup:
-            st.markdown("### 📋 NOVEDADES DE MI GRUPO ASIGNADO")
+            
+            # CUADRO 1: RELEVOS
+            st.markdown("#### 🔄 RELEVOS DE GUARDIA")
+            df_nov_sup = leer_matriz_nube("NOVEDADES_GUARDIA")
+            if not df_nov_sup.empty:
+                df_nov_sup.columns = [str(c).strip().upper() for c in df_nov_sup.columns]
+                if 'SUPERVISOR' in df_nov_sup.columns:
+                    df_nov_sup = df_nov_sup[df_nov_sup['SUPERVISOR'].str.upper() == sup_activo_normalizado]
+                    df_nov_sup = df_nov_sup.drop(columns=['SUPERVISOR'])
+                st.dataframe(df_nov_sup.iloc[::-1], use_container_width=True, hide_index=True)
+            else:
+                st.info("Sin relevos registrados.")
 
-elif st.session_state.rol_sel == "VIGILADOR":
+            st.markdown("---")
+            
+            # CUADRO 2: PÁNICOS
+            st.markdown("#### 🚨 ALERTAS DE PÁNICO")
+            df_pan_sup = leer_matriz_nube("ALERTAS")
+            if not df_pan_sup.empty:
+                df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
+                # Filtrar si la alerta contiene el nombre del supervisor
+                df_pan_sup = df_pan_sup[df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False)]
+                st.dataframe(df_pan_sup.iloc[::-1], use_container_width=True, hide_index=True)
+            else:
+                st.info("Sin alertas de pánico registradas.")
+
+if st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
@@ -1045,6 +1075,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 if v_nombre_completo and v_dni and img_facial:
                     st.session_state.v_nombre_completo = v_nombre_completo.upper()
                     st.session_state.legajo_vigilador = v_dni
+                    # PERSISTENCIA DEL OBJETIVO PARA EL PÁNICO
+                    st.session_state.obj_actual_vig = v_obj
                     
                     fecha_hora_arg = obtener_hora_argentina()
                     sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
@@ -1066,6 +1098,9 @@ elif st.session_state.rol_sel == "VIGILADOR":
             vig_entrante = st.text_input("ENTRA:").upper().strip()
             v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
             if st.form_submit_button("SANCIONAR CAMBIO"):
+                # Actualizamos también el objetivo al hacer relevo
+                st.session_state.obj_actual_vig = v_obj_relevo
+                
                 sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                 fecha = obtener_hora_argentina()
                 escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
@@ -1075,47 +1110,43 @@ elif st.session_state.rol_sel == "VIGILADOR":
     # 5. Pestaña Mensajería
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
-# 6. Pestaña Pánico (CORRECTA PARA EL MAPA)
+
+    # 6. Pestaña Pánico (MODIFICADA PARA AUTOMATIZACIÓN)
     with tab_panico:
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         
-        # BUSCAR OBJETIVO
-        df_jornada = leer_matriz_nube("JORNADA_SUPERVISORES")
-        df_jornada['SUPERVISOR_CLEAN'] = df_jornada['SUPERVISOR'].astype(str).str.strip().str.upper()
-        nombre_user_clean = st.session_state.user_sel.strip().upper()
-        jornada_actual = df_jornada[df_jornada['SUPERVISOR_CLEAN'] == nombre_user_clean].tail(1)
-       # Lógica de detección (Ya la tienes)
-        if not jornada_actual.empty:
-            obj_detectado = jornada_actual['OBJETIVO'].values[0]
-            st.success(f"📍 OBJETIVO DETECTADO: **{obj_detectado}**")
-        else:
-            obj_detectado = "SIN_OBJETIVO"
-            st.error("⚠️ OBJETIVO NO DETECTADO. SELECCIONE MANUALMENTE:")
-            obj_detectado = st.selectbox("OBJETIVO:", opciones_globales_obj)
+        # Recuperamos el objetivo guardado en la sesión
+        obj_detectado = st.session_state.get("obj_actual_vig", None)
 
-        # Botón de Pánico Unificado
-        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
-            nombre_real = st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", "VIGILADOR")).upper()
-            sup_asignado = "MONITOREO"
+        if obj_detectado:
+            st.success(f"📍 ESTÁS ASIGNADO AL OBJETIVO: **{obj_detectado}**")
             
-            if not df_objetivos.empty:
-                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
-                if not filtro.empty:
-                    sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-            
-            fecha = obtener_hora_argentina()
-            carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
-            
-            # 1. Escritura para el MAPA (No se toca)
-            escribir_registro_nube("ALERTAS", [
-                fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"
-            ])
-            
-            # 2. DISPARO DE MENSAJES (Integración del nuevo sistema)
-            enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
-            
-            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}") 
-       
+            # Botón de Pánico Unificado - Sin selecciones manuales
+            if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
+                nombre_real = st.session_state.get("v_nombre_completo", "VIGILADOR").upper()
+                sup_asignado = "MONITOREO"
+                
+                if not df_objetivos.empty:
+                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
+                    if not filtro.empty:
+                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                
+                fecha = obtener_hora_argentina()
+                carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
+                
+                # Escritura para el sistema de alertas
+                escribir_registro_nube("ALERTAS", [
+                    fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"
+                ])
+                
+                # Disparo automático a supervisión
+                enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
+                
+                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
+        else:
+            st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
+
+
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     
