@@ -16,7 +16,6 @@ import requests
 from branca.element import Element
 import qrcode
 import cv2
-from pyzbar.pyzbar 
 import decode
 from streamlit_webrtc 
 import webrtc_streamer, VideoTransformerBase
