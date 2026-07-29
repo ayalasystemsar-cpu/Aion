@@ -59,12 +59,16 @@ def leer_matriz_nube(pestana):
         try:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             todas_filas = hoja.get_all_values()
-            if not tod_filas_val := todas_filas: return pd.DataFrame()
+            
+            if not todas_filas: 
+                return pd.DataFrame()
+                
             encabezados = [str(h).strip().upper() for h in todas_filas[0]]
             df = pd.DataFrame(todas_filas[1:], columns=encabezados)
             df.columns = [str(c).strip().upper() for c in df.columns]
             return df.loc[:, ~df.columns.duplicated()]
-        except: return pd.DataFrame()
+        except: 
+            return pd.DataFrame()
     return pd.DataFrame()
 
 @st.cache_data(ttl=60)
@@ -344,111 +348,4 @@ if st.session_state.rol_sel == "SUPERVISOR":
         with t_car_tac:
             novedad_sup = st.text_area("Registro Operativo / Novedad:")
             if st.button("CARGAR NOVEDAD") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), sup_activo_normalizado, novedad_sup.upper()])
-                st.success("✅ Novedad registrada con éxito.")
-
-        with t_mensajeria_sup:
-            renderizar_mensajeria_global("SUPERVISOR")
-    else:
-        st.warning("⚠️ Debe autenticarse con su usuario y contraseña en el panel lateral.")
-
-# --- ROL: ADMINISTRADOR / NÚCLEO MAESTRO ---
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.subheader("⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL ADMINISTRATIVO")
-    
-    t_adm_users, t_adm_objs, t_adm_bi = st.tabs(["👥 Gestión de Usuarios", "🎯 Gestión de Objetivos", "📊 BI y Estadísticas"])
-    
-    with t_adm_users:
-        st.markdown("### 📋 APROBACIÓN Y GESTIÓN DE ACCESOS")
-        df_usuarios = leer_matriz_nube("USUARIOS")
-        if not df_usuarios.empty:
-            st.dataframe(df_usuarios, use_container_width=True)
-            
-            st.markdown("#### Autorizar o Modificar Usuario:")
-            user_a_mod = st.selectbox("Seleccionar Usuario:", df_usuarios['USUARIO'].tolist(), key="sel_user_mod")
-            nuevo_estado = st.selectbox("Nuevo Estado:", ["APROBADO", "PENDIENTE", "SUSPENDIDO"])
-            
-            if st.button("actualizar ESTADO DE USUARIO"):
-                idx = df_usuarios[df_usuarios['USUARIO'] == user_a_mod].index[0]
-                if actualizar_celda("USUARIOS", idx + 2, "D", nuevo_estado):
-                    st.success(f"Estado del usuario {user_a_mod} actualizado a {nuevo_estado}.")
-                    st.rerun()
-        else:
-            st.info("No hay usuarios registrados en la base.")
-
-    with t_adm_objs:
-        st.markdown("### 🎯 GESTIÓN DE OBJETIVOS Y COMISARIAS (MAESTRO)")
-        df_objs_act = cargar_objetivos()
-        if not df_objs_act.empty:
-            st.dataframe(df_objs_act[['OBJETIVO', 'SUPERVISOR', 'LATITUD', 'LONGITUD']], use_container_width=True)
-        
-        with st.form("form_alta_objetivo", clear_on_submit=True):
-            st.markdown("#### Dar de Alta Nuevo Objetivo:")
-            nuevo_obj_nombre = st.text_input("Nombre del Objetivo:").upper()
-            nuevo_obj_sup = st.selectbox("Supervisor Asignado:", LISTA_SUPS_TACTICOS)
-            nuevo_lat = st.text_input("Latitud:")
-            nuevo_lon = st.text_input("Longitud:")
-            
-            if st.form_submit_button("REGISTRAR NUEVO OBJETIVO"):
-                if nuevo_obj_nombre and nuevo_lat and nuevo_lon:
-                    escribir_registro_nube("OBJETIVOS", [nuevo_obj_nombre, nuevo_obj_sup, nuevo_lat, nuevo_lon, "1"])
-                    st.success(f"✅ Objetivo {nuevo_obj_nombre} registrado en la nube.")
-                    st.rerun()
-
-    with t_adm_bi:
-        st.markdown("### 📊 MÉTRICAS Y ESTADÍSTICAS OPERATIVAS (BI)")
-        df_alertas_bi = leer_matriz_nube("ALERTAS")
-        df_flota_bi = leer_matriz_nube("CONTROL_FLOTA")
-        
-        c_b1, c_b2 = st.columns(2)
-        c_b1.metric("🚨 Total Alertas Históricas", len(df_alertas_bi) if not df_alertas_bi.empty else 0)
-        c_b2.metric("⛽ Actas de Flota Registradas", len(df_flota_bi) if not df_flota_bi.empty else 0)
-        
-        if not df_alertas_bi.empty:
-            st.markdown("#### Distribución de Alertas por Estado")
-            st.bar_chart(df_alertas_bi['ESTADO'].value_counts())
-
-# --- ROL: MONITOREO ---
-elif st.session_state.rol_sel == "MONITOREO":
-    st.subheader("🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
-    t_radar, t_msg_mon, t_nov_mon = st.tabs(["🚨 Radar S.O.S", "💬 Mensajería", "🔄 Novedades"])
-    
-    with t_radar:
-        df_mapa = cargar_objetivos()
-        if not df_mapa.empty:
-            m = folium.Map(location=[df_mapa['LATITUD'].mean(), df_mapa['LONGITUD'].mean()], zoom_start=11, tiles="CartoDB dark_matter")
-            for _, r in df_mapa.iterrows():
-                folium.CircleMarker(location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True, tooltip=f"{r['OBJETIVO']} | Sup: {r.get('SUPERVISOR', 'N/A')}").add_to(m)
-            st_folium(m, width="100%", height=500)
-    with t_msg_mon:
-        renderizar_mensajeria_global("MONITOREO")
-    with t_nov_mon:
-        st.dataframe(leer_matriz_nube("NOVEDADES_GUARDIA"), use_container_width=True)
-
-# --- ROL: JEFE DE OPERACIONES / GERENCIA ---
-elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
-    st.subheader(f"📋 COMANDO: {st.session_state.rol_sel}")
-    t_j_msg, t_j_aud = st.tabs(["💬 Mensajería Global", "📍 Tablero de Auditoría y Flota"])
-    
-    with t_j_msg:
-        renderizar_mensajeria_global(st.session_state.rol_sel)
-    with t_j_aud:
-        st.markdown("### 📋 Auditoría General de Operaciones")
-        st.dataframe(leer_matriz_nube("JORNADA_SUPERVISORES"), use_container_width=True)
-        st.markdown("### ⛽ Control de Flota")
-        st.dataframe(leer_matriz_nube("CONTROL_FLOTA"), use_container_width=True)
-
-# --- ROL: VIGILADOR ---
-elif st.session_state.rol_sel == "VIGILADOR":
-    st.subheader("👮 TERMINAL OPERATIVO VIGILADORES")
-    t_v_fichaje, t_v_msg = st.tabs(["📋 Fichaje y Relevo", "💬 Mensajería"])
-    with t_v_fichaje:
-        with st.form("form_fichaje_vig"):
-            nom = st.text_input("Apellido y Nombre:")
-            leg = st.text_input("Legajo / DNI:")
-            obj = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["PRINCIPAL"])
-            if st.form_submit_button("REGISTRAR INGRESO"):
-                escribir_registro_nube("PRESENTISMO", [obtener_hora_argentina().split(" ")[0], obtener_hora_argentina().split(" ")[1], leg, f"{nom} - {obj}", "", "OK", "INGRESO"])
-                st.success("✅ Ingreso registrado con éxito.")
-    with t_v_msg:
-        renderizar_mensajeria_global("VIGILADOR")
+                escribir_registro_nube("NOVEDADES"
