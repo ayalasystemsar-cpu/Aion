@@ -774,7 +774,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # --- MÉTRICAS DE OBJETIVOS ASIGNADOS, VISITADOS Y PENDIENTES ---
+        # --- CÁLCULO DINÁMICO DE OBJETIVOS ASIGNADOS, VISITADOS Y PENDIENTES ---
         total_asignados = len(df_objetivos_filtrados) if not df_objetivos_filtrados.empty else 0
         
         df_nov_sup_check = leer_matriz_nube("NOVEDADES_GUARDIA")
@@ -788,11 +788,28 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         total_visitados = len([obj for obj in df_objetivos_filtrados['OBJETIVO'].str.strip().str.upper() if obj in objetivos_visitados]) if not df_objetivos_filtrados.empty else 0
         total_restantes = max(0, total_asignados - total_visitados)
         
+        # --- MÉTRICAS VISUALES PARA EL SUPERVISOR ---
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("📌 OBJETIVOS ASIGNADOS", total_asignados)
         col_m2.metric("✅ OBJETIVOS VISITADOS", total_visitados)
         col_m3.metric("⏳ OBJETIVOS RESTANTES", total_restantes)
         
+        st.markdown("---")
+        
+        # --- LISTADO DETALLADO DE ESTADO DE OBJETIVOS (VISITADOS VS PENDIENTES) ---
+        st.markdown("### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS")
+        if not df_objetivos_filtrados.empty:
+            lista_estado_objs = []
+            for _, r in df_objetivos_filtrados.iterrows():
+                nombre_o = str(r['OBJETIVO']).strip().upper()
+                estado_visita = "✅ VISITADO / ESCANEADO" if nombre_o in objetivos_visitados else "⏳ PENDIENTE DE VISITA"
+                lista_estado_objs.append({"OBJETIVO": nombre_o, "ESTADO": estado_visita})
+            
+            df_estado_final = pd.DataFrame(lista_estado_objs)
+            st.dataframe(df_estado_final, use_container_width=True, hide_index=True)
+        else:
+            st.info("No tiene objetivos asignados en este momento.")
+
         st.markdown("---")
         
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
@@ -826,7 +843,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO")
+            st.markdown("### 📱 CENTRO TÁCTICO & CÁMARA QR")
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
@@ -839,7 +856,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.caption(f"QR: {obj_select}")
 
                 with c2:
-                    st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
                     lat = datos_sel.get('LATITUD', 0)
                     lon = datos_sel.get('LONGITUD', 0)
                     nombre_obj = obj_select
@@ -848,10 +865,31 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         <a href="{url_navegacion}" target="_blank" 
                         style="display: inline-block; width: 100%; padding: 10px; border: 1px solid #00E5FF; 
                         color: #00E5FF; text-decoration: none; border-radius: 4px; font-family: sans-serif; 
-                        font-size: 14px; text-align: center; transition: 0.3s;">
+                        font-size: 14px; text-align: center; transition: 0.3s; margin-bottom: 10px;">
                         📍 IR A {nombre_obj}
                         </a>
                     ''', unsafe_allow_html=True)
+
+                    # --- ESCANEO PURAMENTE CON CÁMARA (CELULAR) ---
+                    img_qr_cam = st.camera_input("📷 ESCANEAR CÓDIGO QR IMPRESO", key="camara_qr_supervisor")
+                    if img_qr_cam is not None:
+                        # Al capturar con la cámara del celular, guardamos formalmente la visita/escaneo
+                        fecha_hora_arg = obtener_hora_argentina()
+                        exito_escaneo = escribir_registro_nube("NOVEDADES_GUARDIA", [
+                            fecha_hora_arg, 
+                            nombre_obj, 
+                            "VISITA QR ESCANEADA", 
+                            "---", 
+                            st.session_state.user_sel.upper(), 
+                            "S/D", 
+                            "PROCESADO", 
+                            st.session_state.user_sel.strip().upper()
+                        ])
+                        if exito_escaneo:
+                            st.success(f"✅ ¡QR Escaneado con éxito! Visita a {nombre_obj} registrada.")
+                            st.rerun()
+                        else:
+                            st.error("Error al registrar el escaneo en la base.")
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
@@ -882,7 +920,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
-            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
+            if st.button("CARGAR REGISTRO") && novedad_sup.strip():
                 escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
                 st.success("✅ Cargado")
 
