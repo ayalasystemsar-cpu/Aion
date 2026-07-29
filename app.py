@@ -15,7 +15,6 @@ import math
 import requests
 from branca.element import Element
 import qrcode
-import streamlit.components.v1 as components
 
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -900,7 +899,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         ])
 
         with t_vis_qr:
-            st.markdown("### 📱 CENTRO TÁCTICO & CÁMARA TÁCTICA QR")
+            st.markdown("### 📱 CENTRO TÁCTICO & CÁMARA QR")
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
@@ -929,97 +928,65 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                     tipo_accion_qr = st.radio("SELECCIONE EL TIPO DE ESCANEO:", ["ENTRADA (INGRESO)", "SALIDA (EGRESO)"], horizontal=True, key="radio_accion_qr")
 
-                    st.markdown("### 📷 CÁMARA CON BOTÓN CAMBIO DE LENTE (🔄)")
-                    st.info(f"Modo seleccionado: **{tipo_accion_qr}** para **{obj_select}**.")
-
-                    # COMPONENTE WEB PERSONALIZADO: Cámara HTML5 nativa con botón de rotación de lente (flechitas de giro)
-                    componente_camara_html = f"""
-                    <div style="background-color: #0A0F1E; padding: 10px; border-radius: 8px; border: 1px solid #00E5FF; text-align: center;">
-                        <video id="webcam" autoplay playsinline style="width: 100%; max-height: 280px; border-radius: 6px; background: #000;"></video>
-                        <canvas id="canvas" style="display:none;"></canvas>
-                        <div style="margin-top: 10px; display: flex; gap: 10px; justify-content: center;">
-                            <button id="btnCambiar" onclick="cambiarCamara()" style="background: #1A1C23; color: #00E5FF; border: 1px solid #00E5FF; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer;">🔄 Cambiar Cámara (Trasera/Frontal)</button>
-                            <button id="btnCapturar" onclick="capturarFoto()" style="background: #00E5FF; color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer;">📸 Capturar</button>
-                        </div>
-                        <p id="status" style="color: #A0A5B5; font-size: 12px; margin-top: 8px;">Cámara lista. Apunte al QR.</p>
-                    </div>
-
-                    <script>
-                        const video = document.getElementById('webcam');
-                        const canvas = document.getElementById('canvas');
-                        let usarTrasera = true;
-                        let currentStream = null;
-
-                        async function iniciarCamara() {{
-                            if (currentStream) {{
-                                currentStream.getTracks().forEach(track => track.stop());
-                            }}
-                            const constraints = {{
-                                video: {{
-                                    facingMode: usarTrasera ? {{ exact: "environment" }} : "user"
-                                }}
-                            }};
-                            try {{
-                                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                                video.srcObject = currentStream;
-                                document.getElementById('status').innerText = "Cámara activa (" + (usarTrasera ? "Trasera" : "Frontal") + ")";
-                            }} catch (err) {{
-                                // Fallback general si el dispositivo no soporta 'exact'
-                                try {{
-                                    currentStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: usarTrasera ? "environment" : "user" }} }});
-                                    video.srcObject = currentStream;
-                                    document.getElementById('status').innerText = "Cámara activa (Modo alternativo)";
-                                }} catch (e) {{
-                                    document.getElementById('status').innerText = "Error al abrir cámara: " + e.message;
-                                }}
-                            }}
-                        }}
-
-                        function cambiarCamara() {{
-                            usarTrasera = !usarTrasera;
-                            iniciarCamara();
-                        }}
-
-                        function capturarFoto() {{
-                            canvas.width = video.videoWidth;
-                            canvas.height = video.videoHeight;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                            const dataURL = canvas.toDataURL('image/jpeg');
-                            
-                            // Envía la imagen capturada de regreso a Streamlit
-                            window.parent.postMessage({{
-                                type: 'streamlit:setComponentValue',
-                                value: dataURL
-                            }}, '*');
-                            document.getElementById('status').innerText = "✅ ¡Foto capturada con éxito!";
-                        }}
-
-                        iniciarCamara();
-                    </script>
-                    """
-
-                    foto_capturada_js = components.html(componente_camara_html, height=390)
-
-                    # Si el componente JS devuelve una imagen base64, procesamos el registro automáticamente
-                    if 'foto_capturada_anterior' not in st.session_state:
-                        st.session_state.foto_capturada_anterior = None
-
-                    # Nota: El valor devuelto por componentes personalizados en Streamlit se maneja vía session_state si se le asigna key, 
-                    # o se procesa de manera fluida con el botón de confirmación integrado abajo:
+                    st.markdown("### 📷 SELECCIÓN MANUAL DE CÁMARA")
                     
-                    st.markdown("---")
-                    st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
-                    with st.form(key="form_acta_flota", clear_on_submit=True):
-                        c_a, c_b = st.columns(2)
-                        v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
-                        v_km_ini = c_a.number_input("KM INICIAL:", min_value=0)
-                        v_km_fin = c_b.number_input("KM FINAL:", min_value=0)
-                        v_comb = c_b.selectbox("COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
-                        v_vig = st.text_input("SUPERVISOR RESPONSABLE:").upper()
-                        if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                            escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vig, v_patente, v_km_ini, v_km_fin, v_comb])
-                            st.success(f"✅ Acta registrada. Distancia: {v_km_fin - v_km_ini} km")
+                    # Selector manual directo para elegir qué lente usar antes de abrir la cámara
+                    modo_lente = st.selectbox("ELEGIR LENTE:", ["Cámara Trasera (Environment)", "Cámara Frontal (User)"], key="selector_lente_manual")
+                    
+                    if "Trasera" in modo_lente:
+                        # Forzamos con atributo de entorno nativo
+                        st.markdown("""
+                            <script>
+                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
+                                inputs.forEach(input => {
+                                    input.setAttribute('capture', 'environment');
+                                });
+                            </script>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown("""
+                            <script>
+                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
+                                inputs.forEach(input => {
+                                    input.removeAttribute('capture');
+                                });
+                            </script>
+                        """, unsafe_allow_html=True)
+
+                    img_qr_cam = st.camera_input("Capturar Código QR", key="camara_qr_selector_seguro")
+
+                    if img_qr_cam is not None:
+                        nombre_limpio_obj = str(obj_select).strip().upper()
+                        fecha_hora_arg = obtener_hora_argentina()
+                        
+                        etiqueta_evento = "INGRESO QR" if "ENTRADA" in tipo_accion_qr else "EGRESO QR"
+                        
+                        exito_escaneo = escribir_registro_nube("REGISTRO_QR_SUPERVISORES", [
+                            fecha_hora_arg, 
+                            nombre_limpio_obj, 
+                            etiqueta_evento, 
+                            sup_activo_normalizado,
+                            "PROCESADO"
+                        ])
+                        if exito_escaneo:
+                            st.success(f"✅ ¡Registro de {etiqueta_evento} guardado con éxito para {nombre_limpio_obj} a las {fecha_hora_arg.split(' ')[1]}!")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.error("Error al registrar el escaneo en la base.")
+                
+                st.markdown("---")
+                st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
+                with st.form(key="form_acta_flota", clear_on_submit=True):
+                    c_a, c_b = st.columns(2)
+                    v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
+                    v_km_ini = c_a.number_input("KM INICIAL:", min_value=0)
+                    v_km_fin = c_b.number_input("KM FINAL:", min_value=0)
+                    v_comb = c_b.selectbox("COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
+                    v_vig = st.text_input("SUPERVISOR RESPONSABLE:").upper()
+                    if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
+                        escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vig, v_patente, v_km_ini, v_km_fin, v_comb])
+                        st.success(f"✅ Acta registrada. Distancia: {v_km_fin - v_km_ini} km")
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA")
