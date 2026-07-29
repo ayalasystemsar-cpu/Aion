@@ -322,7 +322,14 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 if st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        
+        # Filtro flexible para evitar que quede en 0
+        if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
+            df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+            if df_objetivos_filtrados.empty:
+                df_objetivos_filtrados = df_objetivos
+        else:
+            df_objetivos_filtrados = pd.DataFrame()
         
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
@@ -415,7 +422,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
             df_estado_final = pd.DataFrame(lista_estado_objs)
             st.dataframe(df_estado_final, use_container_width=True, hide_index=True)
         else:
-            st.info("No tiene objetivos asignados en este momento.")
+            st.warning("⚠️ No se encontraron objetivos cargados en la base para este usuario.")
 
         st.markdown("---")
         
@@ -426,7 +433,17 @@ if st.session_state.rol_sel == "SUPERVISOR":
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO & CÁMARA QR")
             if not df_objetivos_filtrados.empty:
-                obj_select = st.selectbox("Seleccione Objetivo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                lista_objs = df_objetivos_filtrados['OBJETIVO'].unique()
+                if "obj_qr_tactico_sel" not in st.session_state:
+                    st.session_state.obj_qr_tactico_sel = lista_objs[0]
+
+                obj_select = st.selectbox(
+                    "Seleccione Objetivo:", 
+                    lista_objs, 
+                    index=list(lista_objs).index(st.session_state.obj_qr_tactico_sel) if st.session_state.obj_qr_tactico_sel in lista_objs else 0,
+                    key="obj_qr_tactico_sel"
+                )
+                
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 c1, c2 = st.columns([1, 2])
                 with c1:
@@ -453,7 +470,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
 
                     tipo_accion_qr = st.radio("SELECCIONE EL TIPO DE ESCANEO:", ["ENTRADA (INGRESO)", "SALIDA (EGRESO)"], horizontal=True, key="radio_accion_qr")
 
-                    st.markdown("### 📷 CÁMARA QR (AUTOCREACIÓN Y ACTUALIZACIÓN)")
+                    st.markdown("### 📷 CÁMARA QR ESTABLE")
                     
                     modo_lente = st.selectbox("ELEGIR LENTE:", ["Cámara Trasera (Environment)", "Cámara Frontal (User)"], key="selector_lente_manual")
                     
@@ -476,7 +493,8 @@ if st.session_state.rol_sel == "SUPERVISOR":
                             </script>
                         """, unsafe_allow_html=True)
 
-                    img_qr_cam = st.camera_input("Capturar Código QR", key="camara_qr_selector_seguro")
+                    cam_key = f"camara_qr_{tipo_accion_qr}_{obj_select}"
+                    img_qr_cam = st.camera_input("Capturar Código QR", key=cam_key)
 
                     if img_qr_cam is not None:
                         nombre_limpio_obj = str(obj_select).strip().upper()
