@@ -774,18 +774,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # --- CÁLCULO DINÁMICO DE OBJETIVOS ASIGNADOS, VISITADOS Y PENDIENTES ---
+        # --- CÁLCULO DINÁMICO Y FLEXIBLE DE OBJETIVOS ASIGNADOS, VISITADOS Y PENDIENTES ---
         total_asignados = len(df_objetivos_filtrados) if not df_objetivos_filtrados.empty else 0
         
         df_nov_sup_check = leer_matriz_nube("NOVEDADES_GUARDIA")
         objetivos_visitados = set()
+        
         if not df_nov_sup_check.empty:
             df_nov_sup_check.columns = [str(c).strip().upper() for c in df_nov_sup_check.columns]
-            if 'SUPERVISOR' in df_nov_sup_check.columns and 'OBJETIVO' in df_nov_sup_check.columns:
-                df_sup_escaneos = df_nov_sup_check[df_nov_sup_check['SUPERVISOR'].str.upper() == sup_activo_normalizado]
-                objetivos_visitados = set(df_sup_escaneos['OBJETIVO'].str.strip().str.upper().unique())
+            col_sup_encontrada = next((c for c in df_nov_sup_check.columns if 'SUP' in c or 'RESPONSABLE' in c), None)
+            col_obj_encontrada = next((c for c in df_nov_sup_check.columns if 'OBJ' in c), None)
+            
+            if col_sup_encontrada and col_obj_encontrada:
+                df_sup_escaneos = df_nov_sup_check[df_nov_sup_check[col_sup_encontrada].astype(str).str.upper().str.contains(sup_activo_normalizado, na=False)]
+                objetivos_visitados = set(df_sup_escaneos[col_obj_encontrada].astype(str).str.strip().str.upper().unique())
         
-        total_visitados = len([obj for obj in df_objetivos_filtrados['OBJETIVO'].str.strip().str.upper() if obj in objetivos_visitados]) if not df_objetivos_filtrados.empty else 0
+        total_visitados = len([obj for obj in df_objetivos_filtrados['OBJETIVO'].astype(str).str.strip().str.upper() if obj in objetivos_visitados]) if not df_objetivos_filtrados.empty else 0
         total_restantes = max(0, total_asignados - total_visitados)
         
         # --- MÉTRICAS VISUALES PARA EL SUPERVISOR ---
@@ -870,24 +874,36 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </a>
                     ''', unsafe_allow_html=True)
 
-                    # --- CÁMARA TRASERA Y LECTURA QR ---
-                    st.markdown("### 📷 APUNTAR CÁMARA TRASERA AL QR")
-                    img_qr_cam = st.camera_input("Apunte al código QR", key="camara_qr_trasera", help="Asegúrese de usar la cámara trasera")
+                    # --- CÁMARA TRASERA FORZADA Y LECTURA QR ---
+                    st.markdown("### 📷 ESCANEAR QR (CÁMARA TRASERA)")
+                    st.markdown("""
+                        <script>
+                            const video = document.querySelector('video');
+                            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                                navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
+                            }
+                        </script>
+                    """, unsafe_allow_html=True)
+
+                    img_qr_cam = st.camera_input("Apunte al código QR del objetivo", key="camara_qr_trasera")
 
                     if img_qr_cam is not None:
                         fecha_hora_arg = obtener_hora_argentina()
+                        nombre_limpio_obj = str(nombre_obj).strip().upper()
+                        
                         exito_escaneo = escribir_registro_nube("NOVEDADES_GUARDIA", [
                             fecha_hora_arg, 
-                            nombre_obj, 
+                            nombre_limpio_obj, 
                             "VISITA QR ESCANEADA", 
                             "---", 
                             st.session_state.user_sel.upper(), 
                             "S/D", 
                             "PROCESADO", 
-                            st.session_state.user_sel.strip().upper()
+                            sup_activo_normalizado
                         ])
                         if exito_escaneo:
-                            st.success(f"✅ ¡Objetivo {nombre_obj} visitado y registrado con éxito!")
+                            st.success(f"✅ ¡Objetivo {nombre_limpio_obj} visitado y registrado con éxito!")
+                            st.cache_data.clear()
                             st.rerun()
                         else:
                             st.error("Error al registrar el escaneo en la base.")
