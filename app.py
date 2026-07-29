@@ -483,15 +483,33 @@ if st.session_state.rol_sel == "SUPERVISOR":
 
                     tipo_accion_qr = st.radio("SELECCIONE EL TIPO DE ESCANEO:", ["ENTRADA (INGRESO)", "SALIDA (EGRESO)"], horizontal=True, key="radio_accion_qr")
 
-                    st.markdown("### 📷 CÁMARA QR NATIVA")
+                    st.markdown("### 📷 CÁMARA QR SEGURA")
                     
-                    # Selector de lente conectado de forma directa y 100% nativa de Streamlit
                     modo_lente = st.selectbox("ELEGIR LENTE:", ["Cámara Trasera (Environment)", "Cámara Frontal (User)"], key="selector_lente_manual")
                     
-                    param_capture = "environment" if "Trasera" in modo_lente else "user"
+                    if "Trasera" in modo_lente:
+                        st.markdown("""
+                            <script>
+                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
+                                inputs.forEach(input => {
+                                    input.setAttribute('capture', 'environment');
+                                });
+                            </script>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown("""
+                            <script>
+                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
+                                inputs.forEach(input => {
+                                    input.removeAttribute('capture');
+                                });
+                            </script>
+                        """, unsafe_allow_html=True)
+
                     cam_key = f"camara_qr_{tipo_accion_qr}_{obj_select}"
                     
-                    img_qr_cam = st.camera_input("Capturar Código QR", key=cam_key, capture=param_capture)
+                    # Llamada a la cámara estándar y compatible 100% con Streamlit Cloud
+                    img_qr_cam = st.camera_input("Capturar Código QR", key=cam_key)
 
                     tiempo_actual_epoch = datetime.now().timestamp()
                     if img_qr_cam is not None and (tiempo_actual_epoch - st.session_state.get('ultimo_escaneo_tiempo', 0)) > 5:
