@@ -21,13 +21,9 @@ import qrcode
 
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-
 if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
-
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
-
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 
 
@@ -35,14 +31,12 @@ if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado =
 
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
-
 def conectar_google():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
     except: return None
-
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -52,19 +46,19 @@ def escribir_registro_nube(pestana, datos_fila):
             try:
                 hoja = doc.worksheet(pestana)
             except:
-                # Si la hoja no existe, la crea automáticamente y le pone las cabeceras según corresponda
                 hoja = doc.add_worksheet(title=pestana, rows="200", cols="10")
                 if pestana == "REGISTRO_QR_SUPERVISORES":
                     hoja.append_row(["FECHA_HORA", "OBJETIVO", "TIPO_ACCION", "SUPERVISOR", "ESTADO"])
                 elif pestana == "ALERTAS":
                     hoja.append_row(["FECHA", "USUARIO", "TIPO", "ESTADO", "CARGA_UTIL", "INFORME"])
+                elif pestana == "MENSAJERIA":
+                    hoja.append_row(["FECHA", "REMITENTE", "DESTINATARIO", "ASUNTO", "MENSAJE", "ESTADO", "GRAVEDAD"])
             
             hoja.append_row(datos_fila)
             return True
     except Exception as e:
         print(f"Error escribiendo en nube: {e}")
         return False
-
 
 def leer_matriz_nube(pestana):
     gc = conectar_google()
@@ -87,14 +81,60 @@ def leer_matriz_nube(pestana):
         except: return pd.DataFrame()
     return pd.DataFrame()
 
-
 def cargar_objetivos(): return leer_matriz_nube("OBJETIVOS")
-
 def cargar_datos_comisarias(): return leer_matriz_nube("COMISARIAS")
 
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
+def renderizar_mensajeria_global(rol_contexto):
+    if 'asunto_respuesta' not in st.session_state:
+        st.session_state.asunto_respuesta = None
+
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    st.subheader("💬 COMUNICACIONES OPERATIVAS")
+
+    with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
+        if st.session_state.asunto_respuesta:
+            st.info(f"↩️ Respondiendo al hilo: {st.session_state.asunto_respuesta}")
+            asunto_input = st.text_input("ASUNTO:", value=st.session_state.asunto_respuesta, disabled=True)
+        else:
+            asunto_input = st.text_input("ASUNTO:")
+
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            txt_msg = st.text_input("MENSAJE:")
+        with col_b:
+            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + LISTA_SUPS_TACTICOS
+            destinatario = st.selectbox("PARA:", destinatarios_posibles)
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
+
+        if st.form_submit_button("TRANSMITIR A LA RED"):
+            if txt_msg.strip():
+                escribir_registro_nube("MENSAJERIA", [
+                    obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
+                    (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
+                ])
+                st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
+                st.session_state.asunto_respuesta = None
+                st.rerun()
+
+    if 'mensaje_enviado' in st.session_state:
+        if st.session_state.mensaje_enviado == "RESPUESTA":
+            st.success("✅ RESPUESTA ENVIADA")
+        else:
+            st.success("✅ MENSAJE ENVIADO")
+        del st.session_state.mensaje_enviado
+
+    if not df_msg.empty and 'ASUNTO' in df_msg.columns:
+        for asunto, grupo in df_msg.groupby('ASUNTO'):
+            with st.expander(f"💬 Hilo: {asunto}"):
+                for _, msg in grupo.iterrows():
+                    st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
+                if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
+                    st.session_state.asunto_respuesta = asunto
+                    st.rerun()
 
 
 # --- 3. IDENTIDAD Y LANDING ---
@@ -111,8 +151,6 @@ def aplicar_identidad_alfa():
         .stButton > button:hover { background-color: #00E5FF !important; color: #000 !important; }
         </style>
     """, unsafe_allow_html=True)
-
-
 
 def mostrar_landing():
     aplicar_identidad_alfa()
@@ -159,13 +197,12 @@ def mostrar_landing():
                 escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
                 st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
-
 if not st.session_state.usuario_logueado:
     mostrar_landing()
     st.stop()
 
 
-# --- 2. CONEXIONES Y FUNCIONES PRINCIPALES ---
+# --- FUNCIONES ADICIONALES ---
 
 def actualizar_celda(pestana, fila, columna, valor):
     try:
@@ -177,7 +214,6 @@ def actualizar_celda(pestana, fila, columna, valor):
     except: 
         return False
 
-
 def registrar_movimiento_supervisor(supervisor, objetivo, accion):
     fecha_hora_arg = obtener_hora_argentina()
     fecha = fecha_hora_arg.split(" ")[0]
@@ -185,43 +221,6 @@ def registrar_movimiento_supervisor(supervisor, objetivo, accion):
     datos = [fecha, supervisor, objetivo, accion, hora]
     exito = escribir_registro_nube("JORNADA_SUPERVISORES", datos)
     return exito
-
-
-def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
-    fecha = obtener_hora_argentina()
-    mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
-    destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
-    for dest in destinatarios:
-        if dest and dest != "MONITOREO" and dest != "N/A":
-            escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
-
-
-def aplicar_identidad_alfa():
-    st.markdown("""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 5px; margin-top: 10px; }
-        .logo-phoenix { width: 520px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
-        .estacion-titulo { font-family: 'Orbitron', sans-serif; color: #00E5FF !important; font-size: 24px; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 12px; text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase; }
-        .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
-        .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
-        .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
-        .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
-        .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
-        .stButton > button[kind="primary"] { background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important; color: white !important; border-radius: 50% !important; width: 105px !important; height: 105px !important; border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.5) !important; font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; }
-        .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
-        .stTabs [data-baseweb="tab"] { background-color: rgba(26, 28, 35, 0.4) !important; border: 1px solid #2D313E !important; color: #A0A5B5 !important; border-radius: 4px 4px 0px 0px !important; padding: 6px 16px !important; font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; }
-        .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
-        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
-        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
-        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
-        .btn-google-maps { display: inline-flex; align-items: center; justify-content: center; background-color: #ffffff !important; color: #1a73e8 !important; font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 14px; padding: 12px 24px; border-radius: 6px; border: 2px solid #1a73e8; text-decoration: none !important; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3); width: 100%; text-align: center; margin-top: 10px; transition: 0.3s; }
-        .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
-        </style>
-        """, unsafe_allow_html=True
-    )
 
 
 aplicar_identidad_alfa()
@@ -318,7 +317,7 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 
-# --- FLUJO POR ROLES ---
+# --- ROL SUPERVISOR ---
 
 if st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
