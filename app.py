@@ -483,26 +483,31 @@ if st.session_state.rol_sel == "SUPERVISOR":
 
                     tipo_accion_qr = st.radio("SELECCIONE EL TIPO DE ESCANEO:", ["ENTRADA (INGRESO)", "SALIDA (EGRESO)"], horizontal=True, key="radio_accion_qr")
 
-                    st.markdown("### 📷 CAPTURA QR DIRECTA")
+                    st.markdown("### 📷 CÁMARA QR (ESTABLE)")
                     
-                    modo_lente = st.selectbox("ELEGIR CÁMARA:", ["Cámara Trasera", "Cámara Frontal"], key="selector_lente_manual")
+                    modo_lente = st.selectbox("ELEGIR LENTE:", ["Cámara Trasera (Environment)", "Cámara Frontal (User)"], key="selector_lente_manual")
                     
-                    # Selector nativo infalible mediante file_uploader configurado para abrir la cámara trasera o frontal directamente
-                    captura_trasera = (modo_lente == "Cámara Trasera")
-                    attr_capture = "environment" if captura_trasera else "user"
-                    
-                    st.markdown(f"""
-                        <script>
-                            const inputs = window.parent.document.querySelectorAll('input[type="file"]');
-                            inputs.forEach(input => {{
-                                input.setAttribute('capture', '{attr_capture}');
-                                input.setAttribute('accept', 'image/*');
-                            }});
-                        </script>
-                    """, unsafe_allow_html=True)
+                    if "Trasera" in modo_lente:
+                        st.markdown("""
+                            <script>
+                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
+                                inputs.forEach(input => {
+                                    input.setAttribute('capture', 'environment');
+                                });
+                            </script>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown("""
+                            <script>
+                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
+                                inputs.forEach(input => {
+                                    input.removeAttribute('capture');
+                                });
+                            </script>
+                        """, unsafe_allow_html=True)
 
-                    uploader_key = f"uploader_qr_{tipo_accion_qr}_{obj_select}"
-                    img_qr_cam = st.file_uploader("Tomar foto del Código QR", type=["jpg", "jpeg", "png"], key=uploader_key)
+                    cam_key = f"camara_qr_{tipo_accion_qr}_{obj_select}"
+                    img_qr_cam = st.camera_input("Capturar Código QR", key=cam_key)
 
                     tiempo_actual_epoch = datetime.now().timestamp()
                     if img_qr_cam is not None and (tiempo_actual_epoch - st.session_state.get('ultimo_escaneo_tiempo', 0)) > 5:
