@@ -25,6 +25,7 @@ if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
+if 'ultimo_escaneo_tiempo' not in st.session_state: st.session_state.ultimo_escaneo_tiempo = 0
 
 
 # --- 2. FUNCIONES DE LÓGICA Y GOOGLE ---
@@ -482,7 +483,7 @@ if st.session_state.rol_sel == "SUPERVISOR":
 
                     tipo_accion_qr = st.radio("SELECCIONE EL TIPO DE ESCANEO:", ["ENTRADA (INGRESO)", "SALIDA (EGRESO)"], horizontal=True, key="radio_accion_qr")
 
-                    st.markdown("### 📷 CÁMARA QR ESTABLE")
+                    st.markdown("### 📷 CÁMARA QR ESTABLE & ANTIRREBOTE")
                     
                     modo_lente = st.selectbox("ELEGIR LENTE:", ["Cámara Trasera (Environment)", "Cámara Frontal (User)"], key="selector_lente_manual")
                     
@@ -508,7 +509,9 @@ if st.session_state.rol_sel == "SUPERVISOR":
                     cam_key = f"camara_qr_{tipo_accion_qr}_{obj_select}"
                     img_qr_cam = st.camera_input("Capturar Código QR", key=cam_key)
 
-                    if img_qr_cam is not None:
+                    tiempo_actual_epoch = datetime.now().timestamp()
+                    if img_qr_cam is not None and (tiempo_actual_epoch - st.session_state.get('ultimo_escaneo_tiempo', 0)) > 5:
+                        st.session_state.ultimo_escaneo_tiempo = tiempo_actual_epoch
                         nombre_limpio_obj = str(obj_select).strip().upper()
                         fecha_hora_arg = obtener_hora_argentina()
                         
