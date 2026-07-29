@@ -928,11 +928,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                     tipo_accion_qr = st.radio("SELECCIONE EL TIPO DE ESCANEO:", ["ENTRADA (INGRESO)", "SALIDA (EGRESO)"], horizontal=True, key="radio_accion_qr")
 
-                    st.markdown("### 📷 ESCANEAR QR")
-                    st.info(f"Modo seleccionado: **{tipo_accion_qr}** para **{obj_select}**. Utilice el botón de cambio de cámara de su dispositivo si necesita alternar la vista.")
+                    st.markdown("### 📷 ESCANEAR QR (CÁMARA TRASERA FORZADA)")
+                    st.info(f"Modo seleccionado: **{tipo_accion_qr}** para **{obj_select}**.")
 
-                    # Usamos st.camera_input estándar libre de bloqueos forzados para permitir que aparezcan las flechitas del dispositivo
-                    img_qr_cam = st.camera_input("Apunte al código QR", key="camara_qr_libre")
+                    # INYECCIÓN ESTRICTA DE JAVASCRIPT: Fuerza de manera automatizada al componente nativo a iniciar con la cámara trasera (environment)
+                    st.markdown("""
+                        <script>
+                            function forzarCamaraTrasera() {
+                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
+                                inputs.forEach(input => {
+                                    input.setAttribute('capture', 'environment');
+                                });
+                            }
+                            setInterval(forzarCamaraTrasera, 500);
+                        </script>
+                    """, unsafe_allow_html=True)
+
+                    img_qr_cam = st.camera_input("Apunte al código QR", key="camara_qr_forzada")
 
                     if img_qr_cam is not None:
                         nombre_limpio_obj = str(obj_select).strip().upper()
