@@ -1,6 +1,6 @@
 import streamlit as st
 import datetime
-from datetime import datetime
+from datetime import datetime, time
 import pandas as pd
 import pytz
 import gspread
@@ -177,7 +177,13 @@ def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
         if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            try:
+                hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            except:
+                # Si la pestaña de QR no existe todavía en el Google Sheet, la crea automáticamente con sus columnas
+                hoja = gc.open_by_key(ID_MAESTRO_DB).add_worksheet(title=pestana, rows="100", cols="10")
+                if pestana == "REGISTRO_QR_SUPERVISORES":
+                    hoja.append_row(["FECHA_HORA", "OBJETIVO", "TIPO_ACCION", "SUPERVISOR", "ESTADO"])
             hoja.append_row(datos_fila)
             return True
     except: 
@@ -373,7 +379,7 @@ def limpiar_matriz_nube(nombre_hoja):
 
 
 def ejecutar_cierre_táctico():
-    matrices = ["JORNADA_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
+    matrices = ["JORNADA_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA", "REGISTRO_QR_SUPERVISORES"]
     fecha_hoy = obtener_hora_argentina()
     mes_actual = fecha_hoy.split("-")[1] 
     try:
@@ -774,40 +780,83 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # --- CÁLCULO DINÁMICO Y FLEXIBLE DE OBJETIVOS ASIGNADOS, VISITADOS Y PENDIENTES ---
+        # --- CÁLCULO DINÁMICO, TRAZABILIDAD DE HOY Y TIEMPO DE PERMANENCIA (NUEVA BASE EXCLUSIVA QR) ---
+        fecha_hoy_str = obtener_hora_argentina().split(" ")[0]
         total_asignados = len(df_objetivos_filtrados) if not df_objetivos_filtrados.empty else 0
         
-        df_nov_sup_check = leer_matriz_nube("NOVEDADES_GUARDIA")
-        objetivos_visitados = set()
+        df_qr_sup_check = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
         
-        if not df_nov_sup_check.empty:
-            df_nov_sup_check.columns = [str(c).strip().upper() for c in df_nov_sup_check.columns]
-            col_sup_encontrada = next((c for c in df_nov_sup_check.columns if 'SUP' in c or 'RESPONSABLE' in c), None)
-            col_obj_encontrada = next((c for c in df_nov_sup_check.columns if 'OBJ' in c), None)
+        ingresos_hoy = {}
+        egresos_hoy = {}
+        
+        if not df_qr_sup_check.empty:
+            df_qr_sup_check.columns = [str(c).strip().upper() for c in df_qr_sup_check.columns]
             
-            if col_sup_encontrada and col_obj_encontrada:
-                df_sup_escaneos = df_nov_sup_check[df_nov_sup_check[col_sup_encontrada].astype(str).str.upper().str.contains(sup_activo_normalizado, na=False)]
-                objetivos_visitados = set(df_sup_escaneos[col_obj_encontrada].astype(str).str.strip().str.upper().unique())
-        
-        total_visitados = len([obj for obj in df_objetivos_filtrados['OBJETIVO'].astype(str).str.strip().str.upper() if obj in objetivos_visitados]) if not df_objetivos_filtrados.empty else 0
+            # Filtramos exclusivamente los registros de QR del supervisor activo y de la FECHA DE HOY para actualizar diariamente
+            df_qr_hoy = df_qr_sup_check[
+                df_qr_sup_check['SUPERVISOR'].astype(str).str.upper().str.contains(sup_activo_normalizado, na=False) &
+                df_qr_sup_check['FECHA_HORA'].astype(str).str.contains(fecha_hoy_str, na=False)
+            ]
+            
+            for _, row in df_qr_hoy.iterrows():
+                obj_name = str(row['OBJETIVO']).strip().upper()
+                timestamp_completo = str(row['FECHA_HORA'])
+                tipo_acc = str(row['TIPO_ACCION']).upper()
+                
+                if "EGRESO" in tipo_acc or "SALIDA" in tipo_acc:
+                    egresos_hoy[obj_name] = timestamp_completo
+                elif "INGRESO" in tipo_acc or "ENTRADA" in tipo_acc:
+                    if obj_name not in ingresos_hoy:
+                        ingresos_hoy[obj_name] = timestamp_completo
+
+        total_visitados = len(ingresos_hoy)
         total_restantes = max(0, total_asignados - total_visitados)
         
         # --- MÉTRICAS VISUALES PARA EL SUPERVISOR ---
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("📌 OBJETIVOS ASIGNADOS", total_asignados)
-        col_m2.metric("✅ OBJETIVOS VISITADOS", total_visitados)
+        col_m2.metric("✅ OBJETIVOS VISITADOS HOY", total_visitados)
         col_m3.metric("⏳ OBJETIVOS RESTANTES", total_restantes)
         
         st.markdown("---")
         
-        # --- LISTADO DETALLADO DE ESTADO DE OBJETIVOS (VISITADOS VS PENDIENTES) ---
-        st.markdown("### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS")
+        # --- TABLA DETALLADA DE ESTADO, INGRESOS, EGRESOS Y PERMANENCIA ---
+        st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
         if not df_objetivos_filtrados.empty:
             lista_estado_objs = []
             for _, r in df_objetivos_filtrados.iterrows():
                 nombre_o = str(r['OBJETIVO']).strip().upper()
-                estado_visita = "✅ VISITADO / ESCANEADO" if nombre_o in objetivos_visitados else "⏳ PENDIENTE DE VISITA"
-                lista_estado_objs.append({"OBJETIVO": nombre_o, "ESTADO": estado_visita})
+                
+                f_ingreso = ingresos_hoy.get(nombre_o, "---")
+                f_egreso = egresos_hoy.get(nombre_o, "---")
+                
+                tiempo_permanencia = "---"
+                if f_ingreso != "---" and f_egreso != "---":
+                    try:
+                        dt_in = datetime.strptime(f_ingreso.split(".")[0], "%Y-%m-%d %H:%M:%S")
+                        dt_out = datetime.strptime(f_egreso.split(".")[0], "%Y-%m-%d %H:%M:%S")
+                        diff = dt_out - dt_in
+                        minutos_totales = int(diff.total_seconds() // 60)
+                        horas = minutos_totales // 60
+                        mins = minutos_totales % 60
+                        tiempo_permanencia = f"{horas}h {mins}m" if horas > 0 else f"{mins} mins"
+                    except:
+                        tiempo_permanencia = "Calculado"
+
+                if f_ingreso != "---" and f_egreso == "---":
+                    estado_visita = "🟡 EN OBJETIVO (PRESENTE)"
+                elif f_ingreso != "---" and f_egreso != "---":
+                    estado_visita = "✅ FINALIZADO / RETIRADO"
+                else:
+                    estado_visita = "⏳ PENDIENTE DE VISITA"
+
+                lista_estado_objs.append({
+                    "OBJETIVO": nombre_o,
+                    "ESTADO": estado_visita,
+                    "INGRESO": f_ingreso,
+                    "EGRESO": f_egreso,
+                    "PERMANENCIA": tiempo_permanencia
+                })
             
             df_estado_final = pd.DataFrame(lista_estado_objs)
             st.dataframe(df_estado_final, use_container_width=True, hide_index=True)
@@ -874,10 +923,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </a>
                     ''', unsafe_allow_html=True)
 
-                    # --- CÁMARA TRASERA FORZADA ESTRICTA ---
-                    st.markdown("### 📷 ESCANEAR QR (CÁMARA TRASERA EXCLUSIVA)")
+                    tipo_accion_qr = st.radio("SELECCIONE EL TIPO DE ESCANEO:", ["ENTRADA (INGRESO)", "SALIDA (EGRESO)"], horizontal=True, key="radio_accion_qr")
+
+                    st.markdown("### 📷 ESCANEAR QR OFICIAL (CÁMARA TRASERA)")
+                    st.info(f"Modo seleccionado: **{tipo_accion_qr}** para **{obj_select}**.")
                     
-                    # Script optimizado para forzar al navegador móvil a bloquear la cámara frontal y exigir la trasera (environment)
                     st.markdown("""
                         <script>
                             setTimeout(() => {
@@ -889,24 +939,24 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </script>
                     """, unsafe_allow_html=True)
 
-                    img_qr_cam = st.camera_input("Apunte al código QR del objetivo", key="camara_qr_trasera")
+                    img_qr_cam = st.camera_input("Apunte al código QR", key="camara_qr_trasera")
 
                     if img_qr_cam is not None:
+                        nombre_limpio_obj = str(obj_select).strip().upper()
                         fecha_hora_arg = obtener_hora_argentina()
-                        nombre_limpio_obj = str(nombre_obj).strip().upper()
                         
-                        exito_escaneo = escribir_registro_nube("NOVEDADES_GUARDIA", [
+                        etiqueta_evento = "INGRESO QR" if "ENTRADA" in tipo_accion_qr else "EGRESO QR"
+                        
+                        # Guardado exclusivo en la nueva pestaña de QR para supervisores (sin mezclar con relevos de guardia)
+                        exito_escaneo = escribir_registro_nube("REGISTRO_QR_SUPERVISORES", [
                             fecha_hora_arg, 
                             nombre_limpio_obj, 
-                            "VISITA QR ESCANEADA", 
-                            "---", 
-                            st.session_state.user_sel.upper(), 
-                            "S/D", 
-                            "PROCESADO", 
-                            sup_activo_normalizado
+                            etiqueta_evento, 
+                            sup_activo_normalizado,
+                            "PROCESADO"
                         ])
                         if exito_escaneo:
-                            st.success(f"✅ ¡Objetivo {nombre_limpio_obj} visitado y registrado con éxito!")
+                            st.success(f"✅ ¡Registro de {etiqueta_evento} guardado con éxito para {nombre_limpio_obj} a las {fecha_hora_arg.split(' ')[1]}!")
                             st.cache_data.clear()
                             st.rerun()
                         else:
