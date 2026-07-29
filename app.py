@@ -81,7 +81,17 @@ def leer_matriz_nube(pestana):
         except: return pd.DataFrame()
     return pd.DataFrame()
 
-def cargar_objetivos(): return leer_matriz_nube("OBJETIVOS")
+def cargar_objetivos():
+    df = leer_matriz_nube("OBJETIVOS")
+    if not df.empty:
+        df.columns = df.columns.str.strip().str.upper()
+        df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
+        df = df[df['OBJETIVO'].notna()]
+        if 'SUPERVISOR' in df.columns:
+            df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
+        return df
+    return pd.DataFrame()
+
 def cargar_datos_comisarias(): return leer_matriz_nube("COMISARIAS")
 
 def obtener_hora_argentina():
@@ -323,13 +333,15 @@ if st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
-        # Filtro flexible para evitar que quede en 0
+        if df_objetivos.empty:
+            df_objetivos = cargar_objetivos()
+
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
             if df_objetivos_filtrados.empty:
                 df_objetivos_filtrados = df_objetivos
         else:
-            df_objetivos_filtrados = pd.DataFrame()
+            df_objetivos_filtrados = df_objetivos
         
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
