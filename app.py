@@ -48,7 +48,12 @@ def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
         if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            try:
+                hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            except:
+                hoja = gc.open_by_key(ID_MAESTRO_DB).add_worksheet(title=pestana, rows="100", cols="10")
+                if pestana == "REGISTRO_QR_SUPERVISORES":
+                    hoja.append_row(["FECHA_HORA", "OBJETIVO", "TIPO_ACCION", "SUPERVISOR", "ESTADO"])
             hoja.append_row(datos_fila)
             return True
     except: return False
@@ -180,7 +185,6 @@ def escribir_registro_nube(pestana, datos_fila):
             try:
                 hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             except:
-                # Si la pestaña de QR no existe todavía en el Google Sheet, la crea automáticamente con sus columnas
                 hoja = gc.open_by_key(ID_MAESTRO_DB).add_worksheet(title=pestana, rows="100", cols="10")
                 if pestana == "REGISTRO_QR_SUPERVISORES":
                     hoja.append_row(["FECHA_HORA", "OBJETIVO", "TIPO_ACCION", "SUPERVISOR", "ESTADO"])
@@ -780,7 +784,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # --- CÁLCULO DINÁMICO, TRAZABILIDAD DE HOY Y TIEMPO DE PERMANENCIA (NUEVA BASE EXCLUSIVA QR) ---
+        # --- CÁLCULO DINÁMICO, TRAZABILIDAD DE HOY Y TIEMPO DE PERMANENCIA ---
         fecha_hoy_str = obtener_hora_argentina().split(" ")[0]
         total_asignados = len(df_objetivos_filtrados) if not df_objetivos_filtrados.empty else 0
         
@@ -792,7 +796,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if not df_qr_sup_check.empty:
             df_qr_sup_check.columns = [str(c).strip().upper() for c in df_qr_sup_check.columns]
             
-            # Filtramos exclusivamente los registros de QR del supervisor activo y de la FECHA DE HOY para actualizar diariamente
             df_qr_hoy = df_qr_sup_check[
                 df_qr_sup_check['SUPERVISOR'].astype(str).str.upper().str.contains(sup_activo_normalizado, na=False) &
                 df_qr_sup_check['FECHA_HORA'].astype(str).str.contains(fecha_hoy_str, na=False)
@@ -925,21 +928,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                     tipo_accion_qr = st.radio("SELECCIONE EL TIPO DE ESCANEO:", ["ENTRADA (INGRESO)", "SALIDA (EGRESO)"], horizontal=True, key="radio_accion_qr")
 
-                    st.markdown("### 📷 ESCANEAR QR OFICIAL (CÁMARA TRASERA)")
-                    st.info(f"Modo seleccionado: **{tipo_accion_qr}** para **{obj_select}**.")
-                    
-                    st.markdown("""
-                        <script>
-                            setTimeout(() => {
-                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
-                                inputs.forEach(input => {
-                                    input.setAttribute('capture', 'environment');
-                                });
-                            }, 500);
-                        </script>
-                    """, unsafe_allow_html=True)
+                    st.markdown("### 📷 ESCANEAR QR")
+                    st.info(f"Modo seleccionado: **{tipo_accion_qr}** para **{obj_select}**. Utilice el botón de cambio de cámara de su dispositivo si necesita alternar la vista.")
 
-                    img_qr_cam = st.camera_input("Apunte al código QR", key="camara_qr_trasera")
+                    # Usamos st.camera_input estándar libre de bloqueos forzados para permitir que aparezcan las flechitas del dispositivo
+                    img_qr_cam = st.camera_input("Apunte al código QR", key="camara_qr_libre")
 
                     if img_qr_cam is not None:
                         nombre_limpio_obj = str(obj_select).strip().upper()
@@ -947,7 +940,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         
                         etiqueta_evento = "INGRESO QR" if "ENTRADA" in tipo_accion_qr else "EGRESO QR"
                         
-                        # Guardado exclusivo en la nueva pestaña de QR para supervisores (sin mezclar con relevos de guardia)
                         exito_escaneo = escribir_registro_nube("REGISTRO_QR_SUPERVISORES", [
                             fecha_hora_arg, 
                             nombre_limpio_obj, 
