@@ -874,14 +874,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </a>
                     ''', unsafe_allow_html=True)
 
-                    # --- CÁMARA TRASERA FORZADA Y LECTURA QR ---
-                    st.markdown("### 📷 ESCANEAR QR (CÁMARA TRASERA)")
+                    # --- CÁMARA TRASERA FORZADA ESTRICTA ---
+                    st.markdown("### 📷 ESCANEAR QR (CÁMARA TRASERA EXCLUSIVA)")
+                    
+                    # Script optimizado para forzar al navegador móvil a bloquear la cámara frontal y exigir la trasera (environment)
                     st.markdown("""
                         <script>
-                            const video = document.querySelector('video');
-                            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                                navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
-                            }
+                            setTimeout(() => {
+                                const inputs = window.parent.document.querySelectorAll('input[type="file"]');
+                                inputs.forEach(input => {
+                                    input.setAttribute('capture', 'environment');
+                                });
+                            }, 500);
                         </script>
                     """, unsafe_allow_html=True)
 
