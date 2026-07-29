@@ -870,10 +870,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </a>
                     ''', unsafe_allow_html=True)
 
-                    # --- ESCANEO PURAMENTE CON CÁMARA (CELULAR) ---
-                    img_qr_cam = st.camera_input("📷 ESCANEAR CÓDIGO QR IMPRESO", key="camara_qr_supervisor")
+                    # --- CÁMARA TRASERA Y LECTURA QR ---
+                    st.markdown("### 📷 APUNTAR CÁMARA TRASERA AL QR")
+                    img_qr_cam = st.camera_input("Apunte al código QR", key="camara_qr_trasera", help="Asegúrese de usar la cámara trasera")
+
                     if img_qr_cam is not None:
-                        # Al capturar con la cámara del celular, guardamos formalmente la visita/escaneo
                         fecha_hora_arg = obtener_hora_argentina()
                         exito_escaneo = escribir_registro_nube("NOVEDADES_GUARDIA", [
                             fecha_hora_arg, 
@@ -886,7 +887,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             st.session_state.user_sel.strip().upper()
                         ])
                         if exito_escaneo:
-                            st.success(f"✅ ¡QR Escaneado con éxito! Visita a {nombre_obj} registrada.")
+                            st.success(f"✅ ¡Objetivo {nombre_obj} visitado y registrado con éxito!")
                             st.rerun()
                         else:
                             st.error("Error al registrar el escaneo en la base.")
