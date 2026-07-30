@@ -502,12 +502,13 @@ if st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE PUESTO (INGRESO / EGRESO)")
+                st.info("Seleccione el tipo de movimiento y capture la imagen del QR para registrar su ingreso o egreso.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor")
                 
-                # Botón de registro directo por botón seguro (evita errores de timeout de cámara)
-                accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-                if st.button(f"REGISTRAR {accion_str} EN OBJETIVO (SEGURO)", use_container_width=True, type="primary"):
+                if foto_qr_sup is not None:
+                    accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
                     exito_registro = registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, accion_str)
                     if exito_registro:
                         escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
