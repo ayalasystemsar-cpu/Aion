@@ -523,13 +523,25 @@ if st.session_state.rol_sel == "MONITOREO":
             st.rerun()
 
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        
+        # --- LUPA / FILTRO DINÁMICO POR SUPERVISOR PARA MONITOREO ---
+        col_filt1, col_filt2 = st.columns(2)
+        
+        # Usamos LISTA_SUPS_TACTICOS para que incluya automáticamente a los nuevos supervisores aprobados
+        lista_sups_monitoreo = ["TODOS LOS SUPERVISORES"] + LISTA_SUPS_TACTICOS
+        sup_filtro_mono = col_filt1.selectbox("🔍 FILTRAR POR SUPERVISOR:", lista_sups_monitoreo, key="filtro_sup_monitoreo")
+        
+        df_mapa_filtrado_sup = df_mapa_monitoreo.copy()
+        if sup_filtro_mono != "TODOS LOS SUPERVISORES":
+            df_mapa_filtrado_sup = df_mapa_filtrado_sup[df_mapa_filtrado_sup['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono]
+
         col_sel1, col_sel2 = st.columns([2, 1])
         
         if "filtro_radar_valor" not in st.session_state:
             st.session_state["filtro_radar_valor"] = "MOSTRAR TODO"
 
         with col_sel1:
-            opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_monitoreo['OBJETIVO'].unique()) if not df_mapa_monitoreo.empty else ["MOSTRAR TODO"]
+            opciones_busqueda = ["MOSTRAR TODO"] + list(df_mapa_filtrado_sup['OBJETIVO'].unique()) if not df_mapa_filtrado_sup.empty else ["MOSTRAR TODO"]
             try:
                 idx_defecto = opciones_busqueda.index(st.session_state["filtro_radar_valor"])
             except:
@@ -548,8 +560,8 @@ if st.session_state.rol_sel == "MONITOREO":
         com_lat_m, com_lon_m = None, None
         lat_obj, lon_obj = 0.0, 0.0
         
-        if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_monitoreo.empty:
-            datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+        if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_filtrado_sup.empty:
+            datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
             lat_obj = datos_obj['LATITUD']
             lon_obj = datos_obj['LONGITUD']
             
@@ -599,13 +611,13 @@ if st.session_state.rol_sel == "MONITOREO":
             st.markdown('</div>', unsafe_allow_html=True)
    
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_mapa_monitoreo.empty:
+        if not df_mapa_filtrado_sup.empty:
             if obj_seleccionado != "MOSTRAR TODO":
-                datos_obj = df_mapa_monitoreo[df_mapa_monitoreo['OBJETIVO'] == obj_seleccionado].iloc[0]
+                datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
                 centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
                 zoom_inicial = 13
             else:
-                centro_mapa = [df_mapa_monitoreo['LATITUD'].mean(), df_mapa_monitoreo['LONGITUD'].mean()]
+                centro_mapa = [df_mapa_filtrado_sup['LATITUD'].mean(), df_mapa_filtrado_sup['LONGITUD'].mean()]
                 zoom_inicial = 11
 
             m_mon = folium.Map(
@@ -615,7 +627,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
                 attr='© OpenStreetMap contributors © CARTO'
             )
-            for _, r in df_mapa_monitoreo.iterrows():
+            # Dibujamos usando el dataframe filtrado por supervisor y buscador
+            for _, r in df_mapa_filtrado_sup.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
                 
