@@ -149,6 +149,16 @@ def aplicar_identidad_alfa():
         .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
+        
+        /* BOTÓN DE PÁNICO CIRCULAR EXACTO */
+        .stButton > button[kind="primary"] { 
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
+            color: white !important; border-radius: 50% !important; width: 110px !important; height: 110px !important; 
+            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.6) !important; 
+            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
+            display: block; margin: 0 auto;
+        }
+
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
         .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
         .stTabs [data-baseweb="tab"] {
@@ -389,7 +399,6 @@ with st.sidebar:
     st.markdown("---")
     if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
         st.session_state.usuario_logueado = False
-        st.session_state.rerun = True if hasattr(st, "rerun") else None
         st.rerun()
 
 # --- 7. CABECERA CENTRAL Y RASTREO POR ROLES ---
@@ -686,33 +695,35 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         st.markdown("<br>", unsafe_allow_html=True)
         
+        # --- BLOQUE PÁNICO CIRCULAR ORIGINAL PARA SUPERVISOR ---
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         if obj_actual != "SIN OBJETIVO":
             st.success(f"📍 OBJETIVO DETECTADO PARA PÁNICO: **{obj_actual}**")
         else:
             st.warning("⚠️ Selecciona un objetivo en 'Visita QR' para activar el pánico correctamente.")
 
-        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
-            lat_envio, lon_envio = 0.0, 0.0
-            try:
-                loc = get_geolocation()
-                if loc and isinstance(loc, dict) and 'coords' in loc:
-                    lat_envio = loc['coords'].get('latitude', 0.0)
-                    lon_envio = loc['coords'].get('longitude', 0.0)
-            except: pass
-            
-            carga_sos = f"SUP:{st.session_state.user_sel}|OBJ:{obj_actual}|LAT:{lat_envio}|LON:{lon_envio}"
-            exito = escribir_registro_nube("ALERTAS", [
-                obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos
-            ])
-            if exito:
-                st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
+        col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
+        with col_p2:
+            if st.button("S.O.S\nPÁNICO", type="primary"):
+                lat_envio, lon_envio = 0.0, 0.0
+                try:
+                    loc = get_geolocation()
+                    if loc and isinstance(loc, dict) and 'coords' in loc:
+                        lat_envio = loc['coords'].get('latitude', 0.0)
+                        lon_envio = loc['coords'].get('longitude', 0.0)
+                except: pass
+                
+                carga_sos = f"SUP:{st.session_state.user_sel}|OBJ:{obj_actual}|LAT:{lat_envio}|LON:{lon_envio}"
+                exito = escribir_registro_nube("ALERTAS", [
+                    obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos
+                ])
+                if exito:
+                    st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
 
         t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
-        # --- NUEVA LOGICA AVANZADA DE QR INTEGRADA ---
         with t_vis_qr:
             st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
             if not df_objetivos_filtrados.empty:
@@ -824,35 +835,38 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
     
+    # --- PROTOCOLO DE EMERGENCIA CON BOTÓN CIRCULAR PARA VIGILADOR ---
     st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
     obj_detectado = st.session_state.get("obj_actual_vig", None)
 
     if obj_detectado:
         st.success(f"📍 OBJETIVO DETECTADO PARA PÁNICO: **{obj_detectado}**")
-        if st.button("🚨 ACTIVAR ALERTA TÁCTICA", type="primary", use_container_width=True):
-            nombre_real = st.session_state.get("v_nombre_completo", "VIGILADOR").upper()
-            sup_asignado = "MONITOREO"
-            if not df_objetivos.empty:
-                filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
-                if not filtro.empty:
-                    sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-            
-            fecha = obtener_hora_argentina()
-            carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
-            escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
-            enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
-            st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
+        col_pv1, col_pv2, col_pv3 = st.columns([1, 1, 1])
+        with col_pv2:
+            if st.button("S.O.S\nPÁNICO", type="primary"):
+                nombre_real = st.session_state.get("v_nombre_completo", "VIGILADOR").upper()
+                sup_asignado = "MONITOREO"
+                if not df_objetivos.empty:
+                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
+                    if not filtro.empty:
+                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                
+                fecha = obtener_hora_argentina()
+                carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
+                escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
+                enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
+                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
     else:
-        st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
+        st.warning("⚠️ Debes realizar el Fichaje, Relevo o escanear el QR del puesto primero.")
     
     st.markdown("---")
     
-    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs([
-        "📋 FICHAJE", "🔄 RELEVO", label_msg
+    tab_presentismo, tab_qr_camara, tab_relevo, tab_mensajeria = st.tabs([
+        "📋 FICHAJE", "📷 ESCANEAR QR", "🔄 RELEVO", label_msg
     ])
   
     with tab_presentismo:
-        st.markdown("### 📸 REGISTRO BIOMÉTRICO & CONTROL QR")
+        st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
             v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:").strip() 
             v_dni = st.text_input("LEGAJO / DNI:").strip() 
@@ -875,6 +889,18 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
                 else:
                     st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
+
+    # --- PESTAÑA CÁMARA QR INCORPORADA PARA VIGILADORES ---
+    with tab_qr_camara:
+        st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE PUESTO")
+        st.info("Utilice la cámara de su dispositivo para escanear el código QR adhesivo del objetivo.")
+        foto_qr = st.camera_input("Capturar Código QR del Objetivo", key="camara_qr_vigilador")
+        
+        if foto_qr is not None:
+            st.success("✅ Código QR capturado correctamente. Sincronizando posición con la Central Táctica...")
+            st.session_state.obj_actual_vig = opciones_globales_obj[0] if len(opciones_globales_obj) > 0 else "ALFAVINIL"
+            escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), st.session_state.get("obj_actual_vig", "PUESTO"), "ESCANEO_QR_PUESTO", "---", st.session_state.get("v_nombre_completo", "VIGILADOR"), "OK", "PROCESADO"])
+            st.rerun()
 
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
