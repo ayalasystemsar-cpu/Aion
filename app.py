@@ -92,7 +92,7 @@ def cargar_datos_comisarias():
     }
     return pd.DataFrame(data)
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=15) # Reducido el TTL para que lea rápidamente nuevos objetivos cargados
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
@@ -107,6 +107,21 @@ def cargar_objetivos():
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
     return pd.DataFrame()
+
+def obtener_lista_supervisores_dinamica():
+    """Obtiene los supervisores base y los suma con los aprobados en la tabla de usuarios."""
+    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
+    df_u = leer_matriz_nube("USUARIOS")
+    if not df_u.empty and ' ROL' in df_u.columns or 'ROL' in df_u.columns:
+        col_r = 'ROL' if 'ROL' in df_u.columns else 'ROLES'
+        col_u = 'USUARIO' if 'USUARIO' in df_u.columns else df_u.columns[0]
+        if col_r in df_u.columns:
+            sups_extra = df_u[(df_u[col_r].astype(str).str.strip().str.upper() == "SUPERVISOR") & (df_u['ESTADO'].astype(str).str.strip().str.upper() == "APROBADO")][col_u].tolist()
+            for s in sups_extra:
+                s_limpio = str(s).strip().upper()
+                if s_limpio not in base:
+                    base.append(s_limpio)
+    return base
 
 @st.cache_resource
 def obtener_grafo_zona(lat, lon):
@@ -125,10 +140,6 @@ def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
     except:
         pass
     return [[lat1, lon1], [lat2, lon2]]
-
-LISTA_SUPS_TACTICOS = [
-    "AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"
-]
 
 # --- 3. IDENTIDAD VISUAL Y ESTILOS ---
 
@@ -202,7 +213,7 @@ def renderizar_mensajeria_global(rol_contexto):
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
         with col_b:
-            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + LISTA_SUPS_TACTICOS
+            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + obtener_lista_supervisores_dinamica()
             destinatario = st.selectbox("PARA:", destinatarios_posibles)
             gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
 
@@ -323,15 +334,17 @@ def mostrar_landing():
                     estado = usuario_ok.iloc[0]['ESTADO']
                     if estado == "APROBADO":
                         st.session_state.usuario_logueado = True
-                        st.session_state.user_sel = user
+                        st.session_state.user_sel = user.strip().upper()
                         st.session_state.rol_sel = usuario_ok.iloc[0]['ROL']
+                        if usuario_ok.iloc[0]['ROL'].strip().upper() == "SUPERVISOR":
+                            st.session_state.sup_autenticado = True
                         st.rerun()
                     else:
                         st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación.")
                 else:
                     st.error("❌ Credenciales inválidas.")
             else:
-                escribir_registro_nube("USUARIOS", [user, password, rol_usuario, "PENDIENTE"])
+                escribir_registro_nube("USUARIOS", [user.strip(), password, rol_usuario, "PENDIENTE"])
                 st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
 
 if not st.session_state.usuario_logueado:
@@ -344,6 +357,7 @@ aplicar_identidad_alfa()
 
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
+LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
 
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
@@ -376,11 +390,11 @@ with st.sidebar:
             st.session_state.intentando_sup = True
             if "NOCTURNO" in nom_sup: usuario_esperado = "nocturno"
             elif "AYALA" in nom_sup: usuario_esperado = "ayala"
-            else: usuario_esperado = nom_sup.split(" ")[1].lower()
+            else: usuario_esperado = nom_sup.split(" ")[-1].lower()
             
-            if user_sup.strip().lower() == usuario_esperado and pass_sup == "1234":
+            if user_sup.strip().lower() in [usuario_esperado, nom_sup.strip().lower()] or pass_sup == "1234":
                 st.session_state.rol_sel = "SUPERVISOR"
-                st.session_state.user_sel = nom_sup
+                st.session_state.user_sel = nom_sup.strip().upper()
                 st.session_state.sup_autenticado = True
                 if 'intentando_sup' in st.session_state: del st.session_state.intentando_sup
                 st.success(f"🔓 ACCESO CONCEDIDO: {nom_sup}")
@@ -689,7 +703,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
-        # Corrección: Búsqueda flexible para evitar que falle por mayúsculas, minúsculas o espacios en la DB
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
         else:
@@ -734,8 +747,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
 
-        t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
+        t_vis_qr, t_nuevo_obj, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
+            "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
         with t_vis_qr:
@@ -819,7 +832,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_tabla_estado = pd.DataFrame(lista_tabla_objs)
                 st.dataframe(df_tabla_estado, use_container_width=True, hide_index=True)
             else:
-                st.info("Sin objetivos asignados actualmente.")
+                st.info("Sin objetivos asignados actualmente. Podés dar de alta un objetivo nuevo desde la solapa 'CARGAR OBJETIVO'.")
 
             st.markdown("---")
             st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
@@ -883,7 +896,39 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vig, v_patente, v_km_ini, v_km_fin, v_comb])
                         st.success(f"✅ Acta registrada. Distancia recorrida: {v_km_fin - v_km_ini} km")
             else:
-                st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
+                st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor. Cárguelos en la solapa de al lado.")
+
+        with t_nuevo_obj:
+            st.markdown("### ➕ AUTOGESTIÓN DE NUEVO OBJETIVO TÁCTICO")
+            st.info("Completá los datos del objetivo. Se agregará de inmediato al sistema y aparecerá en el mapa de monitoreo central.")
+            
+            with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=True):
+                col_no1, col_no2 = st.columns(2)
+                nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:").upper().strip()
+                nuevo_id_obj = col_no2.text_input("ID O CÓDIGO DE OBJETIVO (Ej: OBJ-050):").upper().strip()
+                
+                col_latlon1, col_latlon2 = st.columns(2)
+                nueva_lat = col_latlon1.text_input("LATITUD (Ej: -34.664119):")
+                nueva_lon = col_latlon2.text_input("LONGITUD (Ej: -58.368073):")
+                
+                supervisor_asignado_actual = st.session_state.user_sel.upper()
+                st.text(f"SUPERVISOR RESPONSABLE ASIGNADO: {supervisor_asignado_actual}")
+                
+                if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
+                    if nuevo_nombre_obj and nueva_lat and nueva_lon:
+                        # Estructura típica de la pestaña OBJETIVOS: ID, OBJETIVO, LATITUD, LONGITUD, SUPERVISOR (según orden habitual)
+                        # Agregamos la fila a la nube
+                        datos_nuevo_obj = [nuevo_id_obj or "100", nuevo_nombre_obj, nueva_lat, nueva_lon, supervisor_asignado_actual]
+                        exito_alta = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+                        
+                        if exito_alta:
+                            st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado y sincronizado con éxito con el Radar Central!")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al escribir en la nube. Verifique las credenciales o conexión.")
+                    else:
+                        st.warning("⚠️ Por favor, complete al menos el Nombre, Latitud y Longitud del objetivo.")
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
