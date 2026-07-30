@@ -159,7 +159,7 @@ def aplicar_identidad_alfa():
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
         .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
-        .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); height: 570px !important; }
+        .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
         
         .stButton > button[kind="primary"] { 
             background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
@@ -674,7 +674,8 @@ if st.session_state.rol_sel == "MONITOREO":
             )
             capa_etiquetas.add_to(m_mon)
             
-            st_folium(m_mon, width=1200, height=600, key="mapa_monitoreo_radar_tactico")
+            st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with t_mensajeria:
         renderizar_mensajeria_global("MONITOREO")
