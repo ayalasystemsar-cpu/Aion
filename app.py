@@ -440,7 +440,7 @@ titulos = {
     "VIGILADOR": "👮 TERMINAL OPERATIVO VIGILADORES",
     "JEFE DE OPERACIONES": "📋 COMANDO DE OPERACIONES TÁCTICAS",
     "GERENCIA": "🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL",
-    "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
+    "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO:AION-YAROKU"
 }
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
@@ -708,10 +708,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
-        # CORRECCIÓN ESTRICTA: Filtra únicamente los objetivos que corresponden a este supervisor
+        # CORRECCIÓN FLEXIBLE: Muestra los de tu usuario, los vacíos y los N/A para que nunca falle
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[
-                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado)
+                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado) |
+                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == "N/A") |
+                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == "") |
+                (df_objetivos['SUPERVISOR'].isna())
             ]
         else:
             df_objetivos_filtrados = pd.DataFrame()
