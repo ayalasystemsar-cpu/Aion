@@ -144,6 +144,42 @@ def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
         pass
     return [[lat1, lon1], [lat2, lon2]]
 
+# --- FUNCIONES DE REGISTRO SEPARADAS ---
+
+def registrar_jornada_general(supervisor, objetivo, accion):
+    try:
+        tz = pytz.timezone("America/Argentina/Buenos_Aires")
+        ahora = datetime.now(tz)
+        fecha = ahora.strftime("%Y-%m-%d")
+        hora = ahora.strftime("%H:%M:%S")
+        datos = [fecha, str(supervisor).strip().upper(), str(objetivo).strip().upper(), str(accion).strip().upper(), hora]
+        
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("JORNADA_SUPERVISORES")
+            hoja.append_row(datos)
+            return True
+    except Exception as ex:
+        print(f"Error en jornada general: {ex}")
+    return False
+
+def registrar_qr_supervisor(supervisor, objetivo, accion):
+    try:
+        tz = pytz.timezone("America/Argentina/Buenos_Aires")
+        ahora = datetime.now(tz)
+        fecha_hora = ahora.strftime("%Y-%m-%d %H:%M:%S")
+        # Estructura exacta: Columna A: Fecha Hora | Columna B: Objetivo | Columna C: Tipo de Acción | Columna D: Supervisor | Columna E: Estado
+        datos = [fecha_hora, str(objetivo).strip().upper(), str(accion).strip().upper(), str(supervisor).strip().upper(), "REGISTRADO"]
+        
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("REGISTRO-QR-SUPERVISORES")
+            hoja.append_row(datos)
+            return True
+    except Exception as ex:
+        print(f"Error en registro QR: {ex}")
+    return False
+
 # --- FUNCIÓN GENERADORA DE PDF TÁCTICO ---
 
 def generar_pdf_reporte(titulo_reporte, df_datos):
@@ -307,23 +343,6 @@ def renderizar_mensajeria_global(rol_contexto):
                         st.session_state.asunto_respuesta = asunto
                         st.rerun()
 
-def registrar_movimiento_supervisor(supervisor, objetivo, accion):
-    try:
-        tz = pytz.timezone("America/Argentina/Buenos_Aires")
-        ahora = datetime.now(tz)
-        fecha = ahora.strftime("%Y-%m-%d")
-        hora = ahora.strftime("%H:%M:%S")
-        datos = [fecha, supervisor, objetivo, accion, hora]
-        
-        gc = conectar_google()
-        if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("JORNADA_SUPERVISORES")
-            hoja.append_row(datos)
-            return True
-    except Exception as ex:
-        print(f"Error detallado al registrar movimiento: {ex}")
-    return False
-
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
@@ -342,7 +361,7 @@ def limpiar_matriz_nube(nombre_hoja):
     except: return False
 
 def ejecutar_cierre_táctico():
-    matrices = ["JORNADA_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
+    matrices = ["JORNADA_SUPERVISORES", "REGISTRO-QR-SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
     fecha_hoy = obtener_hora_argentina()
     mes_actual = fecha_hoy.split("-")[1] 
     try:
@@ -832,11 +851,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "INICIO")
+                registrar_jornada_general(st.session_state.user_sel, obj_actual, "INICIO")
                 st.success("Jornada iniciada")
         with col_j2:
             if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
-                registrar_movimiento_supervisor(st.session_state.user_sel, obj_actual, "FIN")
+                registrar_jornada_general(st.session_state.user_sel, obj_actual, "FIN")
                 st.success("Jornada cerrada")
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -991,16 +1010,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 
-                # CÁMARA BLINDADA CONTRA ERRORES VISUALES
+                # CÁMARA BLINDADA QUE ESCRIBE EN REGISTRO-QR-SUPERVISORES
                 foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor_v2")
                 
                 if foto_qr_sup is not None:
                     try:
                         accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-                        exito_registro = registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                        # AQUÍ LLAMAMOS A LA FUNCIÓN EXCLUSIVA PARA EL REGISTRO QR
+                        exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                         if exito_registro:
                             escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
-                            st.success(f"✅ ¡{accion_str} registrado con éxito para {obj_select}!")
+                            st.success(f"✅ ¡{accion_str} registrado con éxito en Registro QR para {obj_select}!")
                             st.rerun()
                         else:
                             st.error("❌ Error al registrar en la nube. Intente nuevamente.")
@@ -1288,6 +1308,17 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             st.write("*(Sin jornadas registradas)*")
 
         st.markdown("---")
+        st.markdown("### 📱 AUDITORÍA DE REGISTRO QR")
+        df_qr_sup = leer_matriz_nube("REGISTRO-QR-SUPERVISORES")
+        if not df_qr_sup.empty:
+            df_qr_sup.columns = [str(c).strip().upper() for c in df_qr_sup.columns]
+            st.dataframe(df_qr_sup, use_container_width=True, hide_index=True)
+            pdf_qr = generar_pdf_reporte("REPORTE DE REGISTRO QR DE SUPERVISORES", df_qr_sup)
+            st.download_button("📥 DESCARGAR REPORTE QR (PDF)", data=pdf_qr, file_name="reporte_qr_supervisores.pdf", mime="application/pdf", key="dl_qr_jefe")
+        else:
+            st.write("*(Sin registros QR)*")
+
+        st.markdown("---")
         st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
         df_alertas = leer_matriz_nube("ALERTAS")
         if not df_alertas.empty:
@@ -1393,6 +1424,17 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.download_button("📥 DESCARGAR REPORTE DE JORNADAS (PDF)", data=pdf_jornadas_ger, file_name="reporte_gerencial_jornadas.pdf", mime="application/pdf", key="dl_jornadas_ger")
         else:
             st.write("*(Sin jornadas registradas)*")
+
+        st.markdown("---")
+        st.markdown("### 📱 REGISTRO QR DE SUPERVISORES")
+        df_qr_ger = leer_matriz_nube("REGISTRO-QR-SUPERVISORES")
+        if not df_qr_ger.empty:
+            df_qr_ger.columns = [str(c).strip().upper() for c in df_qr_ger.columns]
+            st.dataframe(df_qr_ger, use_container_width=True, hide_index=True)
+            pdf_qr_ger = generar_pdf_reporte("REPORTE GERENCIAL QR", df_qr_ger)
+            st.download_button("📥 DESCARGAR REPORTE QR (PDF)", data=pdf_qr_ger, file_name="reporte_gerencial_qr.pdf", mime="application/pdf", key="dl_qr_ger")
+        else:
+            st.write("*(Sin registros QR)*")
 
         st.markdown("---")
         st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
