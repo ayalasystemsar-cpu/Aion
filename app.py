@@ -688,7 +688,12 @@ if st.session_state.rol_sel == "MONITOREO":
 elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
-        df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'] == sup_activo_normalizado] if not df_objetivos.empty else pd.DataFrame()
+        
+        # Corrección: Búsqueda flexible para evitar que falle por mayúsculas, minúsculas o espacios en la DB
+        if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
+            df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+        else:
+            df_objetivos_filtrados = pd.DataFrame()
         
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
