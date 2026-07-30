@@ -720,8 +720,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
 
-        t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
+        t_vis_qr, t_camara_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
+            "Visita QR", "📷 CÁMARA QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
         with t_vis_qr:
@@ -770,6 +770,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         st.success(f"✅ Acta registrada. Distancia recorrida: {v_km_fin - v_km_ini} km")
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
+
+        # --- PESTAÑA CÁMARA QR PARA SUPERVISOR ---
+        with t_camara_qr:
+            st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE OBJETIVO")
+            st.info("Utilice la cámara de su dispositivo para escanear el código QR del puesto durante su visita.")
+            foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor")
+            
+            if foto_qr_sup is not None:
+                st.success("✅ Código QR escaneado y verificado correctamente por el Supervisor.")
+                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA - {st.session_state.user_sel}"])
+                st.rerun()
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
@@ -857,12 +868,12 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
     else:
-        st.warning("⚠️ Debes realizar el Fichaje, Relevo o escanear el QR del puesto primero.")
+        st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
     
     st.markdown("---")
     
-    tab_presentismo, tab_qr_camara, tab_relevo, tab_mensajeria = st.tabs([
-        "📋 FICHAJE", "📷 ESCANEAR QR", "🔄 RELEVO", label_msg
+    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs([
+        "📋 FICHAJE", "🔄 RELEVO", label_msg
     ])
   
     with tab_presentismo:
@@ -889,18 +900,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
                 else:
                     st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
-
-    # --- PESTAÑA CÁMARA QR INCORPORADA PARA VIGILADORES ---
-    with tab_qr_camara:
-        st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE PUESTO")
-        st.info("Utilice la cámara de su dispositivo para escanear el código QR adhesivo del objetivo.")
-        foto_qr = st.camera_input("Capturar Código QR del Objetivo", key="camara_qr_vigilador")
-        
-        if foto_qr is not None:
-            st.success("✅ Código QR capturado correctamente. Sincronizando posición con la Central Táctica...")
-            st.session_state.obj_actual_vig = opciones_globales_obj[0] if len(opciones_globales_obj) > 0 else "ALFAVINIL"
-            escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), st.session_state.get("obj_actual_vig", "PUESTO"), "ESCANEO_QR_PUESTO", "---", st.session_state.get("v_nombre_completo", "VIGILADOR"), "OK", "PROCESADO"])
-            st.rerun()
 
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
