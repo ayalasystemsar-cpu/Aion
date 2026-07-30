@@ -524,16 +524,48 @@ if st.session_state.rol_sel == "MONITOREO":
 
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         
-        # --- LUPA / FILTRO DINÁMICO POR SUPERVISOR PARA MONITOREO ---
+        # --- LUPA / FILTRO DINÁMICO POR SUPERVISOR Y MÉTRICA FINA ---
         col_filt1, col_filt2 = st.columns(2)
         
-        # Usamos LISTA_SUPS_TACTICOS para que incluya automáticamente a los nuevos supervisores aprobados
         lista_sups_monitoreo = ["TODOS LOS SUPERVISORES"] + LISTA_SUPS_TACTICOS
         sup_filtro_mono = col_filt1.selectbox("🔍 FILTRAR POR SUPERVISOR:", lista_sups_monitoreo, key="filtro_sup_monitoreo")
         
         df_mapa_filtrado_sup = df_mapa_monitoreo.copy()
         if sup_filtro_mono != "TODOS LOS SUPERVISORES":
             df_mapa_filtrado_sup = df_mapa_filtrado_sup[df_mapa_filtrado_sup['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono]
+
+        # --- INDICADOR FINO DE PROCESO (NUEVO Y SUTIL) ---
+        if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
+            df_jornadas_mon = leer_matriz_nube("JORNADA_SUPERVISORES")
+            total_objs_sup = len(df_mapa_filtrado_sup['OBJETIVO'].unique())
+            visitados_sup_count = 0
+            
+            if not df_jornadas_mon.empty:
+                df_jornadas_mon.columns = [str(c).strip().upper() for c in df_jornadas_mon.columns]
+                fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
+                
+                df_j_sup_hoy = df_jornadas_mon[
+                    (df_jornadas_mon['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
+                    (df_jornadas_mon['FECHA'].astype(str).str.strip() == fecha_hoy_str) &
+                    (df_jornadas_mon['ACCION'].astype(str).str.strip().str.upper() == 'INICIO')
+                ]
+                visitados_sup_count = len(df_j_sup_hoy['OBJETIVO'].unique())
+            
+            porcentaje_progreso = int((visitados_sup_count / total_objs_sup) * 100) if total_objs_sup > 0 else 0
+            
+            col_filt2.markdown(f"""
+                <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 6px; padding: 8px 12px; margin-top: 5px; font-family: 'Rajdhani', sans-serif;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #00E5FF; font-weight: bold; text-transform: uppercase;">
+                        <span>📊 Cobertura Turno: {sup_filtro_mono}</span>
+                        <span>{visitados_sup_count} / {total_objs_sup} Objetivos ({porcentaje_progreso}%)</span>
+                    </div>
+                    <div style="background: #1A1C23; border-radius: 3px; height: 6px; width: 100%; margin-top: 6px; overflow: hidden;">
+                        <div style="background: #00E5FF; height: 100%; width: {porcentaje_progreso}%;"></div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            col_filt2.info("Seleccione un supervisor específico para ver su métrica de cobertura.")
 
         col_sel1, col_sel2 = st.columns([2, 1])
         
