@@ -1476,7 +1476,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             if not df_usr_m.empty:
                 st.dataframe(df_usr_m[['USUARIO', 'ROL', 'ESTADO']], use_container_width=True, hide_index=True)
                 
-                # Botón de descarga PDF de usuarios
                 pdf_usuarios = generar_pdf_reporte("PADRÓN GENERAL DE USUARIOS Y ACCESOS", df_usr_m[['USUARIO', 'ROL', 'ESTADO']])
                 st.download_button(
                     label="📥 DESCARGAR PADRÓN DE USUARIOS (PDF)",
@@ -1509,7 +1508,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             if not df_obj_m.empty:
                 st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
                 
-                # Botón de descarga PDF de objetivos
                 pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
                 st.download_button(
                     label="📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)",
@@ -1523,16 +1521,17 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         with t_adm_mantenimiento:
             st.markdown("#### 🛡️ CENTRO DE RESPALDO Y CAJA FUERTE DIGITAL")
-            st.info("💡 Todo el sistema está protegido: nada se borra de forma permanente. Desde aquí podés descargar respaldos de seguridad en formato CSV o PDF en el acto.")
+            st.info("💡 Todo el sistema está protegido: nada se borra de forma permanente. Desde aquí podés descargar un respaldo formal de los objetivos directamente en formato PDF.")
             
             if not df_obj_m.empty:
-                csv_respaldo = df_obj_m.to_csv(index=False).encode('utf-8')
+                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
                 st.download_button(
-                    label="📥 DESCARGAR RESPALDO DE OBJETIVOS (CSV)",
-                    data=csv_respaldo,
-                    file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
+                    label="📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)",
+                    data=pdf_respaldo_objs,
+                    file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="dl_pdf_mantenimiento_objetivos"
                 )
             else:
                 st.warning("No hay datos de objetivos para respaldar actualmente.")
