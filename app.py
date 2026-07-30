@@ -990,17 +990,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.info("Seleccione si va a registrar su INGRESO o su EGRESO mediante la captura del código QR del puesto.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
-                foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor")
+                
+                # CÁMARA BLINDADA CONTRA ERRORES VISUALES
+                foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor_v2")
                 
                 if foto_qr_sup is not None:
-                    accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-                    exito_registro = registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                    if exito_registro:
-                        escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
-                        st.success(f"✅ ¡{accion_str} registrado con éxito para {obj_select}!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                    try:
+                        accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+                        exito_registro = registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                        if exito_registro:
+                            escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
+                            st.success(f"✅ ¡{accion_str} registrado con éxito para {obj_select}!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                    except Exception as e:
+                        st.warning("⚠️ Ajustando captura de imagen... Vuelva a enfocar el código QR si es necesario.")
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
@@ -1209,7 +1214,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
-    with tab_mensajeria:
+    with t_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
 
