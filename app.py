@@ -109,7 +109,6 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def obtener_lista_supervisores_dinamica():
-    """Obtiene los supervisores base y los suma con los aprobados en la tabla de usuarios."""
     base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
     df_u = leer_matriz_nube("USUARIOS")
     if not df_u.empty:
@@ -345,7 +344,6 @@ def mostrar_landing():
                     st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
             else:
                 if user.strip() and password.strip():
-                    # Escribe en la pestaña USUARIOS: [USUARIO, CONTRASEÑA, ROL, ESTADO]
                     exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
                     if exito_reg:
                         st.success("✅ Solicitud de registro enviada con éxito. Inicie sesión una vez que el Administrador apruebe su cuenta.")
@@ -710,8 +708,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
+        # CORRECCIÓN CLAVE: Permite ver tanto los asignados como los creados por este supervisor
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
-            df_objetivos_filtrados = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+            df_objetivos_filtrados = df_objetivos[
+                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado) |
+                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == "N/A") |
+                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == "")
+            ]
         else:
             df_objetivos_filtrados = pd.DataFrame()
         
