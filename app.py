@@ -16,6 +16,10 @@ import requests
 from branca.element import Element
 import qrcode
 import io
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 
@@ -139,6 +143,66 @@ def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
     except:
         pass
     return [[lat1, lon1], [lat2, lon2]]
+
+# --- FUNCIÓN GENERADORA DE PDF TÁCTICO ---
+
+def generar_pdf_reporte(titulo_reporte, df_datos):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    elementos = []
+    
+    styles = getSampleStyleSheet()
+    estilo_titulo = ParagraphStyle(
+        'TituloTactico',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=16,
+        textColor=colors.HexColor('#0A0F1E'),
+        spaceAfter=6,
+        alignment=1
+    )
+    estilo_sub = ParagraphStyle(
+        'SubTactico',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        textColor=colors.HexColor('#555555'),
+        spaceAfter=15,
+        alignment=1
+    )
+    
+    elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO OFICIAL</b>", estilo_titulo))
+    elementos.append(Paragraph(f"<b>{titulo_reporte}</b><br/>Fecha de Emisión: {obtener_hora_argentina()}", estilo_sub))
+    elementos.append(Spacer(1, 10))
+    
+    if not df_datos.empty:
+        columnas = list(df_datos.columns)
+        datos_tabla = [[str(c) for c in columnas]]
+        for _, row in df_datos.iterrows():
+            datos_tabla.append([str(row[c]) if pd.notna(row[c]) else "" for c in columnas])
+            
+        t = Table(datos_tabla, repeatRows=1)
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0A0F1E')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8F9FA')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('TOPPADDING', (0, 1), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+        ]))
+        elementos.append(t)
+    else:
+        elementos.append(Paragraph("No hay registros disponibles para este reporte.", styles['Normal']))
+        
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer.getvalue()
 
 # --- 3. IDENTIDAD VISUAL Y ESTILOS ---
 
@@ -1207,11 +1271,14 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.success("✅ Petición enviada")
     
     with t_tab_auditoria:
-        st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
+        st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN Y DESCARGAS PDF")
+        
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
             st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
+            pdf_jornadas = generar_pdf_reporte("REPORTE DE JORNADAS DE SUPERVISORES", df_jornadas)
+            st.download_button("📥 DESCARGAR REPORTE DE JORNADAS (PDF)", data=pdf_jornadas, file_name="reporte_jornadas.pdf", mime="application/pdf", key="dl_jornadas_jefe")
         else:
             st.write("*(Sin jornadas registradas)*")
 
@@ -1221,6 +1288,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         if not df_alertas.empty:
             df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
             st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
+            pdf_alertas = generar_pdf_reporte("REPORTE DE ALERTAS TÁCTICAS", df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']])
+            st.download_button("📥 DESCARGAR HISTÓRICO DE ALERTAS (PDF)", data=pdf_alertas, file_name="reporte_alertas.pdf", mime="application/pdf", key="dl_alertas_jefe")
         else:
             st.write("*(Sin alertas tácticas)*")
 
@@ -1231,6 +1300,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
             if not df_filtro.empty:
                 st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
+                pdf_relevos = generar_pdf_reporte("REPORTE DE RELEVOS DE GUARDIA", df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']])
+                st.download_button("📥 DESCARGAR REPORTE DE RELEVOS (PDF)", data=pdf_relevos, file_name="reporte_relevos.pdf", mime="application/pdf", key="dl_relevos_jefe")
             else:
                 st.write("*(Sin relevos registrados)*")
         else:
@@ -1244,6 +1315,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+                pdf_flota = generar_pdf_reporte("REPORTE DE CONTROL DE FLOTA", df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']])
+                st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota, file_name="reporte_flota.pdf", mime="application/pdf", key="dl_flota_jefe")
         else:
             st.write("*(Sin registros de flota)*")
 
@@ -1305,11 +1378,14 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición enviada")
 
     with t_tab_auditoria:
-        st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN")
+        st.markdown("### 📋 TABLERO GERENCIAL Y DESCARGAS PDF")
+        
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
             st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
+            pdf_jornadas_ger = generar_pdf_reporte("REPORTE GERENCIAL DE JORNADAS", df_jornadas)
+            st.download_button("📥 DESCARGAR REPORTE DE JORNADAS (PDF)", data=pdf_jornadas_ger, file_name="reporte_gerencial_jornadas.pdf", mime="application/pdf", key="dl_jornadas_ger")
         else:
             st.write("*(Sin jornadas registradas)*")
 
@@ -1319,6 +1395,8 @@ elif st.session_state.rol_sel == "GERENCIA":
         if not df_alertas.empty:
             df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
             st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
+            pdf_alertas_ger = generar_pdf_reporte("REPORTE GERENCIAL DE ALERTAS", df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']])
+            st.download_button("📥 DESCARGAR REPORTE DE ALERTAS (PDF)", data=pdf_alertas_ger, file_name="reporte_gerencial_alertas.pdf", mime="application/pdf", key="dl_alertas_ger")
         else:
             st.write("*(Sin alertas tácticas)*")
 
@@ -1329,6 +1407,8 @@ elif st.session_state.rol_sel == "GERENCIA":
             df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
             if not df_filtro.empty:
                 st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
+                pdf_relevos_ger = generar_pdf_reporte("REPORTE GERENCIAL DE RELEVOS", df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']])
+                st.download_button("📥 DESCARGAR REPORTE DE RELEVOS (PDF)", data=pdf_relevos_ger, file_name="reporte_gerencial_relevos.pdf", mime="application/pdf", key="dl_relevos_ger")
             else:
                 st.write("*(Sin relevos registrados)*")
         else:
@@ -1342,6 +1422,8 @@ elif st.session_state.rol_sel == "GERENCIA":
             if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
                 df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
                 st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
+                pdf_flota_ger = generar_pdf_reporte("REPORTE GERENCIAL DE FLOTA", df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']])
+                st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota_ger, file_name="reporte_gerencial_flota.pdf", mime="application/pdf", key="dl_flota_ger")
         else:
             st.write("*(Sin registros de flota)*")
 
@@ -1357,7 +1439,7 @@ elif st.session_state.rol_sel == "GERENCIA":
 
 
 # =========================================================================
-# ROL: ADMINISTRADOR (NÚCLEO MAESTRO COMPLETO Y SEGURO)
+# ROL: ADMINISTRADOR (NÚCLEO MAESTRO COMPLETO Y SEGURO CON PDF)
 # =========================================================================
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     if st.session_state.user_sel == "ADMIN CENTRAL":
@@ -1390,24 +1472,35 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         ])
 
         with t_adm_usr:
-            st.markdown("#### 👤 SOLICITUDES DE ACCESO PENDIENTES")
-            if not df_usr_m.empty and 'ESTADO' in df_usr_m.columns:
-                df_usr_m['ESTADO'] = df_usr_m['ESTADO'].astype(str).str.strip().str.upper()
-                pendientes_u = df_usr_m[df_usr_m['ESTADO'] == "PENDIENTE"]
+            st.markdown("#### 👤 SOLICITUDES DE ACCESO Y PADRÓN DE USUARIOS")
+            if not df_usr_m.empty:
+                st.dataframe(df_usr_m[['USUARIO', 'ROL', 'ESTADO']], use_container_width=True, hide_index=True)
                 
-                if not pendientes_u.empty:
-                    st.dataframe(pendientes_u[['USUARIO', 'ROL', 'ESTADO']], use_container_width=True, hide_index=True)
-                    usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes_u['USUARIO'].tolist(), key="sel_usr_aprobar")
-                    if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
-                        idx = df_usr_m[df_usr_m['USUARIO'] == usuario_a_aprobar].index[0]
-                        if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
-                            st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
-                            st.cache_data.clear()
-                            st.rerun()
-                        else:
-                            st.error("❌ Error al actualizar la base de datos en Google Sheets.")
-                else:
-                    st.info("👍 No hay solicitudes de cuentas pendientes en este momento.")
+                # Botón de descarga PDF de usuarios
+                pdf_usuarios = generar_pdf_reporte("PADRÓN GENERAL DE USUARIOS Y ACCESOS", df_usr_m[['USUARIO', 'ROL', 'ESTADO']])
+                st.download_button(
+                    label="📥 DESCARGAR PADRÓN DE USUARIOS (PDF)",
+                    data=pdf_usuarios,
+                    file_name=f"padron_usuarios_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    key="dl_pdf_usuarios_admin"
+                )
+                
+                st.markdown("---")
+                if 'ESTADO' in df_usr_m.columns:
+                    pendientes_u = df_usr_m[df_usr_m['ESTADO'] == "PENDIENTE"]
+                    if not pendientes_u.empty:
+                        usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes_u['USUARIO'].tolist(), key="sel_usr_aprobar")
+                        if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
+                            idx = df_usr_m[df_usr_m['USUARIO'] == usuario_a_aprobar].index[0]
+                            if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
+                                st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
+                                st.cache_data.clear()
+                                st.rerun()
+                            else:
+                                st.error("❌ Error al actualizar la base de datos en Google Sheets.")
+                    else:
+                        st.info("👍 No hay solicitudes de cuentas pendientes en este momento.")
             else:
                 st.info("No hay registros en la matriz de USUARIOS.")
 
@@ -1415,13 +1508,22 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
             if not df_obj_m.empty:
                 st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
-                st.info("💡 Para agregar o dar de baja objetivos masivamente, los supervisores y jefes operan mediante las peticiones del sistema.")
+                
+                # Botón de descarga PDF de objetivos
+                pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
+                st.download_button(
+                    label="📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)",
+                    data=pdf_objetivos,
+                    file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    key="dl_pdf_objetivos_admin"
+                )
             else:
                 st.warning("⚠️ No se encontraron objetivos cargados.")
 
         with t_adm_mantenimiento:
             st.markdown("#### 🛡️ CENTRO DE RESPALDO Y CAJA FUERTE DIGITAL")
-            st.info("💡 Todo el sistema está protegido: nada se borra de forma permanente. Desde aquí podés descargar un respaldo instantáneo de la red.")
+            st.info("💡 Todo el sistema está protegido: nada se borra de forma permanente. Desde aquí podés descargar respaldos de seguridad en formato CSV o PDF en el acto.")
             
             if not df_obj_m.empty:
                 csv_respaldo = df_obj_m.to_csv(index=False).encode('utf-8')
