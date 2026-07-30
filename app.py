@@ -673,7 +673,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 attr='© CARTO', name="Etiquetas", max_zoom=21, max_native_zoom=20, overlay=True, control=False
             )
             capa_etiquetas.add_to(m_mon)
-            st_folium(m_mon, width="100%", height=550, key="mapa_monitoreo_radar_tactico")
+            
+            # CORRECCIÓN DE TAMAÑO: Ancho y alto explícito para evitar aplastamiento visual
+            st_folium(m_mon, width=1200, height=600, key="mapa_monitoreo_radar_tactico")
 
     with t_mensajeria:
         renderizar_mensajeria_global("MONITOREO")
@@ -708,7 +710,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
-        # CORRECCIÓN FLEXIBLE: Muestra los de tu usuario, los vacíos y los N/A para que nunca falle
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[
                 (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado) |
@@ -931,8 +932,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
                     if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                        # Orden estricto según tus columnas exactas:
-                        # A: Objetivo | B: Dirección | C: Localidad | D: Supervisor | E: Latitud | F: Longitud | G: Responsables
                         datos_nuevo_obj = [
                             nuevo_nombre_obj, 
                             nueva_direccion, 
