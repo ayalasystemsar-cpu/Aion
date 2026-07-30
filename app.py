@@ -64,8 +64,9 @@ def escribir_registro_nube(pestana, datos_fila):
         print(f"Error de nube en {pestana}: {e}")
         return False
 
-@st.cache_data(ttl=60)
-def leer_matriz_nube(pestana):
+def leer_matriz_nube(pestana, sin_cache=False):
+    if sin_cache:
+        st.cache_data.clear()
     gc = conectar_google()
     if gc:
         try:
@@ -92,9 +93,8 @@ def cargar_datos_comisarias():
     }
     return pd.DataFrame(data)
 
-@st.cache_data(ttl=60)
-def cargar_objetivos():
-    df = leer_matriz_nube("OBJETIVOS")
+def cargar_objetivos(sin_cache=False):
+    df = leer_matriz_nube("OBJETIVOS", sin_cache=sin_cache)
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
@@ -735,14 +735,21 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
-        # --- PESTAÑA "Visita QR": TABLA DE ESTADO Y CÁMARA DE INGRESO/EGRESO QR ---
+        # --- PESTAÑA "Visita QR": TABLA DE ESTADO Y CONTADORES DE OBJETIVOS ---
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
             st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
             
+            if st.button("🔄 ACTUALIZAR ESTADO AL INSTANTE", use_container_width=True):
+                st.rerun()
+
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
-                df_jornadas_act = leer_matriz_nube("JORNADA_SUPERVISORES")
+                # Leemos SIN CACHÉ para que refleje al instante el ingreso o egreso recién guardado
+                df_jornadas_act = leer_matriz_nube("JORNADA_SUPERVISORES", sin_cache=True)
+                
+                total_asignados = len(df_objetivos_filtrados['OBJETIVO'].unique())
+                visitados_count = 0
                 
                 for obj_item in df_objetivos_filtrados['OBJETIVO'].unique():
                     estado_txt = "⏳ PENDIENTE DE VISITA"
@@ -775,6 +782,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             if not inicios.empty:
                                 ingreso_txt = str(inicios.iloc[-1][col_hor]).strip()
                                 estado_txt = "✅ EN OBJETIVO / VISITADO"
+                                visitados_count += 1
                                 try:
                                     hora_ingreso_dt = datetime.strptime(ingreso_txt, "%H:%M:%S")
                                 except:
@@ -810,6 +818,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         "PERMANENCIA": permanencia_txt
                     })
                 
+                # --- MÉTRICAS DE OBJETIVOS (ASIGNADOS, VISITADOS, PENDIENTES) ---
+                pendientes_count = total_asignados - visitados_count
+                c_m1, c_m2, c_m3 = st.columns(3)
+                c_m1.metric("📌 TOTAL OBJETIVOS", total_asignados)
+                c_m2.metric("✅ VISITADOS", visitados_count)
+                c_m3.metric("⏳ PENDIENTES", pendientes_count)
+
                 df_tabla_estado = pd.DataFrame(lista_tabla_objs)
                 st.dataframe(df_tabla_estado, use_container_width=True, hide_index=True)
             else:
