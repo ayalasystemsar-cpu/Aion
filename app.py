@@ -916,26 +916,41 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=True):
                 col_no1, col_no2 = st.columns(2)
                 nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:").upper().strip()
-                nuevo_id_obj = col_no2.text_input("ID O CÓDIGO DE OBJETIVO (Ej: OBJ-050):").upper().strip()
+                nueva_direccion = col_no2.text_input("DIRECCIÓN:").upper().strip()
                 
-                col_latlon1, col_latlon2 = st.columns(2)
-                nueva_lat = col_latlon1.text_input("LATITUD (Ej: -34.664119):")
-                nueva_lon = col_latlon2.text_input("LONGITUD (Ej: -58.368073):")
+                col_loc1, col_loc2 = st.columns(2)
+                nueva_localidad = col_loc1.text_input("LOCALIDAD:").upper().strip()
+                nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.664119):")
+                
+                col_lon1, col_lon2 = st.columns(2)
+                nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.368073):")
+                nuevos_responsables = col_lon2.text_input("RESPONSABLES:").upper().strip()
                 
                 supervisor_asignado_actual = st.session_state.user_sel.upper()
                 st.text(f"SUPERVISOR RESPONSABLE ASIGNADO: {supervisor_asignado_actual}")
                 
                 if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
                     if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                        datos_nuevo_obj = [nuevo_id_obj or "100", nuevo_nombre_obj, nueva_lat, nueva_lon, supervisor_asignado_actual]
+                        # Orden estricto según tus columnas exactas:
+                        # A: Objetivo | B: Dirección | C: Localidad | D: Supervisor | E: Latitud | F: Longitud | G: Responsables
+                        datos_nuevo_obj = [
+                            nuevo_nombre_obj, 
+                            nueva_direccion, 
+                            nueva_localidad, 
+                            supervisor_asignado_actual, 
+                            nueva_lat, 
+                            nueva_lon, 
+                            nuevos_responsables
+                        ]
+                        
                         exito_alta = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
                         
                         if exito_alta:
-                            st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado y sincronizado con éxito con el Radar Central!")
+                            st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado y sincronizado con éxito!")
                             st.cache_data.clear()
                             st.rerun()
                         else:
-                            st.error("❌ Error al escribir en la nube. Verifique las credenciales o conexión.")
+                            st.error("❌ Error al escribir en la nube. Verifique la conexión.")
                     else:
                         st.warning("⚠️ Por favor, complete al menos el Nombre, Latitud y Longitud del objetivo.")
 
