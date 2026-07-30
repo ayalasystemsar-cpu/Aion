@@ -655,8 +655,11 @@ if st.session_state.rol_sel == "MONITOREO":
                     com_lat, com_lon = c['LATITUD'], c['LONGITUD']
                     coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
                     
+                    if len(coordenadas_ruta) <= 2:
+                        coordenadas_ruta = [[lat_obj, lon_obj], [com_lat, com_lon]]
+
                     folium.PolyLine(locations=coordenadas_ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
-                    folium.PolyLine(locations=coordenadas_ruta, color="#39FF14", weight=4, opacity=0.25).add_to(m_mon)
+                    folium.PolyLine(locations=coordenadas_ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
                 else:
                     color_icono = "#0000FF"
                     tamano_fuente = "20px"
@@ -710,13 +713,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
+        # Filtro estricto: Solo objetivos asignados exactamente a este supervisor
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[
-                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado) |
-                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == "N/A") |
-                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == "") |
-                (df_objetivos['SUPERVISOR'].isna())
-            ]
+                df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado
+            ].copy()
         else:
             df_objetivos_filtrados = pd.DataFrame()
         
@@ -911,47 +912,63 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor. Cárguelos en la solapa de al lado.")
 
         with t_nuevo_obj:
-            st.markdown("### ➕ AUTOGESTIÓN DE NUEVO OBJETIVO TÁCTICO")
-            st.info("Completá los datos del objetivo. Se agregará de inmediato al sistema y aparecerá en el mapa de monitoreo central.")
+            st.markdown("### ➕ AUTOGESTIÓN Y BAJA DE OBJETIVOS TÁCTICOS")
+            st.info("Desde acá podés dar de alta un nuevo objetivo o solicitar la baja de uno existente asignado a tu usuario.")
             
-            with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=True):
-                col_no1, col_no2 = st.columns(2)
-                nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:").upper().strip()
-                nueva_direccion = col_no2.text_input("DIRECCIÓN:").upper().strip()
-                
-                col_loc1, col_loc2 = st.columns(2)
-                nueva_localidad = col_loc1.text_input("LOCALIDAD:").upper().strip()
-                nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.664119):")
-                
-                col_lon1, col_lon2 = st.columns(2)
-                nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.368073):")
-                nuevos_responsables = col_lon2.text_input("RESPONSABLES:").upper().strip()
-                
-                supervisor_asignado_actual = st.session_state.user_sel.upper()
-                st.text(f"SUPERVISOR RESPONSABLE ASIGNADO: {supervisor_asignado_actual}")
-                
-                if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
-                    if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                        datos_nuevo_obj = [
-                            nuevo_nombre_obj, 
-                            nueva_direccion, 
-                            nueva_localidad, 
-                            supervisor_asignado_actual, 
-                            nueva_lat, 
-                            nueva_lon, 
-                            nuevos_responsables
-                        ]
-                        
-                        exito_alta = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
-                        
-                        if exito_alta:
-                            st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado y sincronizado con éxito!")
-                            st.cache_data.clear()
-                            st.rerun()
+            tab_alta_sup, tab_baja_sup = st.tabs(["🚀 DAR DE ALTA", "🗑️ SOLICITAR BAJA"])
+            
+            with tab_alta_sup:
+                with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=True):
+                    col_no1, col_no2 = st.columns(2)
+                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:").upper().strip()
+                    nueva_direccion = col_no2.text_input("DIRECCIÓN:").upper().strip()
+                    
+                    col_loc1, col_loc2 = st.columns(2)
+                    nueva_localidad = col_loc1.text_input("LOCALIDAD:").upper().strip()
+                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.662580):")
+                    
+                    col_lon1, col_lon2 = st.columns(2)
+                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.367150):")
+                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:").upper().strip()
+                    
+                    supervisor_asignado_actual = st.session_state.user_sel.upper()
+                    st.text(f"SUPERVISOR RESPONSABLE ASIGNADO: {supervisor_asignado_actual}")
+                    
+                    if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
+                        if nuevo_nombre_obj and nueva_lat and nueva_lon:
+                            datos_nuevo_obj = [
+                                nuevo_nombre_obj, 
+                                nueva_direccion, 
+                                nueva_localidad, 
+                                supervisor_asignado_actual, 
+                                nueva_lat, 
+                                nueva_lon, 
+                                nuevos_responsables
+                            ]
+                            
+                            exito_alta = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+                            
+                            if exito_alta:
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado y sincronizado con éxito!")
+                                st.cache_data.clear()
+                                st.rerun()
+                            else:
+                                st.error("❌ Error al escribir en la nube. Verifique la conexión.")
                         else:
-                            st.error("❌ Error al escribir en la nube. Verifique la conexión.")
-                    else:
-                        st.warning("⚠️ Por favor, complete al menos el Nombre, Latitud y Longitud del objetivo.")
+                            st.warning("⚠️ Por favor, complete al menos el Nombre, Latitud y Longitud del objetivo.")
+
+            with tab_baja_sup:
+                if not df_objetivos_filtrados.empty:
+                    with st.form(key="form_baja_objetivo_supervisor", clear_on_submit=True):
+                        obj_a_baja = st.selectbox("SELECCIONE OBJETIVO A DAR DE BAJA:", df_objetivos_filtrados['OBJETIVO'].unique())
+                        motivo_baja = st.text_input("MOTIVO DE LA BAJA:")
+                        if st.form_submit_button("🗑️ SOLICITAR BAJA DE OBJETIVO"):
+                            escribir_registro_nube("PETICIONES", [
+                                obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", f"{obj_a_baja} - MOTIVO: {motivo_baja}"
+                            ])
+                            st.success(f"✅ Petición de baja enviada para '{obj_a_baja}' al Comando Central.")
+                else:
+                    st.info("No tenés objetivos asignados actualmente para dar de baja.")
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
