@@ -724,11 +724,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
-        # --- CÁMARA Y QR EN LA MISMA PESTAÑA "Visita QR" (CON LA TABLA DE ESTADO IDÉNTICA A LA IMAGEN) ---
+        # --- TABLA DE ESTADO Y CÁMARA QR (CON CORRECCIÓN DE KEYERROR) ---
         with t_vis_qr:
             st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')})")
             
-            # Construcción idéntica de la tabla de estado de objetivos mostrada en la captura del usuario
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
                 df_jornadas_act = leer_matriz_nube("JORNADA_SUPERVISORES")
@@ -739,16 +738,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     egreso_txt = "---"
                     permanencia_txt = "---"
                     
-                    if not df_jornadas_act.empty:
-                        df_j_obj = df_jornadas_act[(df_jornadas_act['SUPERVISOR'].str.upper() == sup_activo_normalizado) & (df_jornadas_act['OBJETIVO'].str.upper() == obj_item.upper())]
+                    if not df_jornadas_act.empty and 'ACCION' in df_jornadas_act.columns:
+                        col_acc = 'ACCION'
+                        col_sup = 'SUPERVISOR' if 'SUPERVISOR' in df_jornadas_act.columns else df_jornadas_act.columns[1]
+                        col_obj = 'OBJETIVO' if 'OBJETIVO' in df_jornadas_act.columns else df_jornadas_act.columns[2]
+                        
+                        df_j_obj = df_jornadas_act[(df_jornadas_act[col_sup].str.upper() == sup_activo_normalizado) & (df_jornadas_act[col_obj].str.upper() == obj_item.upper())]
                         if not df_j_obj.empty:
-                            inicios = df_j_obj[df_j_obj['ACCION'] == 'INICIO']
-                            fines = df_j_obj[df_j_obj['ACCION'] == 'FIN']
+                            inicios = df_j_obj[df_j_obj[col_acc].str.upper() == 'INICIO']
+                            fines = df_j_obj[df_j_obj[col_acc].str.upper() == 'FIN']
                             if not inicios.empty:
-                                ingreso_txt = inicios.iloc[-1][' HORA' if ' HORA' in inicios.columns else 'HORA'] if ' HORA' in inicios.columns or 'HORA' in inicios.columns else "---"
+                                col_h = ' HORA' if ' HORA' in inicios.columns else ('HORA' if 'HORA' in inicios.columns else inicios.columns[-1])
+                                ingreso_txt = inicios.iloc[-1][col_h]
                                 estado_txt = "✅ FINALIZADO / RETIRADO"
                             if not fines.empty:
-                                egreso_txt = fines.iloc[-1][' HORA' if ' HORA' in fines.columns else 'HORA']
+                                col_h_fin = ' HORA' if ' HORA' in fines.columns else ('HORA' if 'HORA' in fines.columns else fines.columns[-1])
+                                egreso_txt = fines.iloc[-1][col_h_fin]
                                 
                     lista_tabla_objs.append({
                         "OBJETIVO": obj_item,
