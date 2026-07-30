@@ -1357,7 +1357,7 @@ elif st.session_state.rol_sel == "GERENCIA":
 
 
 # =========================================================================
-# ROL: ADMINISTRADOR (NÚCLEO MAESTRO COMPLETO Y ÚTIL)
+# ROL: ADMINISTRADOR (NÚCLEO MAESTRO COMPLETO Y SEGURO)
 # =========================================================================
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     if st.session_state.user_sel == "ADMIN CENTRAL":
@@ -1384,9 +1384,9 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         st.markdown("---")
 
-        # 2. SOLAPAS DE GESTIÓN ÚTIL PARA EL ADMINISTRADOR
+        # 2. SOLAPAS DE GESTIÓN Y RESPALDO
         t_adm_usr, t_adm_obj, t_adm_mantenimiento = st.tabs([
-            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛠️ MANTENIMIENTO Y PURGA"
+            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO"
         ])
 
         with t_adm_usr:
@@ -1420,10 +1420,20 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 st.warning("⚠️ No se encontraron objetivos cargados.")
 
         with t_adm_mantenimiento:
-            st.markdown("#### 🧹 HERRAMIENTAS DE LIMPIEZA Y PURGA")
-            st.warning("⚠️ Precaución: Estas acciones afectan directamente los registros en la nube maestra.")
-            if st.button("🗑️ LIMPIAR HISTORIAL DE ALERTAS RESUELTAS", use_container_width=True):
-                st.info("Función de mantenimiento disponible para futuras actualizaciones de purga selectiva.")
+            st.markdown("#### 🛡️ CENTRO DE RESPALDO Y CAJA FUERTE DIGITAL")
+            st.info("💡 Todo el sistema está protegido: nada se borra de forma permanente. Desde aquí podés descargar un respaldo instantáneo de la red.")
+            
+            if not df_obj_m.empty:
+                csv_respaldo = df_obj_m.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 DESCARGAR RESPALDO DE OBJETIVOS (CSV)",
+                    data=csv_respaldo,
+                    file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.warning("No hay datos de objetivos para respaldar actualmente.")
 
         st.markdown('</div>', unsafe_allow_html=True)
     else:
