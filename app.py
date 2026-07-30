@@ -60,7 +60,8 @@ def escribir_registro_nube(pestana, datos_fila):
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
             return True
-    except: 
+    except Exception as e:
+        print(f"Error de nube en {pestana}: {e}")
         return False
 
 @st.cache_data(ttl=60)
@@ -234,11 +235,21 @@ def renderizar_mensajeria_global(rol_contexto):
                         st.rerun()
 
 def registrar_movimiento_supervisor(supervisor, objetivo, accion):
-    fecha_hora_arg = obtener_hora_argentina()
-    fecha = fecha_hora_arg.split(" ")[0]
-    hora = fecha_hora_arg.split(" ")[1]
-    datos = [fecha, supervisor, objetivo, accion, hora]
-    return escribir_registro_nube("JORNADA_SUPERVISORES", datos)
+    try:
+        tz = pytz.timezone("America/Argentina/Buenos_Aires")
+        ahora = datetime.now(tz)
+        fecha = ahora.strftime("%Y-%m-%d")
+        hora = ahora.strftime("%H:%M:%S")
+        datos = [fecha, supervisor, objetivo, accion, hora]
+        
+        gc = conectar_google()
+        if gc:
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("JORNADA_SUPERVISORES")
+            hoja.append_row(datos)
+            return True
+    except Exception as ex:
+        print(f"Error detallado al registrar movimiento: {ex}")
+    return False
 
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
@@ -724,7 +735,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
-        # --- PESTAÑA "Visita QR": TABLA DE ESTADO IDÉNTICA AL ORIGINAL + CÁMARA QR ---
+        # --- PESTAÑA "Visita QR": TABLA DE ESTADO Y CÁMARA DE INGRESO/EGRESO QR ---
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
             st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
@@ -740,7 +751,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     permanencia_txt = "---"
                     
                     if not df_jornadas_act.empty:
-                        # Limpiamos nombres de columnas de la matriz en nube
                         df_jornadas_act.columns = [str(c).strip().upper() for c in df_jornadas_act.columns]
                         
                         col_acc = 'ACCION' if 'ACCION' in df_jornadas_act.columns else df_jornadas_act.columns[3]
@@ -749,7 +759,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         col_fec = 'FECHA' if 'FECHA' in df_jornadas_act.columns else df_jornadas_act.columns[0]
                         col_hor = 'HORA' if 'HORA' in df_jornadas_act.columns else df_jornadas_act.columns[4]
                         
-                        # Filtramos por supervisor, objetivo y fecha de hoy
                         df_j_obj = df_jornadas_act[
                             (df_jornadas_act[col_sup].astype(str).str.strip().str.upper() == sup_activo_normalizado) & 
                             (df_jornadas_act[col_obj].astype(str).str.strip().str.upper() == obj_item.strip().upper()) &
