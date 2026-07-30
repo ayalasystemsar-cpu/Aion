@@ -720,11 +720,50 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
 
-        t_vis_qr, t_camara_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "📷 CÁMARA QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
+        t_vis_qr, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
+            "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
+        # --- CÁMARA Y QR EN LA MISMA PESTAÑA "Visita QR" (CON LA TABLA DE ESTADO IDÉNTICA A LA IMAGEN) ---
         with t_vis_qr:
+            st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')})")
+            
+            # Construcción idéntica de la tabla de estado de objetivos mostrada en la captura del usuario
+            if not df_objetivos_filtrados.empty:
+                lista_tabla_objs = []
+                df_jornadas_act = leer_matriz_nube("JORNADA_SUPERVISORES")
+                
+                for obj_item in df_objetivos_filtrados['OBJETIVO'].unique():
+                    estado_txt = "⏳ PENDIENTE DE VISITA"
+                    ingreso_txt = "---"
+                    egreso_txt = "---"
+                    permanencia_txt = "---"
+                    
+                    if not df_jornadas_act.empty:
+                        df_j_obj = df_jornadas_act[(df_jornadas_act['SUPERVISOR'].str.upper() == sup_activo_normalizado) & (df_jornadas_act['OBJETIVO'].str.upper() == obj_item.upper())]
+                        if not df_j_obj.empty:
+                            inicios = df_j_obj[df_j_obj['ACCION'] == 'INICIO']
+                            fines = df_j_obj[df_j_obj['ACCION'] == 'FIN']
+                            if not inicios.empty:
+                                ingreso_txt = inicios.iloc[-1][' HORA' if ' HORA' in inicios.columns else 'HORA'] if ' HORA' in inicios.columns or 'HORA' in inicios.columns else "---"
+                                estado_txt = "✅ FINALIZADO / RETIRADO"
+                            if not fines.empty:
+                                egreso_txt = fines.iloc[-1][' HORA' if ' HORA' in fines.columns else 'HORA']
+                                
+                    lista_tabla_objs.append({
+                        "OBJETIVO": obj_item,
+                        "ESTADO": estado_txt,
+                        "INGRESO": ingreso_txt,
+                        "EGRESO": egreso_txt,
+                        "PERMANENCIA": permanencia_txt
+                    })
+                
+                df_tabla_estado = pd.DataFrame(lista_tabla_objs)
+                st.dataframe(df_tabla_estado, use_container_width=True, hide_index=True)
+            else:
+                st.info("Sin objetivos asignados actualmente.")
+
+            st.markdown("---")
             st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
@@ -755,6 +794,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         📍 ABRIR NAVEGACIÓN GPS A {obj_select}
                         </a>
                     ''', unsafe_allow_html=True)
+
+                st.markdown("---")
+                st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE PUESTO")
+                st.info("Utilice la cámara de su dispositivo para escanear el código QR del puesto durante su visita.")
+                foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor")
+                
+                if foto_qr_sup is not None:
+                    st.success("✅ Código QR escaneado y verificado correctamente por el Supervisor.")
+                    escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA - {obj_select}"])
+                    st.rerun()
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
@@ -770,17 +819,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         st.success(f"✅ Acta registrada. Distancia recorrida: {v_km_fin - v_km_ini} km")
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
-
-        # --- PESTAÑA CÁMARA QR PARA SUPERVISOR ---
-        with t_camara_qr:
-            st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE OBJETIVO")
-            st.info("Utilice la cámara de su dispositivo para escanear el código QR del puesto durante su visita.")
-            foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor")
-            
-            if foto_qr_sup is not None:
-                st.success("✅ Código QR escaneado y verificado correctamente por el Supervisor.")
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA - {st.session_state.user_sel}"])
-                st.rerun()
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
