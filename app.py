@@ -524,7 +524,6 @@ if st.session_state.rol_sel == "MONITOREO":
 
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         
-        # --- LUPA / FILTRO DINÁMICO POR SUPERVISOR Y MÉTRICA FINA ---
         col_filt1, col_filt2 = st.columns(2)
         
         lista_sups_monitoreo = ["TODOS LOS SUPERVISORES"] + LISTA_SUPS_TACTICOS
@@ -534,7 +533,6 @@ if st.session_state.rol_sel == "MONITOREO":
         if sup_filtro_mono != "TODOS LOS SUPERVISORES":
             df_mapa_filtrado_sup = df_mapa_filtrado_sup[df_mapa_filtrado_sup['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono]
 
-        # --- INDICADOR FINO DE PROCESO (NUEVO Y SUTIL) ---
         if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
             df_jornadas_mon = leer_matriz_nube("JORNADA_SUPERVISORES")
             total_objs_sup = len(df_mapa_filtrado_sup['OBJETIVO'].unique())
@@ -659,7 +657,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
                 attr='© OpenStreetMap contributors © CARTO'
             )
-            # Dibujamos usando el dataframe filtrado por supervisor y buscador
             for _, r in df_mapa_filtrado_sup.iterrows():
                 es_panico = r['OBJETIVO'] in lista_objetivos_en_panico
                 es_el_seleccionado = (r['OBJETIVO'] == obj_seleccionado)
@@ -758,7 +755,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
-        # Filtro estricto: Solo objetivos asignados exactamente a este supervisor
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[
                 df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado
@@ -1361,38 +1357,74 @@ elif st.session_state.rol_sel == "GERENCIA":
 
 
 # =========================================================================
-# ROL: ADMINISTRADOR
+# ROL: ADMINISTRADOR (NÚCLEO MAESTRO COMPLETO Y ÚTIL)
 # =========================================================================
 elif st.session_state.rol_sel == "ADMINISTRADOR":
-    st.subheader("⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL")
-    
     if st.session_state.user_sel == "ADMIN CENTRAL":
         st.session_state.admin_autenticado = True
     
     if st.session_state.admin_autenticado:
-        st.success("✅ Núcleo Maestro desbloqueado.")
-        df_usuarios = leer_matriz_nube("USUARIOS")
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.markdown("### ⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL DE ADMINISTRACIÓN")
+        st.success("✅ Acceso autorizado al Núcleo Maestro Central.")
+
+        # 1. MÉTRICAS GLOBALES RÁPIDAS
+        df_usr_m = leer_matriz_nube("USUARIOS")
+        df_obj_m = cargar_objetivos()
+        df_alt_m = leer_matriz_nube("ALERTAS")
         
-        if not df_usuarios.empty and 'ESTADO' in df_usuarios.columns:
-            df_usuarios['ESTADO'] = df_usuarios['ESTADO'].astype(str).str.strip().str.upper()
-            pendientes = df_usuarios[df_usuarios['ESTADO'] == "PENDIENTE"]
-            
-            if not pendientes.empty:
-                st.warning(f"⚠️ Hay {len(pendientes)} solicitudes pendientes de aprobación.")
-                st.dataframe(pendientes, use_container_width=True)
+        total_usrs = len(df_usr_m) if not df_usr_m.empty else 0
+        total_objs = len(df_obj_m) if not df_obj_m.empty else 0
+        pend_sos = len(df_alt_m[df_alt_m['ESTADO'].astype(str).str.upper() == "PENDIENTE"]) if not df_alt_m.empty and 'ESTADO' in df_alt_m.columns else 0
+
+        c_adm1, c_adm2, c_adm3 = st.columns(3)
+        c_adm1.metric("👥 TOTAL USUARIOS", total_usrs)
+        c_adm2.metric("🎯 OBJETIVOS ACTIVOS", total_objs)
+        c_adm3.metric("🚨 ALERTAS PENDIENTES", pend_sos)
+
+        st.markdown("---")
+
+        # 2. SOLAPAS DE GESTIÓN ÚTIL PARA EL ADMINISTRADOR
+        t_adm_usr, t_adm_obj, t_adm_mantenimiento = st.tabs([
+            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛠️ MANTENIMIENTO Y PURGA"
+        ])
+
+        with t_adm_usr:
+            st.markdown("#### 👤 SOLICITUDES DE ACCESO PENDIENTES")
+            if not df_usr_m.empty and 'ESTADO' in df_usr_m.columns:
+                df_usr_m['ESTADO'] = df_usr_m['ESTADO'].astype(str).str.strip().str.upper()
+                pendientes_u = df_usr_m[df_usr_m['ESTADO'] == "PENDIENTE"]
                 
-                usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes['USUARIO'].tolist())
-                if st.button("✅ DAR ACCESO Y APROBAR"):
-                    idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
-                    if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
-                        st.success(f"Usuario {usuario_a_aprobar} autorizado correctamente.")
-                        st.cache_data.clear()
-                        st.rerun()
-                    else:
-                        st.error("Error al actualizar la base de datos.")
+                if not pendientes_u.empty:
+                    st.dataframe(pendientes_u[['USUARIO', 'ROL', 'ESTADO']], use_container_width=True, hide_index=True)
+                    usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes_u['USUARIO'].tolist(), key="sel_usr_aprobar")
+                    if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
+                        idx = df_usr_m[df_usr_m['USUARIO'] == usuario_a_aprobar].index[0]
+                        if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
+                            st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al actualizar la base de datos en Google Sheets.")
+                else:
+                    st.info("👍 No hay solicitudes de cuentas pendientes en este momento.")
             else:
-                st.info("No hay solicitudes pendientes de aprobación en este momento.")
-        else:
-            st.info("No hay registros en la matriz de USUARIOS.")
+                st.info("No hay registros en la matriz de USUARIOS.")
+
+        with t_adm_obj:
+            st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
+            if not df_obj_m.empty:
+                st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
+                st.info("💡 Para agregar o dar de baja objetivos masivamente, los supervisores y jefes operan mediante las peticiones del sistema.")
+            else:
+                st.warning("⚠️ No se encontraron objetivos cargados.")
+
+        with t_adm_mantenimiento:
+            st.markdown("#### 🧹 HERRAMIENTAS DE LIMPIEZA Y PURGA")
+            st.warning("⚠️ Precaución: Estas acciones afectan directamente los registros en la nube maestra.")
+            if st.button("🗑️ LIMPIAR HISTORIAL DE ALERTAS RESUELTAS", use_container_width=True):
+                st.info("Función de mantenimiento disponible para futuras actualizaciones de purga selectiva.")
+
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.error("⚠️ Acceso restringido. Debes iniciar sesión como ADMINISTRADOR desde la pantalla principal.")
