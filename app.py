@@ -867,7 +867,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 with col_qr2:
                     st.markdown("#### DATOS CLAVE DEL OBJETIVO")
-                    st.write(f"**ID Oficial:** {datos_sel.get('ID', 'N/A')}")
+                    st.write(f"**Dirección:** {datos_sel.get('DIRECCION', 'N/A')}")
+                    st.write(f"**Localidad:** {datos_sel.get('LOCALIDAD', 'N/A')}")
                     st.write(f"**Coordenadas:** {datos_sel.get('LATITUD', 0)}, {datos_sel.get('LONGITUD', 0)}")
                     
                     lat = datos_sel.get('LATITUD', 0)
