@@ -708,12 +708,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
-        # CORRECCIÓN CLAVE: Permite ver tanto los asignados como los creados por este supervisor
+        # CORRECCIÓN ESTRICTA: Filtra únicamente los objetivos que corresponden a este supervisor
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[
-                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado) |
-                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == "N/A") |
-                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == "")
+                (df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado)
             ]
         else:
             df_objetivos_filtrados = pd.DataFrame()
@@ -737,7 +735,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if obj_actual != "SIN OBJETIVO":
             st.success(f"📍 OBJETIVO DETECTADO PARA PÁNICO: **{obj_actual}**")
         else:
-            st.warning("⚠️ Selecciona un objetivo en 'Visita QR' para activar el pánico correctamente.")
+            st.warning("⚠️ Selecciona tu objetivo en 'Visita QR' para activar el pánico correctamente.")
 
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
@@ -847,7 +845,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.markdown("---")
             st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
             if not df_objetivos_filtrados.empty:
-                obj_select = st.selectbox("Seleccione Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
                 col_qr1, col_qr2 = st.columns([1, 2])
