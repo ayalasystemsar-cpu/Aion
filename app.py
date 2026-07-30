@@ -64,9 +64,8 @@ def escribir_registro_nube(pestana, datos_fila):
         print(f"Error de nube en {pestana}: {e}")
         return False
 
-def leer_matriz_nube(pestana, sin_cache=False):
-    if sin_cache:
-        st.cache_data.clear()
+@st.cache_data(ttl=30)
+def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
         try:
@@ -93,8 +92,9 @@ def cargar_datos_comisarias():
     }
     return pd.DataFrame(data)
 
-def cargar_objetivos(sin_cache=False):
-    df = leer_matriz_nube("OBJETIVOS", sin_cache=sin_cache)
+@st.cache_data(ttl=60)
+def cargar_objetivos():
+    df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
         df.columns = df.columns.str.strip().str.upper()
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
@@ -739,14 +739,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
             st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
-            
-            if st.button("🔄 ACTUALIZAR ESTADO AL INSTANTE", use_container_width=True):
-                st.rerun()
 
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
-                # Leemos SIN CACHÉ para que refleje al instante el ingreso o egreso recién guardado
-                df_jornadas_act = leer_matriz_nube("JORNADA_SUPERVISORES", sin_cache=True)
+                df_jornadas_act = leer_matriz_nube("JORNADA_SUPERVISORES")
                 
                 total_asignados = len(df_objetivos_filtrados['OBJETIVO'].unique())
                 visitados_count = 0
