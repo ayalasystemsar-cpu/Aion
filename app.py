@@ -187,7 +187,6 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
             st.cache_data.clear()
             return True
     except Exception as ex:
-        st.error(f"⚠️ Error técnico en nube (Límite API): {ex}")
         print(f"Error detallado QR: {ex}")
     return False
 
@@ -1023,21 +1022,25 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 
-                # CÁMARA BLINDADA QUE ESCRIBE EN REGISTRO-QR-SUPERVISORES
+                # CONTROL DE ESTADO DE FOTO PARA EVITAR BUCLES Y ERROR 429
+                if 'ultima_foto_qr' not in st.session_state:
+                    st.session_state.ultima_foto_qr = None
+
                 foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor_v2")
                 
                 if foto_qr_sup is not None:
-                    try:
-                        accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-                        exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                        if exito_registro:
-                            escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
-                            st.success(f"✅ ¡{accion_str} registrado con éxito en Registro QR para {obj_select}!")
-                            st.rerun()
-                        else:
-                            st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                    except Exception as e:
-                        st.warning("⚠️ Ajustando captura de imagen... Vuelva a enfocar el código QR si es necesario.")
+                    if foto_qr_sup != st.session_state.ultima_foto_qr:
+                        st.session_state.ultima_foto_qr = foto_qr_sup
+                        try:
+                            accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                            if exito_registro:
+                                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
+                                st.success(f"✅ ¡{accion_str} registrado con éxito en Registro QR para {obj_select}!")
+                            else:
+                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                        except Exception as e:
+                            st.warning(f"⚠️ Nota de sistema: {e}")
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
