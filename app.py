@@ -31,10 +31,11 @@ if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CEN
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 if 'admin_autenticado' not in st.session_state: st.session_state.admin_autenticado = False
 
-# --- 2. CONEXIONES Y FUNCIONES GLOBALES ---
+# --- 2. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
 
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
+@st.cache_resource
 def conectar_google():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -53,6 +54,7 @@ def actualizar_celda(pestana, fila, columna, valor):
         if gc:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.update_acell(f"{columna}{fila}", valor)
+            st.cache_data.clear()
             return True
     except: 
         return False
@@ -63,12 +65,14 @@ def escribir_registro_nube(pestana, datos_fila):
         if gc:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
+            st.cache_data.clear() # Limpiamos caché para reflejar cambios al toque
             return True
     except Exception as e:
         print(f"Error de nube en {pestana}: {e}")
+        st.error(f"⚠️ Error técnico en nube: {e}")
         return False
 
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=30)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -96,7 +100,7 @@ def cargar_datos_comisarias():
     }
     return pd.DataFrame(data)
 
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=30)
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
@@ -158,6 +162,7 @@ def registrar_jornada_general(supervisor, objetivo, accion):
         if gc:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("JORNADA_SUPERVISORES")
             hoja.append_row(datos)
+            st.cache_data.clear()
             return True
     except Exception as ex:
         print(f"Error en jornada general: {ex}")
@@ -167,7 +172,7 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
     try:
         tz = pytz.timezone("America/Argentina/Buenos_Aires")
         ahora = datetime.now(tz)
-        fecha_hora = now_str = ahora.strftime("%Y-%m-%d %H:%M:%S")
+        fecha_hora = ahora.strftime("%Y-%m-%d %H:%M:%S")
         datos = [fecha_hora, str(objetivo).strip().upper(), str(accion).strip().upper(), str(supervisor).strip().upper(), "REGISTRADO"]
         
         gc = conectar_google()
@@ -179,9 +184,10 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
                 hoja = sh.add_worksheet(title="REGISTRO-QR-SUPERVISORES", rows="100", cols="10")
             
             hoja.append_row(datos)
+            st.cache_data.clear()
             return True
     except Exception as ex:
-        st.error(f"⚠️ Error técnico en nube: {ex}")
+        st.error(f"⚠️ Error técnico en nube (Límite API): {ex}")
         print(f"Error detallado QR: {ex}")
     return False
 
@@ -362,6 +368,7 @@ def limpiar_matriz_nube(nombre_hoja):
         if gc:
             worksheet = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja)
             worksheet.delete_rows(2, worksheet.row_count)
+            st.cache_data.clear()
             return True
     except: return False
 
@@ -382,6 +389,7 @@ def ejecutar_cierre_táctico():
                 hoja_hist.clear()
                 hoja_hist.update([df.columns.values.tolist()] + df.values.tolist())
                 limpiar_matriz_nube(mat)
+        st.cache_data.clear()
         return True
     except: return False
 
@@ -567,7 +575,7 @@ if st.session_state.rol_sel == "MONITOREO":
         sos_activos = 0
     
     with col1.container():
-        @st.fragment(run_every=5)
+        @st.fragment(run_every=10)
         def contar_panicos_monitoreo():
             df_alertas = leer_matriz_nube("ALERTAS")
             if not df_alertas.empty:
@@ -582,7 +590,7 @@ if st.session_state.rol_sel == "MONITOREO":
     col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
     
     with col4.container():
-        @st.fragment(run_every=1)
+        @st.fragment(run_every=5)
         def mostrar_reloj_monitoreo():
             hora_actual = obtener_hora_argentina().split(" ")[1]
             st.metric("🕒 HORA LOCAL", hora_actual)
@@ -1021,7 +1029,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if foto_qr_sup is not None:
                     try:
                         accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-                        # AQUÍ LLAMAMOS A LA FUNCIÓN EXCLUSIVA PARA EL REGISTRO QR
                         exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                         if exito_registro:
                             escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
@@ -1251,7 +1258,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     
     with col1.container():
-        @st.fragment(run_every=1)
+        @st.fragment(run_every=5)
         def mostrar_sos():
             df_alertas = leer_matriz_nube("ALERTAS")
             total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if not df_alertas.empty else 0
@@ -1262,7 +1269,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
     with col4.container():
-        @st.fragment(run_every=1)
+        @st.fragment(run_every=5)
         def mostrar_reloj():
             hora_actual = obtener_hora_argentina().split(" ")[1]
             st.metric("🕒 HORA LOCAL", hora_actual)
@@ -1387,7 +1394,7 @@ elif st.session_state.rol_sel == "GERENCIA":
     col3.metric("👤 GERENTE", f"{st.session_state.user_sel}")
     
     hora_container = col4.container()
-    @st.fragment(run_every=1)
+    @st.fragment(run_every=5)
     def mostrar_reloj_gerencia():
         hora_actual = obtener_hora_argentina().split(" ")[1]
         st.metric("🕒 HORA LOCAL", hora_actual)
