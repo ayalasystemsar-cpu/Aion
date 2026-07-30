@@ -735,7 +735,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
-        # --- PESTAÑA "Visita QR": TABLA DE ESTADO Y CONTADORES DE OBJETIVOS ---
+        # --- PESTAÑA "Visita QR": TABLA DE ESTADO Y CONTADORES DE OBJETIVOS (CORREGIDO) ---
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
             st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
@@ -769,6 +769,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         ]
                         
                         if not df_j_obj.empty:
+                            # Filtrado estricto e independiente para INICIO y FIN
                             inicios = df_j_obj[df_j_obj[col_acc].astype(str).str.strip().str.upper() == 'INICIO']
                             fines = df_j_obj[df_j_obj[col_acc].astype(str).str.strip().str.upper() == 'FIN']
                             
