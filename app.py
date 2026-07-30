@@ -724,9 +724,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
-        # --- PESTAÑA "Visita QR": TABLA DE ESTADO CON CÁMARA DE INGRESO/EGRESO QR ---
+        # --- PESTAÑA "Visita QR": TABLA DE ESTADO IDÉNTICA AL ORIGINAL + CÁMARA QR ---
         with t_vis_qr:
-            st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')})")
+            fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
+            st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
             
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
@@ -738,39 +739,48 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     egreso_txt = "---"
                     permanencia_txt = "---"
                     
-                    if not df_jornadas_act.empty and 'ACCION' in df_jornadas_act.columns:
-                        col_acc = 'ACCION'
+                    if not df_jornadas_act.empty:
+                        # Limpiamos nombres de columnas de la matriz en nube
+                        df_jornadas_act.columns = [str(c).strip().upper() for c in df_jornadas_act.columns]
+                        
+                        col_acc = 'ACCION' if 'ACCION' in df_jornadas_act.columns else df_jornadas_act.columns[3]
                         col_sup = 'SUPERVISOR' if 'SUPERVISOR' in df_jornadas_act.columns else df_jornadas_act.columns[1]
                         col_obj = 'OBJETIVO' if 'OBJETIVO' in df_jornadas_act.columns else df_jornadas_act.columns[2]
+                        col_fec = 'FECHA' if 'FECHA' in df_jornadas_act.columns else df_jornadas_act.columns[0]
+                        col_hor = 'HORA' if 'HORA' in df_jornadas_act.columns else df_jornadas_act.columns[4]
                         
-                        df_j_obj = df_jornadas_act[(df_jornadas_act[col_sup].str.upper() == sup_activo_normalizado) & (df_jornadas_act[col_obj].str.upper() == obj_item.upper())]
+                        # Filtramos por supervisor, objetivo y fecha de hoy
+                        df_j_obj = df_jornadas_act[
+                            (df_jornadas_act[col_sup].astype(str).str.strip().str.upper() == sup_activo_normalizado) & 
+                            (df_jornadas_act[col_obj].astype(str).str.strip().str.upper() == obj_item.strip().upper()) &
+                            (df_jornadas_act[col_fec].astype(str).str.strip() == fecha_hoy_str)
+                        ]
+                        
                         if not df_j_obj.empty:
-                            inicios = df_j_obj[df_j_obj[col_acc].str.upper() == 'INICIO']
-                            fines = df_j_obj[df_j_obj[col_acc].str.upper() == 'FIN']
+                            inicios = df_j_obj[df_j_obj[col_acc].astype(str).str.strip().str.upper() == 'INICIO']
+                            fines = df_j_obj[df_j_obj[col_acc].astype(str).str.strip().str.upper() == 'FIN']
                             
                             hora_ingreso_dt = None
                             hora_egreso_dt = None
                             
                             if not inicios.empty:
-                                col_h = ' HORA' if ' HORA' in inicios.columns else ('HORA' if 'HORA' in inicios.columns else inicios.columns[-1])
-                                ingreso_txt = inicios.iloc[-1][col_h]
+                                ingreso_txt = str(inicios.iloc[-1][col_hor]).strip()
                                 estado_txt = "✅ EN OBJETIVO / VISITADO"
                                 try:
-                                    hora_ingreso_dt = datetime.strptime(ingreso_txt.strip(), "%Y-%m-%d %H:%M:%S")
+                                    hora_ingreso_dt = datetime.strptime(ingreso_txt, "%H:%M:%S")
                                 except:
                                     try:
-                                        hora_ingreso_dt = datetime.strptime(ingreso_txt.strip(), "%H:%M:%S")
+                                        hora_ingreso_dt = datetime.strptime(ingreso_txt, "%Y-%m-%d %H:%M:%S")
                                     except: pass
 
                             if not fines.empty:
-                                col_h_fin = ' HORA' if ' HORA' in fines.columns else ('HORA' if 'HORA' in fines.columns else fines.columns[-1])
-                                egreso_txt = fines.iloc[-1][col_h_fin]
+                                egreso_txt = str(fines.iloc[-1][col_hor]).strip()
                                 estado_txt = "🏁 EGRESO REGISTRADO"
                                 try:
-                                    hora_egreso_dt = datetime.strptime(egreso_txt.strip(), "%Y-%m-%d %H:%M:%S")
+                                    hora_egreso_dt = datetime.strptime(egreso_txt, "%H:%M:%S")
                                 except:
                                     try:
-                                        hora_egreso_dt = datetime.strptime(egreso_txt.strip(), "%H:%M:%S")
+                                        hora_egreso_dt = datetime.strptime(egreso_txt, "%Y-%m-%d %H:%M:%S")
                                     except: pass
 
                             if hora_ingreso_dt and hora_egreso_dt:
