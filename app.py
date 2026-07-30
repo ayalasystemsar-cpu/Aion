@@ -64,7 +64,7 @@ def escribir_registro_nube(pestana, datos_fila):
         print(f"Error de nube en {pestana}: {e}")
         return False
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=15)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -92,7 +92,7 @@ def cargar_datos_comisarias():
     }
     return pd.DataFrame(data)
 
-@st.cache_data(ttl=15) # Reducido el TTL para que lea rápidamente nuevos objetivos cargados
+@st.cache_data(ttl=15)
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
@@ -112,10 +112,10 @@ def obtener_lista_supervisores_dinamica():
     """Obtiene los supervisores base y los suma con los aprobados en la tabla de usuarios."""
     base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
     df_u = leer_matriz_nube("USUARIOS")
-    if not df_u.empty and ' ROL' in df_u.columns or 'ROL' in df_u.columns:
+    if not df_u.empty:
         col_r = 'ROL' if 'ROL' in df_u.columns else 'ROLES'
         col_u = 'USUARIO' if 'USUARIO' in df_u.columns else df_u.columns[0]
-        if col_r in df_u.columns:
+        if col_r in df_u.columns and 'ESTADO' in df_u.columns:
             sups_extra = df_u[(df_u[col_r].astype(str).str.strip().str.upper() == "SUPERVISOR") & (df_u['ESTADO'].astype(str).str.strip().str.upper() == "APROBADO")][col_u].tolist()
             for s in sups_extra:
                 s_limpio = str(s).strip().upper()
@@ -298,7 +298,7 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
-# --- 5. CONTROL DE ACCESO (LANDING) ---
+# --- 5. CONTROL DE ACCESO (LANDING PAGE & REGISTRO) ---
 
 def mostrar_landing():
     aplicar_identidad_alfa()
@@ -308,7 +308,7 @@ def mostrar_landing():
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
     
     with st.form("form_acceso_real"):
-        user = st.text_input("Usuario", key="u")
+        user = st.text_input("Usuario o Apellido del Supervisor", key="u")
         password = st.text_input("Contraseña", type="password", key="p")
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
         rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
@@ -327,25 +327,32 @@ def mostrar_landing():
                 usuario_ok = pd.DataFrame()
                 if not df_usuarios.empty and 'USUARIO' in df_usuarios.columns and 'CONTRASEÑA' in df_usuarios.columns:
                     usuario_ok = df_usuarios[
-                        (df_usuarios['USUARIO'].str.strip() == user.strip()) & 
+                        (df_usuarios['USUARIO'].str.strip().str.upper() == user.strip().upper()) & 
                         (df_usuarios['CONTRASEÑA'].str.strip() == password.strip())
                     ]
                 if not usuario_ok.empty:
-                    estado = usuario_ok.iloc[0]['ESTADO']
+                    estado = str(usuario_ok.iloc[0].get('ESTADO', 'PENDIENTE')).strip().upper()
                     if estado == "APROBADO":
                         st.session_state.usuario_logueado = True
                         st.session_state.user_sel = user.strip().upper()
-                        st.session_state.rol_sel = usuario_ok.iloc[0]['ROL']
-                        if usuario_ok.iloc[0]['ROL'].strip().upper() == "SUPERVISOR":
+                        st.session_state.rol_sel = usuario_ok.iloc[0]['ROL'].strip().upper()
+                        if st.session_state.rol_sel == "SUPERVISOR":
                             st.session_state.sup_autenticado = True
                         st.rerun()
                     else:
-                        st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación.")
+                        st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
                 else:
-                    st.error("❌ Credenciales inválidas.")
+                    st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
             else:
-                escribir_registro_nube("USUARIOS", [user.strip(), password, rol_usuario, "PENDIENTE"])
-                st.success("✅ Solicitud enviada. Quedamos a la espera de autorización.")
+                if user.strip() and password.strip():
+                    # Escribe en la pestaña USUARIOS: [USUARIO, CONTRASEÑA, ROL, ESTADO]
+                    exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
+                    if exito_reg:
+                        st.success("✅ Solicitud de registro enviada con éxito. Inicie sesión una vez que el Administrador apruebe su cuenta.")
+                    else:
+                        st.error("❌ Error al registrar la cuenta en la nube.")
+                else:
+                    st.warning("⚠️ Complete el usuario y la contraseña.")
 
 if not st.session_state.usuario_logueado:
     mostrar_landing()
@@ -916,8 +923,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
                     if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                        # Estructura típica de la pestaña OBJETIVOS: ID, OBJETIVO, LATITUD, LONGITUD, SUPERVISOR (según orden habitual)
-                        # Agregamos la fila a la nube
                         datos_nuevo_obj = [nuevo_id_obj or "100", nuevo_nombre_obj, nueva_lat, nueva_lon, supervisor_asignado_actual]
                         exito_alta = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
                         
@@ -1288,7 +1293,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         df_usuarios = leer_matriz_nube("USUARIOS")
         
         if not df_usuarios.empty and 'ESTADO' in df_usuarios.columns:
-            df_usuarios['ESTADO'] = df_usuarios['ESTADO'].astype(str).str.strip()
+            df_usuarios['ESTADO'] = df_usuarios['ESTADO'].astype(str).str.strip().str.upper()
             pendientes = df_usuarios[df_usuarios['ESTADO'] == "PENDIENTE"]
             
             if not pendientes.empty:
@@ -1300,11 +1305,12 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                     idx = df_usuarios[df_usuarios['USUARIO'] == usuario_a_aprobar].index[0]
                     if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
                         st.success(f"Usuario {usuario_a_aprobar} autorizado correctamente.")
+                        st.cache_data.clear()
                         st.rerun()
                     else:
                         st.error("Error al actualizar la base de datos.")
             else:
-                st.info("No hay solicitudes pendientes de aprobación.")
+                st.info("No hay solicitudes pendientes de aprobación en este momento.")
         else:
             st.info("No hay registros en la matriz de USUARIOS.")
     else:
