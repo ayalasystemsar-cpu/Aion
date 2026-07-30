@@ -167,17 +167,22 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
     try:
         tz = pytz.timezone("America/Argentina/Buenos_Aires")
         ahora = datetime.now(tz)
-        fecha_hora = ahora.strftime("%Y-%m-%d %H:%M:%S")
-        # Estructura exacta: Columna A: Fecha Hora | Columna B: Objetivo | Columna C: Tipo de Acción | Columna D: Supervisor | Columna E: Estado
+        fecha_hora = now_str = ahora.strftime("%Y-%m-%d %H:%M:%S")
         datos = [fecha_hora, str(objetivo).strip().upper(), str(accion).strip().upper(), str(supervisor).strip().upper(), "REGISTRADO"]
         
         gc = conectar_google()
         if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("REGISTRO-QR-SUPERVISORES")
+            sh = gc.open_by_key(ID_MAESTRO_DB)
+            try:
+                hoja = sh.worksheet("REGISTRO-QR-SUPERVISORES")
+            except:
+                hoja = sh.add_worksheet(title="REGISTRO-QR-SUPERVISORES", rows="100", cols="10")
+            
             hoja.append_row(datos)
             return True
     except Exception as ex:
-        print(f"Error en registro QR: {ex}")
+        st.error(f"⚠️ Error técnico en nube: {ex}")
+        print(f"Error detallado QR: {ex}")
     return False
 
 # --- FUNCIÓN GENERADORA DE PDF TÁCTICO ---
