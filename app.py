@@ -724,7 +724,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             "Visita QR", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
         
-        # --- TABLA DE ESTADO Y CÁMARA QR (CON CORRECCIÓN DE KEYERROR) ---
+        # --- PESTAÑA "Visita QR": TABLA DE ESTADO CON CÁMARA DE INGRESO/EGRESO QR ---
         with t_vis_qr:
             st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')})")
             
@@ -747,13 +747,41 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         if not df_j_obj.empty:
                             inicios = df_j_obj[df_j_obj[col_acc].str.upper() == 'INICIO']
                             fines = df_j_obj[df_j_obj[col_acc].str.upper() == 'FIN']
+                            
+                            hora_ingreso_dt = None
+                            hora_egreso_dt = None
+                            
                             if not inicios.empty:
                                 col_h = ' HORA' if ' HORA' in inicios.columns else ('HORA' if 'HORA' in inicios.columns else inicios.columns[-1])
                                 ingreso_txt = inicios.iloc[-1][col_h]
-                                estado_txt = "✅ FINALIZADO / RETIRADO"
+                                estado_txt = "✅ EN OBJETIVO / VISITADO"
+                                try:
+                                    hora_ingreso_dt = datetime.strptime(ingreso_txt.strip(), "%Y-%m-%d %H:%M:%S")
+                                except:
+                                    try:
+                                        hora_ingreso_dt = datetime.strptime(ingreso_txt.strip(), "%H:%M:%S")
+                                    except: pass
+
                             if not fines.empty:
                                 col_h_fin = ' HORA' if ' HORA' in fines.columns else ('HORA' if 'HORA' in fines.columns else fines.columns[-1])
                                 egreso_txt = fines.iloc[-1][col_h_fin]
+                                estado_txt = "🏁 EGRESO REGISTRADO"
+                                try:
+                                    hora_egreso_dt = datetime.strptime(egreso_txt.strip(), "%Y-%m-%d %H:%M:%S")
+                                except:
+                                    try:
+                                        hora_egreso_dt = datetime.strptime(egreso_txt.strip(), "%H:%M:%S")
+                                    except: pass
+
+                            if hora_ingreso_dt and hora_egreso_dt:
+                                if hora_egreso_dt >= hora_ingreso_dt:
+                                    diff = hora_egreso_dt - hora_ingreso_dt
+                                    minutos_totales = int(diff.total_seconds() // 60)
+                                    horas = minutos_totales // 60
+                                    mins = minutos_totales % 60
+                                    permanencia_txt = f"{horas}h {mins}m" if horas > 0 else f"{mins} min"
+                                else:
+                                    permanencia_txt = "---"
                                 
                     lista_tabla_objs.append({
                         "OBJETIVO": obj_item,
@@ -801,14 +829,21 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
 
                 st.markdown("---")
-                st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE PUESTO")
-                st.info("Utilice la cámara de su dispositivo para escanear el código QR del puesto durante su visita.")
+                st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE PUESTO (INGRESO / EGRESO)")
+                st.info("Seleccione si va a registrar su INGRESO o su EGRESO mediante la captura del código QR del puesto.")
+                
+                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor")
                 
                 if foto_qr_sup is not None:
-                    st.success("✅ Código QR escaneado y verificado correctamente por el Supervisor.")
-                    escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA - {obj_select}"])
-                    st.rerun()
+                    accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+                    exito_registro = registrar_movimiento_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                    if exito_registro:
+                        escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
+                        st.success(f"✅ ¡{accion_str} registrado con éxito para {obj_select}!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Error al registrar en la nube. Intente nuevamente.")
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
