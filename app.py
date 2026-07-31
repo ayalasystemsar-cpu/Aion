@@ -178,14 +178,14 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
         gc = conectar_google()
         if gc:
             sh = gc.open_by_key(ID_MAESTRO_DB)
-            # Usamos estrictamente la solapa existente sin creaciones automáticas
-            hoja = sh.worksheet("REGISTRO-QR-SUPERVISORES")
+            # Apuntamos estrictamente a tu solapa con guiones bajos existente
+            hoja = sh.worksheet("REGISTRO_QR_SUPERVISORES")
             
             hoja.append_row(datos)
             st.cache_data.clear()
             return True
     except Exception as ex:
-        st.error(f"⚠️ Error: No se encontró la solapa 'REGISTRO-QR-SUPERVISORES' o faltan permisos.")
+        st.error(f"⚠️ Error: No se encontró la solapa 'REGISTRO_QR_SUPERVISORES' o faltan permisos.")
         print(f"Error detallado QR: {ex}")
     return False
 
@@ -371,7 +371,7 @@ def limpiar_matriz_nube(nombre_hoja):
     except: return False
 
 def ejecutar_cierre_táctico():
-    matrices = ["JORNADA_SUPERVISORES", "REGISTRO-QR-SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
+    matrices = ["JORNADA_SUPERVISORES", "REGISTRO_QR_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
     fecha_hoy = obtener_hora_argentina()
     mes_actual = fecha_hoy.split("-")[1] 
     try:
@@ -1326,7 +1326,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
         st.markdown("---")
         st.markdown("### 📱 AUDITORÍA DE REGISTRO QR")
-        df_qr_sup = leer_matriz_nube("REGISTRO-QR-SUPERVISORES")
+        df_qr_sup = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
         if not df_qr_sup.empty:
             df_qr_sup.columns = [str(c).strip().upper() for c in df_qr_sup.columns]
             st.dataframe(df_qr_sup, use_container_width=True, hide_index=True)
@@ -1444,7 +1444,7 @@ elif st.session_state.rol_sel == "GERENCIA":
 
         st.markdown("---")
         st.markdown("### 📱 REGISTRO QR DE SUPERVISORES")
-        df_qr_ger = leer_matriz_nube("REGISTRO-QR-SUPERVISORES")
+        df_qr_ger = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
         if not df_qr_ger.empty:
             df_qr_ger.columns = [str(c).strip().upper() for c in df_qr_ger.columns]
             st.dataframe(df_qr_ger, use_container_width=True, hide_index=True)
