@@ -289,7 +289,7 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-# Reloj fluido con idéntica estética visual
+# Reloj fluido con diseño uniforme
 def renderizar_reloj_fluido():
     reloj_html = """
     <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; box-sizing: border-box;">
@@ -1317,6 +1317,17 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             st.write("*(Sin registros QR)*")
 
         st.markdown("---")
+        st.markdown("### 🚗 AUDITORÍA DE CONTROL DE FLOTA")
+        df_flota = leer_matriz_nube("CONTROL_FLOTA")
+        if not df_flota.empty:
+            df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
+            st.dataframe(df_flota, use_container_width=True, hide_index=True)
+            pdf_flota = generar_pdf_reporte("REPORTE DE CONTROL DE FLOTA", df_flota)
+            st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota, file_name="reporte_flota.pdf", mime="application/pdf", key="dl_flota_jefe")
+        else:
+            st.write("*(Sin registros de flota)*")
+
+        st.markdown("---")
         st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
         df_alertas = leer_matriz_nube("ALERTAS")
         if not df_alertas.empty:
@@ -1381,6 +1392,8 @@ elif st.session_state.rol_sel == "GERENCIA":
 
     with t_tab_auditoria:
         st.markdown("### 📋 TABLERO GERENCIAL Y DESCARGAS PDF")
+        
+        st.markdown("#### 📋 AUDITORÍA DE SUPERVISIÓN")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
@@ -1391,9 +1404,42 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.write("*(Sin jornadas registradas)*")
 
         st.markdown("---")
+        st.markdown("#### 📱 AUDITORÍA DE REGISTRO CÓDIGO QR")
+        df_qr_ger = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+        if not df_qr_ger.empty:
+            df_qr_ger.columns = [str(c).strip().upper() for c in df_qr_ger.columns]
+            st.dataframe(df_qr_ger, use_container_width=True, hide_index=True)
+            pdf_qr_ger = generar_pdf_reporte("REPORTE GERENCIAL DE REGISTRO QR", df_qr_ger)
+            st.download_button("📥 DESCARGAR REPORTE QR (PDF)", data=pdf_qr_ger, file_name="reporte_gerencial_qr.pdf", mime="application/pdf", key="dl_qr_ger")
+        else:
+            st.write("*(Sin registros QR)*")
+
+        st.markdown("---")
+        st.markdown("#### 🚗 AUDITORÍA DE CONTROL DE FLOTA")
+        df_flota_ger = leer_matriz_nube("CONTROL_FLOTA")
+        if not df_flota_ger.empty:
+            df_flota_ger.columns = [str(c).strip().upper() for c in df_flota_ger.columns]
+            st.dataframe(df_flota_ger, use_container_width=True, hide_index=True)
+            pdf_flota_ger = generar_pdf_reporte("REPORTE GERENCIAL DE FLOTA", df_flota_ger)
+            st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota_ger, file_name="reporte_gerencial_flota.pdf", mime="application/pdf", key="dl_flota_ger")
+        else:
+            st.write("*(Sin registros de flota)*")
+
+        st.markdown("---")
+        st.markdown("#### 🚨 AUDITORÍA DE ALERTAS TÁCTICAS")
+        df_alt_ger = leer_matriz_nube("ALERTAS")
+        if not df_alt_ger.empty:
+            df_alt_ger.columns = [str(c).strip().upper() for c in df_alt_ger.columns]
+            st.dataframe(df_alt_ger[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
+            pdf_alt_ger = generar_pdf_reporte("REPORTE GERENCIAL DE ALERTAS TÁCTICAS", df_alt_ger[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']])
+            st.download_button("📥 DESCARGAR HISTÓRICO DE ALERTAS (PDF)", data=pdf_alt_ger, file_name="reporte_gerencial_alertas.pdf", mime="application/pdf", key="dl_alertas_ger")
+        else:
+            st.write("*(Sin alertas tácticas)*")
+
+        st.markdown("---")
         st.markdown("### 🔒 PROTOCOLO DE CIERRE TÁCTICO MENSUAL")
-        st.warning("⚠️ Esta acción archivará y limpiará las tablas operativas actuales para iniciar un nuevo ciclo.")
-        if st.button("EJECUTAR CIERRE TÁCTICO MENSUAL", type="primary"):
+        st.info("ℹ️ Esta acción archivará y limpiará las tablas operativas actuales para iniciar un nuevo ciclo.")
+        if st.button("EJECUTAR CIERRE TÁCTICO MENSUAL"):
             if ejecutar_cierre_táctico():
                 st.success("✅ ¡Cierre táctico ejecutado con éxito! Ciclo reiniciado.")
                 st.rerun()
