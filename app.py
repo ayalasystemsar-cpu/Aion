@@ -178,15 +178,14 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
         gc = conectar_google()
         if gc:
             sh = gc.open_by_key(ID_MAESTRO_DB)
-            try:
-                hoja = sh.worksheet("REGISTRO-QR-SUPERVISORES")
-            except:
-                hoja = sh.add_worksheet(title="REGISTRO-QR-SUPERVISORES", rows="100", cols="10")
+            # Usamos estrictamente la solapa existente sin creaciones automáticas
+            hoja = sh.worksheet("REGISTRO-QR-SUPERVISORES")
             
             hoja.append_row(datos)
             st.cache_data.clear()
             return True
     except Exception as ex:
+        st.error(f"⚠️ Error: No se encontró la solapa 'REGISTRO-QR-SUPERVISORES' o faltan permisos.")
         print(f"Error detallado QR: {ex}")
     return False
 
@@ -1035,7 +1034,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
                             exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                             if exito_registro:
-                                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
+                                try:
+                                    escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
+                                except:
+                                    pass
                                 st.success(f"✅ ¡{accion_str} registrado con éxito en Registro QR para {obj_select}!")
                             else:
                                 st.error("❌ Error al registrar en la nube. Intente nuevamente.")
