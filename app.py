@@ -916,7 +916,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
-                df_jornadas_act = leer_matriz_nube("JORNADA_SUPERVISORES")
+                # MODIFICACIÓN CLAVE: Leemos directo de la solapa de registros QR para actualizar el cuadro visual al instante
+                df_jornadas_act = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
                 
                 total_asignados = len(df_objetivos_filtrados['OBJETIVO'].unique())
                 visitados_count = 0
@@ -930,16 +931,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     if not df_jornadas_act.empty:
                         df_jornadas_act.columns = [str(c).strip().upper() for c in df_jornadas_act.columns]
                         
-                        col_acc = 'ACCION' if 'ACCION' in df_jornadas_act.columns else df_jornadas_act.columns[3]
-                        col_sup = 'SUPERVISOR' if 'SUPERVISOR' in df_jornadas_act.columns else df_jornadas_act.columns[1]
-                        col_obj = 'OBJETIVO' if 'OBJETIVO' in df_jornadas_act.columns else df_jornadas_act.columns[2]
-                        col_fec = 'FECHA' if 'FECHA' in df_jornadas_act.columns else df_jornadas_act.columns[0]
-                        col_hor = 'HORA' if 'HORA' in df_jornadas_act.columns else df_jornadas_act.columns[4]
+                        col_fec_hora = df_jornadas_act.columns[0]
+                        col_obj = df_jornadas_act.columns[1]
+                        col_acc = df_jornadas_act.columns[2]
+                        col_sup = df_jornadas_act.columns[3]
                         
                         df_j_obj = df_jornadas_act[
                             (df_jornadas_act[col_sup].astype(str).str.strip().str.upper() == sup_activo_normalizado) & 
                             (df_jornadas_act[col_obj].astype(str).str.strip().str.upper() == obj_item.strip().upper()) &
-                            (df_jornadas_act[col_fec].astype(str).str.strip() == fecha_hoy_str)
+                            (df_jornadas_act[col_fec_hora].astype(str).str.contains(fecha_hoy_str))
                         ]
                         
                         if not df_j_obj.empty:
@@ -950,7 +950,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             hora_egreso_dt = None
                             
                             if not inicios.empty:
-                                ingreso_txt = str(inicios.iloc[-1][col_hor]).strip()
+                                val_fh_ing = str(inicios.iloc[-1][col_fec_hora])
+                                ingreso_txt = val_fh_ing.split(" ")[1] if " " in val_fh_ing else val_fh_ing
                                 estado_txt = "✅ EN OBJETIVO / VISITADO"
                                 visitados_count += 1
                                 try:
@@ -958,7 +959,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 except: pass
 
                             if not fines.empty:
-                                egreso_txt = str(fines.iloc[-1][col_hor]).strip()
+                                val_fh_fin = str(fines.iloc[-1][col_fec_hora])
+                                egreso_txt = val_fh_fin.split(" ")[1] if " " in val_fh_fin else val_fh_fin
                                 estado_txt = "🏁 EGRESO REGISTRADO"
                                 try:
                                     hora_egreso_dt = datetime.strptime(egreso_txt, "%H:%M:%S")
@@ -1045,12 +1047,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
                             exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                             if exito_registro:
-                                # CORREGIDO: Apuntando correctamente a NOVEDADES_GUARDIA
                                 try:
                                     escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
                                 except:
                                     pass
                                 st.success(f"✅ ¡{accion_str} registrado con éxito en Registro QR para {obj_select}!")
+                                st.rerun()
                             else:
                                 st.error("❌ Error al registrar en la nube. Intente nuevamente.")
                         except Exception as e:
