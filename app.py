@@ -289,14 +289,14 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-# Reloj fluido con diseño uniforme
+# Reloj fluido con idéntica estética visual que las tarjetas de métricas estándar
 def renderizar_reloj_fluido():
     reloj_html = """
     <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; box-sizing: border-box;">
-        <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
-            <span>🕒</span> HORA LOCAL
+        <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+            HORA LOCAL
         </div>
-        <div id="reloj-digital" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: bold; margin-top: 4px;">--:--:--</div>
+        <div id="reloj-digital" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: normal; margin-top: 4px;">--:--:--</div>
     </div>
     <script>
     function actualizarReloj() {
