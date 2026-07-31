@@ -20,6 +20,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+import streamlit.components.v1 as components
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 
@@ -65,7 +66,7 @@ def escribir_registro_nube(pestana, datos_fila):
         if gc:
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
             hoja.append_row(datos_fila)
-            st.cache_data.clear() # Limpiamos caché para reflejar cambios al toque
+            st.cache_data.clear() 
             return True
     except Exception as e:
         print(f"Error de nube en {pestana}: {e}")
@@ -148,8 +149,6 @@ def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
         pass
     return [[lat1, lon1], [lat2, lon2]]
 
-# --- FUNCIONES DE REGISTRO SEPARADAS ---
-
 def registrar_jornada_general(supervisor, objetivo, accion):
     try:
         tz = pytz.timezone("America/Argentina/Buenos_Aires")
@@ -197,35 +196,15 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
             return True
     except Exception as ex:
         st.error(f"⚠️ Error detallado en nube: {ex}")
-        print(f"Error detallado QR: {ex}")
     return False
-
-# --- FUNCIÓN GENERADORA DE PDF TÁCTICO ---
 
 def generar_pdf_reporte(titulo_reporte, df_datos):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     elementos = []
-    
     styles = getSampleStyleSheet()
-    estilo_titulo = ParagraphStyle(
-        'TituloTactico',
-        parent=styles['Heading1'],
-        fontName='Helvetica-Bold',
-        fontSize=16,
-        textColor=colors.HexColor('#0A0F1E'),
-        spaceAfter=6,
-        alignment=1
-    )
-    estilo_sub = ParagraphStyle(
-        'SubTactico',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=9,
-        textColor=colors.HexColor('#555555'),
-        spaceAfter=15,
-        alignment=1
-    )
+    estilo_titulo = ParagraphStyle('TituloTactico', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, textColor=colors.HexColor('#0A0F1E'), spaceAfter=6, alignment=1)
+    estilo_sub = ParagraphStyle('SubTactico', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#555555'), spaceAfter=15, alignment=1)
     
     elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO OFICIAL</b>", estilo_titulo))
     elementos.append(Paragraph(f"<b>{titulo_reporte}</b><br/>Fecha de Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -259,8 +238,6 @@ def generar_pdf_reporte(titulo_reporte, df_datos):
     doc.build(elementos)
     buffer.seek(0)
     return buffer.getvalue()
-
-# --- 3. IDENTIDAD VISUAL Y ESTILOS ---
 
 def aplicar_identidad_alfa():
     st.markdown("""
@@ -312,7 +289,24 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNCIONES DE MENSAJERÍA Y CIERRE ---
+# Función para mostrar un reloj de segundos 100% fluido en tiempo real vía JavaScript
+def renderizar_reloj_fluido():
+    reloj_html = """
+    <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; text-align: center;">
+        <p style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">🕒 HORA LOCAL</p>
+        <div id="reloj-digital" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: bold; margin-top: 4px;">--:--:--</div>
+    </div>
+    <script>
+    function actualizarReloj() {
+        const opciones = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+        const horaLocal = new Date().toLocaleTimeString('es-AR', opciones);
+        document.getElementById('reloj-digital').innerText = horaLocal;
+    }
+    setInterval(actualizarReloj, 1000);
+    actualizarReloj();
+    </script>
+    """
+    components.html(reloj_html, height=75)
 
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
@@ -402,8 +396,6 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
-# --- 5. CONTROL DE ACCESO (LANDING PAGE & REGISTRO) ---
-
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -462,8 +454,6 @@ if not st.session_state.usuario_logueado:
     st.stop()
 
 aplicar_identidad_alfa()
-
-# --- 6. SIDEBAR TÁCTICO ---
 
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
@@ -535,8 +525,6 @@ with st.sidebar:
         st.session_state.usuario_logueado = False
         st.rerun()
 
-# --- 7. CABECERA CENTRAL Y RASTREO POR ROLES ---
-
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
 titulos = {
@@ -599,11 +587,7 @@ if st.session_state.rol_sel == "MONITOREO":
     col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
     
     with col4.container():
-        @st.fragment(run_every=5)
-        def mostrar_reloj_monitoreo():
-            hora_actual = obtener_hora_argentina().split(" ")[1]
-            st.metric("🕒 HORA LOCAL", hora_actual)
-        mostrar_reloj_monitoreo() 
+        renderizar_reloj_fluido()
 
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
@@ -641,6 +625,7 @@ if st.session_state.rol_sel == "MONITOREO":
             else:
                 st.warning("⚠️ La columna 'SUPERVISOR' no se encuentra en la solapa OBJETIVOS.")
 
+        # SOLUCIÓN BARRA MONITOREO: Sincronización exacta con REGISTRO_QR_SUPERVISORES
         if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
             df_jornadas_mon = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
             total_objs_sup = len(df_mapa_filtrado_sup['OBJETIVO'].unique())
@@ -650,13 +635,17 @@ if st.session_state.rol_sel == "MONITOREO":
                 df_jornadas_mon.columns = [str(c).strip().upper() for c in df_jornadas_mon.columns]
                 fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
                 
-                if all(col in df_jornadas_mon.columns for col in ['SUPERVISOR', 'FECHA_HORA', 'ACCION', 'OBJETIVO']):
-                    df_j_sup_hoy = df_jornadas_mon[
-                        (df_jornadas_mon['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
-                        (df_jornadas_mon['FECHA_HORA'].astype(str).str.contains(fecha_hoy_str)) &
-                        (df_jornadas_mon['ACCION'].astype(str).str.strip().str.upper() == 'INICIO')
-                    ]
-                    visitados_sup_count = len(df_j_sup_hoy['OBJETIVO'].unique())
+                col_fec_h = df_jornadas_mon.columns[0]
+                col_obj_h = df_jornadas_mon.columns[1]
+                col_acc_h = df_jornadas_mon.columns[2]
+                col_sup_h = df_jornadas_mon.columns[3]
+                
+                df_j_sup_hoy = df_jornadas_mon[
+                    (df_jornadas_mon[col_sup_h].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
+                    (df_jornadas_mon[col_fec_h].astype(str).str.contains(fecha_hoy_str)) &
+                    (df_jornadas_mon[col_acc_h].astype(str).str.strip().str.upper() == 'INICIO')
+                ]
+                visitados_sup_count = len(df_j_sup_hoy[col_obj_h].unique())
             
             porcentaje_progreso = int((visitados_sup_count / total_objs_sup) * 100) if total_objs_sup > 0 else 0
             
@@ -1073,12 +1062,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vig, v_patente, v_km_ini, v_km_fin, v_comb])
                         st.success(f"✅ Acta registrada. Distancia recorrida: {v_km_fin - v_km_ini} km")
             else:
-                st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor. Cárguelos en la solapa de al lado.")
+                st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
 
         with t_nuevo_obj:
             st.markdown("### ➕ AUTOGESTIÓN Y BAJA DE OBJETIVOS TÁCTICOS")
-            st.info("Desde acá podés dar de alta un nuevo objetivo o solicitar la baja de uno existente asignado a tu usuario.")
-            
             tab_alta_sup, tab_baja_sup = st.tabs(["🚀 DAR DE ALTA", "🗑️ SOLICITAR BAJA"])
             
             with tab_alta_sup:
@@ -1096,30 +1083,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     nuevos_responsables = col_lon2.text_input("RESPONSABLES:").upper().strip()
                     
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
-                    st.text(f"SUPERVISOR RESPONSABLE ASIGNADO: {supervisor_asignado_actual}")
-                    
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
                         if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                            datos_nuevo_obj = [
-                                nuevo_nombre_obj, 
-                                nueva_direccion, 
-                                nueva_localidad, 
-                                supervisor_asignado_actual, 
-                                nueva_lat, 
-                                nueva_lon, 
-                                nuevos_responsables
-                            ]
-                            
+                            datos_nuevo_obj = [nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables]
                             exito_alta = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
-                            
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado y sincronizado con éxito!")
-                                st.cache_data.clear()
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado con éxito!")
                                 st.rerun()
                             else:
-                                st.error("❌ Error al escribir en la nube. Verifique la conexión.")
-                        else:
-                            st.warning("⚠️ Por favor, complete al menos el Nombre, Latitud y Longitud del objetivo.")
+                                st.error("❌ Error al escribir en la nube.")
 
             with tab_baja_sup:
                 if not df_objetivos_filtrados.empty:
@@ -1127,12 +1099,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         obj_a_baja = st.selectbox("SELECCIONE OBJETIVO A DAR DE BAJA:", df_objetivos_filtrados['OBJETIVO'].unique())
                         motivo_baja = st.text_input("MOTIVO DE LA BAJA:")
                         if st.form_submit_button("🗑️ SOLICITAR BAJA DE OBJETIVO"):
-                            escribir_registro_nube("PETICIONES", [
-                                obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", f"{obj_a_baja} - MOTIVO: {motivo_baja}"
-                            ])
-                            st.success(f"✅ Petición de baja enviada para '{obj_a_baja}' al Comando Central.")
-                else:
-                    st.info("No tenés objetivos asignados actualmente para dar de baja.")
+                            escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", f"{obj_a_baja} - MOTIVO: {motivo_baja}"])
+                            st.success(f"✅ Petición de baja enviada para '{obj_a_baja}'.")
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
@@ -1223,9 +1191,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     
     st.markdown("---")
     
-    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs([
-        "📋 FICHAJE", "🔄 RELEVO", label_msg
-    ])
+    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
   
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
@@ -1290,11 +1256,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
     
     with col4.container():
-        @st.fragment(run_every=5)
-        def mostrar_reloj():
-            hora_actual = obtener_hora_argentina().split(" ")[1]
-            st.metric("🕒 HORA LOCAL", hora_actual)
-        mostrar_reloj()
+        renderizar_reloj_fluido()
 
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
@@ -1330,7 +1292,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     
     with t_tab_auditoria:
         st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN Y DESCARGAS PDF")
-        
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
@@ -1362,33 +1323,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.write("*(Sin alertas tácticas)*")
 
-        st.markdown("---")
-        st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
-        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_relevos.empty and 'TIPO_EVENTO' in df_relevos.columns:
-            df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
-            if not df_filtro.empty:
-                st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
-                pdf_relevos = generar_pdf_reporte("REPORTE DE RELEVOS DE GUARDIA", df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']])
-                st.download_button("📥 DESCARGAR REPORTE DE RELEVOS (PDF)", data=pdf_relevos, file_name="reporte_relevos.pdf", mime="application/pdf", key="dl_relevos_jefe")
-            else:
-                st.write("*(Sin relevos registrados)*")
-        else:
-            st.write("*(Sin novedades registradas)*")
-
-        st.markdown("---")
-        st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
-        df_flota = leer_matriz_nube("CONTROL_FLOTA")
-        if not df_flota.empty:
-            df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
-            if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
-                df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
-                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
-                pdf_flota = generar_pdf_reporte("REPORTE DE CONTROL DE FLOTA", df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']])
-                st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota, file_name="reporte_flota.pdf", mime="application/pdf", key="dl_flota_jefe")
-        else:
-            st.write("*(Sin registros de flota)*")
-
 
 # =========================================================================
 # ROL: GERENCIA
@@ -1414,13 +1348,8 @@ elif st.session_state.rol_sel == "GERENCIA":
     col2.metric("👥 PERSONAL ACTIVO", f"{personal_activo}")
     col3.metric("👤 GERENTE", f"{st.session_state.user_sel}")
     
-    hora_container = col4.container()
-    @st.fragment(run_every=5)
-    def mostrar_reloj_gerencia():
-        hora_actual = obtener_hora_argentina().split(" ")[1]
-        st.metric("🕒 HORA LOCAL", hora_actual)
-    with hora_container:
-        mostrar_reloj_gerencia()
+    with col4.container():
+        renderizar_reloj_fluido()
         
     st.write("---")
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
@@ -1448,7 +1377,6 @@ elif st.session_state.rol_sel == "GERENCIA":
 
     with t_tab_auditoria:
         st.markdown("### 📋 TABLERO GERENCIAL Y DESCARGAS PDF")
-        
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
             df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
@@ -1458,68 +1386,9 @@ elif st.session_state.rol_sel == "GERENCIA":
         else:
             st.write("*(Sin jornadas registradas)*")
 
-        st.markdown("---")
-        st.markdown("### 📱 REGISTRO QR DE SUPERVISORES")
-        df_qr_ger = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
-        if not df_qr_ger.empty:
-            df_qr_ger.columns = [str(c).strip().upper() for c in df_qr_ger.columns]
-            st.dataframe(df_qr_ger, use_container_width=True, hide_index=True)
-            pdf_qr_ger = generar_pdf_reporte("REPORTE GERENCIAL QR", df_qr_ger)
-            st.download_button("📥 DESCARGAR REPORTE QR (PDF)", data=pdf_qr_ger, file_name="reporte_gerencial_qr.pdf", mime="application/pdf", key="dl_qr_ger")
-        else:
-            st.write("*(Sin registros QR)*")
-
-        st.markdown("---")
-        st.markdown("### 🚨 HISTÓRICO DE ALERTAS TÁCTICAS")
-        df_alertas = leer_matriz_nube("ALERTAS")
-        if not df_alertas.empty:
-            df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
-            st.dataframe(df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
-            pdf_alertas_ger = generar_pdf_reporte("REPORTE GERENCIAL DE ALERTAS", df_alertas[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']])
-            st.download_button("📥 DESCARGAR REPORTE DE ALERTAS (PDF)", data=pdf_alertas_ger, file_name="reporte_gerencial_alertas.pdf", mime="application/pdf", key="dl_alertas_ger")
-        else:
-            st.write("*(Sin alertas tácticas)*")
-
-        st.markdown("---")
-        st.markdown("### 🔄 AUDITORÍA DE RELEVOS")
-        df_relevos = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_relevos.empty and 'TIPO_EVENTO' in df_relevos.columns:
-            df_filtro = df_relevos[df_relevos['TIPO_EVENTO'] == "RELEVO DE TURNO"].copy()
-            if not df_filtro.empty:
-                st.dataframe(df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']], use_container_width=True, hide_index=True)
-                pdf_relevos_ger = generar_pdf_reporte("REPORTE GERENCIAL DE RELEVOS", df_filtro[['FECHA', 'OBJETIVO', 'VIGILADOR_SALE', 'VIGILADOR_ENTRA', 'DNI']])
-                st.download_button("📥 DESCARGAR REPORTE DE RELEVOS (PDF)", data=pdf_relevos_ger, file_name="reporte_gerencial_relevos.pdf", mime="application/pdf", key="dl_relevos_ger")
-            else:
-                st.write("*(Sin relevos registrados)*")
-        else:
-            st.write("*(Sin novedades registradas)*")
-
-        st.markdown("---")
-        st.markdown("### ⛽ AUDITORÍA Y CONTROL DE FLOTA")
-        df_flota = leer_matriz_nube("CONTROL_FLOTA")
-        if not df_flota.empty:
-            df_flota.columns = [str(c).strip().upper() for c in df_flota.columns]
-            if 'KM_FINAL' in df_flota.columns and 'KM_INICIAL' in df_flota.columns:
-                df_flota['KM_RECORRIDOS'] = pd.to_numeric(df_flota['KM_FINAL'], errors='coerce') - pd.to_numeric(df_flota['KM_INICIAL'], errors='coerce')
-                st.dataframe(df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']], use_container_width=True, hide_index=True)
-                pdf_flota_ger = generar_pdf_reporte("REPORTE GERENCIAL DE FLOTA", df_flota[['FECHA', 'SUPERVISOR', 'MOVIL', 'KM_INICIAL', 'KM_FINAL', 'KM_RECORRIDOS', 'COMBUSTIBLE']])
-                st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota_ger, file_name="reporte_gerencial_flota.pdf", mime="application/pdf", key="dl_flota_ger")
-        else:
-            st.write("*(Sin registros de flota)*")
-
-        st.markdown("---")
-        st.markdown("### ⚠️ COMANDO DE CIERRE TÁCTICO")
-        st.info("Esta acción archiva todos los reportes operativos y reinicia los contadores del sistema.")
-        if st.checkbox("CONFIRMAR EJECUCIÓN DE CIERRE MENSUAL"):
-            if st.button("🚀 EJECUTAR RESPALDO Y REINICIO"):
-                with st.spinner("Procesando archivos históricos..."):
-                    if ejecutar_cierre_táctico(): 
-                        st.success("Cierre mensual completado. Todo el historial fue archivado.")
-                        st.rerun()
-
 
 # =========================================================================
-# ROL: ADMINISTRADOR (NÚCLEO MAESTRO COMPLETO Y SEGURO CON PDF)
+# ROL: ADMINISTRADOR
 # =========================================================================
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     if st.session_state.user_sel == "ADMIN CENTRAL":
@@ -1553,15 +1422,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             st.markdown("#### 👤 SOLICITUDES DE ACCESO Y PADRÓN DE USUARIOS")
             if not df_usr_m.empty:
                 st.dataframe(df_usr_m[['USUARIO', 'ROL', 'ESTADO']], use_container_width=True, hide_index=True)
-                
                 pdf_usuarios = generar_pdf_reporte("PADRÓN GENERAL DE USUARIOS Y ACCESOS", df_usr_m[['USUARIO', 'ROL', 'ESTADO']])
-                st.download_button(
-                    label="📥 DESCARGAR PADRÓN DE USUARIOS (PDF)",
-                    data=pdf_usuarios,
-                    file_name=f"padron_usuarios_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                    mime="application/pdf",
-                    key="dl_pdf_usuarios_admin"
-                )
+                st.download_button("📥 DESCARGAR PADRÓN DE USUARIOS (PDF)", data=pdf_usuarios, file_name=f"padron_usuarios_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_usuarios_admin")
                 
                 st.markdown("---")
                 if 'ESTADO' in df_usr_m.columns:
@@ -1574,46 +1436,20 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                 st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
                                 st.cache_data.clear()
                                 st.rerun()
-                            else:
-                                st.error("❌ Error al actualizar la base de datos en Google Sheets.")
-                    else:
-                        st.info("👍 No hay solicitudes de cuentas pendientes en este momento.")
-            else:
-                st.info("No hay registros en la matriz de USUARIOS.")
 
         with t_adm_obj:
             st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
             if not df_obj_m.empty:
                 st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
-                
                 pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button(
-                    label="📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)",
-                    data=pdf_objetivos,
-                    file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                    mime="application/pdf",
-                    key="dl_pdf_objetivos_admin"
-                )
-            else:
-                st.warning("⚠️ No se encontraron objetivos cargados.")
+                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
 
         with t_adm_mantenimiento:
             st.markdown("#### 🛡️ CENTRO DE RESPALDO Y CAJA FUERTE DIGITAL")
-            st.info("💡 Todo el sistema está protegido: nada se borra de forma permanente. Desde aquí podés descargar un respaldo formal de los objetivos directamente en formato PDF.")
-            
             if not df_obj_m.empty:
                 pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button(
-                    label="📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)",
-                    data=pdf_respaldo_objs,
-                    file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                    key="dl_pdf_mantenimiento_objetivos"
-                )
-            else:
-                st.warning("No hay datos de objetivos para respaldar actualmente.")
+                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
 
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.error("⚠️ Acceso restringido. Debes iniciar sesión como ADMINISTRADOR desde la pantalla principal.")
+        st.error("⚠️ Acceso restringido.")
