@@ -642,7 +642,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.warning("⚠️ La columna 'SUPERVISOR' no se encuentra en la solapa OBJETIVOS.")
 
         if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
-            df_jornadas_mon = leer_matriz_nube("JORNADA_SUPERVISORES")
+            df_jornadas_mon = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
             total_objs_sup = len(df_mapa_filtrado_sup['OBJETIVO'].unique())
             visitados_sup_count = 0
             
@@ -650,10 +650,10 @@ if st.session_state.rol_sel == "MONITOREO":
                 df_jornadas_mon.columns = [str(c).strip().upper() for c in df_jornadas_mon.columns]
                 fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
                 
-                if all(col in df_jornadas_mon.columns for col in ['SUPERVISOR', 'FECHA', 'ACCION', 'OBJETIVO']):
+                if all(col in df_jornadas_mon.columns for col in ['SUPERVISOR', 'FECHA_HORA', 'ACCION', 'OBJETIVO']):
                     df_j_sup_hoy = df_jornadas_mon[
                         (df_jornadas_mon['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
-                        (df_jornadas_mon['FECHA'].astype(str).str.strip() == fecha_hoy_str) &
+                        (df_jornadas_mon['FECHA_HORA'].astype(str).str.contains(fecha_hoy_str)) &
                         (df_jornadas_mon['ACCION'].astype(str).str.strip().str.upper() == 'INICIO')
                     ]
                     visitados_sup_count = len(df_j_sup_hoy['OBJETIVO'].unique())
