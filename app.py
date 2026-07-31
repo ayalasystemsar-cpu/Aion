@@ -289,18 +289,23 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-# Función para mostrar un reloj de segundos 100% fluido en tiempo real vía JavaScript
+# Reloj fluido con el mismo diseño y formato visual exacto
 def renderizar_reloj_fluido():
     reloj_html = """
-    <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; text-align: center;">
-        <p style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">🕒 HORA LOCAL</p>
+    <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; box-sizing: border-box;">
+        <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+            <span>🕒</span> HORA LOCAL
+        </div>
         <div id="reloj-digital" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: bold; margin-top: 4px;">--:--:--</div>
     </div>
     <script>
     function actualizarReloj() {
         const opciones = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
         const horaLocal = new Date().toLocaleTimeString('es-AR', opciones);
-        document.getElementById('reloj-digital').innerText = horaLocal;
+        const elemento = document.getElementById('reloj-digital');
+        if (elemento) {
+            elemento.innerText = horaLocal;
+        }
     }
     setInterval(actualizarReloj, 1000);
     actualizarReloj();
@@ -625,7 +630,6 @@ if st.session_state.rol_sel == "MONITOREO":
             else:
                 st.warning("⚠️ La columna 'SUPERVISOR' no se encuentra en la solapa OBJETIVOS.")
 
-        # SOLUCIÓN BARRA MONITOREO: Sincronización exacta con REGISTRO_QR_SUPERVISORES
         if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
             df_jornadas_mon = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
             total_objs_sup = len(df_mapa_filtrado_sup['OBJETIVO'].unique())
@@ -1385,6 +1389,16 @@ elif st.session_state.rol_sel == "GERENCIA":
             st.download_button("📥 DESCARGAR REPORTE DE JORNADAS (PDF)", data=pdf_jornadas_ger, file_name="reporte_gerencial_jornadas.pdf", mime="application/pdf", key="dl_jornadas_ger")
         else:
             st.write("*(Sin jornadas registradas)*")
+
+        st.markdown("---")
+        st.markdown("### 🔒 PROTOCOLO DE CIERRE TÁCTICO MENSUAL")
+        st.warning("⚠️ Esta acción archivará y limpiará las tablas operativas actuales para iniciar un nuevo ciclo.")
+        if st.button("EJECUTAR CIERRE TÁCTICO MENSUAL", type="primary"):
+            if ejecutar_cierre_táctico():
+                st.success("✅ ¡Cierre táctico ejecutado con éxito! Ciclo reiniciado.")
+                st.rerun()
+            else:
+                st.error("❌ Error al ejecutar el cierre táctico.")
 
 
 # =========================================================================
