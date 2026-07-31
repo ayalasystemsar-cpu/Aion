@@ -178,14 +178,25 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
         gc = conectar_google()
         if gc:
             sh = gc.open_by_key(ID_MAESTRO_DB)
-            # Apuntamos estrictamente a tu solapa con guiones bajos existente
-            hoja = sh.worksheet("REGISTRO_QR_SUPERVISORES")
+            hoja = None
+            nombres_posibles = ["REGISTRO_QR_SUPERVISORES", "REGISTRO-QR-SUPERVISORES", "REGISTRO QR SUPERVISORES"]
             
+            for nombre in nombres_posibles:
+                try:
+                    hoja = sh.worksheet(nombre)
+                    break
+                except:
+                    continue
+            
+            if hoja is None:
+                hoja = sh.add_worksheet(title="REGISTRO_QR_SUPERVISORES", rows="100", cols="10")
+                hoja.append_row(["FECHA_HORA", "OBJETIVO", "ACCION", "SUPERVISOR", "ESTADO"])
+
             hoja.append_row(datos)
             st.cache_data.clear()
             return True
     except Exception as ex:
-        st.error(f"⚠️ Error: No se encontró la solapa 'REGISTRO_QR_SUPERVISORES' o faltan permisos.")
+        st.error(f"⚠️ Error detallado en nube: {ex}")
         print(f"Error detallado QR: {ex}")
     return False
 
@@ -1034,8 +1045,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
                             exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                             if exito_registro:
+                                # CORREGIDO: Apuntando correctamente a NOVEDADES_GUARDIA
                                 try:
-                                    escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, f"SUPERVISIÓN QR VALIDADA ({accion_str}) - {obj_select}"])
+                                    escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
                                 except:
                                     pass
                                 st.success(f"✅ ¡{accion_str} registrado con éxito en Registro QR para {obj_select}!")
@@ -1135,7 +1147,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES", [obtener_hora_argentina(), st.session_state.user_sel, novedad_sup.upper()])
+                escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_actual, "NOVEDAD OPERATIVA", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
                 st.success("✅ Cargado correctamente")
 
         with t_mensajeria_sup:
