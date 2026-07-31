@@ -636,7 +636,10 @@ if st.session_state.rol_sel == "MONITOREO":
         
         df_mapa_filtrado_sup = df_mapa_monitoreo.copy()
         if sup_filtro_mono != "TODOS LOS SUPERVISORES":
-            df_mapa_filtrado_sup = df_mapa_filtrado_sup[df_mapa_filtrado_sup['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono]
+            if 'SUPERVISOR' in df_mapa_filtrado_sup.columns:
+                df_mapa_filtrado_sup = df_mapa_filtrado_sup[df_mapa_filtrado_sup['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono]
+            else:
+                st.warning("⚠️ La columna 'SUPERVISOR' no se encuentra en la solapa OBJETIVOS.")
 
         if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
             df_jornadas_mon = leer_matriz_nube("JORNADA_SUPERVISORES")
@@ -647,12 +650,13 @@ if st.session_state.rol_sel == "MONITOREO":
                 df_jornadas_mon.columns = [str(c).strip().upper() for c in df_jornadas_mon.columns]
                 fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
                 
-                df_j_sup_hoy = df_jornadas_mon[
-                    (df_jornadas_mon['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
-                    (df_jornadas_mon['FECHA'].astype(str).str.strip() == fecha_hoy_str) &
-                    (df_jornadas_mon['ACCION'].astype(str).str.strip().str.upper() == 'INICIO')
-                ]
-                visitados_sup_count = len(df_j_sup_hoy['OBJETIVO'].unique())
+                if all(col in df_jornadas_mon.columns for col in ['SUPERVISOR', 'FECHA', 'ACCION', 'OBJETIVO']):
+                    df_j_sup_hoy = df_jornadas_mon[
+                        (df_jornadas_mon['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
+                        (df_jornadas_mon['FECHA'].astype(str).str.strip() == fecha_hoy_str) &
+                        (df_jornadas_mon['ACCION'].astype(str).str.strip().str.upper() == 'INICIO')
+                    ]
+                    visitados_sup_count = len(df_j_sup_hoy['OBJETIVO'].unique())
             
             porcentaje_progreso = int((visitados_sup_count / total_objs_sup) * 100) if total_objs_sup > 0 else 0
             
@@ -916,7 +920,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
-                # MODIFICACIÓN CLAVE: Leemos directo de la solapa de registros QR para actualizar el cuadro visual al instante
                 df_jornadas_act = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
                 
                 total_asignados = len(df_objetivos_filtrados['OBJETIVO'].unique())
@@ -1034,7 +1037,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 
-                # CONTROL DE ESTADO DE FOTO PARA EVITAR BUCLES Y ERROR 429
                 if 'ultima_foto_qr' not in st.session_state:
                     st.session_state.ultima_foto_qr = None
 
@@ -1528,7 +1530,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         st.markdown("### ⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL DE ADMINISTRACIÓN")
         st.success("✅ Acceso autorizado al Núcleo Maestro Central.")
 
-        # 1. MÉTRICAS GLOBALES RÁPIDAS
         df_usr_m = leer_matriz_nube("USUARIOS")
         df_obj_m = cargar_objetivos()
         df_alt_m = leer_matriz_nube("ALERTAS")
@@ -1544,7 +1545,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         st.markdown("---")
 
-        # 2. SOLAPAS DE GESTIÓN Y RESPALDO
         t_adm_usr, t_adm_obj, t_adm_mantenimiento = st.tabs([
             "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO"
         ])
