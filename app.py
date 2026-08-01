@@ -317,47 +317,6 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
-        
-        /* --- MEDIDAS Y DISEÑO EXACTO DE LA MIRA TÁCTICA PARA EL ESCÁNER QR --- */
-        div[data-testid="stCustomComponentV1"]:has(iframe) {
-            width: 320px !important;
-            height: 320px !important;
-            max-width: 100% !important;
-            margin: 0 auto !important;
-            border: 4px solid #00E5FF !important;
-            border-radius: 14px !important;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
-            background-color: #000000 !important;
-            position: relative !important;
-            overflow: hidden !important;
-        }
-
-        /* Esquinas blancas de mira táctica integradas sin duplicarse */
-        div[data-testid="stCustomComponentV1"]:has(iframe)::before {
-            content: "" !important;
-            position: absolute !important;
-            top: 15px !important; left: 15px !important; right: 15px !important; bottom: 15px !important;
-            border-top: 4px solid #FFFFFF !important;
-            border-bottom: 4px solid #FFFFFF !important;
-            pointer-events: none !important;
-            z-index: 50 !important;
-        }
-        div[data-testid="stCustomComponentV1"]:has(iframe)::after {
-            content: "" !important;
-            position: absolute !important;
-            top: 15px !important; left: 15px !important; right: 15px !important; bottom: 15px !important;
-            border-left: 4px solid #FFFFFF !important;
-            border-right: 4px solid #FFFFFF !important;
-            pointer-events: none !important;
-            z-index: 50 !important;
-        }
-
-        div[data-testid="stCustomComponentV1"] iframe {
-            width: 100% !important;
-            height: 100% !important;
-            border: none !important;
-            object-fit: cover !important;
-        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1108,8 +1067,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER QR DIRECTO (ESTILIZADO POR CSS MAESTRO) ---
+                # --- ESCÁNER QR DIRECTO (FORZADO CON CONTENEDOR TÁCTICO ESTRICTO) ---
+                st.markdown("""
+                    <div style="display: flex; justify-content: center; width: 100%;">
+                        <div style="width: 320px; height: 320px; border: 4px solid #00E5FF; border-radius: 12px; box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); background-color: #000; overflow: hidden; position: relative;">
+                """, unsafe_allow_html=True)
+
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
+
+                st.markdown("""
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
