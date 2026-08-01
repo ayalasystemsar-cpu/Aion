@@ -21,11 +21,16 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
-from streamlit_qrcode_scanner import qrcode_scanner  # <--- IMPORTADO PARA ESCANEO REAL DE QR
+from PIL import Image
+import cv2
+from pyzbar.pyzbar import decode  # <--- PARA DECODIFICAR QR DE FORMA NATIVA Y PRECISA
+
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 
+
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+
 
 if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -33,9 +38,12 @@ if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CEN
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 if 'admin_autenticado' not in st.session_state: st.session_state.admin_autenticado = False
 
+
 # --- 2. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
 
+
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
+
 
 @st.cache_resource
 def conectar_google():
@@ -46,9 +54,11 @@ def conectar_google():
     except: 
         return None
 
+
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
 
 def actualizar_celda(pestana, fila, columna, valor):
     try:
@@ -60,6 +70,7 @@ def actualizar_celda(pestana, fila, columna, valor):
             return True
     except: 
         return False
+
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -73,6 +84,7 @@ def escribir_registro_nube(pestana, datos_fila):
         print(f"Error de nube en {pestana}: {e}")
         st.error(f"⚠️ Error técnico en nube: {e}")
         return False
+
 
 @st.cache_data(ttl=30)
 def leer_matriz_nube(pestana):
@@ -93,6 +105,7 @@ def leer_matriz_nube(pestana):
             return pd.DataFrame()
     return pd.DataFrame()
 
+
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
@@ -101,6 +114,7 @@ def cargar_datos_comisarias():
         "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
     }
     return pd.DataFrame(data)
+
 
 @st.cache_data(ttl=30)
 def cargar_objetivos():
@@ -118,6 +132,7 @@ def cargar_objetivos():
         return df 
     return pd.DataFrame()
 
+
 def obtener_lista_supervisores_dinamica():
     base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
     df_u = leer_matriz_nube("USUARIOS")
@@ -132,12 +147,14 @@ def obtener_lista_supervisores_dinamica():
                     base.append(s_limpio)
     return base
 
+
 @st.cache_resource
 def obtener_grafo_zona(lat, lon):
     try:
         return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
     except:
         return None
+
 
 def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
     try:
@@ -149,6 +166,7 @@ def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
     except:
         pass
     return [[lat1, lon1], [lat2, lon2]]
+
 
 def registrar_jornada_general(supervisor, objetivo, accion):
     try:
@@ -167,6 +185,7 @@ def registrar_jornada_general(supervisor, objetivo, accion):
     except Exception as ex:
         print(f"Error en jornada general: {ex}")
     return False
+
 
 def registrar_qr_supervisor(supervisor, objetivo, accion):
     try:
@@ -198,6 +217,7 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
     except Exception as ex:
         st.error(f"⚠️ Error detallado en nube: {ex}")
     return False
+
 
 def generar_pdf_reporte(titulo_reporte, df_datos):
     buffer = io.BytesIO()
@@ -239,6 +259,7 @@ def generar_pdf_reporte(titulo_reporte, df_datos):
     doc.build(elementos)
     buffer.seek(0)
     return buffer.getvalue()
+
 
 def aplicar_identidad_alfa():
     st.markdown("""
@@ -317,49 +338,47 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
-
-        /* --- CONTENEDOR Y VISOR EXACTO DEL ESCÁNER QR --- */
-        div[data-testid="stCustomComponentV1"]:has(iframe) {
-            width: 320px !important;
-            height: 320px !important;
-            max-width: 100% !important;
-            margin: 0 auto !important;
-            border: 4px solid #00E5FF !important;
-            border-radius: 14px !important;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
-            background-color: #000000 !important;
-            position: relative !important;
-            overflow: hidden !important;
+        
+        /* --- VISOR TÁCTICO CUADRADO PERFECTO CON GUÍAS DE ESQUINAS BLANCAS --- */
+        .visor-qr-tactico {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto;
+            border: 3px solid #00E5FF;
+            border-radius: 12px;
+            background-color: #000000;
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
-
-        /* Esquinas de mira táctica */
-        div[data-testid="stCustomComponentV1"]:has(iframe)::before {
-            content: "" !important;
-            position: absolute !important;
-            top: 15px !important; left: 15px !important; right: 15px !important; bottom: 15px !important;
-            border-top: 4px solid #FFFFFF !important;
-            border-bottom: 4px solid #FFFFFF !important;
-            pointer-events: none !important;
-            z-index: 50 !important;
+        
+        /* Las cuatro esquinas guía en formato cuadrado simétrico */
+        .visor-qr-tactico::before, .visor-qr-tactico::after {
+            content: "";
+            position: absolute;
+            width: 240px;
+            height: 240px;
+            border: 3px solid transparent;
+            pointer-events: none;
         }
-        div[data-testid="stCustomComponentV1"]:has(iframe)::after {
-            content: "" !important;
-            position: absolute !important;
-            top: 15px !important; left: 15px !important; right: 15px !important; bottom: 15px !important;
-            border-left: 4px solid #FFFFFF !important;
-            border-right: 4px solid #FFFFFF !important;
-            pointer-events: none !important;
-            z-index: 50 !important;
+        .visor-qr-tactico::before {
+            border-top-color: #FFFFFF;
+            border-left-color: #FFFFFF;
+            top: 35px;
+            left: 35px;
         }
-
-        div[data-testid="stCustomComponentV1"] iframe {
-            width: 100% !important;
-            height: 100% !important;
-            border: none !important;
-            object-fit: cover !important;
+        .visor-qr-tactico::after {
+            border-bottom-color: #FFFFFF;
+            border-right-color: #FFFFFF;
+            bottom: 35px;
+            right: 35px;
         }
         </style>
     """, unsafe_allow_html=True)
+
 
 def renderizar_reloj_fluido():
     reloj_html = """
@@ -383,6 +402,7 @@ def renderizar_reloj_fluido():
     </script>
     """
     components.html(reloj_html, height=75)
+
 
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
@@ -433,6 +453,7 @@ def renderizar_mensajeria_global(rol_contexto):
                         st.session_state.asunto_respuesta = asunto
                         st.rerun()
 
+
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
@@ -440,6 +461,7 @@ def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asigna
     for dest in destinatarios:
         if dest and dest != "MONITOREO" and dest != "N/A":
             escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
+
 
 def limpiar_matriz_nube(nombre_hoja):
     try:
@@ -450,6 +472,7 @@ def limpiar_matriz_nube(nombre_hoja):
             st.cache_data.clear()
             return True
     except: return False
+
 
 def ejecutar_cierre_táctico():
     matrices = ["JORNADA_SUPERVISORES", "REGISTRO_QR_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
@@ -471,6 +494,7 @@ def ejecutar_cierre_táctico():
         st.cache_data.clear()
         return True
     except: return False
+
 
 def mostrar_landing():
     aplicar_identidad_alfa()
@@ -525,15 +549,19 @@ def mostrar_landing():
                 else:
                     st.warning("⚠️ Complete el usuario y la contraseña.")
 
+
 if not st.session_state.usuario_logueado:
     mostrar_landing()
     st.stop()
 
+
 aplicar_identidad_alfa()
+
 
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
+
 
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
@@ -557,6 +585,7 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
+
     with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
         nom_sup = st.selectbox("RESPONSABLE ACTIVO:", LISTA_SUPS_TACTICOS, key="cambio_supervisor_directo")
         user_sup = st.text_input("USUARIO RECURSO (APELLIDO)", key="auth_user_sup")
@@ -579,12 +608,14 @@ with st.sidebar:
                 st.session_state.sup_autenticado = False
                 st.error("❌ CREDENCIALES INVÁLIDAS EN BASE")
 
+
     st.write("---")
     if st.button("👮 VIGILADOR (ACCESO PUESTO)", use_container_width=True):
         st.session_state.rol_sel = "VIGILADOR"
         st.session_state.user_sel = "VIGILADOR EN PUESTO"
         st.session_state.sup_autenticado = False
         st.rerun()
+
 
     st.write("---")
     st.markdown("**⚙️ ADMINISTRADOR**")
@@ -596,12 +627,15 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
+
     st.markdown("---")
     if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
         st.session_state.usuario_logueado = False
         st.rerun()
 
+
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
+
 
 titulos = {
     "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
@@ -612,6 +646,8 @@ titulos = {
     "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO:AION-YAROKU"
 }
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
+
+
 
 # =========================================================================
 # ROL: MONITOREO
@@ -919,6 +955,8 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
 
+
+
 # =========================================================================
 # ROL: SUPERVISOR
 # =========================================================================
@@ -1094,41 +1132,44 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
 
                 st.markdown("---")
-                st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Seleccione el movimiento y apunte al QR. Puede usar el mismo código para Ingreso y Egreso de manera consecutiva.")
+                st.markdown("### 📷 ESCANEO TÁCTICO DE CÓDIGO QR DE PUESTO")
+                st.info("Seleccione el movimiento, capture o cargue la foto del código QR de puesto dentro del visor cuadrado simétrico.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
-                
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                col_b1, col_b2 = st.columns([2, 1])
-                with col_b2:
-                    if st.button("🔄 REINICIAR CÁMARA"):
-                        if "ultimo_qr_procesado" in st.session_state:
-                            del st.session_state["ultimo_qr_procesado"]
-                        st.rerun()
+                # --- VISOR TÁCTICO PERSONALIZADO CON CUADRADO PERFECTO Y ESQUINAS BLANCAS ---
+                st.markdown('<div class="visor-qr-tactico">', unsafe_allow_html=True)
+                foto_qr_capturada = st.camera_input("Capturar Código QR", label_visibility="collapsed")
+                st.markdown('</div>', unsafe_allow_html=True)
 
-                # --- ESCÁNER QR DIRECTO ADOSADO AL VISOR TÁCTICO ---
-                codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
-
-                if codigo_qr_leido is not None:
-                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
-                    
-                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
-                        st.session_state.ultimo_qr_procesado = clave_registro_actual
-                        try:
-                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                            if exito_registro:
-                                try:
-                                    escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                                except:
-                                    pass
-                                st.success(f"✅ ¡{accion_str} registrado con éxito mediante lectura QR para {obj_select}!")
-                                st.rerun()
-                            else:
-                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                        except Exception as e:
-                            st.warning(f"⚠️ Nota de sistema: {e}")
+                if foto_qr_capturada is not None:
+                    try:
+                        image = Image.open(foto_qr_capturada)
+                        imagen_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR) if 'np' in globals() else image
+                        
+                        # Decodificación nativa con pyzbar
+                        decoded_objects = decode(image)
+                        codigo_qr_leido = decoded_objects[0].data.decode('utf-8') if decoded_objects else None
+                        
+                        if codigo_qr_leido:
+                            clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
+                            if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
+                                st.session_state.ultimo_qr_procesado = clave_registro_actual
+                                exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                                if exito_registro:
+                                    try:
+                                        escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                                    except:
+                                        pass
+                                    st.success(f"✅ ¡{accion_str} registrado con éxito mediante lectura QR para {obj_select}!")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Error al registrar en la nube.")
+                        else:
+                            st.warning("⚠️ No se detectó ningún código QR válido en la captura. Intente nuevamente enfocando bien dentro del cuadro blanco.")
+                    except Exception as e:
+                        st.error(f"⚠️ Error al procesar la imagen del QR: {e}")
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
@@ -1230,6 +1271,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
     else:
         st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
 
+
+
 # =========================================================================
 # ROL: VIGILADOR
 # =========================================================================
@@ -1316,6 +1359,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
+
+
 
 # =========================================================================
 # ROL: JEFE DE OPERACIONES
@@ -1413,6 +1458,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.write("*(Sin alertas tácticas)*")
 
+
+
 # =========================================================================
 # ROL: GERENCIA
 # =========================================================================
@@ -1506,7 +1553,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             df_alt_ger.columns = [str(c).strip().upper() for c in df_alt_ger.columns]
             st.dataframe(df_alt_ger[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
             pdf_alt_ger = generar_pdf_reporte("REPORTE GERENCIAL DE ALERTAS TÁCTICAS", df_alt_ger[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']])
-            st.download_button("📥 DESCARGAR HISTÓRICO DE ALERTAS (PDF)", data=pdf_alt_ger, file_name="reporte_gerencial_alertas.pdf", mime="application/pdf", key="dl_alertas_ger")
+            st.download_button("📥 DESCARGAR HISTÓRICO DE ALERTAS (PDF)", data=pdf_alt_ger, file_name="reporte_gerencial_alertas.pdf", mime="application/pdf", key="dl_altas_ger")
         else:
             st.write("*(Sin alertas tácticas)*")
 
@@ -1519,6 +1566,8 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.rerun()
             else:
                 st.error("❌ Error al ejecutar el cierre táctico.")
+
+
 
 # =========================================================================
 # ROL: ADMINISTRADOR
