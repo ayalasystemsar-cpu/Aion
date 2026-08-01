@@ -318,11 +318,12 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
 
-        /* --- CONTENEDOR TÁCTICO PERFECTO PARA EL ESCÁNER QR --- */
+        /* --- CONTENEDOR TÁCTICO CUADRADO Y CENTRADO PARA EL ESCÁNER --- */
         div[data-testid="stCustomComponentV1"] {
-            width: 320px !important;
-            height: 320px !important;
-            max-width: 100% !important;
+            width: 100% !important;
+            max-width: 320px !important;
+            aspect-ratio: 1 / 1 !important;
+            height: auto !important;
             margin: 0 auto !important;
             border: 4px solid #00E5FF !important;
             border-radius: 14px !important;
@@ -340,7 +341,7 @@ def aplicar_identidad_alfa():
         div[data-testid="stCustomComponentV1"]::before {
             content: "";
             position: absolute;
-            top: 12px; left: 12px; right: 12px; bottom: 12px;
+            top: 15px; left: 15px; right: 15px; bottom: 15px;
             border-top: 4px solid #FFFFFF;
             border-bottom: 4px solid #FFFFFF;
             pointer-events: none;
@@ -349,7 +350,7 @@ def aplicar_identidad_alfa():
         div[data-testid="stCustomComponentV1"]::after {
             content: "";
             position: absolute;
-            top: 12px; left: 12px; right: 12px; bottom: 12px;
+            top: 15px; left: 15px; right: 15px; bottom: 15px;
             border-left: 4px solid #FFFFFF;
             border-right: 4px solid #FFFFFF;
             pointer-events: none;
@@ -362,6 +363,9 @@ def aplicar_identidad_alfa():
             border: none !important;
             border-radius: 10px !important;
             object-fit: cover !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
             margin: 0 !important;
         }
         </style>
@@ -1114,7 +1118,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER QR PERFECTAMENTE ENCUADRADO Y LIMPIO ---
+                # --- ESCÁNER QR PERFECTAMENTE CUADRADO, CENTRADO Y ENCUADRADO ---
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
 
                 if codigo_qr_leido is not None:
