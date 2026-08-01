@@ -390,7 +390,7 @@ def aplicar_identidad_alfa():
             border-width: 0 4px 4px 0;
         }
 
-        /* Forzar al componente del escáner y su iframe a encajar perfectamente en el cuadro de 320x320 */
+        /* Forzar al componente externo y su contenedor a ocultar cualquier desborde inferior o duplicado */
         div[data-testid="stCustomComponentV1"] {
             width: 320px !important;
             height: 320px !important;
