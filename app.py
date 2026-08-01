@@ -318,15 +318,15 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
 
-        /* --- MARCO CELESTE Y ESQUINAS BLANCAS TÁCTICAS PARA EL ESCÁNER --- */
+        /* --- CONTENEDOR TÁCTICO PERFECTO PARA EL ESCÁNER QR --- */
         div[data-testid="stCustomComponentV1"] {
-            width: 100% !important;
-            max-width: 380px !important;
-            height: 300px !important;
+            width: 320px !important;
+            height: 320px !important;
+            max-width: 100% !important;
             margin: 0 auto !important;
             border: 4px solid #00E5FF !important;
-            border-radius: 12px !important;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.5) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
             background-color: #000000 !important;
             position: relative !important;
             display: flex !important;
@@ -336,31 +336,31 @@ def aplicar_identidad_alfa():
             padding: 0 !important;
         }
 
-        /* Esquinas blancas superiores e inferiores dibujadas directamente en el marco */
+        /* Esquinas blancas de la mira táctica */
         div[data-testid="stCustomComponentV1"]::before {
             content: "";
             position: absolute;
-            top: 10px; left: 10px; right: 10px; bottom: 10px;
+            top: 12px; left: 12px; right: 12px; bottom: 12px;
             border-top: 4px solid #FFFFFF;
             border-bottom: 4px solid #FFFFFF;
             pointer-events: none;
-            z-index: 99;
+            z-index: 10;
         }
         div[data-testid="stCustomComponentV1"]::after {
             content: "";
             position: absolute;
-            top: 10px; left: 10px; right: 10px; bottom: 10px;
+            top: 12px; left: 12px; right: 12px; bottom: 12px;
             border-left: 4px solid #FFFFFF;
             border-right: 4px solid #FFFFFF;
             pointer-events: none;
-            z-index: 99;
+            z-index: 10;
         }
 
         div[data-testid="stCustomComponentV1"] iframe {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
-            border-radius: 8px !important;
+            border-radius: 10px !important;
             object-fit: cover !important;
             margin: 0 !important;
         }
@@ -1114,7 +1114,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER QR CON EL MARCO CELESTE Y ESQUINAS BLANCAS INTEGRADAS ---
+                # --- ESCÁNER QR PERFECTAMENTE ENCUADRADO Y LIMPIO ---
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
 
                 if codigo_qr_leido is not None:
