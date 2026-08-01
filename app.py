@@ -288,10 +288,21 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- ESTILOS CSS PARA EXPANDIR EL ESCÁNER QR AL 100% --- */
+        /* --- CORRECCIÓN TOTAL PARA ESCÁNER QR EN MODO MÓVIL Y ESCRITORIO --- */
         iframe {
             width: 100% !important;
             max-width: 100% !important;
+            height: auto !important;
+            min-height: 400px !important;
+            border-radius: 8px !important;
+            display: block !important;
+            margin: 0 auto !important;
+        }
+        
+        video {
+            width: 100% !important;
+            max-width: 100% !important;
+            object-fit: cover !important;
             border-radius: 8px !important;
         }
         </style>
@@ -1033,18 +1044,29 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Seleccione el tipo de movimiento y apunte con la cámara al código QR. El sistema registrará el evento automáticamente solo al detectar un código válido.")
+                st.info("Seleccione el movimiento y apunte al QR. Puede usar el mismo código para Ingreso y Egreso de manera consecutiva.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 
-                # --- AQUÍ SE IMPLEMENTÓ EL ESCANEO REAL DE QR EN TIEMPO REAL CON ANCHO EXPANDIDO ---
-                codigo_qr_leido = qrcode_scanner(key="scanner_qr_supervisor_tactico")
+                accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+
+                # Botón manual de reseteo para forzar un nuevo escaneo inmediato del mismo código
+                col_b1, col_b2 = st.columns([2, 1])
+                with col_b2:
+                    if st.button("🔄 REINICIAR CÁMARA"):
+                        if "ultimo_qr_procesado" in st.session_state:
+                            del st.session_state["ultimo_qr_procesado"]
+                        st.rerun()
+
+                # --- ESCÁNER CON CLAVE DINÁMICA Y REUTILIZACIÓN DEL MISMO QR ---
+                codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
                 
                 if codigo_qr_leido is not None:
-                    if st.session_state.get("ultimo_qr_procesado") != codigo_qr_leido:
-                        st.session_state.ultimo_qr_procesado = codigo_qr_leido
+                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
+                    
+                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
+                        st.session_state.ultimo_qr_procesado = clave_registro_actual
                         try:
-                            accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
                             exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                             if exito_registro:
                                 try:
