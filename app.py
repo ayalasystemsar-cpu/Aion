@@ -340,15 +340,15 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: BORDE CELESTE Y MARCO INTERNO CUADRADO (1:1) PERFECTO --- */
+        /* --- VISOR DE CÁMARA QR: CUADRADO PERFECTO 1:1 CON BORDE Y GUÍAS CUADRADAS --- */
         iframe[title*="streamlit_qrcode_scanner"] {
-            width: 100% !important;
-            max-width: 320px !important;
+            width: 320px !important;
+            height: 320px !important;
+            max-width: 100% !important;
             aspect-ratio: 1 / 1 !important;
-            height: auto !important;
-            border: 2px solid #00E5FF !important;
+            border: 3px solid #00E5FF !important;
             border-radius: 12px !important;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4) !important;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5) !important;
             display: block !important;
             margin: 0 auto !important;
             background-color: #000000 !important;
