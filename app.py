@@ -318,7 +318,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
 
-        /* --- CONTENEDOR TÁCTICO CON MARCO CELESTE Y ESQUINAS BLANCAS ADENTRO --- */
+        /* --- CONTENEDOR TÁCTICO ÚNICO (ELIMINA LA VISTA DUPLICADA INFERIOR) --- */
         .contenedor-scanner-tactico {
             position: relative;
             width: 320px;
@@ -1144,7 +1144,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER CON MARCO CELESTE Y ESQUINAS BLANCAS TÁCTICAS ---
+                # --- ESCÁNER ÚNICO DENTRO DEL MARCO CELESTE ---
                 st.markdown('''
                     <div class="contenedor-scanner-tactico">
                         <div class="esquinas-inferiores-qr"></div>
