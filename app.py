@@ -319,57 +319,88 @@ def aplicar_identidad_alfa():
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
         /* --- VISOR ÚNICO TÁCTICO PARA EL COMPONENTE QR (ELIMINA DUPLICADOS) --- */
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"]),
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"]) {
+        .contenedor-scanner-tactico {
+            position: relative !important;
             width: 320px !important;
             height: 320px !important;
-            max-width: 320px !important;
-            max-height: 320px !important;
+            max-width: 100% !important;
             margin: 0 auto !important;
             border: 4px solid #00E5FF !important;
-            border-radius: 14px !important;
+            border-radius: 12px !important;
             box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
             background-color: #000000 !important;
-            position: relative !important;
+            overflow: hidden !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
-            overflow: hidden !important;
+        }
+
+        .contenedor-scanner-tactico::before,
+        .contenedor-scanner-tactico::after {
+            content: "" !important;
+            position: absolute !important;
+            width: 40px !important;
+            height: 40px !important;
+            border-color: #FFFFFF !important;
+            border-style: solid !important;
+            z-index: 50 !important;
+            pointer-events: none !important;
+        }
+        .contenedor-scanner-tactico::before {
+            top: 15px !important;
+            left: 15px !important;
+            border-width: 4px 0 0 4px !important;
+        }
+        .contenedor-scanner-tactico::after {
+            top: 15px !important;
+            right: 15px !important;
+            border-width: 4px 4px 0 0 !important;
+        }
+
+        .esquinas-inferiores-qr {
+            position: absolute !important;
+            bottom: 15px !important;
+            left: 15px !important;
+            right: 15px !important;
+            height: 40px !important;
+            z-index: 50 !important;
+            pointer-events: none !important;
+            display: flex !important;
+            justify-content: space-between !important;
+        }
+        .esquinas-inferiores-qr::before,
+        .esquinas-inferiores-qr::after {
+            content: "" !important;
+            position: absolute !important;
+            width: 40px !important;
+            height: 40px !important;
+            border-color: #FFFFFF !important;
+            border-style: solid !important;
+        }
+        .esquinas-inferiores-qr::before {
+            bottom: 0 !important;
+            left: 0 !important;
+            border-width: 0 0 4px 4px !important;
+        }
+        .esquinas-inferiores-qr::after {
+            bottom: 0 !important;
+            right: 0 !important;
+            border-width: 0 4px 4px 0 !important;
+        }
+
+        div[data-testid="stCustomComponentV1"]:has(iframe) {
+            width: 320px !important;
+            height: 320px !important;
+            margin: 0 auto !important;
             padding: 0 !important;
+            background: transparent !important;
         }
 
-        /* Esquinas blancas superiores/inferiores dentro del componente real */
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"])::before,
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"])::before {
-            content: "";
-            position: absolute;
-            top: 15px; left: 15px; right: 15px; bottom: 15px;
-            border-top: 4px solid #FFFFFF;
-            border-bottom: 4px solid #FFFFFF;
-            pointer-events: none;
-            z-index: 10;
-        }
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"])::after,
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"])::after {
-            content: "";
-            position: absolute;
-            top: 15px; left: 15px; right: 15px; bottom: 15px;
-            border-left: 4px solid #FFFFFF;
-            border-right: 4px solid #FFFFFF;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"]) iframe,
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"]) iframe {
+        div[data-testid="stCustomComponentV1"] iframe {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
-            border-radius: 10px !important;
             object-fit: cover !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1121,8 +1152,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER QR LIMPIO (SIN DUPLICADOS) ---
+                # --- ESCÁNER QR TÁCTICO INTEGRADO (SIN DUPLICADOS) ---
+                st.markdown('''
+                    <div class="contenedor-scanner-tactico">
+                        <div class="esquinas-inferiores-qr"></div>
+                ''', unsafe_allow_html=True)
+                
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
+                
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
