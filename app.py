@@ -245,13 +245,23 @@ def aplicar_identidad_alfa():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
+        
+        /* --- OPTIMIZACIÓN CONTENEDOR PRINCIPAL DENSIDAD ESCRITORIO EN MÓVIL --- */
+        .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 1rem !important;
+            max-width: 100% !important;
+        }
+
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin: 10px 0; }
-        .logo-phoenix { width: 450px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
+        .logo-phoenix { width: 100% !important; max-width: 450px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
         .estacion-titulo {
             font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important; font-size: 24px; margin-top: 15px;
+            color: #00E5FF !important; font-size: 22px; margin-top: 10px;
             display: flex; align-items: center; justify-content: center; gap: 12px;
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
+            text-align: center;
         }
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
@@ -267,32 +277,55 @@ def aplicar_identidad_alfa():
             display: block; margin: 0 auto;
         }
 
-        .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; background-color: rgba(10, 10, 11, 0.9); }
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: transparent; }
+        .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
+        
+        /* --- AJUSTE RESPONSIVO PARA SOLAPAS Y PESTAÑAS --- */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 6px !important;
+            background-color: transparent !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            white-space: nowrap !important;
+            padding-bottom: 5px !important;
+        }
         .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.4) !important; border: 1px solid #2D313E !important;
-            color: #A0A5B5 !important; border-radius: 4px 4px 0px 0px !important; padding: 6px 16px !important;
-            font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
+            background-color: rgba(26, 28, 35, 0.6) !important;
+            border: 1px solid #2D313E !important;
+            color: #A0A5B5 !important;
+            border-radius: 4px 4px 0px 0px !important;
+            padding: 8px 12px !important;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px !important;
+            font-weight: bold;
+            flex-shrink: 0 !important;
         }
         .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
-        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 12px !important; }
-        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 13px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
-        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 22px !important; }
+        
+        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 8px !important; }
+        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
+        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; }
+        
+        /* --- CONTROL DE TABLAS EN NAVEGADORES MÓVILES --- */
+        div[data-testid="stDataFrame"] {
+            width: 100% !important;
+            overflow-x: auto !important;
+        }
+
         .btn-google-maps {
             display: inline-flex; align-items: center; justify-content: center;
             background-color: #ffffff !important; color: #1a73e8 !important;
-            font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 14px;
-            padding: 12px 24px; border-radius: 6px; border: 2px solid #1a73e8;
+            font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 13px;
+            padding: 10px 18px; border-radius: 6px; border: 2px solid #1a73e8;
             text-decoration: none !important; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- CORRECCIÓN EXACTA DE PROPORCIONES PARA EL ESCÁNER QR EN MODO MÓVIL Y ESCRITORIO --- */
+        /* --- ENFOQUE Y CENTRADO EXACTO DEL VISOR QR --- */
         iframe {
             width: 100% !important;
-            max-width: 650px !important;
-            height: 420px !important;
+            max-width: 500px !important;
+            height: 280px !important;
             border-radius: 8px !important;
             display: block !important;
             margin: 0 auto !important;
@@ -302,6 +335,7 @@ def aplicar_identidad_alfa():
             width: 100% !important;
             height: 100% !important;
             object-fit: cover !important;
+            object-position: center !important;
             border-radius: 8px !important;
         }
         </style>
