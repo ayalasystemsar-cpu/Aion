@@ -265,7 +265,6 @@ def aplicar_identidad_alfa():
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         
-        /* --- OPTIMIZACIÓN CONTENEDOR PRINCIPAL DENSIDAD ESCRITORIO EN MÓVIL --- */
         .block-container {
             padding-left: 1rem !important;
             padding-right: 1rem !important;
@@ -298,7 +297,6 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* --- AJUSTE RESPONSIVO PARA SOLAPAS Y PESTAÑAS --- */
         .stTabs [data-baseweb="tab-list"] {
             gap: 6px !important;
             background-color: transparent !important;
@@ -324,7 +322,6 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; }
         
-        /* --- CONTROL DE TABLAS EN NAVEGADORES MÓVILES --- */
         div[data-testid="stDataFrame"] {
             width: 100% !important;
             overflow-x: auto !important;
@@ -340,7 +337,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: TAMAÑO AMPLIADO Y ESQUINAS TÁCTICAS (MIRA) --- */
+        /* --- VISOR DE CÁMARA QR: TAMAÑO AMPLIADO Y ESQUINAS BLANCAS EXACTAS (MIRA TÁCTICA) --- */
         div[data-testid="stCustomComponentV1"] {
             display: flex !important;
             justify-content: center !important;
@@ -351,29 +348,37 @@ def aplicar_identidad_alfa():
 
         iframe[title*="streamlit_qrcode_scanner"] {
             width: 100% !important;
-            max-width: 420px !important;
-            height: 420px !important;
-            border: 3px solid #00E5FF !important;
+            max-width: 480px !important;
+            height: 480px !important;
+            border: 4px solid #00E5FF !important;
             border-radius: 16px !important;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.8) !important;
             display: block !important;
             margin: 0 auto !important;
             background-color: #000000 !important;
         }
 
-        /* Capa superpuesta con las 4 esquinas blancas estilo mira táctica */
+        /* Cobertura de video expandida para rellenar completamente el cuadro */
+        iframe[title*="streamlit_qrcode_scanner"] video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
+
+        /* Las 4 esquinas blancas tácticas fijadas exactamente en los bordes internos */
         div[data-testid="stCustomComponentV1"]::after {
             content: "";
             position: absolute;
-            width: 320px;
-            height: 320px;
-            border: 2px dashed rgba(255, 255, 255, 0.2);
+            width: 420px;
+            height: 420px;
             pointer-events: none;
+            border-top: 5px solid #FFFFFF;
+            border-bottom: 5px solid #FFFFFF;
             box-shadow: 
-                -25px -25px 0 0 #FFFFFF, 
-                 25px -25px 0 0 #FFFFFF, 
-                -25px  25px 0 0 #FFFFFF, 
-                 25px  25px 0 0 #FFFFFF;
+                -190px -190px 0 0 #FFFFFF, 
+                 190px -190px 0 0 #FFFFFF, 
+                -190px  190px 0 0 #FFFFFF, 
+                 190px  190px 0 0 #FFFFFF;
         }
         </style>
     """, unsafe_allow_html=True)
