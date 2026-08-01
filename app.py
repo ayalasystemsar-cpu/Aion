@@ -318,7 +318,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: MARCO CELESTE Y ESQUINAS BLANCAS TÁCTICAS --- */
+        /* --- VISOR DE CÁMARA QR: MARCO CELESTE Y ESQUINAS BLANCAS INTERNAS ÚNICAS --- */
         .contenedor-scanner-tactico {
             position: relative;
             width: 320px;
@@ -335,7 +335,7 @@ def aplicar_identidad_alfa():
             align-items: center;
         }
 
-        /* Esquinas blancas tácticas superiores */
+        /* Esquinas blancas tácticas superiores dentro del visor */
         .contenedor-scanner-tactico::before,
         .contenedor-scanner-tactico::after {
             content: "";
@@ -358,7 +358,7 @@ def aplicar_identidad_alfa():
             border-width: 4px 4px 0 0;
         }
 
-        /* Contenedor interno para esquinas inferiores */
+        /* Esquinas blancas tácticas inferiores dentro del visor */
         .esquinas-inferiores-qr {
             position: absolute;
             bottom: 15px;
@@ -390,7 +390,7 @@ def aplicar_identidad_alfa():
             border-width: 0 4px 4px 0;
         }
 
-        /* Forzar al componente y recortar exactamente a 320x320 para que encaje perfecto */
+        /* Forzar al componente QR y ocultar cualquier marco nativo o duplicado inferior */
         div[data-testid="stCustomComponentV1"] {
             width: 320px !important;
             height: 320px !important;
@@ -410,6 +410,11 @@ def aplicar_identidad_alfa():
             border-radius: 12px !important;
             object-fit: cover !important;
             margin: 0 !important;
+        }
+
+        /* Eliminar por completo cualquier duplicado o elemento generado fuera del componente */
+        div[data-testid="stCustomComponentV1"] ~ div {
+            display: none !important;
         }
         </style>
     """, unsafe_allow_html=True)
