@@ -1,16 +1,29 @@
 import streamlit as st
+
 import datetime
+
 from datetime import datetime
+
 import pandas as pd
+
 import pytz
+
 import gspread
+
 from oauth2client.service_account import ServiceAccountCredentials
+
 from streamlit_js_eval import get_geolocation
+
 import osmnx as ox
+
 import networkx as nx
+
 import folium
+
 from folium.plugins import AntPath
+
 from streamlit_folium import st_folium
+
 import math
 
 import requests
@@ -2183,7 +2196,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                             else:
 
-                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                                st.error("❌ Error al registrar in la nube. Intente nuevamente.")
 
                         except Exception as e:
 
