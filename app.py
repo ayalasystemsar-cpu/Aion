@@ -318,21 +318,21 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- ESTILO ÚNICO Y DEFINITIVO PARA EL ESCÁNER QR --- */
+        /* --- MEDIDAS Y DISEÑO EXACTO DE LA MIRA TÁCTICA PARA EL ESCÁNER QR --- */
         div[data-testid="stCustomComponentV1"]:has(iframe) {
             width: 320px !important;
             height: 320px !important;
             max-width: 100% !important;
             margin: 0 auto !important;
             border: 4px solid #00E5FF !important;
-            border-radius: 12px !important;
+            border-radius: 14px !important;
             box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
             background-color: #000000 !important;
             position: relative !important;
             overflow: hidden !important;
         }
 
-        /* Esquinas blancas de mira táctica integradas en el componente nativo */
+        /* Esquinas blancas de mira táctica integradas sin duplicarse */
         div[data-testid="stCustomComponentV1"]:has(iframe)::before {
             content: "" !important;
             position: absolute !important;
