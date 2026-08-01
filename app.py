@@ -318,7 +318,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
 
-        /* --- CONTENEDOR TÁCTICO ÚNICO (ELIMINA LA VISTA DUPLICADA INFERIOR) --- */
+        /* --- CONTENEDOR TÁCTICO ÚNICO (AISLA EL COMPONENTE QR) --- */
         .contenedor-scanner-tactico {
             position: relative;
             width: 320px;
@@ -373,6 +373,12 @@ def aplicar_identidad_alfa():
         }
         .esquinas-inferiores-qr::before { bottom: 0; left: 0; border-width: 0 0 4px 4px; }
         .esquinas-inferiores-qr::after { bottom: 0; right: 0; border-width: 0 4px 4px 0; }
+
+        /* REGLA AGRESIVA: Oculta por completo cualquier video o vista secundaria generada por fuera */
+        div[data-testid="stCustomComponentV1"] ~ div,
+        div[data-testid="stCustomComponentV1"] video {
+            display: none !important;
+        }
 
         div[data-testid="stCustomComponentV1"] {
             width: 320px !important;
@@ -1144,7 +1150,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER ÚNICO DENTRO DEL MARCO CELESTE ---
+                # --- ESCÁNER ÚNICO AISLADO EN EL MARCO CELESTE ---
                 st.markdown('''
                     <div class="contenedor-scanner-tactico">
                         <div class="esquinas-inferiores-qr"></div>
