@@ -335,7 +335,7 @@ def aplicar_identidad_alfa():
             align-items: center;
         }
 
-        /* Guías de esquinas blancas tácticas */
+        /* Guías de esquinas blancas tácticas superiores */
         .contenedor-scanner-tactico::before,
         .contenedor-scanner-tactico::after {
             content: "";
@@ -344,18 +344,50 @@ def aplicar_identidad_alfa():
             height: 40px;
             border-color: #FFFFFF;
             border-style: solid;
-            z-index: 20;
+            z-index: 30;
             pointer-events: none;
         }
         .contenedor-scanner-tactico::before {
-            top: 20px;
-            left: 20px;
+            top: 15px;
+            left: 15px;
             border-width: 4px 0 0 4px;
         }
         .contenedor-scanner-tactico::after {
-            top: 20px;
-            right: 20px;
+            top: 15px;
+            right: 15px;
             border-width: 4px 4px 0 0;
+        }
+
+        /* Guías de esquinas blancas tácticas inferiores */
+        .contenedor-scanner-tactico .esquinas-inferiores {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            height: 40px;
+            z-index: 30;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+        }
+        .contenedor-scanner-tactico .esquinas-inferiores::before,
+        .contenedor-scanner-tactico .esquinas-inferiores::after {
+            content: "";
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-color: #FFFFFF;
+            border-style: solid;
+        }
+        .contenedor-scanner-tactico .esquinas-inferiores::before {
+            bottom: 0;
+            left: 0;
+            border-width: 0 0 4px 4px;
+        }
+        .contenedor-scanner-tactico .esquinas-inferiores::after {
+            bottom: 0;
+            right: 0;
+            border-width: 0 4px 4px 0;
         }
 
         /* Forzar al componente externo de Streamlit a meterse dentro del marco */
@@ -366,11 +398,8 @@ def aplicar_identidad_alfa():
             align-items: center !important;
         }
 
-        /* Ajuste estricto del iframe de la cámara para que encaje en el cuadro negro sin duplicarse */
+        /* Ajuste estricto del iframe de la cámara para que encaje en el cuadro sin duplicarse */
         div[data-testid="stCustomComponentV1"] iframe {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
             width: 100% !important;
             height: 320px !important;
             border: none !important;
@@ -1129,8 +1158,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         st.rerun()
 
                 # --- ESCÁNER DENTRO DEL CONTENEDOR TÁCTICO UNIFICADO ---
-                st.markdown('<div class="contenedor-scanner-tactico">', unsafe_allow_html=True)
+                st.markdown('''
+                    <div class="contenedor-scanner-tactico">
+                        <div class="esquinas-inferiores"></div>
+                ''', unsafe_allow_html=True)
+                
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
+                
                 st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
