@@ -288,12 +288,11 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- CORRECCIÓN TOTAL PARA ESCÁNER QR EN MODO MÓVIL Y ESCRITORIO --- */
+        /* --- CORRECCIÓN EXACTA DE PROPORCIONES PARA EL ESCÁNER QR EN MODO MÓVIL Y ESCRITORIO --- */
         iframe {
             width: 100% !important;
-            max-width: 100% !important;
-            height: auto !important;
-            min-height: 400px !important;
+            max-width: 650px !important;
+            height: 420px !important;
             border-radius: 8px !important;
             display: block !important;
             margin: 0 auto !important;
@@ -301,7 +300,7 @@ def aplicar_identidad_alfa():
         
         video {
             width: 100% !important;
-            max-width: 100% !important;
+            height: 100% !important;
             object-fit: cover !important;
             border-radius: 8px !important;
         }
