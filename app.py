@@ -318,24 +318,56 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- ESTILO TÁCTICO INTEGRADO PARA LA CÁMARA QR --- */
-        div[data-testid="stCustomComponentV1"]:has(iframe) {
+        /* --- MIRA TÁCTICA BLINDADA PARA EL ESCÁNER QR --- */
+        .marco-tactico-qr {
+            position: relative !important;
             width: 320px !important;
             height: 320px !important;
             max-width: 100% !important;
             margin: 0 auto !important;
             border: 4px solid #00E5FF !important;
-            border-radius: 12px !important;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.7) !important;
             background-color: #000000 !important;
-            position: relative !important;
+            overflow: hidden !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
         }
 
-        div[data-testid="stCustomComponentV1"]:has(iframe) iframe {
+        /* Esquinas blancas tácticas de mira */
+        .marco-tactico-qr::before {
+            content: "" !important;
+            position: absolute !important;
+            top: 12px !important; left: 12px !important; right: 12px !important; bottom: 12px !important;
+            border-top: 4px solid #FFFFFF !important;
+            border-bottom: 4px solid #FFFFFF !important;
+            pointer-events: none !important;
+            z-index: 20 !important;
+        }
+        .marco-tactico-qr::after {
+            content: "" !important;
+            position: absolute !important;
+            top: 12px !important; left: 12px !important; right: 12px !important; bottom: 12px !important;
+            border-left: 4px solid #FFFFFF !important;
+            border-right: 4px solid #FFFFFF !important;
+            pointer-events: none !important;
+            z-index: 20 !important;
+        }
+
+        /* Ajuste estricto del componente Streamlit dentro del marco */
+        div[data-testid="stCustomComponentV1"]:has(iframe) {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+
+        div[data-testid="stCustomComponentV1"] iframe {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
-            border-radius: 8px !important;
             object-fit: cover !important;
         }
         </style>
@@ -1088,8 +1120,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER QR TÁCTICO INTEGRADO CON MIRA CELESTE ÚNICA ---
+                # --- CONTENEDOR HTML BLINDADO CON EL CUADRO CELESTE Y ESQUINAS BLANCAS ---
+                st.markdown('<div class="marco-tactico-qr">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
