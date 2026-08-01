@@ -21,6 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
+from streamlit_qrcode_scanner import qrcode_scanner  # <--- IMPORTADO PARA ESCANEO REAL DE QR
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 
@@ -289,7 +290,6 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-# Reloj fluido con idéntica estética visual que las tarjetas de métricas estándar
 def renderizar_reloj_fluido():
     reloj_html = """
     <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; box-sizing: border-box;">
@@ -1025,19 +1025,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
 
                 st.markdown("---")
-                st.markdown("### 📷 CÁMARA DE ESCANEO DE QR DE PUESTO (INGRESO / EGRESO)")
-                st.info("Seleccione si va a registrar su INGRESO o su EGRESO mediante la captura del código QR del puesto.")
+                st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
+                st.info("Seleccione el tipo de movimiento y apunte con la cámara al código QR. El sistema registrará el evento automáticamente solo al detectar un código válido.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 
-                if 'ultima_foto_qr' not in st.session_state:
-                    st.session_state.ultima_foto_qr = None
-
-                foto_qr_sup = st.camera_input("Capturar Código QR del Puesto", key="camara_qr_supervisor_v2")
+                # --- AQUÍ SE IMPLEMENTÓ EL ESCANEO REAL DE QR EN TIEMPO REAL ---
+                codigo_qr_leido = qrcode_scanner(key="scanner_qr_supervisor_tactico")
                 
-                if foto_qr_sup is not None:
-                    if foto_qr_sup != st.session_state.ultima_foto_qr:
-                        st.session_state.ultima_foto_qr = foto_qr_sup
+                if codigo_qr_leido is not None:
+                    if st.session_state.get("ultimo_qr_procesado") != codigo_qr_leido:
+                        st.session_state.ultimo_qr_procesado = codigo_qr_leido
                         try:
                             accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
                             exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
@@ -1046,7 +1044,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                     escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
                                 except:
                                     pass
-                                st.success(f"✅ ¡{accion_str} registrado con éxito en Registro QR para {obj_select}!")
+                                st.success(f"✅ ¡{accion_str} registrado con éxito mediante lectura QR para {obj_select}!")
                                 st.rerun()
                             else:
                                 st.error("❌ Error al registrar en la nube. Intente nuevamente.")
