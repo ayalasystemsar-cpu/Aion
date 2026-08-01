@@ -287,6 +287,13 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
+        
+        /* --- ESTILOS CSS PARA EXPANDIR EL ESCÁNER QR AL 100% --- */
+        iframe {
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 8px !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1030,7 +1037,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 
-                # --- AQUÍ SE IMPLEMENTÓ EL ESCANEO REAL DE QR EN TIEMPO REAL ---
+                # --- AQUÍ SE IMPLEMENTÓ EL ESCANEO REAL DE QR EN TIEMPO REAL CON ANCHO EXPANDIDO ---
                 codigo_qr_leido = qrcode_scanner(key="scanner_qr_supervisor_tactico")
                 
                 if codigo_qr_leido is not None:
