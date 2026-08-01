@@ -390,16 +390,21 @@ def aplicar_identidad_alfa():
             border-width: 0 4px 4px 0;
         }
 
-        /* Forzar al componente externo de Streamlit a meterse dentro del marco */
+        /* Forzar al componente externo de Streamlit a meterse dentro del marco y ocultar duplicados */
         div[data-testid="stCustomComponentV1"] {
             width: 100% !important;
+            height: 320px !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
+            overflow: hidden !important;
         }
 
         /* Ajuste estricto del iframe de la cámara para que encaje en el cuadro sin duplicarse */
         div[data-testid="stCustomComponentV1"] iframe {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
             width: 100% !important;
             height: 320px !important;
             border: none !important;
