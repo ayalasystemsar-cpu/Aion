@@ -340,25 +340,40 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: CONTENEDOR Y VISUALIZACIÓN WEB OPTIMIZADA --- */
+        /* --- VISOR DE CÁMARA QR: TAMAÑO AMPLIADO Y ESQUINAS TÁCTICAS (MIRA) --- */
         div[data-testid="stCustomComponentV1"] {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             width: 100% !important;
-            min-height: 320px !important;
+            position: relative !important;
         }
 
         iframe[title*="streamlit_qrcode_scanner"] {
             width: 100% !important;
-            max-width: 400px !important;
-            height: 350px !important;
+            max-width: 420px !important;
+            height: 420px !important;
             border: 3px solid #00E5FF !important;
-            border-radius: 12px !important;
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5) !important;
+            border-radius: 16px !important;
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
             display: block !important;
             margin: 0 auto !important;
             background-color: #000000 !important;
+        }
+
+        /* Capa superpuesta con las 4 esquinas blancas estilo mira táctica */
+        div[data-testid="stCustomComponentV1"]::after {
+            content: "";
+            position: absolute;
+            width: 320px;
+            height: 320px;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            pointer-events: none;
+            box-shadow: 
+                -25px -25px 0 0 #FFFFFF, 
+                 25px -25px 0 0 #FFFFFF, 
+                -25px  25px 0 0 #FFFFFF, 
+                 25px  25px 0 0 #FFFFFF;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1132,7 +1147,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
                 
-                if codigo_qr_leido is not None:
+                if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
                     
                     if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
@@ -1145,7 +1160,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 except:
                                     pass
                                 
-                                # --- RESTAURACIÓN DE LAS LEYENDAS INFORMATIVAS DE ÉXITO ---
+                                # Cartelito de éxito flotante en pantalla
                                 if accion_str == "INICIO":
                                     st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
                                 else:
