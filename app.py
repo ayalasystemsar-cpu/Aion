@@ -340,11 +340,11 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: CUADRADO PERFECTO 1:1 CON BORDE Y GUÍAS CUADRADAS --- */
+        /* --- VISOR DE CÁMARA QR: CONTENEDOR ROBUSTO PARA WEB Y MÓVIL --- */
         iframe[title*="streamlit_qrcode_scanner"] {
-            width: 320px !important;
+            width: 100% !important;
+            max-width: 320px !important;
             height: 320px !important;
-            max-width: 100% !important;
             aspect-ratio: 1 / 1 !important;
             border: 3px solid #00E5FF !important;
             border-radius: 12px !important;
