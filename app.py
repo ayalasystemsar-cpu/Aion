@@ -330,7 +330,9 @@ def aplicar_identidad_alfa():
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
             background-color: #000000;
             overflow: hidden;
-            display: block;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .contenedor-scanner-tactico::before,
@@ -341,7 +343,7 @@ def aplicar_identidad_alfa():
             height: 40px;
             border-color: #FFFFFF;
             border-style: solid;
-            z-index: 10;
+            z-index: 20;
             pointer-events: none;
         }
         .contenedor-scanner-tactico::before {
@@ -355,20 +357,19 @@ def aplicar_identidad_alfa():
             border-width: 4px 4px 0 0;
         }
 
-        iframe[title*="streamlit_qrcode_scanner"] {
-            width: 100% !important;
-            height: 100% !important;
-            border: none !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            background-color: transparent !important;
-        }
-        
         div[data-testid="stCustomComponentV1"] {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             width: 100% !important;
+        }
+
+        div[data-testid="stCustomComponentV1"] iframe {
+            width: 100% !important;
+            height: 320px !important;
+            border: none !important;
+            border-radius: 12px !important;
+            object-fit: cover !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1120,7 +1121,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER CON CONTENEDOR TÁCTICO Y GUÍAS BLANCAS ---
+                # --- ESCÁNER DENTRO DEL CONTENEDOR TÁCTICO CORREGIDO ---
                 st.markdown('<div class="contenedor-scanner-tactico">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
                 st.markdown('</div>', unsafe_allow_html=True)
