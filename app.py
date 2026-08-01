@@ -318,58 +318,25 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR ÚNICO TÁCTICO PARA EL COMPONENTE QR (ELIMINA DUPLICADOS) --- */
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"]),
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"]) {
+        /* --- ESTILO TÁCTICO INTEGRADO PARA LA CÁMARA QR --- */
+        div[data-testid="stCustomComponentV1"]:has(iframe) {
             width: 320px !important;
             height: 320px !important;
-            max-width: 320px !important;
-            max-height: 320px !important;
+            max-width: 100% !important;
             margin: 0 auto !important;
             border: 4px solid #00E5FF !important;
-            border-radius: 14px !important;
+            border-radius: 12px !important;
             box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
             background-color: #000000 !important;
             position: relative !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            overflow: hidden !important;
-            padding: 0 !important;
         }
 
-        /* Esquinas blancas superiores/inferiores dentro del componente real */
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"])::before,
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"])::before {
-            content: "";
-            position: absolute;
-            top: 15px; left: 15px; right: 15px; bottom: 15px;
-            border-top: 4px solid #FFFFFF;
-            border-bottom: 4px solid #FFFFFF;
-            pointer-events: none;
-            z-index: 10;
-        }
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"])::after,
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"])::after {
-            content: "";
-            position: absolute;
-            top: 15px; left: 15px; right: 15px; bottom: 15px;
-            border-left: 4px solid #FFFFFF;
-            border-right: 4px solid #FFFFFF;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"]) iframe,
-        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"]) iframe {
+        div[data-testid="stCustomComponentV1"]:has(iframe) iframe {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
-            border-radius: 10px !important;
+            border-radius: 8px !important;
             object-fit: cover !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1121,7 +1088,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER QR LIMPIO Y ÚNICO (SIN DUPLICADOS) ---
+                # --- ESCÁNER QR TÁCTICO INTEGRADO CON MIRA CELESTE ÚNICA ---
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
 
                 if codigo_qr_leido is not None:
