@@ -390,7 +390,7 @@ def aplicar_identidad_alfa():
             border-width: 0 4px 4px 0;
         }
 
-        /* Forzar al componente externo y su contenedor a ocultar cualquier desborde inferior o duplicado */
+        /* Forzar al componente y recortar cualquier desborde o duplicado inferior */
         div[data-testid="stCustomComponentV1"] {
             width: 320px !important;
             height: 320px !important;
@@ -410,6 +410,11 @@ def aplicar_identidad_alfa():
             border-radius: 12px !important;
             object-fit: cover !important;
             margin: 0 !important;
+        }
+
+        /* OCULTAR CUALQUIER DUPLICADO O ELEMENTO EXTRA QUE GENERE EL COMPONENTE DEBAJO */
+        div[data-testid="stCustomComponentV1"] ~ div {
+            display: none !important;
         }
         </style>
     """, unsafe_allow_html=True)
