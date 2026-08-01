@@ -318,11 +318,11 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
 
-        /* --- CONTENEDOR TÁCTICO ÚNICO (AISLA EL COMPONENTE QR) --- */
+        /* --- CONTENEDOR TÁCTICO EXACTO SIN DUPLICADOS (COMO EN LA FOTO LIMPIA) --- */
         .contenedor-scanner-tactico {
             position: relative;
-            width: 320px;
-            height: 320px;
+            width: 300px;
+            height: 300px;
             max-width: 100%;
             margin: 0 auto;
             border: 3px solid #00E5FF;
@@ -374,27 +374,22 @@ def aplicar_identidad_alfa():
         .esquinas-inferiores-qr::before { bottom: 0; left: 0; border-width: 0 0 4px 4px; }
         .esquinas-inferiores-qr::after { bottom: 0; right: 0; border-width: 0 4px 4px 0; }
 
-        /* REGLA AGRESIVA: Oculta por completo cualquier video o vista secundaria generada por fuera */
-        div[data-testid="stCustomComponentV1"] ~ div,
-        div[data-testid="stCustomComponentV1"] video {
-            display: none !important;
-        }
-
+        /* Forzamos al componente interno a ajustarse exactamente al contenedor sin desbordes ni elementos extra */
         div[data-testid="stCustomComponentV1"] {
-            width: 320px !important;
-            height: 320px !important;
+            width: 300px !important;
+            height: 300px !important;
             max-width: 100% !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             overflow: hidden !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             padding: 0 !important;
         }
 
         div[data-testid="stCustomComponentV1"] iframe {
-            width: 320px !important;
-            height: 320px !important;
+            width: 300px !important;
+            height: 300px !important;
             border: none !important;
             border-radius: 12px !important;
             object-fit: cover !important;
@@ -1150,7 +1145,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER ÚNICO AISLADO EN EL MARCO CELESTE ---
+                # --- ESCÁNER LIMPIO Y EXACTO SIN DUPLICADOS ---
                 st.markdown('''
                     <div class="contenedor-scanner-tactico">
                         <div class="esquinas-inferiores-qr"></div>
