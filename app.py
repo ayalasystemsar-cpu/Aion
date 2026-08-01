@@ -318,7 +318,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: CONTENEDOR TÁCTICO UNIFICADO --- */
+        /* --- VISOR DE CÁMARA QR: CONTENEDOR TÁCTICO ÚNICO Y CUADRADO --- */
         .contenedor-scanner-tactico {
             position: relative;
             width: 320px;
@@ -335,62 +335,7 @@ def aplicar_identidad_alfa():
             align-items: center;
         }
 
-        /* Guías de esquinas blancas tácticas superiores */
-        .contenedor-scanner-tactico::before,
-        .contenedor-scanner-tactico::after {
-            content: "";
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border-color: #FFFFFF;
-            border-style: solid;
-            z-index: 30;
-            pointer-events: none;
-        }
-        .contenedor-scanner-tactico::before {
-            top: 15px;
-            left: 15px;
-            border-width: 4px 0 0 4px;
-        }
-        .contenedor-scanner-tactico::after {
-            top: 15px;
-            right: 15px;
-            border-width: 4px 4px 0 0;
-        }
-
-        /* Guías de esquinas blancas tácticas inferiores */
-        .contenedor-scanner-tactico .esquinas-inferiores {
-            position: absolute;
-            bottom: 15px;
-            left: 15px;
-            right: 15px;
-            height: 40px;
-            z-index: 30;
-            pointer-events: none;
-            display: flex;
-            justify-content: space-between;
-        }
-        .contenedor-scanner-tactico .esquinas-inferiores::before,
-        .contenedor-scanner-tactico .esquinas-inferiores::after {
-            content: "";
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border-color: #FFFFFF;
-            border-style: solid;
-        }
-        .contenedor-scanner-tactico .esquinas-inferiores::before {
-            bottom: 0;
-            left: 0;
-            border-width: 0 0 4px 4px;
-        }
-        .contenedor-scanner-tactico .esquinas-inferiores::after {
-            bottom: 0;
-            right: 0;
-            border-width: 0 4px 4px 0;
-        }
-
-        /* Forzar al componente externo de Streamlit a meterse dentro del marco y ocultar duplicados */
+        /* Forzar al componente externo de Streamlit a ocupar exactamente el marco cuadrado */
         div[data-testid="stCustomComponentV1"] {
             width: 100% !important;
             height: 320px !important;
@@ -398,19 +343,18 @@ def aplicar_identidad_alfa():
             justify-content: center !important;
             align-items: center !important;
             overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
-        /* Ajuste estricto del iframe de la cámara para que encaje en el cuadro sin duplicarse */
+        /* Forzar al iframe interno a cubrir perfectamente el contenedor sin desbordarse */
         div[data-testid="stCustomComponentV1"] iframe {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
+            position: relative !important;
+            width: 320px !important;
             height: 320px !important;
             border: none !important;
             border-radius: 12px !important;
             object-fit: cover !important;
-            z-index: 10;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1162,14 +1106,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER DENTRO DEL CONTENEDOR TÁCTICO UNIFICADO ---
-                st.markdown('''
-                    <div class="contenedor-scanner-tactico">
-                        <div class="esquinas-inferiores"></div>
-                ''', unsafe_allow_html=True)
-                
+                # --- ESCÁNER DENTRO DEL CONTENEDOR TÁCTICO CUADRADO ---
+                st.markdown('<div class="contenedor-scanner-tactico">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
-                
                 st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
