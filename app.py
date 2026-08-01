@@ -318,7 +318,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: CONTENEDOR TÁCTICO CON GUÍAS BLANCAS --- */
+        /* --- VISOR DE CÁMARA QR: CONTENEDOR TÁCTICO UNIFICADO --- */
         .contenedor-scanner-tactico {
             position: relative;
             width: 320px;
@@ -335,6 +335,7 @@ def aplicar_identidad_alfa():
             align-items: center;
         }
 
+        /* Guías de esquinas blancas tácticas */
         .contenedor-scanner-tactico::before,
         .contenedor-scanner-tactico::after {
             content: "";
@@ -357,19 +358,25 @@ def aplicar_identidad_alfa():
             border-width: 4px 4px 0 0;
         }
 
+        /* Forzar al componente externo de Streamlit a meterse dentro del marco */
         div[data-testid="stCustomComponentV1"] {
+            width: 100% !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
-            width: 100% !important;
         }
 
+        /* Ajuste estricto del iframe de la cámara para que encaje en el cuadro negro sin duplicarse */
         div[data-testid="stCustomComponentV1"] iframe {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
             width: 100% !important;
             height: 320px !important;
             border: none !important;
             border-radius: 12px !important;
             object-fit: cover !important;
+            z-index: 10;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1121,7 +1128,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER DENTRO DEL CONTENEDOR TÁCTICO CORREGIDO ---
+                # --- ESCÁNER DENTRO DEL CONTENEDOR TÁCTICO UNIFICADO ---
                 st.markdown('<div class="contenedor-scanner-tactico">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
                 st.markdown('</div>', unsafe_allow_html=True)
