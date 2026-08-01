@@ -318,7 +318,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
 
-        /* --- CONTENEDOR TÁCTICO EXACTO SIN DUPLICADOS (COMO EN LA FOTO LIMPIA) --- */
+        /* --- CONTENEDOR TÁCTICO EXACTO SIN DUPLICADOS (BLOQUEO ABSOLUTO DE ELEMENTOS EXTERNOS) --- */
         .contenedor-scanner-tactico {
             position: relative;
             width: 300px;
@@ -374,7 +374,14 @@ def aplicar_identidad_alfa():
         .esquinas-inferiores-qr::before { bottom: 0; left: 0; border-width: 0 0 4px 4px; }
         .esquinas-inferiores-qr::after { bottom: 0; right: 0; border-width: 0 4px 4px 0; }
 
-        /* Forzamos al componente interno a ajustarse exactamente al contenedor sin desbordes ni elementos extra */
+        /* REGLA DEFINITIVA PARA OCULTAR EL DUPLICADO INFERIOR */
+        div[data-testid="stCustomComponentV1"] ~ *,
+        div[data-testid="stCustomComponentV1"] + div {
+            display: none !important;
+            height: 0px !important;
+            overflow: hidden !important;
+        }
+
         div[data-testid="stCustomComponentV1"] {
             width: 300px !important;
             height: 300px !important;
@@ -1145,7 +1152,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER LIMPIO Y EXACTO SIN DUPLICADOS ---
+                # --- ESCÁNER ÚNICO LIMPIO Y SIN DUPLICADOS ---
                 st.markdown('''
                     <div class="contenedor-scanner-tactico">
                         <div class="esquinas-inferiores-qr"></div>
