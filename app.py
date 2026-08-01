@@ -321,21 +321,28 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- ENFOQUE Y CENTRADO EXACTO DEL VISOR QR --- */
-        iframe {
+        /* --- ENFOQUE Y CENTRADO EXACTO DEL VISOR QR SIN RECORTE --- */
+        iframe[title*="streamlit_qrcode_scanner"] {
             width: 100% !important;
-            max-width: 500px !important;
-            height: 280px !important;
+            max-width: 450px !important;
+            height: auto !important;
+            min-height: 380px !important;
             border-radius: 8px !important;
             display: block !important;
             margin: 0 auto !important;
         }
         
+        div[data-testid="stCustomComponentV1"] {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            width: 100% !important;
+        }
+
         video {
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important;
-            object-position: center !important;
+            object-fit: contain !important;
             border-radius: 8px !important;
         }
         </style>
