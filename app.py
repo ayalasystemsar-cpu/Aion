@@ -340,48 +340,25 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: CONTENEDOR Y VIDEO FIJO A 320px --- */
+        /* --- VISOR DE CÁMARA QR: CONTENEDOR Y VISUALIZACIÓN WEB OPTIMIZADA --- */
         div[data-testid="stCustomComponentV1"] {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             width: 100% !important;
+            min-height: 320px !important;
         }
 
         iframe[title*="streamlit_qrcode_scanner"] {
-            width: 320px !important;
-            height: 320px !important;
-            max-width: 320px !important;
-            max-height: 320px !important;
+            width: 100% !important;
+            max-width: 400px !important;
+            height: 350px !important;
             border: 3px solid #00E5FF !important;
             border-radius: 12px !important;
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.5) !important;
             display: block !important;
             margin: 0 auto !important;
             background-color: #000000 !important;
-            overflow: hidden !important;
-        }
-        
-        iframe[title*="streamlit_qrcode_scanner"] html,
-        iframe[title*="streamlit_qrcode_scanner"] body {
-            width: 320px !important;
-            height: 320px !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: hidden !important;
-            background: #000 !important;
-        }
-
-        iframe[title*="streamlit_qrcode_scanner"] video {
-            width: 320px !important;
-            height: 320px !important;
-            object-fit: cover !important;
-            border-radius: 9px !important;
-            display: block !important;
-        }
-
-        iframe[title*="streamlit_qrcode_scanner"] canvas {
-            display: none !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1146,7 +1123,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Botón manual de reseteo para forzar un nuevo escaneo inmediato del mismo código
                 col_b1, col_b2 = st.columns([2, 1])
                 with col_b2:
                     if st.button("🔄 REINICIAR CÁMARA"):
@@ -1154,7 +1130,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER CON CLAVE DINÁMICA Y REUTILIZACIÓN DEL MISMO QR ---
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
                 
                 if codigo_qr_leido is not None:
@@ -1169,7 +1144,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                     escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
                                 except:
                                     pass
-                                st.success(f"✅ ¡{accion_str} registrado con éxito mediante lectura QR para {obj_select}!")
+                                
+                                # --- RESTAURACIÓN DE LAS LEYENDAS INFORMATIVAS DE ÉXITO ---
+                                if accion_str == "INICIO":
+                                    st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                                else:
+                                    st.success(f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                                
                                 st.rerun()
                             else:
                                 st.error("❌ Error al registrar en la nube. Intente nuevamente.")
