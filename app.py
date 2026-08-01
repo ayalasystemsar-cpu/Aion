@@ -21,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
-from streamlit_qrcode_scanner import qrcode_scanner  # <--- IMPORTADO PARA ESCANEO REAL DE QR
+from streamlit_qrcode_scanner import qrcode_scanner
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 
@@ -317,42 +317,6 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
-        
-        /* --- VISOR DE CÁMARA QR: LIMPIO Y ADAPTABLE --- */
-        .contenedor-scanner-tactico {
-            position: relative;
-            width: 100%;
-            max-width: 320px;
-            height: 320px;
-            margin: 0 auto;
-            border-radius: 12px;
-            background-color: #000000;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        div[data-testid="stCustomComponentV1"] {
-            width: 100% !important;
-            max-width: 320px !important;
-            height: 320px !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            overflow: hidden !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
-        }
-
-        div[data-testid="stCustomComponentV1"] iframe {
-            width: 100% !important;
-            height: 320px !important;
-            border: none !important;
-            border-radius: 12px !important;
-            object-fit: cover !important;
-            margin: 0 !important;
-        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1103,10 +1067,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- CONTENEDOR TÁCTICO LIMPIO ---
-                st.markdown('<div class="contenedor-scanner-tactico">', unsafe_allow_html=True)
+                # --- ESCÁNER ORIGINAL LIMPIO (SIN MARCO CELESTE NI FORZADOS) ---
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
-                st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
