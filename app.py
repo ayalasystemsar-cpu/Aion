@@ -318,80 +318,29 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
 
-        /* --- CONTENEDOR TÁCTICO PARA EL ESCÁNER QR --- */
-        .contenedor-scanner-tactico {
-            position: relative;
-            width: 300px;
-            height: 300px;
-            max-width: 100%;
-            margin: 0 auto;
-            border: 3px solid #00E5FF;
-            border-radius: 12px;
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
-            background-color: #000000;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        /* Esquinas blancas superiores dentro del visor */
-        .contenedor-scanner-tactico::before,
-        .contenedor-scanner-tactico::after {
-            content: "";
-            position: absolute;
-            width: 35px;
-            height: 35px;
-            border-color: #FFFFFF;
-            border-style: solid;
-            z-index: 30;
-            pointer-events: none;
-        }
-        .contenedor-scanner-tactico::before { top: 12px; left: 12px; border-width: 4px 0 0 4px; }
-        .contenedor-scanner-tactico::after { top: 12px; right: 12px; border-width: 4px 4px 0 0; }
-
-        /* Esquinas blancas inferiores dentro del visor */
-        .esquinas-inferiores-qr {
-            position: absolute;
-            bottom: 12px;
-            left: 12px;
-            right: 12px;
-            height: 35px;
-            z-index: 30;
-            pointer-events: none;
-            display: flex;
-            justify-content: space-between;
-        }
-        .esquinas-inferiores-qr::before,
-        .esquinas-inferiores-qr::after {
-            content: "";
-            position: absolute;
-            width: 35px;
-            height: 35px;
-            border-color: #FFFFFF;
-            border-style: solid;
-        }
-        .esquinas-inferiores-qr::before { bottom: 0; left: 0; border-width: 0 0 4px 4px; }
-        .esquinas-inferiores-qr::after { bottom: 0; right: 0; border-width: 0 4px 4px 0; }
-
-        /* Ajuste del componente interno para encajar sin desalinearse */
+        /* --- ESTILO TÁCTICO DIRECTO PARA EL ESCÁNER QR (SIN DUPLICADOS) --- */
         div[data-testid="stCustomComponentV1"] {
             width: 300px !important;
             height: 300px !important;
             max-width: 100% !important;
+            margin: 0 auto !important;
+            border: 3px solid #00E5FF !important;
+            border-radius: 12px !important;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5) !important;
+            background-color: #000000 !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             overflow: hidden !important;
-            margin: 0 auto !important;
             padding: 0 !important;
+            position: relative !important;
         }
 
         div[data-testid="stCustomComponentV1"] iframe {
-            width: 300px !important;
-            height: 300px !important;
+            width: 100% !important;
+            height: 100% !important;
             border: none !important;
-            border-radius: 12px !important;
+            border-radius: 10px !important;
             object-fit: cover !important;
             margin: 0 !important;
         }
@@ -1145,15 +1094,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER QR TÁCTICO CON MARCO CELESTE Y ESQUINAS BLANCAS ---
-                st.markdown('''
-                    <div class="contenedor-scanner-tactico">
-                        <div class="esquinas-inferiores-qr"></div>
-                ''', unsafe_allow_html=True)
-                
+                # --- LLAMADA LIMPIA AL ESCÁNER (ESTILIZADO AUTOMÁTICAMENTE POR CSS GLOBAL) ---
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
-                
-                st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
