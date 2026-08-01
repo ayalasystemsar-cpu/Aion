@@ -340,12 +340,14 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: CONTENEDOR ROBUSTO PARA WEB Y MÓVIL --- */
+        /* --- VISOR DE CÁMARA QR: FORZADO A CUADRADO PERFECTO 320x320 --- */
         iframe[title*="streamlit_qrcode_scanner"] {
-            width: 100% !important;
-            max-width: 320px !important;
+            width: 320px !important;
             height: 320px !important;
-            aspect-ratio: 1 / 1 !important;
+            max-width: 320px !important;
+            max-height: 320px !important;
+            min-width: 320px !important;
+            min-height: 320px !important;
             border: 3px solid #00E5FF !important;
             border-radius: 12px !important;
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.5) !important;
@@ -361,12 +363,15 @@ def aplicar_identidad_alfa():
             width: 100% !important;
         }
 
-        iframe[title*="streamlit_qrcode_scanner"] video,
-        iframe[title*="streamlit_qrcode_scanner"] canvas {
-            width: 100% !important;
-            height: 100% !important;
+        iframe[title*="streamlit_qrcode_scanner"] video {
+            width: 320px !important;
+            height: 320px !important;
             object-fit: cover !important;
-            aspect-ratio: 1 / 1 !important;
+            border-radius: 9px !important;
+        }
+
+        iframe[title*="streamlit_qrcode_scanner"] canvas {
+            display: none !important;
         }
         </style>
     """, unsafe_allow_html=True)
