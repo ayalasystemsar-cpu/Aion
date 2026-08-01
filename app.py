@@ -16,6 +16,7 @@ import requests
 from branca.element import Element
 import qrcode
 import io
+import base64
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -154,7 +155,7 @@ def registrar_jornada_general(supervisor, objetivo, accion):
     try:
         tz = pytz.timezone("America/Argentina/Buenos_Aires")
         ahora = datetime.now(tz)
-        fecha = ahora.strftime("%Y-%m-%d")
+        fecha = me.strftime("%Y-%m-%d")
         hora = ahora.strftime("%H:%M:%S")
         datos = [fecha, str(supervisor).strip().upper(), str(objetivo).strip().upper(), str(accion).strip().upper(), hora]
         
@@ -321,17 +322,20 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- ENFOQUE Y CENTRADO EXACTO DEL VISOR QR SIN RECORTE --- */
+        /* --- VISOR DE CÁMARA QR: CUADRADO EXACTO (1:1) Y CENTRADO --- */
         iframe[title*="streamlit_qrcode_scanner"] {
-            width: 100% !important;
-            max-width: 450px !important;
-            height: auto !important;
-            min-height: 380px !important;
-            border-radius: 8px !important;
+            width: 320px !important;
+            height: 320px !important;
+            max-width: 100% !important;
+            aspect-ratio: 1 / 1 !important;
+            border: 2px solid #00E5FF !important;
+            border-radius: 12px !important;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.3) !important;
             display: block !important;
             margin: 0 auto !important;
+            overflow: hidden !important;
         }
-        
+
         div[data-testid="stCustomComponentV1"] {
             display: flex !important;
             justify-content: center !important;
@@ -339,11 +343,33 @@ def aplicar_identidad_alfa():
             width: 100% !important;
         }
 
-        video {
+        iframe[title*="streamlit_qrcode_scanner"] video,
+        iframe[title*="streamlit_qrcode_scanner"] canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            aspect-ratio: 1 / 1 !important;
+        }
+
+        /* --- MARCO CUADRADO PARA QR GENERADO --- */
+        .contenedor-qr-tarjeta {
+            background-color: #FFFFFF !important;
+            padding: 10px !important;
+            border-radius: 10px !important;
+            border: 2px solid #00E5FF !important;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4) !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            width: 170px !important;
+            height: 170px !important;
+            margin: 0 auto 10px auto !important;
+        }
+
+        .contenedor-qr-tarjeta img {
             width: 100% !important;
             height: 100% !important;
             object-fit: contain !important;
-            border-radius: 8px !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1061,11 +1087,20 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=2)
                     qr.add_data(qr_data_string)
                     qr.make(fit=True)
-                    img_qr = qr.make_image(fill_color="#00E5FF", back_color="#000000")
+                    img_qr = qr.make_image(fill_color="#000000", back_color="#FFFFFF")
                     
                     buffered = io.BytesIO()
                     img_qr.save(buffered, format="PNG")
-                    st.image(buffered.getvalue(), width=160, caption=f"QR Oficial: {obj_select}")
+                    img_b64 = base64.b64encode(buffered.getvalue()).decode()
+
+                    st.markdown(f'''
+                        <div class="contenedor-qr-tarjeta">
+                            <img src="data:image/png;base64,{img_b64}" alt="QR {obj_select}">
+                        </div>
+                        <div style="text-align: center; color: #00E5FF; font-weight: bold; font-size: 11px; margin-bottom: 15px;">
+                            QR OFICIAL: {obj_select}
+                        </div>
+                    ''', unsafe_allow_html=True)
 
                 with col_qr2:
                     st.markdown("#### DATOS CLAVE DEL OBJETIVO")
