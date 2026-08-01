@@ -318,7 +318,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: CONTENEDOR TÁCTICO ÚNICO Y CUADRADO --- */
+        /* --- VISOR DE CÁMARA QR: MARCO CELESTE Y ESQUINAS BLANCAS TÁCTICAS --- */
         .contenedor-scanner-tactico {
             position: relative;
             width: 320px;
@@ -335,10 +335,66 @@ def aplicar_identidad_alfa():
             align-items: center;
         }
 
-        /* Forzar al componente externo de Streamlit a ocupar exactamente el marco cuadrado */
+        /* Esquinas blancas tácticas superiores */
+        .contenedor-scanner-tactico::before,
+        .contenedor-scanner-tactico::after {
+            content: "";
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-color: #FFFFFF;
+            border-style: solid;
+            z-index: 30;
+            pointer-events: none;
+        }
+        .contenedor-scanner-tactico::before {
+            top: 15px;
+            left: 15px;
+            border-width: 4px 0 0 4px;
+        }
+        .contenedor-scanner-tactico::after {
+            top: 15px;
+            right: 15px;
+            border-width: 4px 4px 0 0;
+        }
+
+        /* Contenedor interno para esquinas inferiores */
+        .esquinas-inferiores-qr {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            height: 40px;
+            z-index: 30;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+        }
+        .esquinas-inferiores-qr::before,
+        .esquinas-inferiores-qr::after {
+            content: "";
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-color: #FFFFFF;
+            border-style: solid;
+        }
+        .esquinas-inferiores-qr::before {
+            bottom: 0;
+            left: 0;
+            border-width: 0 0 4px 4px;
+        }
+        .esquinas-inferiores-qr::after {
+            bottom: 0;
+            right: 0;
+            border-width: 0 4px 4px 0;
+        }
+
+        /* Forzar al componente del escáner y su iframe a encajar perfectamente en el cuadro de 320x320 */
         div[data-testid="stCustomComponentV1"] {
-            width: 100% !important;
+            width: 320px !important;
             height: 320px !important;
+            max-width: 100% !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
@@ -347,14 +403,13 @@ def aplicar_identidad_alfa():
             padding: 0 !important;
         }
 
-        /* Forzar al iframe interno a cubrir perfectamente el contenedor sin desbordarse */
         div[data-testid="stCustomComponentV1"] iframe {
-            position: relative !important;
             width: 320px !important;
             height: 320px !important;
             border: none !important;
             border-radius: 12px !important;
             object-fit: cover !important;
+            margin: 0 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1106,9 +1161,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER DENTRO DEL CONTENEDOR TÁCTICO CUADRADO ---
-                st.markdown('<div class="contenedor-scanner-tactico">', unsafe_allow_html=True)
+                # --- CONTENEDOR TÁCTICO INTEGRADO CON CÁMARA EN VIVO ---
+                st.markdown('''
+                    <div class="contenedor-scanner-tactico">
+                        <div class="esquinas-inferiores-qr"></div>
+                ''', unsafe_allow_html=True)
+                
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
+                
                 st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
