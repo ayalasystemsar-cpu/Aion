@@ -318,8 +318,9 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
 
-        /* --- CONTENEDOR TÁCTICO CUADRADO Y FORZADO PARA EL ESCÁNER --- */
-        div[data-testid="stCustomComponentV1"] {
+        /* --- CONTENEDOR TÁCTICO EXCLUSIVO PARA EL ESCÁNER QR --- */
+        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"]),
+        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"]) {
             width: 300px !important;
             height: 300px !important;
             max-width: 300px !important;
@@ -338,7 +339,8 @@ def aplicar_identidad_alfa():
         }
 
         /* Esquinas blancas de la mira táctica */
-        div[data-testid="stCustomComponentV1"]::before {
+        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"])::before,
+        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"])::before {
             content: "";
             position: absolute;
             top: 15px; left: 15px; right: 15px; bottom: 15px;
@@ -347,7 +349,8 @@ def aplicar_identidad_alfa():
             pointer-events: none;
             z-index: 10;
         }
-        div[data-testid="stCustomComponentV1"]::after {
+        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"])::after,
+        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"])::after {
             content: "";
             position: absolute;
             top: 15px; left: 15px; right: 15px; bottom: 15px;
@@ -357,7 +360,8 @@ def aplicar_identidad_alfa():
             z-index: 10;
         }
 
-        div[data-testid="stCustomComponentV1"] iframe {
+        div[data-testid="stCustomComponentV1"]:has(iframe[title*="qr"]) iframe,
+        div[data-testid="stCustomComponentV1"]:has(iframe[title*="scanner"]) iframe {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
@@ -1117,10 +1121,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- ESCÁNER QR ENCAJADO Y FORZADO ---
-                st.markdown('<div style="display: flex; justify-content: center; width: 100%;">', unsafe_allow_html=True)
+                # --- ESCÁNER QR (SIN WRAPPERS HTML QUE ROMPEN EL DOM) ---
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
-                st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
