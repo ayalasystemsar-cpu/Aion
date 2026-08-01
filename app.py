@@ -318,16 +318,14 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: MARCO CELESTE Y ESQUINAS BLANCAS INTERNAS ÚNICAS --- */
+        /* --- VISOR DE CÁMARA QR: LIMPIO Y ADAPTABLE --- */
         .contenedor-scanner-tactico {
             position: relative;
-            width: 320px;
+            width: 100%;
+            max-width: 320px;
             height: 320px;
-            max-width: 100%;
             margin: 0 auto;
-            border: 3px solid #00E5FF;
             border-radius: 12px;
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
             background-color: #000000;
             overflow: hidden;
             display: flex;
@@ -335,86 +333,25 @@ def aplicar_identidad_alfa():
             align-items: center;
         }
 
-        /* Esquinas blancas tácticas superiores dentro del visor */
-        .contenedor-scanner-tactico::before,
-        .contenedor-scanner-tactico::after {
-            content: "";
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border-color: #FFFFFF;
-            border-style: solid;
-            z-index: 30;
-            pointer-events: none;
-        }
-        .contenedor-scanner-tactico::before {
-            top: 15px;
-            left: 15px;
-            border-width: 4px 0 0 4px;
-        }
-        .contenedor-scanner-tactico::after {
-            top: 15px;
-            right: 15px;
-            border-width: 4px 4px 0 0;
-        }
-
-        /* Esquinas blancas tácticas inferiores dentro del visor */
-        .esquinas-inferiores-qr {
-            position: absolute;
-            bottom: 15px;
-            left: 15px;
-            right: 15px;
-            height: 40px;
-            z-index: 30;
-            pointer-events: none;
-            display: flex;
-            justify-content: space-between;
-        }
-        .esquinas-inferiores-qr::before,
-        .esquinas-inferiores-qr::after {
-            content: "";
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border-color: #FFFFFF;
-            border-style: solid;
-        }
-        .esquinas-inferiores-qr::before {
-            bottom: 0;
-            left: 0;
-            border-width: 0 0 4px 4px;
-        }
-        .esquinas-inferiores-qr::after {
-            bottom: 0;
-            right: 0;
-            border-width: 0 4px 4px 0;
-        }
-
-        /* Forzar al componente QR y ocultar cualquier marco nativo o duplicado inferior */
         div[data-testid="stCustomComponentV1"] {
-            width: 320px !important;
+            width: 100% !important;
+            max-width: 320px !important;
             height: 320px !important;
-            max-width: 100% !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             overflow: hidden !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             padding: 0 !important;
         }
 
         div[data-testid="stCustomComponentV1"] iframe {
-            width: 320px !important;
+            width: 100% !important;
             height: 320px !important;
             border: none !important;
             border-radius: 12px !important;
             object-fit: cover !important;
             margin: 0 !important;
-        }
-
-        /* Eliminar por completo cualquier duplicado o elemento generado fuera del componente */
-        div[data-testid="stCustomComponentV1"] ~ div {
-            display: none !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1166,14 +1103,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             del st.session_state["ultimo_qr_procesado"]
                         st.rerun()
 
-                # --- CONTENEDOR TÁCTICO INTEGRADO CON CÁMARA EN VIVO ---
-                st.markdown('''
-                    <div class="contenedor-scanner-tactico">
-                        <div class="esquinas-inferiores-qr"></div>
-                ''', unsafe_allow_html=True)
-                
+                # --- CONTENEDOR TÁCTICO LIMPIO ---
+                st.markdown('<div class="contenedor-scanner-tactico">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
-                
                 st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None:
