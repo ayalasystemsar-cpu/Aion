@@ -280,31 +280,20 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* Corrección absoluta para web móvil: Forzar contención total del escáner QR sin recortes */
+        /* Ajuste estricto y elevación del visor de la cámara QR para dispositivos móviles */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            margin: 10px auto;
-            background: #000000;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid #00E5FF;
+            margin: 5px auto 15px auto;
         }
-        .qr-scanner-container video {
-            width: 100% !important;
-            height: auto !important;
-            max-height: 320px !important;
-            object-fit: contain !important;
-            display: block !important;
-            margin: 0 auto !important;
-        }
-        .qr-scanner-container div {
-            width: 100% !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
+        .qr-scanner-container video, .qr-scanner-container div {
+            max-width: 100% !important;
+            max-height: 380px !important;
+            object-fit: cover !important;
+            border-radius: 8px !important;
+            border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -1056,7 +1045,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
-                # --- VISOR DEL ESCÁNER OPTIMIZADO PARA MÓVIL (SIN CORTES) ---
+                # --- REUBICACIÓN PRIORITARIA: ESCÁNER SUBIDO ARRIBA DE TODO EN ESTA SECCIÓN ---
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
@@ -1072,7 +1061,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Contenedor con la clase CSS estricta para evitar recortes de video en la web móvil
+                # Contenedor optimizado y elevado con clase CSS para móvil
                 st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
