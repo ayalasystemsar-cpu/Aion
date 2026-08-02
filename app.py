@@ -1093,25 +1093,25 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Apunte al código QR con la cámara táctica.")
+                st.info("Apunte al código QR dentro del visor.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Visor optimizado, tamaño equilibrado, esquinas inteligentes que cambian a verde y sonido táctico
+                # Visor cuadrado táctico optimizado de tamaño intermedio-grande ideal para celular con esquinas que parpadean en verde
                 componentes_html_camara = f"""
-                <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px; border: 2px solid #00E5FF;">
-                    <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 480px; height: 320px;">
-                        <video id="video-webcam" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #444;"></video>
-                        <div id="marco-esquinas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; border: 2px dashed rgba(0,229,255,0.4); border-radius: 8px;">
-                            <div style="position: absolute; top: 10px; left: 10px; width: 30px; height: 30px; border-top: 3px solid #FFF; border-left: 3px solid #FFF;"></div>
-                            <div style="position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-top: 3px solid #FFF; border-right: 3px solid #FFF;"></div>
-                            <div style="position: absolute; bottom: 10px; left: 10px; width: 30px; height: 30px; border-bottom: 3px solid #FFF; border-left: 3px solid #FFF;"></div>
-                            <div style="position: absolute; bottom: 10px; right: 10px; width: 30px; height: 30px; border-bottom: 3px solid #FFF; border-right: 3px solid #FFF;"></div>
+                <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px;">
+                    <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 420px; height: 420px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
+                        <video id="video-webcam" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                        <div id="marco-esquinas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                            <div class="esquina" style="position: absolute; top: 25px; left: 25px; width: 40px; height: 40px; border-top: 5px solid #FFF; border-left: 5px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; top: 25px; right: 25px; width: 40px; height: 40px; border-top: 5px solid #FFF; border-right: 5px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; bottom: 25px; left: 25px; width: 40px; height: 40px; border-bottom: 5px solid #FFF; border-left: 5px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; bottom: 25px; right: 25px; width: 40px; height: 40px; border-bottom: 5px solid #FFF; border-right: 5px solid #FFF; transition: 0.2s;"></div>
                         </div>
                     </div>
                     <canvas id="canvas-camara" style="display:none;"></canvas>
-                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 8px; font-size: 13px; font-weight: bold; text-align: center;">Iniciando sensor de cámara...</p>
+                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 12px; font-size: 14px; font-weight: bold; text-align: center;">Escáner activo en tiempo real...</p>
                 </div>
 
                 <script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.min.js"></script>
@@ -1141,10 +1141,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     try {{
                         videoStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: "environment" }} }});
                         video.srcObject = videoStream;
-                        estado.innerText = "Buscando código QR en tiempo real...";
+                        estado.innerText = "Buscando código QR...";
                         requestAnimationFrame(analizarFotograma);
                     }} catch (err) {{
-                        estado.innerText = "⚠️ No se pudo acceder a la cámara: " + err.message;
+                        estado.innerText = "⚠️ Error de cámara: " + err.message;
                     }}
                 }}
 
@@ -1154,7 +1154,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     const video = document.getElementById('video-webcam');
                     const canvas = document.getElementById('canvas-camara');
                     const estado = document.getElementById('estado-camara');
-                    const marco = document.getElementById('marco-esquinas');
+                    const visor = document.getElementById('contenedor-visor');
+                    const esquinas = document.querySelectorAll('.esquina');
                     
                     if (video.readyState === video.HAVE_ENOUGH_DATA) {{
                         canvas.width = video.videoWidth;
@@ -1168,7 +1169,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         if (code) {{
                             escaneandoActivo = false;
                             emitirBeep();
-                            marco.style.border = "4px solid #39FF14";
+                            visor.style.border = "3px solid #39FF14";
+                            visor.style.boxShadow = "0 0 35px rgba(57, 255, 20, 0.7)";
+                            
+                            esquinas.forEach(e => {{
+                                e.style.borderColor = "#39FF14";
+                            }});
+                            
                             estado.style.color = "#39FF14";
                             estado.innerText = "¡QR DETECTADO CON ÉXITO!";
                             
@@ -1182,11 +1189,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 }}
 
                 window.onload = iniciarCamaraAutomatica();
-                setTimeout(iniciarCamaraAutomatica, 500);
+                setTimeout(iniciarCamaraAutomatica, 400);
                 </script>
                 """
                 
-                codigo_qr_leido = components.html(componentes_html_camara, height=430)
+                codigo_qr_leido = components.html(componentes_html_camara, height=500)
 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
