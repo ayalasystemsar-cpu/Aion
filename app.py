@@ -280,21 +280,22 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* ESTILO PARA EL CONTENEDOR DEL ESCÁNER Y CÁMARA (ADAPTADO A WEB Y MÓVIL) */
+        /* ESTILO RESPONSIVO ADAPTADO PARA EVITAR CORTES EN WEB Y MÓVIL */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            max-width: 500px;
+            max-width: 450px;
             margin: 10px auto 15px auto;
+            overflow: hidden;
         }
-        .qr-scanner-container video {
+        .qr-scanner-container video, .qr-scanner-container canvas {
             width: 100% !important;
-            max-width: 500px !important;
+            max-width: 450px !important;
             height: auto !important;
-            max-height: 400px !important;
-            object-fit: contain !important;
+            max-height: 350px !important;
+            object-fit: cover !important;
             border-radius: 8px !important;
             border: 2px solid #00E5FF !important;
             background-color: #000 !important;
@@ -1051,7 +1052,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 st.markdown("---")
                 
-                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA CON SU CARTEL ---
+                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA CON SU CARTEL (ADAPTADO) ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
                 
