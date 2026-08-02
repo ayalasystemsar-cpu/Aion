@@ -280,25 +280,27 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* Corrección absoluta para web móvil: Forzar contención total del escáner QR sin recortes */
+        /* SOLUCIÓN DEFINITIVA MÓVIL: Forzar centrado absoluto y escala del video para que se vea todo el visor */
         .qr-scanner-container {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            width: 100%;
-            margin: 10px auto;
+            width: 100% !important;
+            max-width: 360px !important;
+            margin: 0 auto 15px auto !important;
             background: #000000;
-            border-radius: 8px;
-            overflow: hidden;
+            border-radius: 10px;
+            padding: 8px;
             border: 2px solid #00E5FF;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
         }
         .qr-scanner-container video {
             width: 100% !important;
-            height: auto !important;
-            max-height: 320px !important;
-            object-fit: contain !important;
-            display: block !important;
-            margin: 0 auto !important;
+            height: 260px !important;
+            object-fit: cover !important;
+            object-position: center center !important;
+            border-radius: 6px !important;
         }
         .qr-scanner-container div {
             width: 100% !important;
@@ -1056,10 +1058,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
-                # --- VISOR DEL ESCÁNER OPTIMIZADO PARA MÓVIL (SIN CORTES) ---
+                # --- VISOR ESCÁNER CON CONTENCIÓN Y CENTRADO ABSOLUTO EN MÓVIL ---
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Alinee el código QR dentro del visor.")
+                st.info("Alinee el código QR dentro del visor completo.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
@@ -1067,12 +1069,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown("""
                 <div style="background: rgba(0, 229, 255, 0.03); border: 1px solid #00E5FF; border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 10px;">
                     <span style="color: #00E5FF; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: bold; letter-spacing: 1px;">
-                        🎯 VISOR DE ALTA VELOCIDAD
+                        🎯 VISOR DE ALTA VELOCIDAD (CENTRADO COMPLETO)
                     </span>
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Contenedor con la clase CSS estricta para evitar recortes de video en la web móvil
+                # Contenedor con reglas CSS estrictas para que el cuadro del visor no quede cortado
                 st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
