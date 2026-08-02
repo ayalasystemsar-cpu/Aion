@@ -274,11 +274,11 @@ def aplicar_identidad_alfa():
         .block-container {
             padding-left: 1rem !important;
             padding-right: 1rem !important;
-            padding-top: 1rem !important;
+            padding-top: 0rem !important;
             max-width: 100% !important;
         }
 
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin: 10px 0; }
+        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin: 5px 0; }
         .logo-phoenix { 
             width: 100% !important; 
             max-width: 320px !important; 
@@ -291,11 +291,19 @@ def aplicar_identidad_alfa():
         }
         .estacion-titulo {
             font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important; font-size: 22px; margin-top: 10px;
+            color: #00E5FF !important; font-size: 22px; margin-top: 5px;
             display: flex; align-items: center; justify-content: center; gap: 12px;
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
             text-align: center;
         }
+        
+        /* Forzar ocultamiento absoluto de la barra superior de Streamlit y el menú hamburguesa */
+        header, [data-testid="stHeader"], footer, #MainMenu {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0px !important;
+        }
+
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
         .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
@@ -372,6 +380,17 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         </style>
+        
+        <script>
+            // Script de seguridad para eliminar dinámicamente la barra superior de Streamlit si persiste
+            const eliminarBarraStreamlit = () => {
+                const header = window.parent.document.querySelector('header');
+                if (header) header.style.display = 'none';
+                const mainHeader = window.parent.document.querySelector('[data-testid="stHeader"]');
+                if (mainHeader) mainHeader.style.display = 'none';
+            };
+            setInterval(eliminarBarraStreamlit, 500);
+        </script>
     """, unsafe_allow_html=True)
 
 def renderizar_reloj_fluido():
