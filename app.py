@@ -280,6 +280,21 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
+        /* Ajuste y centrado estricto para el visor de la cámara QR */
+        .qr-scanner-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin: 10px auto;
+        }
+        .qr-scanner-container video {
+            max-width: 100% !important;
+            height: auto !important;
+            border-radius: 8px !important;
+            border: 2px solid #00E5FF !important;
+        }
+
         .stTabs [data-baseweb="tab-list"] {
             gap: 6px !important;
             background-color: transparent !important;
@@ -1058,7 +1073,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 
-                # --- SECCIÓN DEL ESCÁNER SUBIDA AL CENTRO PARA MEJOR ACCESIBILIDAD MÓVIL ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor rectangular.")
                 
@@ -1074,8 +1088,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Contenedor centrado para el escáner
-                st.markdown('<div style="display: flex; justify-content: center; align-items: center; width: 100%;">', unsafe_allow_html=True)
+                # Contenedor con clase CSS para forzar el centrado correcto del video en web móvil
+                st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
