@@ -24,7 +24,6 @@ import streamlit.components.v1 as components
 from streamlit_qrcode_scanner import qrcode_scanner
 
 
-
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
@@ -34,7 +33,6 @@ if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 if 'admin_autenticado' not in st.session_state: st.session_state.admin_autenticado = False
-
 
 
 # --- 2. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
@@ -577,8 +575,6 @@ titulos = {
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
 
-
-
 # =========================================================================
 # ROL: MONITOREO
 # =========================================================================
@@ -886,8 +882,6 @@ if st.session_state.rol_sel == "MONITOREO":
             st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
 
 
-
-
 # =========================================================================
 # ROL: SUPERVISOR
 # =========================================================================
@@ -1009,7 +1003,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                     permanencia_txt = f"{horas}h {mins}m" if horas > 0 else f"{mins} min"
                                 else:
                                     permanencia_txt = "---"
-                                
+                            
                     lista_tabla_objs.append({
                         "OBJETIVO": obj_item,
                         "ESTADO": estado_txt,
@@ -1063,13 +1057,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
 
                 st.markdown("---")
+                
+                # --- SECCIÓN DEL ESCÁNER SUBIDA AL CENTRO PARA MEJOR ACCESIBILIDAD MÓVIL ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor rectangular.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Escáner optimizado y fluido de alta velocidad
                 st.markdown("""
                 <div style="background: rgba(0, 229, 255, 0.03); border: 1px solid #00E5FF; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 15px;">
                     <span style="color: #00E5FF; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: bold; letter-spacing: 1px;">
@@ -1079,7 +1074,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 </div>
                 """, unsafe_allow_html=True)
 
+                # Contenedor centrado para el escáner
+                st.markdown('<div style="display: flex; justify-content: center; align-items: center; width: 100%;">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
@@ -1206,8 +1204,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
 
 
-
-
 # =========================================================================
 # ROL: VIGILADOR
 # =========================================================================
@@ -1294,8 +1290,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
-
-
 
 
 # =========================================================================
@@ -1393,8 +1387,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             st.download_button("📥 DESCARGAR HISTÓRICO DE ALERTAS (PDF)", data=pdf_alertas, file_name="reporte_alertas.pdf", mime="application/pdf", key="dl_alertas_jefe")
         else:
             st.write("*(Sin alertas tácticas)*")
-
-
 
 
 # =========================================================================
@@ -1503,8 +1495,6 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.rerun()
             else:
                 st.error("❌ Error al ejecutar el cierre táctico.")
-
-
 
 
 # =========================================================================
