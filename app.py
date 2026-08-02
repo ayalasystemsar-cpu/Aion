@@ -28,7 +28,6 @@ from streamlit_qrcode_scanner import qrcode_scanner
 
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-# Recuperar parámetros de la URL para evitar que se pierda la sesión al actualizar (F5) o cambiar a sitio web
 query_params = st.query_params
 
 if 'usuario_logueado' not in st.session_state:
@@ -304,7 +303,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* ESCÁNER UBICADO MUCHO MÁS ARRIBA Y ADAPTADO */
+        /* ESCÁNER UBICADO MÁS ARRIBA Y ADAPTADO */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
@@ -923,19 +922,42 @@ if st.session_state.rol_sel == "MONITOREO":
         else:
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
     with t_nov:
-        st.subheader("🔄 HISTORIAL: NOVEDADES, FICHAJES Y RELEVOS")
+        st.subheader("🔄 CENTRO DE REGISTROS Y NOVEDADES")
+        # SUBDIVISIÓN LIMPIA EN MONITOREO SOLICITADA
+        sub_nov, sub_qr, sub_rel = st.tabs(["📝 Novedades Operativas", "📱 Fichajes y QR", "🔄 Relevos de Guardia"])
+        
         df_nov_g = leer_matriz_nube("NOVEDADES_GUARDIA")
-        if not df_nov_g.empty:
-            df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
-            df_nov_g = df_nov_g.loc[:, ~df_nov_g.columns.duplicated()]
-            if 'FECHA' in df_nov_g.columns:
-                df_nov_g['FECHA_ORDEN'] = pd.to_datetime(df_nov_g['FECHA'], errors='coerce')
-                df_ordenado = df_nov_g.sort_values(by='FECHA_ORDEN', ascending=False).drop(columns=['FECHA_ORDEN'])
+        
+        with sub_nov:
+            st.markdown("#### Historial de Novedades Operativas")
+            if not df_nov_g.empty:
+                df_nov_g.columns = [str(c).strip().upper() for c in df_nov_g.columns]
+                # Filtramos novedades netas (excluyendo QR y relevos puros si están mezclados)
+                df_solo_nov = df_nov_g[df_nov_g['ACCION'].str.contains("NOVEDAD|OPERATIVA", case=False, na=False)]
+                if not df_solo_nov.empty:
+                    st.dataframe(df_solo_nov.iloc[::-1], use_container_width=True, hide_index=True)
+                else:
+                    st.dataframe(df_nov_g.iloc[::-1], use_container_width=True, hide_index=True)
             else:
-                df_ordenado = df_nov_g
-            st.dataframe(df_ordenado, use_container_width=True, hide_index=True)
-        else:
-            st.warning("⚠️ No se encontraron datos en 'NOVEDADES_GUARDIA'.")
+                st.info("No hay novedades registradas.")
+
+        with sub_qr:
+            st.markdown("#### Historial de Escaneos QR y Fichajes")
+            df_qr_neto = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+            if not df_qr_neto.empty:
+                df_qr_neto.columns = [str(c).strip().upper() for c in df_qr_neto.columns]
+                st.dataframe(df_qr_neto.iloc[::-1], use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay registros QR en la nube.")
+
+        with sub_rel:
+            st.markdown("#### Historial de Relevos de Guardia")
+            df_vig_rel = leer_matriz_nube("VIGILADORES")
+            if not df_vig_rel.empty:
+                df_vig_rel.columns = [str(c).strip().upper() for c in df_vig_rel.columns]
+                st.dataframe(df_vig_rel.iloc[::-1], use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay relevos de guardia registrados.")
 
 
 # =========================================================================
@@ -1087,7 +1109,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 st.markdown("---")
                 
-                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA (UBICADO MÁS ARRIBA) ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
                 
@@ -1135,7 +1156,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 
-                # --- ORDEN INVERSO EXACTO: 2. QR Y DATOS CLAVE ABAJO DEL ESCÁNER ---
                 col_qr1, col_qr2 = st.columns([1, 2])
                 with col_qr1:
                     qr_data_string = f"AION-YAROKU-OBJ:{obj_select}|ID:{datos_sel.get('ID', '0')}"
@@ -1233,31 +1253,50 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_actual, "NOVEDAD OPERATIVA", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                # REGISTRAMOS CON EL SUPERVISOR EXACTO LOGUEADO
+                escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_actual, "NOVEDAD OPERATIVA", novedad_sup.strip().upper(), st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
                 st.success("✅ Cargado correctamente")
 
         with t_mensajeria_sup:
             renderizar_mensajeria_global("SUPERVISOR")
         
         with t_pres_sup:
-            st.markdown("#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA")
+            st.markdown(f"#### 🔄 REGISTROS Y RELEVOS EXCLUSIVOS: {sup_activo_normalizado}")
+            
+            # FILTRADO ESTRICTO EXCLUSIVO PARA EL SUPERVISOR LOGUEADO
             df_nov_sup = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_nov_sup.empty:
                 df_nov_sup.columns = [str(c).strip().upper() for c in df_nov_sup.columns]
-                if 'SUPERVISOR' in df_nov_sup.columns:
-                    df_nov_sup = df_nov_sup[df_nov_sup['SUPERVISOR'].str.upper() == sup_activo_normalizado]
-                    df_nov_sup = df_nov_sup.drop(columns=['SUPERVISOR'])
-                st.dataframe(df_nov_sup.iloc[::-1], use_container_width=True, hide_index=True)
+                # Buscamos la columna de supervisor o la última columna de la matriz
+                col_sup_detectada = None
+                for possible_col in ['SUPERVISOR', df_nov_sup.columns[-1]]:
+                    if possible_col in df_nov_sup.columns:
+                        col_sup_detectada = possible_col
+                        break
+                
+                if col_sup_detectada:
+                    df_nov_sup_filtrado = df_nov_sup[df_nov_sup[col_sup_detectada].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+                else:
+                    df_nov_sup_filtrado = df_nov_sup
+
+                st.markdown("##### 📌 Novedades y Cambios de Turno Asignados")
+                if not df_nov_sup_filtrado.empty:
+                    st.dataframe(df_nov_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                else:
+                    st.info("No hay registros en esta sección para tu usuario.")
             else:
-                st.info("Sin relevos registrados.")
+                st.info("Sin registros cargados en la nube.")
 
             st.markdown("---")
-            st.markdown("#### 🚨 ALERTAS DE PÁNICO")
+            st.markdown("##### 🚨 Alertas de Pánico Propias")
             df_pan_sup = leer_matriz_nube("ALERTAS")
             if not df_pan_sup.empty:
                 df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
-                df_pan_sup = df_pan_sup[df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False)]
-                st.dataframe(df_pan_sup.iloc[::-1], use_container_width=True, hide_index=True)
+                df_pan_sup_filtro = df_pan_sup[df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False) | (df_pan_sup['USUARIO'].str.upper() == sup_activo_normalizado)]
+                if not df_pan_sup_filtro.empty:
+                    st.dataframe(df_pan_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
+                else:
+                    st.info("Sin alertas de pánico asociadas a tu supervisor.")
             else:
                 st.info("Sin alertas de pánico registradas.")
     else:
