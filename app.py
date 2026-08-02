@@ -1051,44 +1051,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 st.markdown("---")
                 
-                # --- ORDEN EXACTO SOLICITADO: 1. QR Y DATOS CLAVE ARRIBA ---
-                col_qr1, col_qr2 = st.columns([1, 2])
-                with col_qr1:
-                    qr_data_string = f"AION-YAROKU-OBJ:{obj_select}|ID:{datos_sel.get('ID', '0')}"
-                    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=2)
-                    qr.add_data(qr_data_string)
-                    qr.make(fit=True)
-                    img_qr = qr.make_image(fill_color="#00E5FF", back_color="#000000")
-                    
-                    buffered = io.BytesIO()
-                    img_qr.save(buffered, format="PNG")
-                    st.image(buffered.getvalue(), width=160, caption=f"QR Oficial: {obj_select}")
-
-                with col_qr2:
-                    st.markdown("#### DATOS CLAVE DEL OBJETIVO")
-                    st.write(f"**Dirección:** {datos_sel.get('DIRECCION', 'N/A')}")
-                    st.write(f"**Localidad:** {datos_sel.get('LOCALIDAD', 'N/A')}")
-                    st.write(f"**Coordenadas:** {datos_sel.get('LATITUD', 0)}, {datos_sel.get('LONGITUD', 0)}")
-                    
-                    lat = datos_sel.get('LATITUD', 0)
-                    lon = datos_sel.get('LONGITUD', 0)
-                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={obj_select}&travelmode=driving"
-                    st.markdown(f'''
-                        <a href="{url_navegacion}" target="_blank" class="btn-google-maps" style="margin-top:10px;">
-                        📍 ABRIR NAVEGACIÓN GPS A {obj_select}
-                        </a>
-                    ''', unsafe_allow_html=True)
-                
-                st.markdown("---")
-                
-                # --- ORDEN EXACTO SOLICITADO: 2. TÍTULO, SELECTOR Y CÁMARA ABAJO ---
+                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA CON SU CARTEL ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # El cartel que querías arriba del escáner
                 st.markdown("""
                     <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 10px; text-align: center; margin: 10px 0; background: rgba(0, 229, 255, 0.05);">
                         <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 13px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
@@ -1124,6 +1093,36 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         except Exception as e:
                             st.warning(f"⚠️ Nota de sistema: {e}")
 
+                st.markdown("---")
+                
+                # --- ORDEN INVERSO EXACTO: 2. QR Y DATOS CLAVE ABAJO DEL ESCÁNER ---
+                col_qr1, col_qr2 = st.columns([1, 2])
+                with col_qr1:
+                    qr_data_string = f"AION-YAROKU-OBJ:{obj_select}|ID:{datos_sel.get('ID', '0')}"
+                    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=2)
+                    qr.add_data(qr_data_string)
+                    qr.make(fit=True)
+                    img_qr = qr.make_image(fill_color="#00E5FF", back_color="#000000")
+                    
+                    buffered = io.BytesIO()
+                    img_qr.save(buffered, format="PNG")
+                    st.image(buffered.getvalue(), width=160, caption=f"QR Oficial: {obj_select}")
+
+                with col_qr2:
+                    st.markdown("#### DATOS CLAVE DEL OBJETIVO")
+                    st.write(f"**Dirección:** {datos_sel.get('DIRECCION', 'N/A')}")
+                    st.write(f"**Localidad:** {datos_sel.get('LOCALIDAD', 'N/A')}")
+                    st.write(f"**Coordenadas:** {datos_sel.get('LATITUD', 0)}, {datos_sel.get('LONGITUD', 0)}")
+                    
+                    lat = datos_sel.get('LATITUD', 0)
+                    lon = datos_sel.get('LONGITUD', 0)
+                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={obj_select}&travelmode=driving"
+                    st.markdown(f'''
+                        <a href="{url_navegacion}" target="_blank" class="btn-google-maps" style="margin-top:10px;">
+                        📍 ABRIR NAVEGACIÓN GPS A {obj_select}
+                        </a>
+                    ''', unsafe_allow_html=True)
+                
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 with st.form(key="form_acta_flota", clear_on_submit=True):
