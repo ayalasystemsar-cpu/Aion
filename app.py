@@ -24,16 +24,45 @@ import streamlit.components.v1 as components
 from streamlit_qrcode_scanner import qrcode_scanner
 
 
-# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
+# --- 1. CONFIGURACIÓN E INICIALIZACIÓN CON PERSISTENCIA DE URL ---
 
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
-if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
-if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
-if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
-if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
-if 'admin_autenticado' not in st.session_state: st.session_state.admin_autenticado = False
-if 'ultimo_mensaje_qr' not in st.session_state: st.session_state.ultimo_mensaje_qr = ""
+query_params = st.query_params
+
+# Recuperar estado persistente desde la URL si el navegador se actualiza o cambia a sitio web
+url_usuario = query_params.get("usr", None)
+url_rol = query_params.get("rol", None)
+url_autenticado = query_params.get("auth", "false").lower() == "true"
+url_sup_auth = query_params.get("sup_auth", "false").lower() == "true"
+url_admin_auth = query_params.get("admin_auth", "false").lower() == "true"
+
+if 'usuario_logueado' not in st.session_state:
+    st.session_state.usuario_logueado = url_autenticado if url_autenticado else False
+
+if 'rol_sel' not in st.session_state:
+    st.session_state.rol_sel = url_rol if url_rol else "MONITOREO"
+
+if 'user_sel' not in st.session_state:
+    st.session_state.user_sel = url_usuario if url_usuario else "OPERADOR CENTRAL"
+
+if 'sup_autenticado' not in st.session_state:
+    st.session_state.sup_autenticado = url_sup_auth if url_sup_auth else False
+
+if 'admin_autenticado' not in st.session_state:
+    st.session_state.admin_autenticado = url_admin_auth if url_admin_auth else False
+
+if 'ultimo_mensaje_qr' not in st.session_state: 
+    st.session_state.ultimo_mensaje_qr = ""
+
+def sincronizar_url_sesion():
+    st.query_params.update({
+        "usr": st.session_state.user_sel,
+        "rol": st.session_state.rol_sel,
+        "auth": str(st.session_state.usuario_logueado).lower(),
+        "sup_auth": str(st.session_state.sup_autenticado).lower(),
+        "admin_auth": str(st.session_state.admin_autenticado).lower()
+    })
 
 
 # --- 2. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
@@ -281,14 +310,14 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* ESCÁNER UBICADO MÁS ARRIBA Y ADAPTADO */
+        /* ESCÁNER UBICADO MUCHO MÁS ARRIBA Y ADAPTADO */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
             max-width: 400px;
-            margin: 2px auto 8px auto;
+            margin: 2px auto 6px auto;
             overflow: hidden;
             border-radius: 8px;
             background: #000;
@@ -296,7 +325,7 @@ def aplicar_identidad_alfa():
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
             width: 100% !important;
             max-width: 400px !important;
-            height: 260px !important;
+            height: 250px !important;
             object-fit: cover !important;
             border-radius: 8px !important;
             border: 2px solid #00E5FF !important;
@@ -397,6 +426,7 @@ def renderizar_mensajeria_global(rol_contexto):
                 ])
                 st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
                 st.session_state.asunto_respuesta = None
+                sincronizar_url_sesion()
                 st.rerun()
 
     if 'mensaje_enviado' in st.session_state:
@@ -414,6 +444,7 @@ def renderizar_mensajeria_global(rol_contexto):
                         st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
                     if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
                         st.session_state.asunto_respuesta = asunto
+                        sincronizar_url_sesion()
                         st.rerun()
 
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
@@ -476,6 +507,7 @@ def mostrar_landing():
                 st.session_state.user_sel = "ADMIN CENTRAL"
                 st.session_state.rol_sel = "ADMINISTRADOR"
                 st.session_state.admin_autenticado = True
+                sincronizar_url_sesion()
                 st.rerun()
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
@@ -493,6 +525,7 @@ def mostrar_landing():
                         st.session_state.rol_sel = usuario_ok.iloc[0]['ROL'].strip().upper()
                         if st.session_state.rol_sel == "SUPERVISOR":
                             st.session_state.sup_autenticado = True
+                        sincronizar_url_sesion()
                         st.rerun()
                     else:
                         st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
@@ -512,6 +545,8 @@ if not st.session_state.usuario_logueado:
     mostrar_landing()
     st.stop()
 
+# Mantener la sesión sincronizada en cada ejecución
+sincronizar_url_sesion()
 aplicar_identidad_alfa()
 
 df_objetivos = cargar_objetivos()
@@ -526,18 +561,21 @@ with st.sidebar:
         st.session_state.rol_sel = "MONITOREO"
         st.session_state.user_sel = "OPERADOR CENTRAL"
         st.session_state.sup_autenticado = False
+        sincronizar_url_sesion()
         st.rerun()
         
     if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
         st.session_state.rol_sel = "JEFE DE OPERACIONES"
         st.session_state.user_sel = "JEFE DE OPERACIONES"
         st.session_state.sup_autenticado = False
+        sincronizar_url_sesion()
         st.rerun()
         
     if st.button("🏢 GERENCIA", use_container_width=True):
         st.session_state.rol_sel = "GERENCIA"
         st.session_state.user_sel = "DIRECCIÓN GENERAL"
         st.session_state.sup_autenticado = False
+        sincronizar_url_sesion()
         st.rerun()
 
     with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
@@ -556,6 +594,7 @@ with st.sidebar:
                 st.session_state.user_sel = nom_sup.strip().upper()
                 st.session_state.sup_autenticado = True
                 if 'intentando_sup' in st.session_state: del st.session_state.intentando_sup
+                sincronizar_url_sesion()
                 st.success(f"🔓 ACCESO CONCEDIDO: {nom_sup}")
                 st.rerun()
             else:
@@ -567,6 +606,7 @@ with st.sidebar:
         st.session_state.rol_sel = "VIGILADOR"
         st.session_state.user_sel = "VIGILADOR EN PUESTO"
         st.session_state.sup_autenticado = False
+        sincronizar_url_sesion()
         st.rerun()
 
     st.write("---")
@@ -577,11 +617,13 @@ with st.sidebar:
         st.session_state.user_sel = "ADMIN CENTRAL"
         st.session_state.admin_autenticado = True
         st.session_state.sup_autenticado = False
+        sincronizar_url_sesion()
         st.rerun()
 
     st.markdown("---")
     if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
         st.session_state.usuario_logueado = False
+        st.query_params.clear()
         st.rerun()
 
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -1061,7 +1103,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
                 st.markdown("""
-                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
+                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 4px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
                         <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
                         <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
                     </div>
@@ -1578,14 +1620,4 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             if not df_obj_m.empty:
                 st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
                 pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
-
-        with t_adm_mantenimiento:
-            st.markdown("#### 🛡️ CENTRO DE RESPALDO Y CAJA FUERTE DIGITAL")
-            if not df_obj_m.empty:
-                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
-
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.error("⚠️ Acceso restringido.")
+                st.download_button("📥 DESCARGAR PADRÓN DE OBJET
