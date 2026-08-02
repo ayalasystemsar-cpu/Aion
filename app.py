@@ -280,7 +280,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* Ajuste limpio y estandarizado del escáner en orden original */
+        /* Ajuste estricto y elevación del visor de la cámara QR para dispositivos móviles */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
@@ -1045,34 +1045,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
-                # --- ORDEN ORIGINAL RESTAURADO: PRIMERO LOS QR Y DATOS CLAVE, DESPUÉS EL ESCÁNER ABAJO ---
-                col_qr1, col_qr2 = st.columns([1, 2])
-                with col_qr1:
-                    qr_data_string = f"AION-YAROKU-OBJ:{obj_select}|ID:{datos_sel.get('ID', '0')}"
-                    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=2)
-                    qr.add_data(qr_data_string)
-                    qr.make(fit=True)
-                    img_qr = qr.make_image(fill_color="#00E5FF", back_color="#000000")
-                    
-                    buffered = io.BytesIO()
-                    img_qr.save(buffered, format="PNG")
-                    st.image(buffered.getvalue(), width=160, caption=f"QR Oficial: {obj_select}")
-
-                with col_qr2:
-                    st.markdown("#### DATOS CLAVE DEL OBJETIVO")
-                    st.write(f"**Dirección:** {datos_sel.get('DIRECCION', 'N/A')}")
-                    st.write(f"**Localidad:** {datos_sel.get('LOCALIDAD', 'N/A')}")
-                    st.write(f"**Coordenadas:** {datos_sel.get('LATITUD', 0)}, {datos_sel.get('LONGITUD', 0)}")
-                    
-                    lat = datos_sel.get('LATITUD', 0)
-                    lon = datos_sel.get('LONGITUD', 0)
-                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={obj_select}&travelmode=driving"
-                    st.markdown(f'''
-                        <a href="{url_navegacion}" target="_blank" class="btn-google-maps" style="margin-top:10px;">
-                        📍 ABRIR NAVEGACIÓN GPS A {obj_select}
-                        </a>
-                    ''', unsafe_allow_html=True)
-
+                # --- REUBICACIÓN PRIORITARIA: ESCÁNER SUBIDO ARRIBA DE TODO EN ESTA SECCIÓN ---
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
@@ -1080,6 +1053,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
+                st.markdown("""
+                <div style="background: rgba(0, 229, 255, 0.03); border: 1px solid #00E5FF; border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 10px;">
+                    <span style="color: #00E5FF; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: bold; letter-spacing: 1px;">
+                        🎯 VISOR DE ALTA VELOCIDAD
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Contenedor optimizado y elevado con clase CSS para móvil
                 st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -1107,6 +1089,35 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 st.error("❌ Error al registrar en la nube. Intente nuevamente.")
                         except Exception as e:
                             st.warning(f"⚠️ Nota de sistema: {e}")
+
+                st.markdown("---")
+                
+                col_qr1, col_qr2 = st.columns([1, 2])
+                with col_qr1:
+                    qr_data_string = f"AION-YAROKU-OBJ:{obj_select}|ID:{datos_sel.get('ID', '0')}"
+                    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=2)
+                    qr.add_data(qr_data_string)
+                    qr.make(fit=True)
+                    img_qr = qr.make_image(fill_color="#00E5FF", back_color="#000000")
+                    
+                    buffered = io.BytesIO()
+                    img_qr.save(buffered, format="PNG")
+                    st.image(buffered.getvalue(), width=160, caption=f"QR Oficial: {obj_select}")
+
+                with col_qr2:
+                    st.markdown("#### DATOS CLAVE DEL OBJETIVO")
+                    st.write(f"**Dirección:** {datos_sel.get('DIRECCION', 'N/A')}")
+                    st.write(f"**Localidad:** {datos_sel.get('LOCALIDAD', 'N/A')}")
+                    st.write(f"**Coordenadas:** {datos_sel.get('LATITUD', 0)}, {datos_sel.get('LONGITUD', 0)}")
+                    
+                    lat = datos_sel.get('LATITUD', 0)
+                    lon = datos_sel.get('LONGITUD', 0)
+                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={obj_select}&travelmode=driving"
+                    st.markdown(f'''
+                        <a href="{url_navegacion}" target="_blank" class="btn-google-maps" style="margin-top:10px;">
+                        📍 ABRIR NAVEGACIÓN GPS A {obj_select}
+                        </a>
+                    ''', unsafe_allow_html=True)
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
