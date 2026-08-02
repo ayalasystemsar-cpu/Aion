@@ -336,44 +336,6 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
-        
-        /* --- VISOR DE CÁMARA TÁCTICO AMPLIADO (WEB Y CELULAR) --- */
-        div[data-testid="stCustomComponentV1"] {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            width: 100% !important;
-            position: relative !important;
-            margin: 0 auto !important;
-        }
-
-        iframe[title*="streamlit_qrcode_scanner"] {
-            width: 100% !important;
-            max-width: 650px !important;
-            height: 550px !important;
-            border: 4px solid #00E5FF !important;
-            border-radius: 16px !important;
-            box-shadow: 0 0 40px rgba(0, 229, 255, 0.8) !important;
-            display: block !important;
-            margin: 0 auto !important;
-            background-color: #000000 !important;
-        }
-
-        /* Cuatro esquinas blancas bien definidas para el nuevo tamaño ampliado */
-        div[data-testid="stCustomComponentV1"]::after {
-            content: "";
-            position: absolute;
-            width: 520px;
-            height: 440px;
-            pointer-events: none;
-            border-top: 6px solid #FFFFFF;
-            border-bottom: 6px solid #FFFFFF;
-            box-shadow: 
-                -220px -180px 0 0 #FFFFFF, 
-                 220px -180px 0 0 #FFFFFF, 
-                -220px  180px 0 0 #FFFFFF, 
-                 220px  180px 0 0 #FFFFFF;
-        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1131,19 +1093,72 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Seleccione el movimiento y apunte al QR.")
+                st.info("Seleccione el movimiento, active la cámara táctica y apunte al QR.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                col_b1, col_b2 = st.columns([2, 1])
-                with col_b2:
-                    if st.button("🔄 REINICIAR CÁMARA"):
-                        if "ultimo_qr_procesado" in st.session_state:
-                            del st.session_state["ultimo_qr_procesado"]
-                        st.rerun()
+                # Visor HTML5 ampliado a pantalla completa sin restricciones con esquinas de enfoque
+                componentes_html_camara = f"""
+                <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 15px; border-radius: 16px; border: 4px solid #00E5FF; box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);">
+                    <div style="position: relative; width: 100%; max-width: 650px; height: 450px;">
+                        <video id="video-webcam" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px; border: 2px solid #333;"></video>
+                        <div style="position: absolute; top: 15px; left: 15px; width: 40px; height: 40px; border-top: 4px solid #FFF; border-left: 4px solid #FFF; pointer-events: none;"></div>
+                        <div style="position: absolute; top: 15px; right: 15px; width: 40px; height: 40px; border-top: 4px solid #FFF; border-right: 4px solid #FFF; pointer-events: none;"></div>
+                        <div style="position: absolute; bottom: 15px; left: 15px; width: 40px; height: 40px; border-bottom: 4px solid #FFF; border-left: 4px solid #FFF; pointer-events: none;"></div>
+                        <div style="position: absolute; bottom: 15px; right: 15px; width: 40px; height: 40px; border-bottom: 4px solid #FFF; border-right: 4px solid #FFF; pointer-events: none;"></div>
+                    </div>
+                    <canvas id="canvas-camara" style="display:none;"></canvas>
+                    <div style="display: flex; gap: 15px; margin-top: 15px; width: 100%; max-width: 650px;">
+                        <button id="btn-encender" onclick="encenderCamara()" style="flex: 1; background: #00E5FF; color: #000; font-family: 'Orbitron', sans-serif; font-weight: bold; padding: 14px; border: none; border-radius: 6px; cursor: pointer;">🟢 ACTIVAR CÁMARA</button>
+                        <button id="btn-capturar" onclick="capturarQR()" style="flex: 1; background: #39FF14; color: #000; font-family: 'Orbitron', sans-serif; font-weight: bold; padding: 14px; border: none; border-radius: 6px; cursor: pointer; display:none;">📸 CAPTURAR Y VALIDAR</button>
+                    </div>
+                    <p id="estado-camara" style="color: #A0A5B5; font-family: 'Rajdhani', sans-serif; margin-top: 10px; font-size: 14px;">Cámara en espera de activación...</p>
+                </div>
 
-                codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
+                <script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.min.js"></script>
+                <script>
+                let videoStream = null;
+
+                async function encenderCamara() {{
+                    const video = document.getElementById('video-webcam');
+                    const estado = document.getElementById('estado-camara');
+                    const btnCapturar = document.getElementById('btn-capturar');
+                    
+                    try {{
+                        videoStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: "environment" }} }});
+                        video.srcObject = videoStream;
+                        estado.innerText = "Cámara activa. Apunte al QR y presione Capturar.";
+                        btnCapturar.style.display = "block";
+                    }} catch (err) {{
+                        estado.innerText = "Error al abrir la cámara: " + err.message;
+                    }}
+                }}
+
+                function capturarQR() {{
+                    const video = document.getElementById('video-webcam');
+                    const canvas = document.getElementById('canvas-camara');
+                    const estado = document.getElementById('estado-camara');
+                    
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    
+                    if (code) {{
+                        estado.innerText = "¡QR Detectado con éxito: " + code.data + "!";
+                        window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: code.data }}, '*');
+                    }} else {{
+                        estado.innerText = "No se detectó ningún código QR claro. Intente nuevamente.";
+                    }}
+                }}
+                </script>
+                """
+                
+                codigo_qr_leido = components.html(componentes_html_camara, height=600)
                 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
