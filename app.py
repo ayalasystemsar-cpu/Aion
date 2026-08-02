@@ -1098,7 +1098,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Visor cuadrado táctico optimizado de tamaño intermedio-grande con alta sensibilidad de lectura y esquinas dinámicas verdes
+                # Visor cuadrado táctico optimizado con alta sensibilidad de lectura instantánea y diseño idéntico
                 componentes_html_camara = f"""
                 <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px;">
                     <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 420px; height: 420px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
@@ -1111,7 +1111,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </div>
                     </div>
                     <canvas id="canvas-camara" style="display:none;"></canvas>
-                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 12px; font-size: 14px; font-weight: bold; text-align: center;">Escáner activo en alta sensibilidad...</p>
+                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 12px; font-size: 14px; font-weight: bold; text-align: center;">Escáner táctico listo al instante...</p>
                 </div>
 
                 <script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.min.js"></script>
@@ -1134,23 +1134,24 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     }} catch(e) {{}}
                 }}
 
-                async function iniciarCamaraAutomatica() {{
+                async function iniciarEscaner() {{
                     const video = document.getElementById('video-webcam');
                     const estado = document.getElementById('estado-camara');
                     
                     try {{
                         videoStream = await navigator.mediaDevices.getUserMedia({{ 
-                            video: {{ facingMode: "environment", width: {{ ideal: 1280 }}, height: {{ ideal: 720 }} }} 
+                            video: {{ facingMode: "environment", width: {{ ideal: 640 }}, height: {{ ideal: 480 }} }} 
                         }});
                         video.srcObject = videoStream;
-                        estado.innerText = "Buscando código QR...";
-                        requestAnimationFrame(analizarFotograma);
+                        estado.innerText = "Buscando código QR al vuelo...";
+                        video.play();
+                        requestAnimationFrame(escanearFotograma);
                     }} catch (err) {{
                         estado.innerText = "⚠️ Error de cámara: " + err.message;
                     }}
                 }}
 
-                function analizarFotograma() {{
+                function escanearFotograma() {{
                     if (!escaneandoActivo) return;
                     
                     const video = document.getElementById('video-webcam');
@@ -1167,33 +1168,31 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         
                         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         const code = jsQR(imageData.data, imageData.width, imageData.height, {{
-                            inversionAttempts: "dontInvert",
+                            inversionAttempts: "attemptBoth",
                         }});
                         
                         if (code) {{
                             escaneandoActivo = false;
                             emitirBeep();
+                            
                             visor.style.border = "3px solid #39FF14";
                             visor.style.boxShadow = "0 0 35px rgba(57, 255, 20, 0.7)";
-                            
-                            esquinas.forEach(e => {{
-                                e.style.borderColor = "#39FF14";
-                            }});
+                            esquinas.forEach(e => {{ e.style.borderColor = "#39FF14"; }});
                             
                             estado.style.color = "#39FF14";
-                            estado.innerText = "¡QR DETECTADO CON ÉXITO!";
+                            estado.innerText = "¡QR DETECTADO AL INSTANTE!";
                             
                             setTimeout(() => {{
                                 window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: code.data }}, '*');
-                            }}, 400);
+                            }}, 300);
                             return;
                         }}
                     }}
-                    requestAnimationFrame(analizarFotograma);
+                    requestAnimationFrame(escanearFotograma);
                 }}
 
-                window.onload = iniciarCamaraAutomatica();
-                setTimeout(iniciarCamaraAutomatica, 400);
+                window.onload = iniciarEscaner();
+                setTimeout(iniciarEscaner, 300);
                 </script>
                 """
                 
