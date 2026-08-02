@@ -1355,13 +1355,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
     
     st.markdown("---")
     
-    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
+    tab_presentismo, tab_relevo, tab_mensajeria_vig = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
   
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
             v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:").strip() 
-            v_dni = st.text_input("LEGAJO / DNI:").strip() 
+            v_dni = st.text_input("LEGAJO:").strip() 
             v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
             v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
@@ -1397,7 +1397,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
-    with t_mensajeria:
+    with tab_mensajeria_vig:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
 
