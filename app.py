@@ -278,7 +278,7 @@ def aplicar_identidad_alfa():
             max-width: 100% !important;
         }
 
-        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin: 5px 0; }
+        .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin: 10px 0; }
         .logo-phoenix { 
             width: 100% !important; 
             max-width: 320px !important; 
@@ -291,29 +291,11 @@ def aplicar_identidad_alfa():
         }
         .estacion-titulo {
             font-family: 'Orbitron', sans-serif;
-            color: #00E5FF !important; font-size: 22px; margin-top: 5px;
+            color: #00E5FF !important; font-size: 22px; margin-top: 10px;
             display: flex; align-items: center; justify-content: center; gap: 12px;
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
             text-align: center;
         }
-        
-        /* Ocultar únicamente el menú de Streamlit pero forzar que el botón/flecha de la barra lateral esté siempre visible */
-        header [data-testid="stToolbar"], footer, #MainMenu {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        
-        div[data-testid="collapsedControl"] {
-            display: block !important;
-            visibility: visible !important;
-            z-index: 999999 !important;
-        }
-
-        header {
-            background: transparent !important;
-            background-color: transparent !important;
-        }
-
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
         .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
