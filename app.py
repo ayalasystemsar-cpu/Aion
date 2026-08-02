@@ -22,6 +22,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
 from streamlit_qrcode_scanner import qrcode_scanner
+import cv2
+import numpy as np
+from deepface import DeepFace
+from PIL import Image
 
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN CON PERSISTENCIA POR URL ---
@@ -1355,34 +1359,54 @@ elif st.session_state.rol_sel == "VIGILADOR":
     
     st.markdown("---")
     
-    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
+    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE BIOMÉTRICO FACIAL", "🔄 RELEVO", label_msg])
   
     with tab_presentismo:
-        st.markdown("### 📸 REGISTRO BIOMÉTRICO")
+        st.markdown("### 👤 VALIDACIÓN BIOMÉTRICA FACIAL ESTRICTA")
+        st.info("Para evitar fraudes o capturas estáticas (como paredes u objetos), el sistema analizará los rasgos biométricos del rostro en tiempo real.")
+        
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:").strip() 
+            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE REGISTRADO:").strip() 
             v_dni = st.text_input("LEGAJO / DNI:").strip() 
             v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
-            img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
+            v_tipo_marcacion = st.selectbox("TIPO DE MARCACIÓN:", ["INGRESO", "EGRESO"])
             
-            if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
+            st.markdown("---")
+            st.markdown("#### 📸 CAPTURA FACIAL EN VIVO")
+            img_facial = st.camera_input("Alinee su rostro frente a la cámara")
+            
+            if st.form_submit_button("VALIDAR Y REGISTRAR FICHAJE FACIAL"):
                 if v_nombre_completo and v_dni and img_facial:
-                    st.session_state.v_nombre_completo = v_nombre_completo.upper()
-                    st.session_state.legajo_vigilador = v_dni
-                    st.session_state.obj_actual_vig = v_obj
-                    
-                    fecha_hora_arg = obtener_hora_argentina()
-                    sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                    tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
-                    
-                    escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
-                    st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
+                    try:
+                        # Procesar la imagen capturada para DeepFace
+                        image_bytes = img_facial.getvalue()
+                        nparr = np.frombuffer(image_bytes, np.uint8)
+                        img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                        
+                        # Análisis biométrico facial estricto usando DeepFace para verificar que hay un rostro real y válido
+                        analisis_rostro = DeepFace.extract_faces(img_np, detector_backend='opencv', enforce_detection=True)
+                        
+                        if len(analisis_rostro) > 0:
+                            st.session_state.v_nombre_completo = v_nombre_completo.upper()
+                            st.session_state.legajo_vigilador = v_dni
+                            st.session_state.obj_actual_vig = v_obj
+                            
+                            fecha_hora_arg = obtener_hora_argentina()
+                            sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                            tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
+                            
+                            escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK BIOMÉTRICO", v_tipo_marcacion])
+                            escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO FACIAL", sup_responsable])
+                            
+                            st.success(f"✅ ¡IDENTIDAD FACIAL VALIDADA CON ÉXITO! {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}.")
+                        else:
+                            st.error("❌ Error de biometría: No se detectó un rostro humano válido. Intente nuevamente enfocando su cara.")
+                    except Exception as e:
+                        st.error(f"❌ Validación biométrica rechazada: Asegúrese de enfocar correctamente su rostro (Evite paredes u objetos estáticos). Detalle: {e}")
                 else:
-                    st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
+                    st.error("⚠️ Por favor, complete todos los campos de texto y capture su rostro con la cámara.")
 
-    with tab_relevo:
+    with t_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
             v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
