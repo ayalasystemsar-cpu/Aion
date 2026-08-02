@@ -21,8 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
-from PIL import Image
-from pyzbar.pyzbar import decode  # <--- IMPORTADO PARA DECODIFICAR EL QR DESDE LA FOTO
+from streamlit_qrcode_scanner import qrcode_scanner  # <--- USAMOS EL ESCÁNER ORIGINAL
 
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -338,16 +337,41 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA NATIVO: MARCO TÁCTICO DE ALTA VISIBILIDAD --- */
-        div[data-testid="stCameraInput"] {
+        /* --- VISOR DE CÁMARA QR: TAMAÑO AMPLIADO Y ESQUINAS TÁCTICAS (MIRA) --- */
+        div[data-testid="stCustomComponentV1"] {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
             width: 100% !important;
-            max-width: 500px !important;
-            margin: 0 auto !important;
+            position: relative !important;
+        }
+
+        iframe[title*="streamlit_qrcode_scanner"] {
+            width: 100% !important;
+            max-width: 450px !important;
+            height: 450px !important;
             border: 4px solid #00E5FF !important;
             border-radius: 16px !important;
             box-shadow: 0 0 30px rgba(0, 229, 255, 0.7) !important;
+            display: block !important;
+            margin: 0 auto !important;
             background-color: #000000 !important;
-            padding: 10px !important;
+        }
+
+        /* Capa superpuesta con las esquinas blancas estilo mira táctica */
+        div[data-testid="stCustomComponentV1"]::after {
+            content: "";
+            position: absolute;
+            width: 360px;
+            height: 360px;
+            pointer-events: none;
+            border-top: 4px solid #FFFFFF;
+            border-bottom: 4px solid #FFFFFF;
+            box-shadow: 
+                -160px -160px 0 0 #FFFFFF, 
+                 160px -160px 0 0 #FFFFFF, 
+                -160px  160px 0 0 #FFFFFF, 
+                 160px  160px 0 0 #FFFFFF;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1105,46 +1129,45 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
 
                 st.markdown("---")
-                st.markdown("### 📷 CAPTURA Y VALIDACIÓN DE CÓDIGO QR EN TIEMPO REAL")
-                st.info("Seleccione el movimiento, enfoque el código QR con la cámara y pulse el botón para capturar y validar automáticamente.")
+                st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
+                st.info("Seleccione el movimiento y apunte al QR. Puede usar el mismo código para Ingreso y Egreso de manera consecutiva.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Usamos la cámara nativa de alta visibilidad para capturar la foto del QR
-                foto_capturada = st.camera_input("ENFOQUE EL QR DENTRO DEL VISOR Y CAPTURE", key=f"cam_qr_{accion_str.lower()}")
+                col_b1, col_b2 = st.columns([2, 1])
+                with col_b2:
+                    if st.button("🔄 REINICIAR CÁMARA"):
+                        if "ultimo_qr_procesado" in st.session_state:
+                            del st.session_state["ultimo_qr_procesado"]
+                        st.rerun()
 
-                if foto_capturada is not None:
-                    try:
-                        # Procesar la imagen con PIL y pyzbar para extraer el texto del QR
-                        image_pil = Image.open(foto_capturada)
-                        codigos_detectados = decode(image_pil)
-                        
-                        if codigos_detectados:
-                            codigo_qr_leido = codigos_detectados[0].data.decode('utf-8')
-                            
-                            clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
-                            if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
-                                st.session_state.ultimo_qr_procesado = clave_registro_actual
+                codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
+                
+                if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
+                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
+                    
+                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
+                        st.session_state.ultimo_qr_procesado = clave_registro_actual
+                        try:
+                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                            if exito_registro:
+                                try:
+                                    escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                                except:
+                                    pass
                                 
-                                exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                                if exito_registro:
-                                    try:
-                                        escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                                    except:
-                                        pass
-                                    
-                                    if accion_str == "INICIO":
-                                        st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
-                                    else:
-                                        st.success(f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
-                                    st.rerun()
+                                if accion_str == "INICIO":
+                                    st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
                                 else:
-                                    st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                        else:
-                            st.warning("⚠️ No se detectó ningún código QR nítido en la foto. Acerque más la cámara al código e intente nuevamente.")
-                    except Exception as e:
-                        st.error(f"❌ Error al procesar la imagen: {e}")
+                                    st.success(f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                                
+                                st.rerun()
+                            else:
+                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                        except Exception as e:
+                            st.warning(f"⚠️ Nota de sistema: {e}")
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
