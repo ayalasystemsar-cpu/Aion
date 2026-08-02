@@ -21,8 +21,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
-from PIL import Image
-from pyzbar.pyzbar import decode  # <--- SOPORTE NATIVO DE LECTURA DE QR
 
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -337,18 +335,6 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
-        
-        /* --- ESTILO TÁCTICO PARA LA CÁMARA NATIVA DE ESCANEO --- */
-        div[data-testid="stCameraInput"] {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 auto !important;
-            border: 4px solid #00E5FF !important;
-            border-radius: 12px !important;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6) !important;
-            background-color: #000000 !important;
-            padding: 8px !important;
-        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1105,45 +1091,33 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
 
                 st.markdown("---")
-                st.markdown("### 📷 CAPTURA Y VALIDACIÓN DE CÓDIGO QR")
-                st.info("Seleccione el movimiento, enfoque el código QR con la cámara y tome la foto para registrar automáticamente de forma limpia y sin duplicados.")
+                st.markdown("### ⚡ REGISTRO TÁCTICO POR ESCANEO / CÓDIGO")
+                st.info("Utilice su pistola lectora o escanee el código para registrar el movimiento de manera instantánea.")
                 
-                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Usamos la cámara nativa de Streamlit adaptada en tamaño grande para el celular
-                foto_capturada = st.camera_input("📷 TOMAR FOTO AL CÓDIGO QR", key=f"cam_qr_{accion_str.lower()}")
+                codigo_ingresado = st.text_input("SCANNER / CÓDIGO QR:", key=f"input_codigo_{accion_str.lower()}", placeholder="Haga clic aquí y escanee o ingrese el código...")
 
-                if foto_capturada is not None:
-                    try:
-                        image_pil = Image.open(foto_capturada)
-                        codigos_detectados = decode(image_pil)
+                if codigo_ingresado and str(codigo_ingresado).strip() != "":
+                    clave_registro_actual = f"{codigo_ingresado}_{accion_str}"
+                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
+                        st.session_state.ultimo_qr_procesado = clave_registro_actual
                         
-                        if codigos_detectados:
-                            codigo_qr_leido = codigos_detectados[0].data.decode('utf-8')
+                        exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                        if exito_registro:
+                            try:
+                                escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                            except:
+                                pass
                             
-                            clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
-                            if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
-                                st.session_state.ultimo_qr_procesado = clave_registro_actual
-                                
-                                exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                                if exito_registro:
-                                    try:
-                                        escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                                    except:
-                                        pass
-                                    
-                                    if accion_str == "INICIO":
-                                        st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
-                                    else:
-                                        st.success(f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                            if accion_str == "INICIO":
+                                st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                            else:
+                                st.success(f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                            st.rerun()
                         else:
-                            st.warning("⚠️ No se detectó un código QR válido en la imagen capturada. Acerque un poco más la cámara al código e intente otra vez.")
-                    except Exception as e:
-                        st.error(f"❌ Error al procesar la captura: {e}")
+                            st.error("❌ Error al registrar en la nube. Intente nuevamente.")
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
