@@ -297,16 +297,16 @@ def aplicar_identidad_alfa():
             text-align: center;
         }
         
-        /* Ocultar elementos estéticos no deseados pero MANTENER el botón de la barra lateral */
+        /* Ocultar únicamente la barra de herramientas flotante y el menú hamburguesa, PERO permitir la cabecera donde vive la flecha */
         header [data-testid="stToolbar"], footer, #MainMenu {
             display: none !important;
             visibility: hidden !important;
         }
         
-        /* Hacer transparente la cabecera para que no se vea la franja negra pero la flecha siga ahí */
+        /* Asegurar que la cabecera sea visible sin fondo opaco invasivo para que la flecha quede fija y no desaparezca */
         header {
             background: transparent !important;
-            background-color: transparent !important;
+            background-color: rgba(0, 0, 0, 0.2) !important;
         }
 
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
