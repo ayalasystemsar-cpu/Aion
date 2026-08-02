@@ -274,7 +274,7 @@ def aplicar_identidad_alfa():
         .block-container {
             padding-left: 1rem !important;
             padding-right: 1rem !important;
-            padding-top: 0rem !important;
+            padding-top: 1rem !important;
             max-width: 100% !important;
         }
 
@@ -297,11 +297,16 @@ def aplicar_identidad_alfa():
             text-align: center;
         }
         
-        /* Forzar ocultamiento absoluto de la barra superior de Streamlit y el menú hamburguesa */
-        header, [data-testid="stHeader"], footer, #MainMenu {
+        /* Ocultar elementos estéticos no deseados pero MANTENER el botón de la barra lateral */
+        header [data-testid="stToolbar"], footer, #MainMenu {
             display: none !important;
             visibility: hidden !important;
-            height: 0px !important;
+        }
+        
+        /* Hacer transparente la cabecera para que no se vea la franja negra pero la flecha siga ahí */
+        header {
+            background: transparent !important;
+            background-color: transparent !important;
         }
 
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
@@ -380,17 +385,6 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         </style>
-        
-        <script>
-            // Script de seguridad para eliminar dinámicamente la barra superior de Streamlit si persiste
-            const eliminarBarraStreamlit = () => {
-                const header = window.parent.document.querySelector('header');
-                if (header) header.style.display = 'none';
-                const mainHeader = window.parent.document.querySelector('[data-testid="stHeader"]');
-                if (mainHeader) mainHeader.style.display = 'none';
-            };
-            setInterval(eliminarBarraStreamlit, 500);
-        </script>
     """, unsafe_allow_html=True)
 
 def renderizar_reloj_fluido():
