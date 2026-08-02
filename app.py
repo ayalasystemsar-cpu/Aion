@@ -1069,115 +1069,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Visor HTML optimizado con tamaño generoso para PC y Celular (ancho completo y altura amplia)
-                componentes_html_camara = f"""
-                <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px;">
-                    <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 600px; height: 380px; border: 3px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);">
-                        <video id="video-webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
-                        <div id="marco-esquinas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
-                            <div class="esquina" style="position: absolute; top: 20px; left: 20px; width: 35px; height: 35px; border-top: 5px solid #FFF; border-left: 5px solid #FFF;"></div>
-                            <div class="esquina" style="position: absolute; top: 20px; right: 20px; width: 35px; height: 35px; border-top: 5px solid #FFF; border-right: 5px solid #FFF;"></div>
-                            <div class="esquina" style="position: absolute; bottom: 20px; left: 20px; width: 35px; height: 35px; border-bottom: 5px solid #FFF; border-left: 5px solid #FFF;"></div>
-                            <div class="esquina" style="position: absolute; bottom: 20px; right: 20px; width: 35px; height: 35px; border-bottom: 5px solid #FFF; border-right: 5px solid #FFF;"></div>
-                        </div>
-                    </div>
-                    <canvas id="canvas-camara" style="display:none;"></canvas>
-                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 12px; font-size: 14px; font-weight: bold; text-align: center; letter-spacing: 1px;">ESCÁNER TÁCTICO ACTIVO - ACERQUE EL CÓDIGO QR</p>
+                # Escáner optimizado y fluido de alta velocidad
+                st.markdown("""
+                <div style="background: rgba(0, 229, 255, 0.03); border: 1px solid #00E5FF; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 15px;">
+                    <span style="color: #00E5FF; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: bold; letter-spacing: 1px;">
+                        🎯 ESCANER TÁCTICO DE ALTA VELOCIDAD
+                    </span>
+                    <p style="color: #A0A5B5; font-size: 12px; margin-top: 5px;">Acerque el código QR para lectura instantánea.</p>
                 </div>
+                """, unsafe_allow_html=True)
 
-                <script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.min.js"></script>
-                <script>
-                let videoStream = null;
-                let escaneandoActivo = true;
-
-                function emitirBeep() {{
-                    try {{
-                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        const osc = audioCtx.createOscillator();
-                        const gain = audioCtx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.value = 880;
-                        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
-                        osc.start();
-                        osc.stop(audioCtx.currentTime + 0.15);
-                    }} catch(e) {{}}
-                }}
-
-                async function iniciarCamaraAutomatica() {{
-                    const video = document.getElementById('video-webcam');
-                    const estado = document.getElementById('estado-camara');
-                    
-                    try {{
-                        videoStream = await navigator.mediaDevices.getUserMedia({{ 
-                            video: {{ 
-                                facingMode: {{ ideal: "environment" }},
-                                width: {{ ideal: 1280 }},
-                                height: {{ ideal: 720 }}
-                            }} 
-                        }});
-                        video.srcObject = videoStream;
-                        video.setAttribute("playsinline", true);
-                        await video.play();
-                        estado.innerText = "Cámara lista. Ubique el código QR dentro del recuadro...";
-                        requestAnimationFrame(analizarFotograma);
-                    }} catch (err) {{
-                        estado.innerText = "⚠️ Error de cámara: " + err.message;
-                    }}
-                }}
-
-                function analizarFotograma() {{
-                    if (!escaneandoActivo) return;
-                    
-                    const video = document.getElementById('video-webcam');
-                    const canvas = document.getElementById('canvas-camara');
-                    const estado = document.getElementById('estado-camara');
-                    const visor = document.getElementById('contenedor-visor');
-                    const esquinas = document.querySelectorAll('.esquina');
-                    
-                    if (video.readyState === video.HAVE_ENOUGH_DATA) {{
-                        canvas.width = video.videoWidth || 1280;
-                        canvas.height = video.videoHeight || 720;
-                        const ctx = canvas.getContext('2d', {{ willReadFrequently: true }});
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        
-                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const code = jsQR(imageData.data, imageData.width, imageData.height, {{
-                            inversionAttempts: "attemptBoth",
-                        }});
-                        
-                        if (code) {{
-                            escaneandoActivo = false;
-                            emitirBeep();
-                            visor.style.border = "4px solid #39FF14";
-                            visor.style.boxShadow = "0 0 40px rgba(57, 255, 20, 0.8)";
-                            
-                            esquinas.forEach(e => {{
-                                e.style.borderColor = "#39FF14";
-                            }});
-                            
-                            estado.style.color = "#39FF14";
-                            estado.innerText = "¡CÓDIGO QR DETECTADO CON ÉXITO!";
-                            
-                            setTimeout(() => {{
-                                window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: code.data }}, '*');
-                            }}, 300);
-                            return;
-                        }}
-                    }}
-                    requestAnimationFrame(analizarFotograma);
-                }}
-
-                if (document.readyState === "complete") {{
-                    iniciarCamaraAutomatica();
-                }} else {{
-                    window.addEventListener("load", iniciarCamaraAutomatica);
-                }}
-                </script>
-                """
-                
-                codigo_qr_leido = components.html(componentes_html_camara, height=450)
+                codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
@@ -1648,7 +1550,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                     pendientes_u = df_usr_m[df_usr_m['ESTADO'] == "PENDIENTE"]
                     if not pendientes_u.empty:
                         usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes_u['USUARIO'].tolist(), key="sel_usr_aprobar")
-                        if st.button("✅ DAR ACCESO Y APPROBAR USUARIO", use_container_width=True):
+                        if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
                             idx = df_usr_m[df_usr_m['USUARIO'] == usuario_a_aprobar].index[0]
                             if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
                                 st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
