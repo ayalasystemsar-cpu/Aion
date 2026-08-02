@@ -279,7 +279,16 @@ def aplicar_identidad_alfa():
         }
 
         .contenedor-logo-central { display: flex; justify-content: center; align-items: center; width: 100%; margin: 10px 0; }
-        .logo-phoenix { width: 100% !important; max-width: 450px !important; border: 2px solid #00e5ff !important; box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; border-radius: 4px !important; background-color: #000 !important; }
+        .logo-phoenix { 
+            width: 100% !important; 
+            max-width: 320px !important; 
+            height: auto !important;
+            object-fit: contain !important;
+            border: 2px solid #00e5ff !important; 
+            box-shadow: 0 0 35px rgba(0, 229, 255, 0.5) !important; 
+            border-radius: 4px !important; 
+            background-color: #000 !important; 
+        }
         .estacion-titulo {
             font-family: 'Orbitron', sans-serif;
             color: #00E5FF !important; font-size: 22px; margin-top: 10px;
