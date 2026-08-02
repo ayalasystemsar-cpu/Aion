@@ -337,7 +337,7 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- TAMAÑO Y ESTILO GRANDE DEL ESCÁNER CON LAS CUATRO ESQUINAS --- */
+        /* --- VISOR DE CÁMARA TÁCTICO AMPLIADO (WEB Y CELULAR) --- */
         div[data-testid="stCustomComponentV1"] {
             display: flex !important;
             justify-content: center !important;
@@ -349,30 +349,30 @@ def aplicar_identidad_alfa():
 
         iframe[title*="streamlit_qrcode_scanner"] {
             width: 100% !important;
-            max-width: 520px !important;
-            height: 520px !important;
+            max-width: 650px !important;
+            height: 550px !important;
             border: 4px solid #00E5FF !important;
             border-radius: 16px !important;
-            box-shadow: 0 0 35px rgba(0, 229, 255, 0.8) !important;
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.8) !important;
             display: block !important;
             margin: 0 auto !important;
             background-color: #000000 !important;
         }
 
-        /* Las 4 esquinas blancas exactas arriba y abajo, ampliadas para el nuevo tamaño */
+        /* Cuatro esquinas blancas bien definidas para el nuevo tamaño ampliado */
         div[data-testid="stCustomComponentV1"]::after {
             content: "";
             position: absolute;
-            width: 420px;
-            height: 420px;
+            width: 520px;
+            height: 440px;
             pointer-events: none;
-            border-top: 5px solid #FFFFFF;
-            border-bottom: 5px solid #FFFFFF;
+            border-top: 6px solid #FFFFFF;
+            border-bottom: 6px solid #FFFFFF;
             box-shadow: 
-                -170px -170px 0 0 #FFFFFF, 
-                 170px -170px 0 0 #FFFFFF, 
-                -170px  170px 0 0 #FFFFFF, 
-                 170px  170px 0 0 #FFFFFF;
+                -220px -180px 0 0 #FFFFFF, 
+                 220px -180px 0 0 #FFFFFF, 
+                -220px  180px 0 0 #FFFFFF, 
+                 220px  180px 0 0 #FFFFFF;
         }
         </style>
     """, unsafe_allow_html=True)
