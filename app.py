@@ -33,6 +33,7 @@ if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
 if 'user_sel' not in st.session_state: st.session_state.user_sel = "OPERADOR CENTRAL"
 if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado = False
 if 'admin_autenticado' not in st.session_state: st.session_state.admin_autenticado = False
+if 'ultimo_mensaje_qr' not in st.session_state: st.session_state.ultimo_mensaje_qr = ""
 
 
 # --- 2. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
@@ -280,14 +281,14 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* ESCÁNER UBICADO MÁS ARRIBA Y ADAPTADO PARA WEB Y MÓVIL SIN CORTES */
+        /* ESCÁNER UBICADO MÁS ARRIBA Y ADAPTADO */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
             max-width: 400px;
-            margin: 5px auto 10px auto;
+            margin: 2px auto 8px auto;
             overflow: hidden;
             border-radius: 8px;
             background: #000;
@@ -295,7 +296,7 @@ def aplicar_identidad_alfa():
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
             width: 100% !important;
             max-width: 400px !important;
-            height: 280px !important;
+            height: 260px !important;
             object-fit: cover !important;
             border-radius: 8px !important;
             border: 2px solid #00E5FF !important;
@@ -1052,7 +1053,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 st.markdown("---")
                 
-                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA (UBICADO MÁS ARRIBA) ---
+                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA (POSICIONADO MUCHO MÁS ARRIBA) ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
                 
@@ -1060,7 +1061,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
                 st.markdown("""
-                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 8px; text-align: center; margin: 5px 0; background: rgba(0, 229, 255, 0.05);">
+                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
                         <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
                         <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
                     </div>
@@ -1069,6 +1070,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
+
+                # Mostramos el mensaje guardado en sesión de forma persistente y clara
+                if st.session_state.ultimo_mensaje_qr:
+                    st.success(st.session_state.ultimo_mensaje_qr)
 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
@@ -1084,9 +1089,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                     pass
                                 
                                 if accion_str == "INICIO":
-                                    st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                                    st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
                                 else:
-                                    st.success(f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                                    st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
                                 
                                 st.rerun()
                             else:
