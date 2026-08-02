@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -25,11 +24,10 @@ import streamlit.components.v1 as components
 from streamlit_qrcode_scanner import qrcode_scanner
 
 
+
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 
-
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
-
 
 if 'usuario_logueado' not in st.session_state: st.session_state.usuario_logueado = False
 if 'rol_sel' not in st.session_state: st.session_state.rol_sel = "MONITOREO"
@@ -38,11 +36,10 @@ if 'sup_autenticado' not in st.session_state: st.session_state.sup_autenticado =
 if 'admin_autenticado' not in st.session_state: st.session_state.admin_autenticado = False
 
 
+
 # --- 2. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
 
-
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
-
 
 @st.cache_resource
 def conectar_google():
@@ -53,11 +50,9 @@ def conectar_google():
     except: 
         return None
 
-
 def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-
 
 def actualizar_celda(pestana, fila, columna, valor):
     try:
@@ -69,7 +64,6 @@ def actualizar_celda(pestana, fila, columna, valor):
             return True
     except: 
         return False
-
 
 def escribir_registro_nube(pestana, datos_fila):
     try:
@@ -83,7 +77,6 @@ def escribir_registro_nube(pestana, datos_fila):
         print(f"Error de nube en {pestana}: {e}")
         st.error(f"⚠️ Error técnico en nube: {e}")
         return False
-
 
 @st.cache_data(ttl=30)
 def leer_matriz_nube(pestana):
@@ -104,7 +97,6 @@ def leer_matriz_nube(pestana):
             return pd.DataFrame()
     return pd.DataFrame()
 
-
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
@@ -113,7 +105,6 @@ def cargar_datos_comisarias():
         "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
     }
     return pd.DataFrame(data)
-
 
 @st.cache_data(ttl=30)
 def cargar_objetivos():
@@ -131,7 +122,6 @@ def cargar_objetivos():
         return df 
     return pd.DataFrame()
 
-
 def obtener_lista_supervisores_dinamica():
     base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
     df_u = leer_matriz_nube("USUARIOS")
@@ -146,14 +136,12 @@ def obtener_lista_supervisores_dinamica():
                     base.append(s_limpio)
     return base
 
-
 @st.cache_resource
 def obtener_grafo_zona(lat, lon):
     try:
         return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
     except:
         return None
-
 
 def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
     try:
@@ -165,7 +153,6 @@ def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
     except:
         pass
     return [[lat1, lon1], [lat2, lon2]]
-
 
 def registrar_jornada_general(supervisor, objetivo, accion):
     try:
@@ -184,7 +171,6 @@ def registrar_jornada_general(supervisor, objetivo, accion):
     except Exception as ex:
         print(f"Error en jornada general: {ex}")
     return False
-
 
 def registrar_qr_supervisor(supervisor, objetivo, accion):
     try:
@@ -216,7 +202,6 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
     except Exception as ex:
         st.error(f"⚠️ Error detallado en nube: {ex}")
     return False
-
 
 def generar_pdf_reporte(titulo_reporte, df_datos):
     buffer = io.BytesIO()
@@ -258,7 +243,6 @@ def generar_pdf_reporte(titulo_reporte, df_datos):
     doc.build(elementos)
     buffer.seek(0)
     return buffer.getvalue()
-
 
 def aplicar_identidad_alfa():
     st.markdown("""
@@ -340,7 +324,6 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-
 def renderizar_reloj_fluido():
     reloj_html = """
     <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; box-sizing: border-box;">
@@ -363,7 +346,6 @@ def renderizar_reloj_fluido():
     </script>
     """
     components.html(reloj_html, height=75)
-
 
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
@@ -414,7 +396,6 @@ def renderizar_mensajeria_global(rol_contexto):
                         st.session_state.asunto_respuesta = asunto
                         st.rerun()
 
-
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
@@ -422,7 +403,6 @@ def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asigna
     for dest in destinatarios:
         if dest and dest != "MONITOREO" and dest != "N/A":
             escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
-
 
 def limpiar_matriz_nube(nombre_hoja):
     try:
@@ -433,7 +413,6 @@ def limpiar_matriz_nube(nombre_hoja):
             st.cache_data.clear()
             return True
     except: return False
-
 
 def ejecutar_cierre_táctico():
     matrices = ["JORNADA_SUPERVISORES", "REGISTRO_QR_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
@@ -455,7 +434,6 @@ def ejecutar_cierre_táctico():
         st.cache_data.clear()
         return True
     except: return False
-
 
 def mostrar_landing():
     aplicar_identidad_alfa()
@@ -510,19 +488,15 @@ def mostrar_landing():
                 else:
                     st.warning("⚠️ Complete el usuario y la contraseña.")
 
-
 if not st.session_state.usuario_logueado:
     mostrar_landing()
     st.stop()
 
-
 aplicar_identidad_alfa()
-
 
 df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
-
 
 with st.sidebar:
     st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
@@ -546,7 +520,6 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-
     with st.expander("👤 SUPERVISORES", expanded=(st.session_state.rol_sel == "SUPERVISOR" or 'intentando_sup' in st.session_state)):
         nom_sup = st.selectbox("RESPONSABLE ACTIVO:", LISTA_SUPS_TACTICOS, key="cambio_supervisor_directo")
         user_sup = st.text_input("USUARIO RECURSO (APELLIDO)", key="auth_user_sup")
@@ -569,14 +542,12 @@ with st.sidebar:
                 st.session_state.sup_autenticado = False
                 st.error("❌ CREDENCIALES INVÁLIDAS EN BASE")
 
-
     st.write("---")
     if st.button("👮 VIGILADOR (ACCESO PUESTO)", use_container_width=True):
         st.session_state.rol_sel = "VIGILADOR"
         st.session_state.user_sel = "VIGILADOR EN PUESTO"
         st.session_state.sup_autenticado = False
         st.rerun()
-
 
     st.write("---")
     st.markdown("**⚙️ ADMINISTRADOR**")
@@ -588,15 +559,12 @@ with st.sidebar:
         st.session_state.sup_autenticado = False
         st.rerun()
 
-
     st.markdown("---")
     if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
         st.session_state.usuario_logueado = False
         st.rerun()
 
-
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
-
 
 titulos = {
     "MONITOREO": "🛰️ CENTRAL DE INTELIGENCIA OPERATIVA",
@@ -607,6 +575,7 @@ titulos = {
     "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO:AION-YAROKU"
 }
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
+
 
 
 
@@ -918,6 +887,7 @@ if st.session_state.rol_sel == "MONITOREO":
 
 
 
+
 # =========================================================================
 # ROL: SUPERVISOR
 # =========================================================================
@@ -1093,22 +1063,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
 
                 st.markdown("---")
-                st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Apunte al código QR dentro del visor.")
+                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
+                st.info("Alinee el código QR dentro del visor rectangular.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Visor cuadrado táctico optimizado de tamaño intermedio-grande ideal para celular con esquinas que parpadean en verde
+                # Visor rectangular táctico prolijo y fluido (estilo idéntico a la segunda foto pero en formato horizontal)
                 componentes_html_camara = f"""
                 <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px;">
-                    <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 420px; height: 420px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
-                        <video id="video-webcam" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                    <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 520px; height: 320px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
+                        <video id="video-webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
                         <div id="marco-esquinas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
-                            <div class="esquina" style="position: absolute; top: 25px; left: 25px; width: 40px; height: 40px; border-top: 5px solid #FFF; border-left: 5px solid #FFF; transition: 0.2s;"></div>
-                            <div class="esquina" style="position: absolute; top: 25px; right: 25px; width: 40px; height: 40px; border-top: 5px solid #FFF; border-right: 5px solid #FFF; transition: 0.2s;"></div>
-                            <div class="esquina" style="position: absolute; bottom: 25px; left: 25px; width: 40px; height: 40px; border-bottom: 5px solid #FFF; border-left: 5px solid #FFF; transition: 0.2s;"></div>
-                            <div class="esquina" style="position: absolute; bottom: 25px; right: 25px; width: 40px; height: 40px; border-bottom: 5px solid #FFF; border-right: 5px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; top: 20px; left: 20px; width: 35px; height: 35px; border-top: 4px solid #FFF; border-left: 4px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; top: 20px; right: 20px; width: 35px; height: 35px; border-top: 4px solid #FFF; border-right: 4px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; bottom: 20px; left: 20px; width: 35px; height: 35px; border-bottom: 4px solid #FFF; border-left: 4px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; bottom: 20px; right: 20px; width: 35px; height: 35px; border-bottom: 4px solid #FFF; border-right: 4px solid #FFF; transition: 0.2s;"></div>
                         </div>
                     </div>
                     <canvas id="canvas-camara" style="display:none;"></canvas>
@@ -1140,8 +1110,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     const estado = document.getElementById('estado-camara');
                     
                     try {{
-                        videoStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: "environment" }} }});
+                        videoStream = await navigator.mediaDevices.getUserMedia({{ 
+                            video: {{ 
+                                facingMode: {{ ideal: "environment" }},
+                                width: {{ ideal: 640 }},
+                                height: {{ ideal: 480 }}
+                            }} 
+                        }});
                         video.srcObject = videoStream;
+                        video.setAttribute("playsinline", true);
+                        await video.play();
                         estado.innerText = "Buscando código QR...";
                         requestAnimationFrame(analizarFotograma);
                     }} catch (err) {{
@@ -1159,13 +1137,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     const esquinas = document.querySelectorAll('.esquina');
                     
                     if (video.readyState === video.HAVE_ENOUGH_DATA) {{
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        const ctx = canvas.getContext('2d');
+                        canvas.width = video.videoWidth || 640;
+                        canvas.height = video.videoHeight || 480;
+                        const ctx = canvas.getContext('2d', {{ willReadFrequently: true }});
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         
                         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, {{
+                            inversionAttempts: "attemptBoth",
+                        }});
                         
                         if (code) {{
                             escaneandoActivo = false;
@@ -1182,19 +1162,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             
                             setTimeout(() => {{
                                 window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: code.data }}, '*');
-                            }}, 500);
+                            }}, 300);
                             return;
                         }}
                     }}
                     requestAnimationFrame(analizarFotograma);
                 }}
 
-                window.onload = iniciarCamaraAutomatica();
-                setTimeout(iniciarCamaraAutomatica, 400);
+                if (document.readyState === "complete") {{
+                    iniciarCamaraAutomatica();
+                }} else {{
+                    window.addEventListener("load", iniciarCamaraAutomatica);
+                }}
                 </script>
                 """
                 
-                codigo_qr_leido = components.html(componentes_html_camara, height=500)
+                codigo_qr_leido = components.html(componentes_html_camara, height=400)
 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
@@ -1297,7 +1280,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             renderizar_mensajeria_global("SUPERVISOR")
         
         with t_pres_sup:
-            st.markdown("#### 🔄 RELEVOS DE GUARDIA")
+            st.markdown("#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA")
             df_nov_sup = leer_matriz_nube("NOVEDADES_GUARDIA")
             if not df_nov_sup.empty:
                 df_nov_sup.columns = [str(c).strip().upper() for c in df_nov_sup.columns]
@@ -1319,6 +1302,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.info("Sin alertas de pánico registradas.")
     else:
         st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
+
 
 
 
@@ -1408,6 +1392,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     with tab_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
@@ -1506,6 +1491,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             st.download_button("📥 DESCARGAR HISTÓRICO DE ALERTAS (PDF)", data=pdf_alertas, file_name="reporte_alertas.pdf", mime="application/pdf", key="dl_alertas_jefe")
         else:
             st.write("*(Sin alertas tácticas)*")
+
 
 
 
@@ -1615,6 +1601,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.rerun()
             else:
                 st.error("❌ Error al ejecutar el cierre táctico.")
+
 
 
 
