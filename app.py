@@ -297,16 +297,21 @@ def aplicar_identidad_alfa():
             text-align: center;
         }
         
-        /* Ocultar únicamente la barra de herramientas flotante y el menú hamburguesa, PERO permitir la cabecera donde vive la flecha */
+        /* Ocultar únicamente el menú de Streamlit pero forzar que el botón/flecha de la barra lateral esté siempre visible */
         header [data-testid="stToolbar"], footer, #MainMenu {
             display: none !important;
             visibility: hidden !important;
         }
         
-        /* Asegurar que la cabecera sea visible sin fondo opaco invasivo para que la flecha quede fija y no desaparezca */
+        div[data-testid="collapsedControl"] {
+            display: block !important;
+            visibility: visible !important;
+            z-index: 999999 !important;
+        }
+
         header {
             background: transparent !important;
-            background-color: rgba(0, 0, 0, 0.2) !important;
+            background-color: transparent !important;
         }
 
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
