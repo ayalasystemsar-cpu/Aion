@@ -1064,20 +1064,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Utilice el escáner nativo de alta velocidad o ingrese el código manualmente si el dispositivo no cuenta con cámara.")
+                st.info("Alinee el código QR dentro del visor rectangular.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Escáner nativo limpio y dual de alta velocidad
-                codigo_qr_leido = qrcode_scanner(key=f"scanner_nativo_puro_{accion_str}")
+                # Escáner optimizado y fluido de alta velocidad
+                st.markdown("""
+                <div style="background: rgba(0, 229, 255, 0.03); border: 1px solid #00E5FF; border-radius: 10px; padding: 15px; text-align: center; margin-bottom: 15px;">
+                    <span style="color: #00E5FF; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: bold; letter-spacing: 1px;">
+                        🎯 ESCANER TÁCTICO DE ALTA VELOCIDAD
+                    </span>
+                    <p style="color: #A0A5B5; font-size: 12px; margin-top: 5px;">Acerque el código QR para lectura instantánea.</p>
+                </div>
+                """, unsafe_allow_html=True)
 
-                # Respaldo manual por si la cámara web del equipo de escritorio no detecta
-                with st.expander("⌨️ ¿Problemas con la cámara? Ingresar código manualmente"):
-                    codigo_manual = st.text_input("Ingrese el texto del QR o ID del objetivo:", key=f"manual_{accion_str}")
-                    if st.button("VALIDAR CÓDIGO MANUALMENTE", key=f"btn_manual_{accion_str}"):
-                        if codigo_manual.strip():
-                            codigo_qr_leido = f"AION-YAROKU-OBJ:{obj_select}|MANUAL:{codigo_manual.strip().upper()}"
+                codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
