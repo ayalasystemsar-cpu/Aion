@@ -24,44 +24,38 @@ import streamlit.components.v1 as components
 from streamlit_qrcode_scanner import qrcode_scanner
 
 
-# --- 1. CONFIGURACIÓN E INICIALIZACIÓN CON PERSISTENCIA DE URL ---
+# --- 1. CONFIGURACIÓN E INICIALIZACIÓN CON PERSISTENCIA POR URL ---
 
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
+# Recuperar parámetros de la URL para evitar que se pierda la sesión al actualizar (F5) o cambiar a sitio web
 query_params = st.query_params
 
-# Recuperar estado persistente desde la URL si el navegador se actualiza o cambia a sitio web
-url_usuario = query_params.get("usr", None)
-url_rol = query_params.get("rol", None)
-url_autenticado = query_params.get("auth", "false").lower() == "true"
-url_sup_auth = query_params.get("sup_auth", "false").lower() == "true"
-url_admin_auth = query_params.get("admin_auth", "false").lower() == "true"
-
 if 'usuario_logueado' not in st.session_state:
-    st.session_state.usuario_logueado = url_autenticado if url_autenticado else False
+    st.session_state.usuario_logueado = query_params.get("logueado", "false") == "true"
 
 if 'rol_sel' not in st.session_state:
-    st.session_state.rol_sel = url_rol if url_rol else "MONITOREO"
+    st.session_state.rol_sel = query_params.get("rol", "MONITOREO")
 
 if 'user_sel' not in st.session_state:
-    st.session_state.user_sel = url_usuario if url_usuario else "OPERADOR CENTRAL"
+    st.session_state.user_sel = query_params.get("user", "OPERADOR CENTRAL")
 
 if 'sup_autenticado' not in st.session_state:
-    st.session_state.sup_autenticado = url_sup_auth if url_sup_auth else False
+    st.session_state.sup_autenticado = query_params.get("sup_auth", "false") == "true"
 
 if 'admin_autenticado' not in st.session_state:
-    st.session_state.admin_autenticado = url_admin_auth if url_admin_auth else False
+    st.session_state.admin_autenticado = query_params.get("admin_auth", "false") == "true"
 
 if 'ultimo_mensaje_qr' not in st.session_state: 
     st.session_state.ultimo_mensaje_qr = ""
 
 def sincronizar_url_sesion():
     st.query_params.update({
-        "usr": st.session_state.user_sel,
+        "logueado": "true" if st.session_state.usuario_logueado else "false",
         "rol": st.session_state.rol_sel,
-        "auth": str(st.session_state.usuario_logueado).lower(),
-        "sup_auth": str(st.session_state.sup_autenticado).lower(),
-        "admin_auth": str(st.session_state.admin_autenticado).lower()
+        "user": st.session_state.user_sel,
+        "sup_auth": "true" if st.session_state.sup_autenticado else "false",
+        "admin_auth": "true" if st.session_state.admin_autenticado else "false"
     })
 
 
@@ -317,7 +311,7 @@ def aplicar_identidad_alfa():
             align-items: center;
             width: 100%;
             max-width: 400px;
-            margin: 2px auto 6px auto;
+            margin: 2px auto 8px auto;
             overflow: hidden;
             border-radius: 8px;
             background: #000;
@@ -545,8 +539,6 @@ if not st.session_state.usuario_logueado:
     mostrar_landing()
     st.stop()
 
-# Mantener la sesión sincronizada en cada ejecución
-sincronizar_url_sesion()
 aplicar_identidad_alfa()
 
 df_objetivos = cargar_objetivos()
@@ -1095,7 +1087,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 st.markdown("---")
                 
-                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA (POSICIONADO MUCHO MÁS ARRIBA) ---
+                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA (UBICADO MÁS ARRIBA) ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
                 
@@ -1103,7 +1095,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
                 st.markdown("""
-                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 4px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
+                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
                         <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
                         <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
                     </div>
@@ -1113,7 +1105,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-                # Mostramos el mensaje guardado en sesión de forma persistente y clara
                 if st.session_state.ultimo_mensaje_qr:
                     st.success(st.session_state.ultimo_mensaje_qr)
 
@@ -1135,6 +1126,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 else:
                                     st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
                                 
+                                sincronizar_url_sesion()
                                 st.rerun()
                             else:
                                 st.error("❌ Error al registrar en la nube. Intente nuevamente.")
@@ -1620,4 +1612,14 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             if not df_obj_m.empty:
                 st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
                 pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button("📥 DESCARGAR PADRÓN DE OBJET
+                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
+
+        with t_adm_mantenimiento:
+            st.markdown("#### 🛡️ CENTRO DE RESPALDO Y CAJA FUERTE DIGITAL")
+            if not df_obj_m.empty:
+                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
+                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.error("⚠️ Acceso restringido.")
