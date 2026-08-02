@@ -1069,20 +1069,20 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Visor rectangular táctico prolijo y fluido (estilo idéntico a la segunda foto pero en formato horizontal)
+                # Visor rectangular táctico achicado, estilizado y optimizado para lectura instantánea sin trabas
                 componentes_html_camara = f"""
                 <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px;">
-                    <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 520px; height: 320px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
+                    <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 380px; height: 240px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
                         <video id="video-webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
                         <div id="marco-esquinas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
-                            <div class="esquina" style="position: absolute; top: 20px; left: 20px; width: 35px; height: 35px; border-top: 4px solid #FFF; border-left: 4px solid #FFF; transition: 0.2s;"></div>
-                            <div class="esquina" style="position: absolute; top: 20px; right: 20px; width: 35px; height: 35px; border-top: 4px solid #FFF; border-right: 4px solid #FFF; transition: 0.2s;"></div>
-                            <div class="esquina" style="position: absolute; bottom: 20px; left: 20px; width: 35px; height: 35px; border-bottom: 4px solid #FFF; border-left: 4px solid #FFF; transition: 0.2s;"></div>
-                            <div class="esquina" style="position: absolute; bottom: 20px; right: 20px; width: 35px; height: 35px; border-bottom: 4px solid #FFF; border-right: 4px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; top: 15px; left: 15px; width: 28px; height: 28px; border-top: 4px solid #FFF; border-left: 4px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; top: 15px; right: 15px; width: 28px; height: 28px; border-top: 4px solid #FFF; border-right: 4px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; bottom: 15px; left: 15px; width: 28px; height: 28px; border-bottom: 4px solid #FFF; border-left: 4px solid #FFF; transition: 0.2s;"></div>
+                            <div class="esquina" style="position: absolute; bottom: 15px; right: 15px; width: 28px; height: 28px; border-bottom: 4px solid #FFF; border-right: 4px solid #FFF; transition: 0.2s;"></div>
                         </div>
                     </div>
                     <canvas id="canvas-camara" style="display:none;"></canvas>
-                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 12px; font-size: 14px; font-weight: bold; text-align: center;">Escáner activo en tiempo real...</p>
+                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 10px; font-size: 13px; font-weight: bold; text-align: center;">Escáner activo...</p>
                 </div>
 
                 <script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.min.js"></script>
@@ -1113,14 +1113,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         videoStream = await navigator.mediaDevices.getUserMedia({{ 
                             video: {{ 
                                 facingMode: {{ ideal: "environment" }},
-                                width: {{ ideal: 640 }},
-                                height: {{ ideal: 480 }}
+                                width: {{ ideal: 1280 }},
+                                height: {{ ideal: 720 }}
                             }} 
                         }});
                         video.srcObject = videoStream;
                         video.setAttribute("playsinline", true);
                         await video.play();
-                        estado.innerText = "Buscando código QR...";
+                        estado.innerText = "Alinee el código QR dentro del visor...";
                         requestAnimationFrame(analizarFotograma);
                     }} catch (err) {{
                         estado.innerText = "⚠️ Error de cámara: " + err.message;
@@ -1137,8 +1137,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     const esquinas = document.querySelectorAll('.esquina');
                     
                     if (video.readyState === video.HAVE_ENOUGH_DATA) {{
-                        canvas.width = video.videoWidth || 640;
-                        canvas.height = video.videoHeight || 480;
+                        canvas.width = video.videoWidth || 1280;
+                        canvas.height = video.videoHeight || 720;
                         const ctx = canvas.getContext('2d', {{ willReadFrequently: true }});
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         
@@ -1177,7 +1177,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 </script>
                 """
                 
-                codigo_qr_leido = components.html(componentes_html_camara, height=400)
+                codigo_qr_leido = components.html(componentes_html_camara, height=340)
 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
