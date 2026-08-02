@@ -932,6 +932,8 @@ if st.session_state.rol_sel == "MONITOREO":
             if not df_qr_neto.empty:
                 df_qr_neto.columns = [str(c).strip().upper() for c in df_qr_neto.columns]
                 st.dataframe(df_qr_neto.iloc[::-1], use_container_width=True, hide_index=True)
+                pdf_qr_mono = generar_pdf_reporte("REPORTE OPERATIVO - ESCANEOS QR DE SUPERVISORES", df_qr_neto)
+                st.download_button("📥 DESCARGAR REPORTE QR (PDF)", data=pdf_qr_mono, file_name="reporte_qr_supervisores.pdf", mime="application/pdf", key="dl_qr_mono")
             else:
                 st.info("No hay registros QR de supervisores.")
 
@@ -941,6 +943,8 @@ if st.session_state.rol_sel == "MONITOREO":
             if not df_vig_rel.empty:
                 df_vig_rel.columns = [str(c).strip().upper() for c in df_vig_rel.columns]
                 st.dataframe(df_vig_rel.iloc[::-1], use_container_width=True, hide_index=True)
+                pdf_rel_mono = generar_pdf_reporte("REPORTE OPERATIVO - RELEVOS DE VIGILADORES", df_vig_rel)
+                st.download_button("📥 DESCARGAR REPORTE DE RELEVOS (PDF)", data=pdf_rel_mono, file_name="reporte_relevos_vigiladores.pdf", mime="application/pdf", key="dl_rel_mono")
             else:
                 st.info("No hay relevos de guardia registrados.")
 
@@ -950,6 +954,8 @@ if st.session_state.rol_sel == "MONITOREO":
             if not df_alertas_mon.empty:
                 df_alertas_mon.columns = [str(c).strip().upper() for c in df_alertas_mon.columns]
                 st.dataframe(df_alertas_mon.iloc[::-1], use_container_width=True, hide_index=True)
+                pdf_pan_mono = generar_pdf_reporte("REPORTE OPERATIVO - ALERTAS Y PÁNICOS", df_alertas_mon)
+                st.download_button("📥 DESCARGAR REPORTE DE PÁNICOS (PDF)", data=pdf_pan_mono, file_name="reporte_panicos.pdf", mime="application/pdf", key="dl_pan_mono")
             else:
                 st.info("No hay alertas registradas.")
 
@@ -1254,9 +1260,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             renderizar_mensajeria_global("SUPERVISOR")
         
         with t_pres_sup:
-            st.markdown(f"#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA (EXCLUSIVO PARA: {sup_activo_normalizado})")
-            
-            # FILTRAR ESTRICTAMENTE POR LOS OBJETIVOS ASIGNADOS A ESTE SUPERVISOR
+            st.markdown(f"#### 📱 MIS ESCANEOS QR REGISTRADOS EN CAMPO")
+            df_qr_sup_base = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+            if not df_qr_sup_base.empty:
+                df_qr_sup_base.columns = [str(c).strip().upper() for c in df_qr_sup_base.columns]
+                col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_sup_base.columns else df_qr_sup_base.columns[3]
+                df_qr_sup_propio = df_qr_sup_base[df_qr_sup_base[col_sup_q].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+                if not df_qr_sup_propio.empty:
+                    st.dataframe(df_qr_sup_propio.iloc[::-1], use_container_width=True, hide_index=True)
+                    pdf_qr_sup_dl = generar_pdf_reporte(f"MIS ESCANEOS QR - SUPERVISOR: {sup_activo_normalizado}", df_qr_sup_propio)
+                    st.download_button("📥 DESCARGAR MIS ESCANEOS QR (PDF)", data=pdf_qr_sup_dl, file_name=f"mis_escaneos_qr_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_qr_sup")
+                else:
+                    st.info("No tienes escaneos QR registrados en este turno.")
+            else:
+                st.info("Sin registros QR en el sistema.")
+
+            st.markdown("---")
+            st.markdown(f"#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA EN TUS OBJETIVOS")
             lista_objs_supervisor = df_objetivos_filtrados['OBJETIVO'].tolist() if not df_objetivos_filtrados.empty else []
 
             df_vig_rel_sup = leer_matriz_nube("VIGILADORES")
@@ -1265,25 +1285,27 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 col_obj_v = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_sup.columns else df_vig_rel_sup.columns[2]
                 df_vig_rel_sup_filtrado = df_vig_rel_sup[df_vig_rel_sup[col_obj_v].astype(str).str.strip().str.upper().isin([o.upper() for o in lista_objs_supervisor])]
                 
-                st.markdown("##### 📌 Relevos en tus Objetivos Asignados")
                 if not df_vig_rel_sup_filtrado.empty:
                     st.dataframe(df_vig_rel_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                    pdf_rel_sup_dl = generar_pdf_reporte(f"RELEVOS DE VIGILADORES - {sup_activo_normalizado}", df_vig_rel_sup_filtrado)
+                    st.download_button("📥 DESCARGAR RELEVOS DE VIGILADORES (PDF)", data=pdf_rel_sup_dl, file_name=f"relevos_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_rel_sup")
                 else:
                     st.info("No hay relevos registrados en tus objetivos asignados.")
             else:
                 st.info("No tienes objetivos asignados o no hay relevos en la base.")
 
             st.markdown("---")
-            st.markdown("##### 🚨 Alertas de Pánico de tus Objetivos")
+            st.markdown("#### 🚨 ALERTAS DE PÁNICO DE TUS OBJETIVOS")
             df_pan_sup = leer_matriz_nube("ALERTAS")
             if not df_pan_sup.empty and len(lista_objs_supervisor) > 0:
                 df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
-                # Filtramos si la carga útil contiene alguno de los objetivos del supervisor
                 mask_objs = df_pan_sup['CARGA_UTIL'].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor))
                 df_pan_sup_filtro = df_pan_sup[mask_objs | (df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False))]
                 
                 if not df_pan_sup_filtro.empty:
                     st.dataframe(df_pan_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
+                    pdf_pan_sup_dl = generar_pdf_reporte(f"ALERTAS DE PÁNICO - {sup_activo_normalizado}", df_pan_sup_filtro)
+                    st.download_button("📥 DESCARGAR ALERTAS DE PÁNICO (PDF)", data=pdf_pan_sup_dl, file_name=f"alertas_panico_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_pan_sup")
                 else:
                     st.info("Sin alertas de pánico en tus objetivos.")
             else:
