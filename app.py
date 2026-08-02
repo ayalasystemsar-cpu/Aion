@@ -1093,73 +1093,101 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Seleccione el movimiento, active la cámara táctica y apunte al QR.")
+                st.info("Apunte al código QR con la cámara táctica.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Visor HTML5 ampliado a pantalla completa sin restricciones con esquinas de enfoque
+                # Visor optimizado, tamaño equilibrado, esquinas inteligentes que cambian a verde y sonido táctico
                 componentes_html_camara = f"""
-                <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 15px; border-radius: 16px; border: 4px solid #00E5FF; box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);">
-                    <div style="position: relative; width: 100%; max-width: 650px; height: 450px;">
-                        <video id="video-webcam" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px; border: 2px solid #333;"></video>
-                        <div style="position: absolute; top: 15px; left: 15px; width: 40px; height: 40px; border-top: 4px solid #FFF; border-left: 4px solid #FFF; pointer-events: none;"></div>
-                        <div style="position: absolute; top: 15px; right: 15px; width: 40px; height: 40px; border-top: 4px solid #FFF; border-right: 4px solid #FFF; pointer-events: none;"></div>
-                        <div style="position: absolute; bottom: 15px; left: 15px; width: 40px; height: 40px; border-bottom: 4px solid #FFF; border-left: 4px solid #FFF; pointer-events: none;"></div>
-                        <div style="position: absolute; bottom: 15px; right: 15px; width: 40px; height: 40px; border-bottom: 4px solid #FFF; border-right: 4px solid #FFF; pointer-events: none;"></div>
+                <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px; border: 2px solid #00E5FF;">
+                    <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 480px; height: 320px;">
+                        <video id="video-webcam" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #444;"></video>
+                        <div id="marco-esquinas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; border: 2px dashed rgba(0,229,255,0.4); border-radius: 8px;">
+                            <div style="position: absolute; top: 10px; left: 10px; width: 30px; height: 30px; border-top: 3px solid #FFF; border-left: 3px solid #FFF;"></div>
+                            <div style="position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-top: 3px solid #FFF; border-right: 3px solid #FFF;"></div>
+                            <div style="position: absolute; bottom: 10px; left: 10px; width: 30px; height: 30px; border-bottom: 3px solid #FFF; border-left: 3px solid #FFF;"></div>
+                            <div style="position: absolute; bottom: 10px; right: 10px; width: 30px; height: 30px; border-bottom: 3px solid #FFF; border-right: 3px solid #FFF;"></div>
+                        </div>
                     </div>
                     <canvas id="canvas-camara" style="display:none;"></canvas>
-                    <div style="display: flex; gap: 15px; margin-top: 15px; width: 100%; max-width: 650px;">
-                        <button id="btn-encender" onclick="encenderCamara()" style="flex: 1; background: #00E5FF; color: #000; font-family: 'Orbitron', sans-serif; font-weight: bold; padding: 14px; border: none; border-radius: 6px; cursor: pointer;">🟢 ACTIVAR CÁMARA</button>
-                        <button id="btn-capturar" onclick="capturarQR()" style="flex: 1; background: #39FF14; color: #000; font-family: 'Orbitron', sans-serif; font-weight: bold; padding: 14px; border: none; border-radius: 6px; cursor: pointer; display:none;">📸 CAPTURAR Y VALIDAR</button>
-                    </div>
-                    <p id="estado-camara" style="color: #A0A5B5; font-family: 'Rajdhani', sans-serif; margin-top: 10px; font-size: 14px;">Cámara en espera de activación...</p>
+                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 8px; font-size: 13px; font-weight: bold; text-align: center;">Iniciando sensor de cámara...</p>
                 </div>
 
                 <script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.min.js"></script>
                 <script>
                 let videoStream = null;
+                let escaneandoActivo = true;
 
-                async function encenderCamara() {{
+                function emitirBeep() {{
+                    try {{
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = 880;
+                        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.15);
+                    }} catch(e) {{}}
+                }}
+
+                async function iniciarCamaraAutomatica() {{
                     const video = document.getElementById('video-webcam');
                     const estado = document.getElementById('estado-camara');
-                    const btnCapturar = document.getElementById('btn-capturar');
                     
                     try {{
                         videoStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: "environment" }} }});
                         video.srcObject = videoStream;
-                        estado.innerText = "Cámara activa. Apunte al QR y presione Capturar.";
-                        btnCapturar.style.display = "block";
+                        estado.innerText = "Buscando código QR en tiempo real...";
+                        requestAnimationFrame(analizarFotograma);
                     }} catch (err) {{
-                        estado.innerText = "Error al abrir la cámara: " + err.message;
+                        estado.innerText = "⚠️ No se pudo acceder a la cámara: " + err.message;
                     }}
                 }}
 
-                function capturarQR() {{
+                function analizarFotograma() {{
+                    if (!escaneandoActivo) return;
+                    
                     const video = document.getElementById('video-webcam');
                     const canvas = document.getElementById('canvas-camara');
                     const estado = document.getElementById('estado-camara');
+                    const marco = document.getElementById('marco-esquinas');
                     
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const code = jsQR(imageData.data, imageData.width, imageData.height);
-                    
-                    if (code) {{
-                        estado.innerText = "¡QR Detectado con éxito: " + code.data + "!";
-                        window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: code.data }}, '*');
-                    }} else {{
-                        estado.innerText = "No se detectó ningún código QR claro. Intente nuevamente.";
+                    if (video.readyState === video.HAVE_ENOUGH_DATA) {{
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        
+                        if (code) {{
+                            escaneandoActivo = false;
+                            emitirBeep();
+                            marco.style.border = "4px solid #39FF14";
+                            estado.style.color = "#39FF14";
+                            estado.innerText = "¡QR DETECTADO CON ÉXITO!";
+                            
+                            setTimeout(() => {{
+                                window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: code.data }}, '*');
+                            }}, 500);
+                            return;
+                        }}
                     }}
+                    requestAnimationFrame(analizarFotograma);
                 }}
+
+                window.onload = iniciarCamaraAutomatica();
+                setTimeout(iniciarCamaraAutomatica, 500);
                 </script>
                 """
                 
-                codigo_qr_leido = components.html(componentes_html_camara, height=600)
-                
+                codigo_qr_leido = components.html(componentes_html_camara, height=430)
+
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
                     
