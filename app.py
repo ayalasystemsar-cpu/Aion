@@ -144,7 +144,7 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def obtener_lista_supervisores_dinamica():
-    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO"]
+    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO"]
     df_u = leer_matriz_nube("USUARIOS")
     if not df_u.empty:
         col_r = 'ROL' if 'ROL' in df_u.columns else 'ROLES'
@@ -517,27 +517,43 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
             elif modo == "Iniciar Sesión":
-                df_usuarios = leer_matriz_nube("USUARIOS")
-                usuario_ok = pd.DataFrame()
-                if not df_usuarios.empty and 'USUARIO' in df_usuarios.columns and 'CONTRASEÑA' in df_usuarios.columns:
-                    usuario_ok = df_usuarios[
-                        (df_usuarios['USUARIO'].str.strip().str.upper() == user.strip().upper()) & 
-                        (df_usuarios['CONTRASEÑA'].str.strip() == password.strip())
-                    ]
-                if not usuario_ok.empty:
-                    estado = str(usuario_ok.iloc[0].get('ESTADO', 'PENDIENTE')).strip().upper()
-                    if estado == "APROBADO":
-                        st.session_state.usuario_logueado = True
-                        st.session_state.user_sel = user.strip().upper()
-                        st.session_state.rol_sel = usuario_ok.iloc[0]['ROL'].strip().upper()
-                        if st.session_state.rol_sel == "SUPERVISOR":
-                            st.session_state.sup_autenticado = True
-                        sincronizar_url_sesion()
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
+                user_limpio = user.strip().upper()
+                pass_limpio = password.strip()
+                
+                # VALIDACIÓN PARA SUPERVISORES PREDEFINIDOS CON CLAVE 1234 (Incluye AYALA BRIAN y CONTROLADOR NOCTURNO)
+                supervisores_por_defecto = ["AYALA BRIAN", "AYALA", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO"]
+                
+                if user_limpio in supervisores_por_defecto and pass_limpio == "1234":
+                    # Mapear variaciones comunes de nombre
+                    usuario_final = "AYALA BRIAN" if user_limpio in ["AYALA BRIAN", "AYALA"] else user_limpio
+                    st.session_state.usuario_logueado = True
+                    st.session_state.user_sel = usuario_final
+                    st.session_state.rol_sel = "SUPERVISOR"
+                    st.session_state.sup_autenticado = True
+                    sincronizar_url_sesion()
+                    st.rerun()
                 else:
-                    st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
+                    df_usuarios = leer_matriz_nube("USUARIOS")
+                    usuario_ok = pd.DataFrame()
+                    if not df_usuarios.empty and 'USUARIO' in df_usuarios.columns and 'CONTRASEÑA' in df_usuarios.columns:
+                        usuario_ok = df_usuarios[
+                            (df_usuarios['USUARIO'].str.strip().str.upper() == user_limpio) & 
+                            (df_usuarios['CONTRASEÑA'].str.strip() == pass_limpio)
+                        ]
+                    if not usuario_ok.empty:
+                        estado = str(usuario_ok.iloc[0].get('ESTADO', 'PENDIENTE')).strip().upper()
+                        if estado == "APROBADO":
+                            st.session_state.usuario_logueado = True
+                            st.session_state.user_sel = user_limpio
+                            st.session_state.rol_sel = usuario_ok.iloc[0]['ROL'].strip().upper()
+                            if st.session_state.rol_sel == "SUPERVISOR":
+                                st.session_state.sup_autenticado = True
+                            sincronizar_url_sesion()
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
+                    else:
+                        st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
             else:
                 if user.strip() and password.strip():
                     exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
@@ -573,6 +589,7 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
         if "ADMINISTRADOR" in vista_admin_sel:
             st.session_state.rol_sel = "ADMINISTRADOR"
             st.session_state.user_sel = "ADMIN CENTRAL"
+            st.session_state.sup_autenticado = False
         elif "MONITOREO" in vista_admin_sel:
             st.session_state.rol_sel = "MONITOREO"
             st.session_state.user_sel = "OPERADOR CENTRAL"
@@ -585,14 +602,24 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
             st.session_state.rol_sel = "GERENCIA"
             st.session_state.user_sel = "DIRECCIÓN GENERAL"
             st.session_state.sup_autenticado = False
-        elif "SUPERVISOR" in vista_admin_sel:
-            st.session_state.rol_sel = "SUPERVISOR"
-            st.session_state.user_sel = LISTA_SUPS_TACTICOS[0] if len(LISTA_SUPS_TACTICOS) > 0 else "SUPERVISOR 1"
-            st.session_state.sup_autenticado = True
         elif "VIGILADOR" in vista_admin_sel:
             st.session_state.rol_sel = "VIGILADOR"
             st.session_state.user_sel = "VIGILADOR EN PUESTO"
             st.session_state.sup_autenticado = False
+        elif "SUPERVISOR" in vista_admin_sel:
+            st.session_state.rol_sel = "SUPERVISOR"
+            
+        if "SUPERVISOR" in vista_admin_sel or st.session_state.rol_sel == "SUPERVISOR":
+            st.markdown("---")
+            st.markdown("### 👤 SELECCIONAR SUPERVISOR")
+            nom_sup_elegido = st.selectbox("ELEGIR RESPONSABLE:", LISTA_SUPS_TACTICOS, key="selector_directo_supervisor_admin")
+            
+            if st.button("🚀 ACCEDER A ESTA VISTA", use_container_width=True):
+                st.session_state.rol_sel = "SUPERVISOR"
+                st.session_state.user_sel = nom_sup_elegido.strip().upper()
+                st.session_state.sup_autenticado = True
+                sincronizar_url_sesion()
+                st.rerun()
 
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
