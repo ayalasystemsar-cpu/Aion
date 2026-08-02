@@ -21,6 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
+from streamlit_qrcode_scanner import qrcode_scanner  # <--- IMPORTADO PARA ESCANEO REAL DE QR
 
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -264,6 +265,7 @@ def aplicar_identidad_alfa():
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         
+        /* --- OPTIMIZACIÓN CONTENEDOR PRINCIPAL DENSIDAD ESCRITORIO EN MÓVIL --- */
         .block-container {
             padding-left: 1rem !important;
             padding-right: 1rem !important;
@@ -296,6 +298,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
+        /* --- AJUSTE RESPONSIVO PARA SOLAPAS Y PESTAÑAS --- */
         .stTabs [data-baseweb="tab-list"] {
             gap: 6px !important;
             background-color: transparent !important;
@@ -321,6 +324,7 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; }
         
+        /* --- CONTROL DE TABLAS EN NAVEGADORES MÓVILES --- */
         div[data-testid="stDataFrame"] {
             width: 100% !important;
             overflow-x: auto !important;
@@ -335,6 +339,27 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
+        
+        /* --- VISOR DE CÁMARA QR: CONTENEDOR Y VISUALIZACIÓN WEB OPTIMIZADA --- */
+        div[data-testid="stCustomComponentV1"] {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            width: 100% !important;
+            min-height: 320px !important;
+        }
+
+        iframe[title*="streamlit_qrcode_scanner"] {
+            width: 100% !important;
+            max-width: 400px !important;
+            height: 350px !important;
+            border: 3px solid #00E5FF !important;
+            border-radius: 12px !important;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5) !important;
+            display: block !important;
+            margin: 0 auto !important;
+            background-color: #000000 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1091,33 +1116,46 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
 
                 st.markdown("---")
-                st.markdown("### ⚡ REGISTRO TÁCTICO POR ESCANEO / CÓDIGO")
-                st.info("Utilice su pistola lectora o escanee el código para registrar el movimiento de manera instantánea.")
+                st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
+                st.info("Seleccione el movimiento y apunte al QR. Puede usar el mismo código para Ingreso y Egreso de manera consecutiva.")
                 
-                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                codigo_ingresado = st.text_input("SCANNER / CÓDIGO QR:", key=f"input_codigo_{accion_str.lower()}", placeholder="Haga clic aquí y escanee o ingrese el código...")
+                col_b1, col_b2 = st.columns([2, 1])
+                with col_b2:
+                    if st.button("🔄 REINICIAR CÁMARA"):
+                        if "ultimo_qr_procesado" in st.session_state:
+                            del st.session_state["ultimo_qr_procesado"]
+                        st.rerun()
 
-                if codigo_ingresado and str(codigo_ingresado).strip() != "":
-                    clave_registro_actual = f"{codigo_ingresado}_{accion_str}"
+                codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
+                
+                if codigo_qr_leido is not None:
+                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
+                    
                     if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
                         st.session_state.ultimo_qr_procesado = clave_registro_actual
-                        
-                        exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                        if exito_registro:
-                            try:
-                                escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                            except:
-                                pass
-                            
-                            if accion_str == "INICIO":
-                                st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                        try:
+                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                            if exito_registro:
+                                try:
+                                    escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                                except:
+                                    pass
+                                
+                                # --- RESTAURACIÓN DE LAS LEYENDAS INFORMATIVAS DE ÉXITO ---
+                                if accion_str == "INICIO":
+                                    st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                                else:
+                                    st.success(f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
+                                
+                                st.rerun()
                             else:
-                                st.success(f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
-                            st.rerun()
-                        else:
-                            st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                        except Exception as e:
+                            st.warning(f"⚠️ Nota de sistema: {e}")
                 
                 st.markdown("---")
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
