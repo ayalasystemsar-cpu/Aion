@@ -21,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
-from streamlit_qrcode_scanner import qrcode_scanner  # <--- IMPORTADO PARA ESCANEO REAL DE QR
+from streamlit_qrcode_scanner import qrcode_scanner  # <--- ESCÁNER ORIGINAL
 
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -265,7 +265,6 @@ def aplicar_identidad_alfa():
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
         .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
         
-        /* --- OPTIMIZACIÓN CONTENEDOR PRINCIPAL DENSIDAD ESCRITORIO EN MÓVIL --- */
         .block-container {
             padding-left: 1rem !important;
             padding-right: 1rem !important;
@@ -298,7 +297,6 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* --- AJUSTE RESPONSIVO PARA SOLAPAS Y PESTAÑAS --- */
         .stTabs [data-baseweb="tab-list"] {
             gap: 6px !important;
             background-color: transparent !important;
@@ -324,7 +322,6 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; }
         
-        /* --- CONTROL DE TABLAS EN NAVEGADORES MÓVILES --- */
         div[data-testid="stDataFrame"] {
             width: 100% !important;
             overflow-x: auto !important;
@@ -340,25 +337,40 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR: CONTENEDOR Y VISUALIZACIÓN WEB OPTIMIZADA --- */
+        /* --- VISOR DE CÁMARA QR ORIGINAL --- */
         div[data-testid="stCustomComponentV1"] {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             width: 100% !important;
-            min-height: 320px !important;
+            position: relative !important;
         }
 
         iframe[title*="streamlit_qrcode_scanner"] {
             width: 100% !important;
-            max-width: 400px !important;
-            height: 350px !important;
-            border: 3px solid #00E5FF !important;
-            border-radius: 12px !important;
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5) !important;
+            max-width: 450px !important;
+            height: 450px !important;
+            border: 4px solid #00E5FF !important;
+            border-radius: 16px !important;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.7) !important;
             display: block !important;
             margin: 0 auto !important;
             background-color: #000000 !important;
+        }
+
+        div[data-testid="stCustomComponentV1"]::after {
+            content: "";
+            position: absolute;
+            width: 360px;
+            height: 360px;
+            pointer-events: none;
+            border-top: 4px solid #FFFFFF;
+            border-bottom: 4px solid #FFFFFF;
+            box-shadow: 
+                -160px -160px 0 0 #FFFFFF, 
+                 160px -160px 0 0 #FFFFFF, 
+                -160px  160px 0 0 #FFFFFF, 
+                 160px  160px 0 0 #FFFFFF;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1117,10 +1129,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO DE CÓDIGO QR DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Seleccione el movimiento y apunte al QR. Puede usar el mismo código para Ingreso y Egreso de manera consecutiva.")
+                st.info("Seleccione el movimiento y apunte al QR.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
-                
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
                 col_b1, col_b2 = st.columns([2, 1])
@@ -1132,7 +1143,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_qr_supervisor_{accion_str.lower()}")
                 
-                if codigo_qr_leido is not None:
+                if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                     clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
                     
                     if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
@@ -1145,7 +1156,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 except:
                                     pass
                                 
-                                # --- RESTAURACIÓN DE LAS LEYENDAS INFORMATIVAS DE ÉXITO ---
                                 if accion_str == "INICIO":
                                     st.success(f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!")
                                 else:
@@ -1539,7 +1549,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             df_alt_ger.columns = [str(c).strip().upper() for c in df_alt_ger.columns]
             st.dataframe(df_alt_ger[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']], use_container_width=True, hide_index=True)
             pdf_alt_ger = generar_pdf_reporte("REPORTE GERENCIAL DE ALERTAS TÁCTICAS", df_alt_ger[['FECHA', 'USUARIO', 'CARGA_UTIL', 'ESTADO']])
-            st.download_button("📥 DESCARGAR HISTÓRICO DE ALERTAS (PDF)", data=pdf_alt_ger, file_name="reporte_gerencial_alertas.pdf", mime="application/pdf", key="dl_alertas_ger")
+            st.download_button("📥 DESCARGAR HISTÓRICO DE ALERTAS (PDF)", data=pdf_alt_ger, file_name="reporte_gerencial_alertas.pdf", mime="application/pdf", key="dl_altas_ger")
         else:
             st.write("*(Sin alertas tácticas)*")
 
