@@ -280,7 +280,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* CORRECCIÓN EXCLUSIVA DE LA CÁMARA QR PARA WEB (EVITA QUE SE ESTIRE O CORTE) */
+        /* SOLUCIÓN WEB Y MÓVIL PARA EL ESCÁNER QR (MANTIENE LA CÁMARA CENTRADA Y VISIBLE SIN CORTARSE) */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
@@ -1049,6 +1049,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
+                # --- ORDEN RESTAURADO: 1. ESCÁNER ARRIBA ---
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
@@ -1086,6 +1087,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 st.markdown("---")
                 
+                # --- ORDEN RESTAURADO: 2. QR Y DATOS CLAVE ABAJO ---
                 col_qr1, col_qr2 = st.columns([1, 2])
                 with col_qr1:
                     qr_data_string = f"AION-YAROKU-OBJ:{obj_select}|ID:{datos_sel.get('ID', '0')}"
