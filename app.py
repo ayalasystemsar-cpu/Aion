@@ -1098,7 +1098,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Visor cuadrado táctico optimizado de tamaño intermedio-grande ideal para celular con esquinas que parpadean en verde
+                # Visor cuadrado táctico optimizado de tamaño intermedio-grande con alta sensibilidad de lectura y esquinas dinámicas verdes
                 componentes_html_camara = f"""
                 <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px;">
                     <div id="contenedor-visor" style="position: relative; width: 100%; max-width: 420px; height: 420px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
@@ -1111,7 +1111,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </div>
                     </div>
                     <canvas id="canvas-camara" style="display:none;"></canvas>
-                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 12px; font-size: 14px; font-weight: bold; text-align: center;">Escáner activo en tiempo real...</p>
+                    <p id="estado-camara" style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; margin-top: 12px; font-size: 14px; font-weight: bold; text-align: center;">Escáner activo en alta sensibilidad...</p>
                 </div>
 
                 <script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.min.js"></script>
@@ -1139,7 +1139,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     const estado = document.getElementById('estado-camara');
                     
                     try {{
-                        videoStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: "environment" }} }});
+                        videoStream = await navigator.mediaDevices.getUserMedia({{ 
+                            video: {{ facingMode: "environment", width: {{ ideal: 1280 }}, height: {{ ideal: 720 }} }} 
+                        }});
                         video.srcObject = videoStream;
                         estado.innerText = "Buscando código QR...";
                         requestAnimationFrame(analizarFotograma);
@@ -1164,7 +1166,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         
                         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, {{
+                            inversionAttempts: "dontInvert",
+                        }});
                         
                         if (code) {{
                             escaneandoActivo = false;
@@ -1181,7 +1185,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             
                             setTimeout(() => {{
                                 window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: code.data }}, '*');
-                            }}, 500);
+                            }}, 400);
                             return;
                         }}
                     }}
