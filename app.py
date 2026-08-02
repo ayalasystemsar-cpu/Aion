@@ -1098,15 +1098,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # Contenedor táctico maestro unificado con el componente nativo centrado y las esquinas integradas
+                # Visor único perfectamente centrado y con las esquinas blancas integradas sin duplicarse
                 st.markdown("""
-                    <div style="display: flex; flex-direction: column; align-items: center; width: 100%; background: #000; padding: 10px; border-radius: 12px;">
-                        <div style="position: relative; width: 100%; max-width: 420px; height: 380px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
+                    <div style="display: flex; justify-content: center; width: 100%; background: #000; padding: 10px; border-radius: 12px;">
+                        <div style="position: relative; width: 100%; max-width: 420px; border: 2px solid #00E5FF; border-radius: 14px; overflow: hidden; background: #050505; box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);">
                             <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none;">
-                                <div style="position: absolute; top: 20px; left: 20px; width: 35px; height: 35px; border-top: 4px solid #FFF; border-left: 4px solid #FFF;"></div>
-                                <div style="position: absolute; top: 20px; right: 20px; width: 35px; height: 35px; border-top: 4px solid #FFF; border-right: 4px solid #FFF;"></div>
-                                <div style="position: absolute; bottom: 20px; left: 20px; width: 35px; height: 35px; border-bottom: 4px solid #FFF; border-left: 4px solid #FFF;"></div>
-                                <div style="position: absolute; bottom: 20px; right: 20px; width: 35px; height: 35px; border-bottom: 4px solid #FFF; border-right: 4px solid #FFF;"></div>
+                                <div style="position: absolute; top: 15px; left: 15px; width: 30px; height: 30px; border-top: 4px solid #FFF; border-left: 4px solid #FFF;"></div>
+                                <div style="position: absolute; top: 15px; right: 15px; width: 30px; height: 30px; border-top: 4px solid #FFF; border-right: 4px solid #FFF;"></div>
+                                <div style="position: absolute; bottom: 15px; left: 15px; width: 30px; height: 30px; border-bottom: 4px solid #FFF; border-left: 4px solid #FFF;"></div>
+                                <div style="position: absolute; bottom: 15px; right: 15px; width: 30px; height: 30px; border-bottom: 4px solid #FFF; border-right: 4px solid #FFF;"></div>
                             </div>
                 """, unsafe_allow_html=True)
 
