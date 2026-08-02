@@ -296,6 +296,13 @@ def aplicar_identidad_alfa():
             text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); letter-spacing: 2px; text-transform: uppercase;
             text-align: center;
         }
+
+        /* Hacer que la barra superior/header sea transparente para que no tape la imagen ni el contenido */
+        header {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
         .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
