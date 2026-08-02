@@ -280,24 +280,32 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* SOLUCIÓN RESPONSIVA WEB/MÓVIL PARA EL ESCÁNER QR */
+        /* CORRECCIÓN ESTRICTA Y ROBUSTA PARA WEB Y MÓVIL (EVITA EL CORTE Y ESTIRAMIENTO) */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            max-width: 500px;
             margin: 10px auto 15px auto;
         }
-        .qr-scanner-container video, .qr-scanner-container div {
+        .qr-scanner-container > div {
             width: 100% !important;
-            max-width: 100% !important;
-            height: auto !important;
-            max-height: 400px !important;
-            object-fit: contain !important;
+            max-width: 480px !important;
+            margin: 0 auto !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+        }
+        .qr-scanner-container video {
+            width: 100% !important;
+            max-width: 480px !important;
+            height: 360px !important;
+            object-fit: cover !important;
             border-radius: 8px !important;
             border: 2px solid #00E5FF !important;
             background-color: #000 !important;
+            display: block !important;
+            margin: 0 auto !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -1049,7 +1057,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
-                # --- ORDEN ORIGINAL MANTENIDO (ESCÁNER ARRIBA, QR Y DATOS ABAJO) ---
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
@@ -1298,7 +1305,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
-    with tab_mensajeria:
+    with t_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
 
