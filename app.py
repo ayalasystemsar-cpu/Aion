@@ -280,32 +280,24 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* CORRECCIÓN ESTRICTA Y ROBUSTA PARA WEB Y MÓVIL (EVITA EL CORTE Y ESTIRAMIENTO) */
+        /* CORRECCIÓN EXCLUSIVA DE LA CÁMARA QR PARA WEB (EVITA QUE SE ESTIRE O CORTE) */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
+            max-width: 500px;
             margin: 10px auto 15px auto;
-        }
-        .qr-scanner-container > div {
-            width: 100% !important;
-            max-width: 480px !important;
-            margin: 0 auto !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
         }
         .qr-scanner-container video {
             width: 100% !important;
-            max-width: 480px !important;
-            height: 360px !important;
-            object-fit: cover !important;
+            max-width: 500px !important;
+            height: auto !important;
+            max-height: 400px !important;
+            object-fit: contain !important;
             border-radius: 8px !important;
             border: 2px solid #00E5FF !important;
             background-color: #000 !important;
-            display: block !important;
-            margin: 0 auto !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
