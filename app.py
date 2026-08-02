@@ -21,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
-from streamlit_qrcode_scanner import qrcode_scanner  # <--- ESCÁNER ORIGINAL
+from streamlit_qrcode_scanner import qrcode_scanner
 
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -337,40 +337,42 @@ def aplicar_identidad_alfa():
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
         
-        /* --- VISOR DE CÁMARA QR ORIGINAL --- */
+        /* --- ESTILO EXACTO DEL VISOR QR TÁCTICO (COMO LA FOTO) --- */
         div[data-testid="stCustomComponentV1"] {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             width: 100% !important;
             position: relative !important;
+            margin: 0 auto !important;
         }
 
         iframe[title*="streamlit_qrcode_scanner"] {
             width: 100% !important;
-            max-width: 450px !important;
-            height: 450px !important;
-            border: 4px solid #00E5FF !important;
-            border-radius: 16px !important;
-            box-shadow: 0 0 30px rgba(0, 229, 255, 0.7) !important;
+            max-width: 420px !important;
+            height: 420px !important;
+            border: 3px solid #00E5FF !important;
+            border-radius: 12px !important;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.6) !important;
             display: block !important;
             margin: 0 auto !important;
             background-color: #000000 !important;
         }
 
+        /* Esquinas blancas de enfoque idénticas a la referencia */
         div[data-testid="stCustomComponentV1"]::after {
             content: "";
             position: absolute;
-            width: 360px;
-            height: 360px;
+            width: 330px;
+            height: 330px;
             pointer-events: none;
             border-top: 4px solid #FFFFFF;
             border-bottom: 4px solid #FFFFFF;
             box-shadow: 
-                -160px -160px 0 0 #FFFFFF, 
-                 160px -160px 0 0 #FFFFFF, 
-                -160px  160px 0 0 #FFFFFF, 
-                 160px  160px 0 0 #FFFFFF;
+                -130px -130px 0 0 #FFFFFF, 
+                 130px -130px 0 0 #FFFFFF, 
+                -130px  130px 0 0 #FFFFFF, 
+                 130px  130px 0 0 #FFFFFF;
         }
         </style>
     """, unsafe_allow_html=True)
