@@ -558,73 +558,41 @@ df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
 
-# --- LÓGICA DE BARRA LATERAL DIFERENCIADA ---
-# SÓLO EL ADMINISTRADOR TIENE EL PANEL DE CONTROL COMPLETO EN LA BARRA LATERAL
-if st.session_state.rol_sel == "ADMINISTRADOR":
+# --- LÓGICA DE BARRA LATERAL DIFERENCIADA Y SELECTOR DE VISTAS ADMIN ---
+if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_autenticado", False):
     with st.sidebar:
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
-        st.subheader("🛡️ PANEL DE CONTROL")
+        st.subheader("⚙️ NÚCLEO MAESTRO")
         
-        if st.button("🛰️ MONITOREO", use_container_width=True):
+        vista_admin_sel = st.selectbox(
+            "MODO DE VISTA ACTIVO:", 
+            ["ADMINISTRADOR (NÚCLEO)", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "VIGILADOR"],
+            key="selector_vista_admin"
+        )
+        
+        if "ADMINISTRADOR" in vista_admin_sel:
+            st.session_state.rol_sel = "ADMINISTRADOR"
+            st.session_state.user_sel = "ADMIN CENTRAL"
+        elif "MONITOREO" in vista_admin_sel:
             st.session_state.rol_sel = "MONITOREO"
             st.session_state.user_sel = "OPERADOR CENTRAL"
             st.session_state.sup_autenticado = False
-            sincronizar_url_sesion()
-            st.rerun()
-            
-        if st.button("📋 JEFE DE OPERACIONES", use_container_width=True):
+        elif "JEFE DE OPERACIONES" in vista_admin_sel:
             st.session_state.rol_sel = "JEFE DE OPERACIONES"
             st.session_state.user_sel = "JEFE DE OPERACIONES"
             st.session_state.sup_autenticado = False
-            sincronizar_url_sesion()
-            st.rerun()
-            
-        if st.button("🏢 GERENCIA", use_container_width=True):
+        elif "GERENCIA" in vista_admin_sel:
             st.session_state.rol_sel = "GERENCIA"
             st.session_state.user_sel = "DIRECCIÓN GENERAL"
             st.session_state.sup_autenticado = False
-            sincronizar_url_sesion()
-            st.rerun()
-
-        with st.expander("👤 SUPERVISORES", expanded=False):
-            nom_sup = st.selectbox("RESPONSABLE ACTIVO:", LISTA_SUPS_TACTICOS, key="cambio_supervisor_directo")
-            user_sup = st.text_input("USUARIO RECURSO (APELLIDO)", key="auth_user_sup")
-            pass_sup = st.text_input("CONTRASEÑA CRÍTICA", type="password", key="auth_pass_sup")
-            
-            if st.button("AUTENTICAR E INGRESAR", use_container_width=True):
-                if "NOCTURNO" in nom_sup: usuario_esperado = "nocturno"
-                elif "AYALA" in nom_sup: usuario_esperado = "ayala"
-                else: usuario_esperado = nom_sup.split(" ")[-1].lower()
-                
-                if user_sup.strip().lower() in [usuario_esperado, nom_sup.strip().lower()] or pass_sup == "1234":
-                    st.session_state.rol_sel = "SUPERVISOR"
-                    st.session_state.user_sel = nom_sup.strip().upper()
-                    st.session_state.sup_autenticado = True
-                    sincronizar_url_sesion()
-                    st.success(f"🔓 ACCESO CONCEDIDO: {nom_sup}")
-                    st.rerun()
-                else:
-                    st.session_state.sup_autenticado = False
-                    st.error("❌ CREDENCIALES INVÁLIDAS EN BASE")
-
-        st.write("---")
-        if st.button("👮 VIGILADOR (ACCESO PUESTO)", use_container_width=True):
+        elif "SUPERVISOR" in vista_admin_sel:
+            st.session_state.rol_sel = "SUPERVISOR"
+            st.session_state.user_sel = LISTA_SUPS_TACTICOS[0] if len(LISTA_SUPS_TACTICOS) > 0 else "SUPERVISOR 1"
+            st.session_state.sup_autenticado = True
+        elif "VIGILADOR" in vista_admin_sel:
             st.session_state.rol_sel = "VIGILADOR"
             st.session_state.user_sel = "VIGILADOR EN PUESTO"
             st.session_state.sup_autenticado = False
-            sincronizar_url_sesion()
-            st.rerun()
-
-        st.write("---")
-        st.markdown("**⚙️ ADMINISTRADOR**")
-        if st.button("ACCEDER AL NÚCLEO MAESTRO", use_container_width=True):
-            st.session_state.usuario_logueado = True
-            st.session_state.rol_sel = "ADMINISTRADOR"
-            st.session_state.user_sel = "ADMIN CENTRAL"
-            st.session_state.admin_autenticado = True
-            st.session_state.sup_autenticado = False
-            sincronizar_url_sesion()
-            st.rerun()
 
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
@@ -647,7 +615,6 @@ else:
 # --- BIENVENIDA AUTOMÁTICA Y VISUAL PARA ROLES OPERATIVOS ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-# Cartel de bienvenida copado y estilizado según el rol
 st.markdown(f"""
     <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid #00E5FF; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);">
         <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 18px; font-weight: bold; text-transform: uppercase;">⚡ BIENVENIDO A LA ESTACIÓN TÁCTICA AION-YAROKU ⚡</span><br>
