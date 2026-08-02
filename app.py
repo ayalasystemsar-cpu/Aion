@@ -280,25 +280,25 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* ESTILO RESPONSIVO ADAPTADO PARA EVITAR CORTES EN WEB Y MÓVIL */
+        /* ESCÁNER UBICADO MÁS ARRIBA Y ADAPTADO PARA WEB Y MÓVIL SIN CORTES */
         .qr-scanner-container {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            max-width: 450px;
-            margin: 10px auto 15px auto;
+            max-width: 400px;
+            margin: 5px auto 10px auto;
             overflow: hidden;
+            border-radius: 8px;
+            background: #000;
         }
-        .qr-scanner-container video, .qr-scanner-container canvas {
+        .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
             width: 100% !important;
-            max-width: 450px !important;
-            height: auto !important;
-            max-height: 350px !important;
+            max-width: 400px !important;
+            height: 280px !important;
             object-fit: cover !important;
             border-radius: 8px !important;
             border: 2px solid #00E5FF !important;
-            background-color: #000 !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -1052,7 +1052,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 st.markdown("---")
                 
-                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA CON SU CARTEL (ADAPTADO) ---
+                # --- ORDEN INVERSO EXACTO: 1. ESCÁNER ARRIBA (UBICADO MÁS ARRIBA) ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
                 
@@ -1060,9 +1060,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
                 st.markdown("""
-                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 10px; text-align: center; margin: 10px 0; background: rgba(0, 229, 255, 0.05);">
-                        <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 13px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
-                        <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 11px;">Acerque el código QR para lectura instantánea.</span>
+                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 8px; text-align: center; margin: 5px 0; background: rgba(0, 229, 255, 0.05);">
+                        <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
+                        <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
                     </div>
                 """, unsafe_allow_html=True)
 
