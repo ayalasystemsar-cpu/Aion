@@ -190,7 +190,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     return escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
 
 def obtener_lista_supervisores_dinamica():
-    base = ["AYALA BRIAN"]
+    base = []
     df_u = leer_matriz_nube("USUARIOS")
     if not df_u.empty:
         col_r = 'ROL' if 'ROL' in df_u.columns else 'ROLES'
@@ -568,10 +568,9 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
                 
-            elif modo == "Iniciar Sesión" and rol_usuario == "SUPERVISOR" and (user_limpio.startswith("SUPERVISOR") or user_limpio in ["AYALA BRIAN", "AYALA", "CONTROLADOR NOCTURNO"] or pass_limpio == "1234"):
-                usuario_final = "AYALA BRIAN" if user_limpio in ["AYALA BRIAN", "AYALA"] else user_limpio
+            elif modo == "Iniciar Sesión" and rol_usuario == "SUPERVISOR" and (user_limpio.startswith("SUPERVISOR") or pass_limpio == "1234"):
                 st.session_state.usuario_logueado = True
-                st.session_state.user_sel = usuario_final
+                st.session_state.user_sel = user_limpio
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.sup_autenticado = True
                 st.session_state.admin_autenticado = False
@@ -704,14 +703,16 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
         if "SUPERVISOR" in vista_admin_sel or st.session_state.rol_sel == "SUPERVISOR":
             st.markdown("---")
             st.markdown("### 👤 SELECCIONAR SUPERVISOR")
-            nom_sup_elegido = st.selectbox("ELEGIR RESPONSABLE:", LISTA_SUPS_TACTICOS, key="selector_directo_supervisor_admin")
-            
-            if st.button("🚀 ACCEDER A ESTA VISTA", use_container_width=True):
-                st.session_state.rol_sel = "SUPERVISOR"
-                st.session_state.user_sel = nom_sup_elegido.strip().upper()
-                st.session_state.sup_autenticado = True
-                sincronizar_url_sesion()
-                st.rerun()
+            if len(LISTA_SUPS_TACTICOS) > 0:
+                nom_sup_elegido = st.selectbox("ELEGIR RESPONSABLE:", LISTA_SUPS_TACTICOS, key="selector_directo_supervisor_admin")
+                if st.button("🚀 ACCEDER A ESTA VISTA", use_container_width=True):
+                    st.session_state.rol_sel = "SUPERVISOR"
+                    st.session_state.user_sel = nom_sup_elegido.strip().upper()
+                    st.session_state.sup_autenticado = True
+                    sincronizar_url_sesion()
+                    st.rerun()
+            else:
+                st.info("No hay supervisores aprobados aún en la red.")
 
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
@@ -751,7 +752,7 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 
 # =========================================================================
-# ROL: MONITOREO (REORGANIZADO POR SUPERVISOR)
+# ROL: MONITOREO (REORGANIZADO DINÁMICAMENTE POR SUPERVISOR)
 # =========================================================================
 if st.session_state.rol_sel == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
@@ -1042,23 +1043,19 @@ if st.session_state.rol_sel == "MONITOREO":
         df_pres_m_base = leer_matriz_nube("PRESENTISMO")
         df_alt_m_base = leer_matriz_nube("ALERTAS")
 
-        # Recopilación dinámica exclusiva de supervisores reales
         sups_reales_mono = LISTA_SUPS_TACTICOS
 
         if len(sups_reales_mono) > 0:
-            # Pestañas principales para cada Supervisor en Monitoreo
             tabs_sups_monitoreo = st.tabs([f"👤 {sup}" for sup in sups_reales_mono])
 
             for idx_sup_m, sup_item in enumerate(sups_reales_mono):
                 with tabs_sups_monitoreo[idx_sup_m]:
                     st.markdown(f"#### 🛡️ PANEL DE CONTROL Y REGISTROS: **{sup_item}**")
                     
-                    # Sub-pestañas para cada tipo de registro dentro del supervisor seleccionado
                     sub_tab_qr_mono, sub_tab_ficha_mono, sub_tab_rel_mono, sub_tab_alt_mono, sub_tab_pan_mono = st.tabs([
                         "📱 Fichajes QR", "📋 Fichaje Vigiladores", "🔄 Relevos", "⚠️ Alertas", "🚨 Pánicos S.O.S"
                     ])
 
-                    # 1. Fichajes QR del Supervisor
                     with sub_tab_qr_mono:
                         if not df_qr_m_base.empty:
                             df_qr_m_base.columns = [str(c).strip().upper() for c in df_qr_m_base.columns]
@@ -1074,7 +1071,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         else:
                             st.info("No hay datos de fichajes QR.")
 
-                    # 2. Fichaje de Vigiladores en sus objetivos
                     with sub_tab_ficha_mono:
                         if not df_pres_m_base.empty:
                             df_pres_m_base.columns = [str(c).strip().upper() for c in df_pres_m_base.columns]
@@ -1102,7 +1098,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         else:
                             st.info("No hay fichajes de vigiladores registrados.")
 
-                    # 3. Relevos de Vigiladores en sus objetivos
                     with sub_tab_rel_mono:
                         if not df_vig_rel_m_base.empty:
                             df_vig_rel_m_base.columns = [str(c).strip().upper() for c in df_vig_rel_m_base.columns]
@@ -1123,7 +1118,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         else:
                             st.info("No hay relevos de vigiladores registrados.")
 
-                    # 4. Alertas Operativas
                     with sub_tab_alt_mono:
                         if not df_alt_m_base.empty:
                             df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
@@ -1142,7 +1136,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         else:
                             st.info("Sin alertas operativas registradas.")
 
-                    # 5. Pánicos S.O.S
                     with sub_tab_pan_mono:
                         if not df_alt_m_base.empty:
                             df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
