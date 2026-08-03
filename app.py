@@ -1179,7 +1179,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.markdown("---")
             st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
             if not df_objetivos_filtrados.empty:
-                obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                obj_select = st.selectbox("Seleccione su Objetivo Asignedo:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
                 st.markdown("---")
@@ -1265,11 +1265,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
                     v_km_ini = c_a.number_input("KM INICIAL:", min_value=0)
                     v_km_fin = c_b.number_input("KM FINAL:", min_value=0)
-                    v_comb = c_b.selectbox("COMBUSTIBLE:", ["NO", "SI - MEDIA CARGA", "SI - TANQUE LLENO"])
+                    v_combustible = c_a.selectbox("TIPO DE COMBUSTIBLE:", ["NAFTA SÚPER", "NAFTA PREMIUM", "GASOIL", "OTRO"])
+                    v_monto = c_b.number_input("MONTO CARGADO ($):", min_value=0.0, step=100.0)
                     v_vig = st.text_input("SUPERVISOR RESPONSABLE:", value=st.session_state.user_sel).upper()
+                    
                     if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                        escribir_registro_nube("CONTROL_FLOTA", [obtener_hora_argentina(), v_vig, v_patente, v_km_ini, v_km_fin, v_comb])
-                        st.success(f"✅ Acta registrada. Distancia recorrida: {v_km_fin - v_km_ini} km")
+                        km_recorridos = v_km_fin - v_km_ini
+                        fecha_reg = obtener_hora_argentina()
+                        # Guardamos en la nube: FECHA, SUPERVISOR, PATENTE, KM_INI, KM_FIN, KM_TOTAL, COMBUSTIBLE, MONTO
+                        escribir_registro_nube("CONTROL_FLOTA", [fecha_reg, v_vig, v_patente, str(v_km_ini), str(v_km_fin), str(km_recorridos), v_combustible, str(v_monto)])
+                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_recorridos} km | Gasto: ${v_monto}")
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
 
@@ -1368,6 +1373,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.info("No hay relevos registrados en tus objetivos asignados.")
             else:
                 st.info("No tienes objetivos asignados o no hay relevos en la base.")
+
+            st.markdown("---")
+            st.markdown(f"#### 🚗 CONTROL DE FLOTA REGISTRADO")
+            df_flota_sup = leer_matriz_nube("CONTROL_FLOTA")
+            if not df_flota_sup.empty:
+                df_flota_sup.columns = [str(c).strip().upper() for c in df_flota_sup.columns]
+                col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_sup.columns else (df_flota_sup.columns[1] if len(df_flota_sup.columns) > 1 else None)
+                if col_sup_f:
+                    df_flota_propio = df_flota_sup[df_flota_sup[col_sup_f].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+                    if not df_flota_propio.empty:
+                        st.dataframe(df_flota_propio.iloc[::-1], use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No tienes registros de flota cargados.")
+                else:
+                    st.dataframe(df_flota_sup.iloc[::-1], use_container_width=True, hide_index=True)
+            else:
+                st.info("Sin registros de flota en el sistema.")
 
             st.markdown("---")
             st.markdown("#### 🚨 ALERTAS DE PÁNICO DE TUS OBJETIVOS")
@@ -1514,7 +1536,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: JEFE DE OPERACIONES</h2>', unsafe_allow_html=True)
     
-    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA"])
+    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria, t_tab_flota_jefe = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA", "🚗 CONTROL DE FLOTA"])
     
     with t_mensajeria_jefe:
         renderizar_mensajeria_global("JEFE DE OPERACIONES")
@@ -1667,6 +1689,17 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.info("Esperando escaneos QR para procesar el consolidado de tiempos.")
 
+    with t_tab_flota_jefe:
+        st.markdown("### 🚗 AUDITORÍA Y CONTROL DE FLOTA (KILOMETRAJE Y COMBUSTIBLE)")
+        df_flota_jefe = leer_matriz_nube("CONTROL_FLOTA")
+        if not df_flota_jefe.empty:
+            df_flota_jefe.columns = [str(c).strip().upper() for c in df_flota_jefe.columns]
+            st.dataframe(df_flota_jefe.iloc[::-1], use_container_width=True, hide_index=True)
+            pdf_flota_j = generar_pdf_reporte("REPORTE OPERATIVO - CONTROL DE FLOTA", df_flota_jefe)
+            st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota_j, file_name="reporte_control_flota.pdf", mime="application/pdf", key="dl_flota_jefe_pdf")
+        else:
+            st.info("No hay registros de flota cargados en el sistema.")
+
 
 # =========================================================================
 # ROL: GERENCIA
@@ -1698,7 +1731,7 @@ elif st.session_state.rol_sel == "GERENCIA":
     st.write("---")
     st.markdown('<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: DIRECCIÓN GENERAL</h2>', unsafe_allow_html=True)
     
-    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA"])
+    t_mensajeria_ger, t_ejecucion_ger, t_tab_auditoria, t_tab_flota_ger = st.tabs(["💬 MENSAJERÍA GLOBAL", "🎮 EJECUCIÓN", "📍 TABLERO DE AUDITORÍA", "🚗 CONTROL DE FLOTA"])
     
     with t_mensajeria_ger:
         renderizar_mensajeria_global("GERENCIA")
@@ -1850,6 +1883,17 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.info("No hay registros de supervisores en el sistema.")
         else:
             st.info("Esperando escaneos QR para procesar el consolidado de tiempos.")
+
+    with t_tab_flota_ger:
+        st.markdown("### 🚗 CONTROL DE FLOTA GENERAL (KILOMETRAJE Y COMBUSTIBLE)")
+        df_flota_gerente = leer_matriz_nube("CONTROL_FLOTA")
+        if not df_flota_gerente.empty:
+            df_flota_gerente.columns = [str(c).strip().upper() for c in df_flota_gerente.columns]
+            st.dataframe(df_flota_gerente.iloc[::-1], use_container_width=True, hide_index=True)
+            pdf_flota_g = generar_pdf_reporte("REPORTE GERENCIAL - CONTROL DE FLOTA", df_flota_gerente)
+            st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota_g, file_name="reporte_gerencial_flota.pdf", mime="application/pdf", key="dl_flota_ger_pdf")
+        else:
+            st.info("No hay registros de flota cargados en el sistema.")
 
         st.markdown("---")
         st.markdown("### 🔒 PROTOCOLO DE CIERRE TÁCTICO MENSUAL")
