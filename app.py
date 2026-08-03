@@ -1105,11 +1105,27 @@ if st.session_state.rol_sel == "MONITOREO":
                             
                             if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_m_base.columns:
                                 df_nov_m_base['OBJETIVO_CLEAN'] = df_nov_m_base['OBJETIVO'].astype(str).str.strip().str.upper()
-                                df_fichajes_sup_filtrado = df_nov_m_base[df_nov_m_base['OBJETIVO_CLEAN'].isin(objs_del_sup)]
+                                df_fichajes_sup_filtrado = df_nov_m_base[df_nov_m_base['OBJETIVO_CLEAN'].isin(objs_del_sup)].copy()
                                 
                                 if not df_fichajes_sup_filtrado.empty:
-                                    st.dataframe(df_fichajes_sup_filtrado.drop(columns=['OBJETIVO_CLEAN']).iloc[::-1], use_container_width=True, hide_index=True)
-                                    pdf_pres_sup_m = generar_pdf_reporte(f"MONITOREO - NOVEDADES Y FICHAJES ({sup_item})", df_fichajes_sup_filtrado.drop(columns=['OBJETIVO_CLEAN']))
+                                    # Limpieza y orden de columnas solicitado por el usuario
+                                    cols_actuales = list(df_fichajes_sup_filtrado.columns)
+                                    # Supongamos columnas típicas: FECHA_HORA, OBJETIVO, TIPO_EVENTO, CAMPO3, NOMBRE, LEGAJO/DNI, ESTADO, SUPERVISOR...
+                                    # Vamos a mapear de forma segura o renombrar según las posiciones lógicas:
+                                    # 1: Fecha/Hora, 2: Objetivo, 3: Evento, 4: Nombre (Ingreso), 5: Legajo, 6: Estado
+                                    df_limpia = pd.DataFrame()
+                                    if len(cols_actuales) >= 8:
+                                        df_limpia["FECHA Y HORA"] = df_fichajes_sup_filtrado.iloc[:, 0]
+                                        df_limpia["OBJETIVO"] = df_fichajes_sup_filtrado.iloc[:, 1]
+                                        df_limpia["EVENTO"] = df_fichajes_sup_filtrado.iloc[:, 2]
+                                        df_limpia["NOMBRE / INGRESO"] = df_fichajes_sup_filtrado.iloc[:, 4]
+                                        df_limpia["LEGAJO"] = df_fichajes_sup_filtrado.iloc[:, 5]
+                                        df_limpia["ESTADO"] = df_fichajes_sup_filtrado.iloc[:, 6]
+                                    else:
+                                        df_limpia = df_fichajes_sup_filtrado.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
+
+                                    st.dataframe(df_limpia.iloc[::-1], use_container_width=True, hide_index=True)
+                                    pdf_pres_sup_m = generar_pdf_reporte(f"MONITOREO - NOVEDADES Y FICHAJES ({sup_item})", df_limpia)
                                     st.download_button(f"📥 DESCARGAR NOVEDADES DE {sup_item} (PDF)", data=pdf_pres_sup_m, file_name=f"monitoreo_novedades_{sup_item.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_fichajes_sup_mono_{idx_sup_m}")
                                 else:
                                     st.info(f"No hay registros de novedades para los objetivos de {sup_item}.")
@@ -1542,11 +1558,24 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_nov_sup_base.columns = [str(c).strip().upper() for c in df_nov_sup_base.columns]
                 if 'OBJETIVO' in df_nov_sup_base.columns:
                     df_nov_sup_base['OBJETIVO_CLEAN'] = df_nov_sup_base['OBJETIVO'].astype(str).str.strip().str.upper()
-                    df_fich_sup_filtrado = df_nov_sup_base[df_nov_sup_base['OBJETIVO_CLEAN'].isin(lista_objs_supervisor)]
+                    df_fich_sup_filtrado = df_nov_sup_base[df_nov_sup_base['OBJETIVO_CLEAN'].isin(lista_objs_supervisor)].copy()
                     
                     if not df_fich_sup_filtrado.empty:
-                        st.dataframe(df_fich_sup_filtrado.drop(columns=['OBJETIVO_CLEAN']).iloc[::-1], use_container_width=True, hide_index=True)
-                        pdf_fich_sup_dl = generar_pdf_reporte(f"NOVEDADES DE GUARDIA - {sup_activo_normalizado}", df_fich_sup_filtrado.drop(columns=['OBJETIVO_CLEAN']))
+                        # Limpieza y orden de columnas solicitado por el usuario (Fecha/Hora, Objetivo, Evento, Nombre/Ingreso, Legajo, Estado)
+                        cols_actuales = list(df_fich_sup_filtrado.columns)
+                        df_limpia_sup = pd.DataFrame()
+                        if len(cols_actuales) >= 8:
+                            df_limpia_sup["FECHA Y HORA"] = df_fich_sup_filtrado.iloc[:, 0]
+                            df_limpia_sup["OBJETIVO"] = df_fich_sup_filtrado.iloc[:, 1]
+                            df_limpia_sup["EVENTO"] = df_fich_sup_filtrado.iloc[:, 2]
+                            df_limpia_sup["NOMBRE / INGRESO"] = df_fich_sup_filtrado.iloc[:, 4]  # Columna de nombre/vigilante
+                            df_limpia_sup["LEGAJO"] = df_fich_sup_filtrado.iloc[:, 5]          # Columna de legajo/dni renombrada
+                            df_limpia_sup["ESTADO"] = df_fich_sup_filtrado.iloc[:, 6]
+                        else:
+                            df_limpia_sup = df_fich_sup_filtrado.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
+
+                        st.dataframe(df_limpia_sup.iloc[::-1], use_container_width=True, hide_index=True)
+                        pdf_fich_sup_dl = generar_pdf_reporte(f"NOVEDADES DE GUARDIA - {sup_activo_normalizado}", df_limpia_sup)
                         st.download_button("📥 DESCARGAR NOVEDADES DE VIGILADORES (PDF)", data=pdf_fich_sup_dl, file_name=f"novedades_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_fich_sup_vig")
                     else:
                         st.info("No hay novedades registradas en tus objetivos asignados.")
