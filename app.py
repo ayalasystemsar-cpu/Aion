@@ -173,7 +173,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     except:
         pass
 
-    # Incluimos los datos completos de la comisaria detectada para que se plasmen directamente en la nube
     comisaria_formateada = f"{comisaria_encontrada} - {direccion_comisaria}, {localidad_comisaria} (~{distancia_minima:.2f} KM)"
 
     datos_nuevo_obj = [
@@ -596,7 +595,7 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCION GENERAL"] or pass_limpio == "1234"):
+            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCIÓN GENERAL"] or pass_limpio == "1234"):
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = "DIRECCIÓN GENERAL"
                 st.session_state.rol_sel = "GERENCIA"
@@ -1394,7 +1393,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
                         if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                            # Utilizamos la nueva función que calcula automáticamente la comisaría más cercana con su dirección y localidad
                             exito_alta = registrar_objetivo_con_comisaria_automatica(
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
@@ -1478,8 +1476,39 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_flota_sup.columns = [str(c).strip().upper() for c in df_flota_sup.columns]
                 col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_sup.columns else (df_flota_sup.columns[1] if len(df_flota_sup.columns) > 1 else None)
                 if col_sup_f:
-                    df_flota_propio = df_flota_sup[df_flota_sup[col_sup_f].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+                    df_flota_propio = df_flota_sup[df_flota_sup[col_sup_f].astype(str).str.strip().str.upper() == sup_activo_normalizado].copy()
                     if not df_flota_propio.empty:
+                        df_flota_propio.columns = [str(c).strip().upper() for c in df_flota_propio.columns]
+                        
+                        mapa_f = {}
+                        for c in df_flota_propio.columns:
+                            if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
+                            elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
+                            elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
+                            elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
+                            elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
+                            elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
+                        
+                        df_flota_propio = df_flota_propio.rename(columns=mapa_f)
+                        
+                        # Conversión y cálculo estricto de costo por kilómetro y auditoría
+                        for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
+                            if col_num in df_flota_propio.columns:
+                                df_flota_propio[col_num] = pd.to_numeric(df_flota_propio[col_num].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').fillna(0)
+                        
+                        if 'KM TOTAL' in df_flota_propio.columns and 'MONTO CARGADO ($)' in df_flota_propio.columns:
+                            df_flota_propio['COSTO x KM ($)'] = df_flota_propio.apply(
+                                lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
+                            )
+                            df_flota_propio['ESTADO AUDITORÍA'] = df_flota_propio['COSTO x KM ($)'].apply(
+                                lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
+                            )
+
+                        cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
+                        cols_finales_disp = [c for c in cols_deseadas if c in df_flota_propio.columns]
+                        if cols_finales_disp:
+                            df_flota_propio = df_flota_propio[cols_finales_disp]
+
                         st.dataframe(df_flota_propio.iloc[::-1], use_container_width=True, hide_index=True)
                     else:
                         st.info("No tienes registros de flota cargados.")
@@ -2073,7 +2102,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
 
         with t_adm_mantenimiento:
-            st.markdown("#### 🛡️ CENTRO DE RESPALDO Y CAJA FUERTE DIGITAL")
+            st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
             if not df_obj_m.empty:
                 pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
                 st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
