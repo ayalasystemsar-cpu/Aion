@@ -1550,47 +1550,55 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
 
-        if not df_jornada_aud.empty and not df_qr_aud.empty:
-            df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
+        if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
+            if not df_jornada_aud.empty:
+                df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
 
             reporte_consolidado = []
-            supervisores_en_qr = df_qr_aud['SUPERVISOR'].unique() if 'SUPERVISOR' in df_qr_aud.columns else []
+            col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_aud.columns else df_qr_aud.columns[3]
+            col_obj_q = 'OBJETIVO' if 'OBJETIVO' in df_qr_aud.columns else df_qr_aud.columns[1]
+            col_acc_q = 'ACCION' if 'ACCION' in df_qr_aud.columns else df_qr_aud.columns[2]
+            col_fec_q = 'FECHA_HORA' if 'FECHA_HORA' in df_qr_aud.columns else df_qr_aud.columns[0]
+
+            supervisores_en_qr = df_qr_aud[col_sup_q].unique() if col_sup_q in df_qr_aud.columns else []
 
             for sup in supervisores_en_qr:
-                df_sup_qrs = df_qr_aud[df_qr_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
-                df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
                 
                 inicio_jornada_gral = "---"
                 fin_jornada_gral = "---"
                 
-                if not df_sup_jor.empty:
-                    inicios_j = df_sup_jor[df_sup_jor['ACCION'].astype(str).str.strip().str.upper() == 'INICIO']
-                    fines_j = df_sup_jor[df_sup_jor['ACCION'].astype(str).str.strip().str.upper() == 'FIN']
-                    if not inicios_j.empty:
-                        inicio_jornada_gral = inicios_j.iloc[0].get('HORA', inicios_j.iloc[0].get('FECHA_HORA', '---'))
-                    if not fines_j.empty:
-                        fin_jornada_gral = fines_j.iloc[-1].get('HORA', fines_j.iloc[-1].get('FECHA_HORA', '---'))
+                if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
+                    df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                    if not df_sup_jor.empty:
+                        col_acc_j = 'ACCION' if 'ACCION' in df_sup_jor.columns else df_sup_jor.columns[3]
+                        col_hora_j = 'HORA' if 'HORA' in df_sup_jor.columns else df_sup_jor.columns[4]
+                        
+                        inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
+                        fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
+                        if not inicios_j.empty:
+                            inicio_jornada_gral = str(inicios_j.iloc[0].get(col_hora_j, '---'))
+                        if not fines_j.empty:
+                            fin_jornada_gral = str(fines_j.iloc[-1].get(col_hora_j, '---'))
 
-                objetivos_del_sup = df_sup_qrs['OBJETIVO'].unique() if 'OBJETIVO' in df_sup_qrs.columns else []
-                total_minutos_objetivos = 0
+                objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
 
                 for obj in objetivos_del_sup:
-                    df_obj_t = df_sup_qrs[df_sup_qrs['OBJETIVO'].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
-                    inicios_obj = df_obj_t[df_obj_t['ACCION'].astype(str).str.strip().str.upper() == 'INICIO']
-                    fines_obj = df_obj_t[df_obj_t['ACCION'].astype(str).str.strip().str.upper() == 'FIN']
+                    df_obj_t = df_sup_qrs[df_sup_qrs[col_obj_q].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
+                    inicios_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'INICIO']
+                    fines_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'FIN']
                     
                     hora_ingreso_obj = "---"
                     hora_egreso_obj = "---"
                     tiempo_permanencia_str = "En curso / Sin egreso"
-                    minutos_permanencia = 0
 
                     if not inicios_obj.empty:
-                        fh_ingreso = str(inicios_obj.iloc[-1].get('FECHA_HORA', ''))
+                        fh_ingreso = str(inicios_obj.iloc[-1].get(col_fec_q, ''))
                         hora_ingreso_obj = fh_ingreso.split(" ")[1] if " " in fh_ingreso else fh_ingreso
 
                     if not fines_obj.empty:
-                        fh_egreso = str(fines_obj.iloc[-1].get('FECHA_HORA', ''))
+                        fh_egreso = str(fines_obj.iloc[-1].get(col_fec_q, ''))
                         hora_egreso_obj = fh_egreso.split(" ")[1] if " " in fh_egreso else fh_egreso
 
                     if not inicios_obj.empty and not fines_obj.empty:
@@ -1600,7 +1608,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             if t_egr >= t_ing:
                                 diff = t_egr - t_ing
                                 minutos_permanencia = int(diff.total_seconds() // 60)
-                                total_minutos_objetivos += minutos_permanencia
                                 h_p = minutos_permanencia // 60
                                 m_p = minutos_permanencia % 60
                                 tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
@@ -1626,7 +1633,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             else:
                 st.info("No hay suficientes registros cruzados de QR para calcular las permanencias aún.")
         else:
-            st.info("Esperando registros de jornadas y escaneos QR para procesar el consolidado de tiempos.")
+            st.info("Esperando escaneos QR para procesar el consolidado de tiempos.")
 
         st.markdown("---")
         st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN Y DESCARGAS PDF")
@@ -1729,47 +1736,55 @@ elif st.session_state.rol_sel == "GERENCIA":
         df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
 
-        if not df_jornada_aud.empty and not df_qr_aud.empty:
-            df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
+        if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
+            if not df_jornada_aud.empty:
+                df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
 
             reporte_consolidado = []
-            supervisores_en_qr = df_qr_aud['SUPERVISOR'].unique() if 'SUPERVISOR' in df_qr_aud.columns else []
+            col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_aud.columns else df_qr_aud.columns[3]
+            col_obj_q = 'OBJETIVO' if 'OBJETIVO' in df_qr_aud.columns else df_qr_aud.columns[1]
+            col_acc_q = 'ACCION' if 'ACCION' in df_qr_aud.columns else df_qr_aud.columns[2]
+            col_fec_q = 'FECHA_HORA' if 'FECHA_HORA' in df_qr_aud.columns else df_qr_aud.columns[0]
+
+            supervisores_en_qr = df_qr_aud[col_sup_q].unique() if col_sup_q in df_qr_aud.columns else []
 
             for sup in supervisores_en_qr:
-                df_sup_qrs = df_qr_aud[df_qr_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
-                df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
                 
                 inicio_jornada_gral = "---"
                 fin_jornada_gral = "---"
                 
-                if not df_sup_jor.empty:
-                    inicios_j = df_sup_jor[df_sup_jor['ACCION'].astype(str).str.strip().str.upper() == 'INICIO']
-                    fines_j = df_sup_jor[df_sup_jor['ACCION'].astype(str).str.strip().str.upper() == 'FIN']
-                    if not inicios_j.empty:
-                        inicio_jornada_gral = inicios_j.iloc[0].get('HORA', inicios_j.iloc[0].get('FECHA_HORA', '---'))
-                    if not fines_j.empty:
-                        fin_jornada_gral = fines_j.iloc[-1].get('HORA', fines_j.iloc[-1].get('FECHA_HORA', '---'))
+                if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
+                    df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                    if not df_sup_jor.empty:
+                        col_acc_j = 'ACCION' if 'ACCION' in df_sup_jor.columns else df_sup_jor.columns[3]
+                        col_hora_j = 'HORA' if 'HORA' in df_sup_jor.columns else df_sup_jor.columns[4]
+                        
+                        inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
+                        fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
+                        if not inicios_j.empty:
+                            inicio_jornada_gral = str(inicios_j.iloc[0].get(col_hora_j, '---'))
+                        if not fines_j.empty:
+                            fin_jornada_gral = str(fines_j.iloc[-1].get(col_hora_j, '---'))
 
-                objetivos_del_sup = df_sup_qrs['OBJETIVO'].unique() if 'OBJETIVO' in df_sup_qrs.columns else []
-                total_minutos_objetivos = 0
+                objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
 
                 for obj in objetivos_del_sup:
-                    df_obj_t = df_sup_qrs[df_sup_qrs['OBJETIVO'].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
-                    inicios_obj = df_obj_t[df_obj_t['ACCION'].astype(str).str.strip().str.upper() == 'INICIO']
-                    fines_obj = df_obj_t[df_obj_t['ACCION'].astype(str).str.strip().str.upper() == 'FIN']
+                    df_obj_t = df_sup_qrs[df_sup_qrs[col_obj_q].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
+                    inicios_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'INICIO']
+                    fines_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'FIN']
                     
                     hora_ingreso_obj = "---"
                     hora_egreso_obj = "---"
                     tiempo_permanencia_str = "En curso / Sin egreso"
-                    minutos_permanencia = 0
 
                     if not inicios_obj.empty:
-                        fh_ingreso = str(inicios_obj.iloc[-1].get('FECHA_HORA', ''))
+                        fh_ingreso = str(inicios_obj.iloc[-1].get(col_fec_q, ''))
                         hora_ingreso_obj = fh_ingreso.split(" ")[1] if " " in fh_ingreso else fh_ingreso
 
                     if not fines_obj.empty:
-                        fh_egreso = str(fines_obj.iloc[-1].get('FECHA_HORA', ''))
+                        fh_egreso = str(fines_obj.iloc[-1].get(col_fec_q, ''))
                         hora_egreso_obj = fh_egreso.split(" ")[1] if " " in fh_egreso else fh_egreso
 
                     if not inicios_obj.empty and not fines_obj.empty:
@@ -1779,7 +1794,6 @@ elif st.session_state.rol_sel == "GERENCIA":
                             if t_egr >= t_ing:
                                 diff = t_egr - t_ing
                                 minutos_permanencia = int(diff.total_seconds() // 60)
-                                total_minutos_objetivos += minutos_permanencia
                                 h_p = minutos_permanencia // 60
                                 m_p = minutos_permanencia % 60
                                 tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
@@ -1805,7 +1819,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             else:
                 st.info("No hay suficientes registros cruzados de QR para calcular las permanencias aún.")
         else:
-            st.info("Esperando registros de jornadas y escaneos QR para procesar el consolidado de tiempos.")
+            st.info("Esperando escaneos QR para procesar el consolidado de tiempos.")
 
         st.markdown("---")
         st.markdown("### 📋 TABLERO GERENCIAL Y DESCARGAS PDF")
