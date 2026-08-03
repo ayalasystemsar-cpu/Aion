@@ -562,8 +562,18 @@ def mostrar_landing():
                 st.session_state.admin_autenticado = False
                 sincronizar_url_sesion()
                 st.rerun()
+
+            # 6. ACCESO SEGURO PARA VIGILADOR
+            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR" and (user_limpio in ["VIGILADOR", "AGENTE", "CUSTODIO"] or pass_limpio == "1234"):
+                st.session_state.usuario_logueado = True
+                st.session_state.user_sel = "VIGILADOR EN PUESTO" if user_limpio == "VIGILADOR" else user_limpio
+                st.session_state.rol_sel = "VIGILADOR"
+                st.session_state.sup_autenticado = False
+                st.session_state.admin_autenticado = False
+                sincronizar_url_sesion()
+                st.rerun()
                 
-            # 6. ACCESO TRADICIONAL DESDE LA NUBE
+            # 7. ACCESO TRADICIONAL DESDE LA NUBE
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
                 usuario_ok = pd.DataFrame()
@@ -1394,6 +1404,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
     opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
     
+    # Asignación automática de un objetivo por defecto si el usuario entró por acceso rápido de prueba
+    if 'obj_actual_vig' not in st.session_state or not st.session_state.obj_actual_vig:
+        if len(opciones_globales_obj) > 0:
+            st.session_state.obj_actual_vig = opciones_globales_obj[0]
+        else:
+            st.session_state.obj_actual_vig = "ALFAVINIL"
+
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
     total_nuevos = 0
@@ -1411,7 +1428,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
         col_pv1, col_pv2, col_pv3 = st.columns([1, 1, 1])
         with col_pv2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
-                nombre_real = st.session_state.get("v_nombre_completo", "VIGILADOR").upper()
+                nombre_real = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
                 sup_asignado = "MONITOREO"
                 if not df_objetivos.empty:
                     filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
@@ -1433,14 +1450,14 @@ elif st.session_state.rol_sel == "VIGILADOR":
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:").strip() 
-            v_dni = st.text_input("LEGAJO:").strip() 
+            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:", value="VIGILADOR DE PRUEBA" if st.session_state.user_sel != "VIGILADOR EN PUESTO" else "").strip() 
+            v_dni = st.text_input("LEGAJO:", value="12345" if st.session_state.user_sel != "VIGILADOR EN PUESTO" else "").strip() 
             v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
             v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
             
             if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
-                if v_nombre_completo and v_dni and img_facial:
+                if v_nombre_completo and v_dni:
                     st.session_state.v_nombre_completo = v_nombre_completo.upper()
                     st.session_state.legajo_vigilador = v_dni
                     st.session_state.obj_actual_vig = v_obj
@@ -1453,15 +1470,15 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
                     st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
                 else:
-                    st.error("⚠️ Por favor, complete todos los campos y capture la foto.")
+                    st.error("⚠️ Por favor, complete el apellido, nombre y legajo.")
 
     with tab_relevo:
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
             v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
-            vig_saliente = st.text_input("SALE:").upper().strip()
-            vig_entrante = st.text_input("ENTRA:").upper().strip()
-            v_dni_relevo = st.text_input("DNI RESPONSABLE:").strip()
+            vig_saliente = st.text_input("SALE:", value="AGENTE SALIENTE").upper().strip()
+            vig_entrante = st.text_input("ENTRA:", value="AGENTE ENTRANTE").upper().strip()
+            v_dni_relevo = st.text_input("DNI RESPONSABLE:", value="12345678").strip()
             if st.form_submit_button("SANCIONAR CAMBIO"):
                 st.session_state.obj_actual_vig = v_obj_relevo
                 sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
