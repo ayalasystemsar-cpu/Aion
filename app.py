@@ -1501,13 +1501,13 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         
                         df_flota_propio = df_flota_propio.rename(columns=mapa_f)
                         
-                        # Cálculo automático de auditoría integrado en la misma tabla
+                        # Limpieza y cálculos integrados directamente en la tabla limpia
                         if 'KM TOTAL' in df_flota_propio.columns and 'MONTO CARGADO ($)' in df_flota_propio.columns:
-                            df_flota_propio['KM TOTAL'] = pd.to_numeric(df_flota_propio['KM TOTAL'], errors='coerce').fillna(0)
-                            df_flota_propio['MONTO CARGADO ($)'] = pd.to_numeric(df_flota_propio['MONTO CARGADO ($)'], errors='coerce').fillna(0)
+                            df_flota_propio['KM TOTAL'] = pd.to_numeric(df_flota_propio['KM TOTAL'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').fillna(0)
+                            df_flota_propio['MONTO CARGADO ($)'] = pd.to_numeric(df_flota_propio['MONTO CARGADO ($)'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').fillna(0)
                             
                             df_flota_propio['COSTO x KM ($)'] = df_flota_propio.apply(
-                                lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0, axis=1
+                                lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
                             )
                             df_flota_propio['ESTADO AUDITORÍA'] = df_flota_propio['COSTO x KM ($)'].apply(
                                 lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
@@ -1518,6 +1518,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         if cols_finales_disp:
                             df_flota_propio = df_flota_propio[cols_finales_disp]
                             
+                        # Muestra todo integrado de manera limpia y profesional en una sola tabla unificada
                         st.dataframe(df_flota_propio.iloc[::-1], use_container_width=True, hide_index=True)
                     else:
                         st.info("No tienes registros de flota cargados.")
@@ -1662,7 +1663,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
-    with tab_mensajeria_vig:
+    with t_mensajeria_vig:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
 
