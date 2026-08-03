@@ -1477,8 +1477,23 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_flota_sup.columns = [str(c).strip().upper() for c in df_flota_sup.columns]
                 col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_sup.columns else (df_flota_sup.columns[1] if len(df_flota_sup.columns) > 1 else None)
                 if col_sup_f:
-                    df_flota_propio = df_flota_sup[df_flota_sup[col_sup_f].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+                    df_flota_propio = df_flota_sup[df_flota_sup[col_sup_f].astype(str).str.strip().str.upper() == sup_activo_normalizado].copy()
                     if not df_flota_propio.empty:
+                        # Forzamos mapeo exacto de 6 columnas requeridas
+                        cols_a = list(df_flota_propio.columns)
+                        mapa_f = {}
+                        for c in cols_a:
+                            if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
+                            elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
+                            elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
+                            elif 'RECORRIDOS' in c or ('TOTAL' in c and 'KM' in c): mapa_f[c] = 'KM TOTAL'
+                            elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
+                            elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
+                        df_flota_propio = df_flota_propio.rename(columns=mapa_f)
+                        cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)']
+                        cols_finales_disp = [c for c in cols_deseadas if c in df_flota_propio.columns]
+                        if cols_finales_disp:
+                            df_flota_propio = df_flota_propio[cols_finales_disp]
                         st.dataframe(df_flota_propio.iloc[::-1], use_container_width=True, hide_index=True)
                     else:
                         st.info("No tienes registros de flota cargados.")
@@ -1819,19 +1834,22 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         if not df_flota_sup_indiv.empty:
                             df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
                             
-                            # Normalización de columnas de flota para garantizar la visualización exacta requerida
                             cols_actuales = list(df_flota_sup_indiv.columns)
-                            # Mapeo estructurado para asegurar visualización clara de Patente, Km Ini, Km Fin, Km Total, Combustible y Monto
                             mapeo_columnas = {}
                             for c in cols_actuales:
                                 if 'PATENTE' in c or 'MOVIL' in c: mapeo_columnas[c] = 'PATENTE'
                                 elif 'INICIAL' in c: mapeo_columnas[c] = 'KM INICIAL'
                                 elif 'FINAL' in c: mapeo_columnas[c] = 'KM FINAL'
-                                elif 'RECORRIDOS' in c or 'TOTAL' in c and 'KM' in c: mapeo_columnas[c] = 'KM TOTAL'
+                                elif 'RECORRIDOS' in c or ('TOTAL' in c and 'KM' in c): mapeo_columnas[c] = 'KM TOTAL'
                                 elif 'COMBUSTIBLE' in c: mapeo_columnas[c] = 'TIPO COMBUSTIBLE'
                                 elif 'MONTO' in c or '$' in c: mapeo_columnas[c] = 'MONTO CARGADO ($)'
                             
                             df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapeo_columnas)
+                            cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)']
+                            cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
+                            if cols_finales_disp:
+                                df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
+
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
                             
                             try:
@@ -2053,11 +2071,16 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 if 'PATENTE' in c or 'MOVIL' in c: mapeo_columnas[c] = 'PATENTE'
                                 elif 'INICIAL' in c: mapeo_columnas[c] = 'KM INICIAL'
                                 elif 'FINAL' in c: mapeo_columnas[c] = 'KM FINAL'
-                                elif 'RECORRIDOS' in c or 'TOTAL' in c and 'KM' in c: mapeo_columnas[c] = 'KM TOTAL'
+                                elif 'RECORRIDOS' in c or ('TOTAL' in c and 'KM' in c): mapeo_columnas[c] = 'KM TOTAL'
                                 elif 'COMBUSTIBLE' in c: mapeo_columnas[c] = 'TIPO COMBUSTIBLE'
                                 elif 'MONTO' in c or '$' in c: mapeo_columnas[c] = 'MONTO CARGADO ($)'
                             
                             df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapeo_columnas)
+                            cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)']
+                            cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
+                            if cols_finales_disp:
+                                df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
+
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
                             try:
                                 col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'TOTAL' in c]
