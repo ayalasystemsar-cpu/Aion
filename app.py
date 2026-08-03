@@ -1817,11 +1817,9 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
 
                         if not df_flota_sup_indiv.empty:
-                            # Asegurar columnas y cálculo de totales monetarios y de km
                             df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
                             
-                            # Intentar mostrar métricas totales de flota si existen las columnas correspondientes
                             try:
                                 col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'REC' in c]
                                 col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c or '$' in c]
