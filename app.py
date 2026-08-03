@@ -322,17 +322,18 @@ def aplicar_identidad_alfa():
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 100%;
-            max-width: 400px;
-            margin: 2px auto 8px auto;
-            overflow: hidden;
-            border-radius: 8px;
-            background: #000;
+            width: 100% !important;
+            max-width: 320px !important;
+            margin: 0 auto 10px auto !important;
+            overflow: hidden !important;
+            border-radius: 8px !important;
+            background: #000 !important;
+            position: relative;
         }
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
             width: 100% !important;
-            max-width: 400px !important;
-            height: 250px !important;
+            max-width: 320px !important;
+            height: 220px !important;
             object-fit: cover !important;
             border-radius: 8px !important;
             border: 2px solid #00E5FF !important;
