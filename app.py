@@ -79,7 +79,16 @@ def actualizar_celda(pestana, fila, columna, valor):
     try:
         gc = conectar_google()
         if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            # Mapeo por si se invoca con guiones
+            nombres_mapeo = {
+                "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
+                "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
+                "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
+                "CONTROL_FLOTA": "CONTROL FLOTA",
+                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO"
+            }
+            nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             hoja.update_acell(f"{columna}{fila}", valor)
             st.cache_data.clear()
             return True
@@ -90,7 +99,15 @@ def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
         if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            nombres_mapeo = {
+                "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
+                "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
+                "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
+                "CONTROL_FLOTA": "CONTROL FLOTA",
+                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO"
+            }
+            nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             hoja.append_row(datos_fila)
             st.cache_data.clear() 
             return True
@@ -104,7 +121,16 @@ def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
         try:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(pestana)
+            nombres_mapeo = {
+                "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
+                "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
+                "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
+                "CONTROL_FLOTA": "CONTROL FLOTA",
+                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO"
+            }
+            nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
+            
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             todas_filas = hoja.get_all_values()
             if not todas_filas or len(todas_filas) == 0:
                 return pd.DataFrame()
@@ -231,7 +257,7 @@ def registrar_jornada_general(supervisor, objetivo, accion):
         
         gc = conectar_google()
         if gc:
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("JORNADA_SUPERVISORES")
+            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("JORNADA SUPERVISORES")
             hoja.append_row(datos)
             st.cache_data.clear()
             return True
@@ -250,7 +276,7 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
         if gc:
             sh = gc.open_by_key(ID_MAESTRO_DB)
             hoja = None
-            nombres_posibles = ["REGISTRO_QR_SUPERVISORES", "REGISTRO-QR-SUPERVISORES", "REGISTRO QR SUPERVISORES"]
+            nombres_posibles = ["REGISTRO QR SUPERVISORES", "REGISTRO_QR_SUPERVISORES", "REGISTRO-QR-SUPERVISORES"]
             
             for nombre in nombres_posibles:
                 try:
@@ -260,7 +286,7 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
                     continue
             
             if hoja is None:
-                hoja = sh.add_worksheet(title="REGISTRO_QR_SUPERVISORES", rows="100", cols="10")
+                hoja = sh.add_worksheet(title="REGISTRO QR SUPERVISORES", rows="100", cols="10")
                 hoja.append_row(["FECHA_HORA", "OBJETIVO", "ACCION", "SUPERVISOR", "ESTADO"])
 
             hoja.append_row(datos)
@@ -513,7 +539,15 @@ def limpiar_matriz_nube(nombre_hoja):
     try:
         gc = conectar_google()
         if gc:
-            worksheet = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja)
+            nombres_mapeo = {
+                "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
+                "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
+                "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
+                "CONTROL_FLOTA": "CONTROL FLOTA",
+                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO"
+            }
+            nombre_hoja_real = nombres_mapeo.get(nombre_hoja, nombre_hoja)
+            worksheet = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             worksheet.delete_rows(2, worksheet.row_count)
             st.cache_data.clear()
             return True
