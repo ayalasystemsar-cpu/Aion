@@ -997,42 +997,98 @@ if st.session_state.rol_sel == "MONITOREO":
             st.info("No hay datos en la pestaña de relevos (Vigiladores).")
             
     with t_nov:
-        st.subheader("🔄 CENTRO DE REGISTROS Y NOVEDADES (SEPARADO POR CUADROS)")
+        st.subheader("🔄 CENTRO DE REGISTROS DE MONITOREO POR SUPERVISOR")
         
-        sub_c_qr, sub_c_rel, sub_c_pan = st.tabs(["📱 QR Superiores", "🔄 Relevos de Vigiladores", "🚨 Alertas y Pánicos"])
-        
-        with sub_c_qr:
-            st.markdown("#### 📱 Historial de Fichajes y Escaneos QR (Supervisores)")
-            df_qr_neto = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
-            if not df_qr_neto.empty:
-                df_qr_neto.columns = [str(c).strip().upper() for c in df_qr_neto.columns]
-                st.dataframe(df_qr_neto.iloc[::-1], use_container_width=True, hide_index=True)
-                pdf_qr_mono = generar_pdf_reporte("REPORTE OPERATIVO - ESCANEOS QR DE SUPERVISORES", df_qr_neto)
-                st.download_button("📥 DESCARGAR REPORTE QR (PDF)", data=pdf_qr_mono, file_name="reporte_qr_supervisores.pdf", mime="application/pdf", key="dl_qr_mono")
-            else:
-                st.info("No hay registros QR de supervisores.")
+        # Sub-pestañas para separar Fichajes QR, Relevos, Alertas y Pánicos de forma individual por supervisor
+        sub_tab_qr_mono, sub_tab_rel_mono, sub_tab_alt_mono, sub_tab_pan_mono = st.tabs([
+            "📱 Fichajes QR (Supervisores)", "🔄 Relevos de Vigiladores", "⚠️ Alertas Operativas", "🚨 Pánicos S.O.S"
+        ])
 
-        with sub_c_rel:
-            st.markdown("#### 🔄 Historial de Relevos de Guardia (Vigiladores)")
-            df_vig_rel = leer_matriz_nube("VIGILADORES")
-            if not df_vig_rel.empty:
-                df_vig_rel.columns = [str(c).strip().upper() for c in df_vig_rel.columns]
-                st.dataframe(df_vig_rel.iloc[::-1], use_container_width=True, hide_index=True)
-                pdf_rel_mono = generar_pdf_reporte("REPORTE OPERATIVO - RELEVOS DE VIGILADORES", df_vig_rel)
-                st.download_button("📥 DESCARGAR REPORTE DE RELEVOS (PDF)", data=pdf_rel_mono, file_name="reporte_relevos_vigiladores.pdf", mime="application/pdf", key="dl_rel_mono")
-            else:
-                st.info("No hay relevos de guardia registrados.")
+        df_qr_m_base = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+        df_vig_rel_m_base = leer_matriz_nube("VIGILADORES")
+        df_alt_m_base = leer_matriz_nube("ALERTAS")
 
-        with sub_c_pan:
-            st.markdown("#### 🚨 Historial de Alertas / Pánicos Activos e Históricos")
-            df_alertas_mon = leer_matriz_nube("ALERTAS")
-            if not df_alertas_mon.empty:
-                df_alertas_mon.columns = [str(c).strip().upper() for c in df_alertas_mon.columns]
-                st.dataframe(df_alertas_mon.iloc[::-1], use_container_width=True, hide_index=True)
-                pdf_pan_mono = generar_pdf_reporte("REPORTE OPERATIVO - ALERTAS Y PÁNICOS", df_alertas_mon)
-                st.download_button("📥 DESCARGAR REPORTE DE PÁNICOS (PDF)", data=pdf_pan_mono, file_name="reporte_panicos.pdf", mime="application/pdf", key="dl_pan_mono")
+        # 1. FICHAJES QR DE SUPERVISORES POR CADA SUPERVISOR
+        with sub_tab_qr_mono:
+            st.markdown("#### 📱 FICHAJES Y ESCANEOS QR DE SUPERVISORES")
+            if not df_qr_m_base.empty:
+                df_qr_m_base.columns = [str(c).strip().upper() for c in df_qr_m_base.columns]
+                col_sup_qm = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_m_base.columns else df_qr_m_base.columns[3]
+                sups_qr_list = df_qr_m_base[col_sup_qm].unique() if col_sup_qm in df_qr_m_base.columns else []
+
+                if len(sups_qr_list) > 0:
+                    tabs_sups_qr_mono = st.tabs([f"👤 {sup}" for sup in sups_qr_list])
+                    for idx_s, sup_m in enumerate(sups_qr_list):
+                        with tabs_sups_qr_mono[idx_s]:
+                            df_sup_qrs_m = df_qr_m_base[df_qr_m_base[col_sup_qm].astype(str).str.strip().str.upper() == str(sup_m).strip().upper()]
+                            if not df_sup_qrs_m.empty:
+                                st.dataframe(df_sup_qrs_m.iloc[::-1], use_container_width=True, hide_index=True)
+                                pdf_qr_sup_m = generar_pdf_reporte(f"MONITOREO - FICHAJES QR: {sup_m}", df_sup_qrs_m)
+                                st.download_button(f"📥 DESCARGAR QR DE {sup_m} (PDF)", data=pdf_qr_sup_m, file_name=f"monitoreo_qr_{sup_m.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_qr_mono_{idx_s}")
+                            else:
+                                st.info(f"Sin registros QR para {sup_m}.")
+                else:
+                    st.info("No hay supervisores registrados en los fichajes QR.")
             else:
-                st.info("No hay alertas registradas.")
+                st.info("No hay datos de fichajes QR.")
+
+        # 2. RELEVOS DE VIGILADORES POR CADA SUPERVISOR
+        with sub_tab_rel_mono:
+            st.markdown("#### 🔄 RELEVOS DE GUARDIA (VIGILADORES)")
+            if not df_vig_rel_m_base.empty:
+                df_vig_rel_m_base.columns = [str(c).strip().upper() for c in df_vig_rel_m_base.columns]
+                col_sup_rm = 'SUPERVISOR' if 'SUPERVISOR' in df_vig_rel_m_base.columns else (df_vig_rel_m_base.columns[5] if len(df_vig_rel_m_base.columns) > 5 else None)
+                
+                if col_sup_rm:
+                    sups_rel_list = df_vig_rel_m_base[col_sup_rm].unique()
+                    if len(sups_rel_list) > 0:
+                        tabs_sups_rel_mono = st.tabs([f"👤 {sup}" for sup in sups_rel_list])
+                        for idx_r, sup_r in enumerate(sups_rel_list):
+                            with tabs_sups_rel_mono[idx_r]:
+                                df_sup_rels_m = df_vig_rel_m_base[df_vig_rel_m_base[col_sup_rm].astype(str).str.strip().str.upper() == str(sup_r).strip().upper()]
+                                if not df_sup_rels_m.empty:
+                                    st.dataframe(df_sup_rels_m.iloc[::-1], use_container_width=True, hide_index=True)
+                                    pdf_rel_sup_m = generar_pdf_reporte(f"MONITOREO - RELEVOS VIGILADORES: {sup_r}", df_sup_rels_m)
+                                    st.download_button(f"📥 DESCARGAR RELEVOS DE {sup_r} (PDF)", data=pdf_rel_sup_m, file_name=f"monitoreo_relevos_{sup_r.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_rel_mono_{idx_r}")
+                                else:
+                                    st.info(f"Sin relevos registrados para {sup_r}.")
+                    else:
+                        st.dataframe(df_vig_rel_m_base.iloc[::-1], use_container_width=True, hide_index=True)
+                else:
+                    st.dataframe(df_vig_rel_m_base.iloc[::-1], use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay relevos de vigiladores registrados.")
+
+        # 3. ALERTAS OPERATIVAS SEPARADAS
+        with sub_tab_alt_mono:
+            st.markdown("#### ⚠️ ALERTAS OPERATIVAS GENERALES")
+            if not df_alt_m_base.empty:
+                df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
+                # Filtramos las que no sean estrictamente PÁNICO o mostramos todas las alertas operativas
+                df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alt_m_base.columns else df_alt_m_base
+                if not df_alertas_op.empty:
+                    st.dataframe(df_alertas_op.iloc[::-1], use_container_width=True, hide_index=True)
+                    pdf_alertas_m = generar_pdf_reporte("MONITOREO - ALERTAS OPERATIVAS", df_alertas_op)
+                    st.download_button("📥 DESCARGAR ALERTAS OPERATIVAS (PDF)", data=pdf_alertas_m, file_name="monitoreo_alertas_operativas.pdf", mime="application/pdf", key="dl_alt_op_mono")
+                else:
+                    st.info("No hay alertas operativas adicionales.")
+            else:
+                st.info("Sin alertas operativas registradas.")
+
+        # 4. PÁNICOS S.O.S SEPARADOS
+        with sub_tab_pan_mono:
+            st.markdown("#### 🚨 REGISTRO DE PÁNICOS S.O.S ACTIVOS E HISTÓRICOS")
+            if not df_alt_m_base.empty:
+                df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
+                df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"] if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                if not df_panicos_op.empty:
+                    st.dataframe(df_panicos_op.iloc[::-1], use_container_width=True, hide_index=True)
+                    pdf_panicos_m = generar_pdf_reporte("MONITOREO - REGISTRO DE PÁNICOS S.O.S", df_panicos_op)
+                    st.download_button("📥 DESCARGAR REGISTRO DE PÁNICOS (PDF)", data=pdf_panicos_m, file_name="monitoreo_panicos_sos.pdf", mime="application/pdf", key="dl_pan_op_mono")
+                else:
+                    st.info("No hay registros de pánicos S.O.S.")
+            else:
+                st.info("Sin pánicos S.O.S registrados.")
 
 
 # =========================================================================
@@ -1697,9 +1753,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         else:
                             st.info("Sin registros de flota para este supervisor.")
 
-                        # Combinamos todo en un reporte PDF integral para este supervisor
                         if not df_tabla_sup_indiv.empty or not df_flota_sup_indiv.empty:
-                            # Creamos un resumen unificado o descargamos el de tiempos/objetivos + flota
                             pdf_sup_completo = generar_pdf_reporte(f"REPORTE TÁCTICO INTEGRAL - SUPERVISOR: {sup}", df_tabla_sup_indiv if not df_tabla_sup_indiv.empty else df_flota_sup_indiv)
                             st.download_button(f"📥 DESCARGAR REPORTE TÁCTICO COMPLETO (PDF) - {sup}", data=pdf_sup_completo, file_name=f"reporte_integral_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_integral_{idx_sup}_jefe")
             else:
