@@ -1613,16 +1613,16 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
 
-        # Cuadro único alargado con fondo claro y suave, letras oscuras legibles para no lastimar la vista
+        # Cuadro alargado con el color transparente suave del cartel de alerta solicitado
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
             st.markdown(f"""
-                <div style="background-color: #FCE8E6; border: 1px solid #F5C6CB; border-radius: 6px; padding: 12px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
-                    <div style="color: #A71D2A; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                <div style="background-color: rgba(248, 215, 218, 0.25); border: 1px solid rgba(245, 198, 203, 0.4); border-radius: 6px; padding: 12px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
+                    <div style="color: #F8D7DA; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
                         🚨 ALERTA ENVIADA: VIGILADOR EN PUESTO DESDE {datos_pan['obj']}
                     </div>
-                    <div style="color: #495057; font-size: 13px; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        👮 <b>COMISARÍA MÁS CERCANA:</b> {datos_pan['comisaria']} | <b>Dirección:</b> {datos_pan['direccion']} | <b>Teléfono:</b> <a href="tel:{datos_pan['telefono']}" style="color: #0366D6; font-weight: bold; text-decoration: none;">{datos_pan['telefono']}</a> (~{datos_pan['distancia']} KM)
+                    <div style="color: #E0E0E0; font-size: 13px; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        👮 <b>COMISARÍA MÁS CERCANA:</b> {datos_pan['comisaria']} | <b>Dirección:</b> {datos_pan['direccion']} | <b>Teléfono:</b> <a href="tel:{datos_pan['telefono']}" style="color: #00E5FF; font-weight: bold; text-decoration: none;">{datos_pan['telefono']}</a> (~{datos_pan['distancia']} KM)
                     </div>
                 </div>
             """, unsafe_allow_html=True)
