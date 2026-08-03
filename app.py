@@ -509,51 +509,63 @@ def mostrar_landing():
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
         
         if st.form_submit_button(btn_texto):
-            if modo == "Iniciar Sesión" and user.strip() == "admin" and password.strip() == "aion2026":
+            user_limpio = user.strip().upper()
+            pass_limpio = password.strip()
+            
+            # 1. ACCESO EXCLUSIVO DE ADMINISTRADOR CENTRAL
+            if modo == "Iniciar Sesión" and user_limpio == "ADMIN" and pass_limpio == "aion2026":
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = "ADMIN CENTRAL"
                 st.session_state.rol_sel = "ADMINISTRADOR"
                 st.session_state.admin_autenticado = True
+                st.session_state.sup_autenticado = False
                 sincronizar_url_sesion()
                 st.rerun()
+                
+            # 2. ACCESO PARA SUPERVISORES PREDEFINIDOS O CUALQUIER SUPERVISOR CON ROL SUPERVISOR
+            elif modo == "Iniciar Sesión" and rol_usuario == "SUPERVISOR" and (user_limpio.startswith("SUPERVISOR") or user_limpio in ["AYALA BRIAN", "AYALA", "GONZALEZ", "CONTROLADOR NOCTURNO"] or pass_limpio == "1234"):
+                usuario_final = "AYALA BRIAN" if user_limpio in ["AYALA BRIAN", "AYALA"] else user_limpio
+                st.session_state.usuario_logueado = True
+                st.session_state.user_sel = usuario_final
+                st.session_state.rol_sel = "SUPERVISOR"
+                st.session_state.sup_autenticado = True
+                st.session_state.admin_autenticado = False  # Apagamos explícitamente el admin
+                sincronizar_url_sesion()
+                st.rerun()
+                
+            # 3. ACCESO TRADICIONAL DESDE LA NUBE
             elif modo == "Iniciar Sesión":
-                user_limpio = user.strip().upper()
-                pass_limpio = password.strip()
-                
-                # VALIDACIÓN PARA SUPERVISORES PREDEFINIDOS CON CLAVE 1234 (Incluye AYALA BRIAN y CONTROLADOR NOCTURNO)
-                supervisores_por_defecto = ["AYALA BRIAN", "AYALA", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO"]
-                
-                if user_limpio in supervisores_por_defecto and pass_limpio == "1234":
-                    # Mapear variaciones comunes de nombre
-                    usuario_final = "AYALA BRIAN" if user_limpio in ["AYALA BRIAN", "AYALA"] else user_limpio
-                    st.session_state.usuario_logueado = True
-                    st.session_state.user_sel = usuario_final
-                    st.session_state.rol_sel = "SUPERVISOR"
-                    st.session_state.sup_autenticado = True
-                    sincronizar_url_sesion()
-                    st.rerun()
-                else:
-                    df_usuarios = leer_matriz_nube("USUARIOS")
-                    usuario_ok = pd.DataFrame()
-                    if not df_usuarios.empty and 'USUARIO' in df_usuarios.columns and 'CONTRASEÑA' in df_usuarios.columns:
-                        usuario_ok = df_usuarios[
-                            (df_usuarios['USUARIO'].str.strip().str.upper() == user_limpio) & 
-                            (df_usuarios['CONTRASEÑA'].str.strip() == pass_limpio)
-                        ]
-                    if not usuario_ok.empty:
-                        estado = str(usuario_ok.iloc[0].get('ESTADO', 'PENDIENTE')).strip().upper()
-                        if estado == "APROBADO":
-                            st.session_state.usuario_logueado = True
-                            st.session_state.user_sel = user_limpio
-                            st.session_state.rol_sel = usuario_ok.iloc[0]['ROL'].strip().upper()
-                            if st.session_state.rol_sel == "SUPERVISOR":
-                                st.session_state.sup_autenticado = True
-                            sincronizar_url_sesion()
-                            st.rerun()
+                df_usuarios = leer_matriz_nube("USUARIOS")
+                usuario_ok = pd.DataFrame()
+                if not df_usuarios.empty and 'USUARIO' in df_usuarios.columns and 'CONTRASEÑA' in df_usuarios.columns:
+                    usuario_ok = df_usuarios[
+                        (df_usuarios['USUARIO'].str.strip().str.upper() == user_limpio) & 
+                        (df_usuarios['CONTRASEÑA'].str.strip() == pass_limpio)
+                    ]
+                if not usuario_ok.empty:
+                    estado = str(usuario_ok.iloc[0].get('ESTADO', 'PENDIENTE')).strip().upper()
+                    if estado == "APROBADO":
+                        rol_encontrado = str(usuario_ok.iloc[0]['ROL']).strip().upper()
+                        st.session_state.usuario_logueado = True
+                        st.session_state.user_sel = user_limpio
+                        st.session_state.rol_sel = rol_encontrado
+                        
+                        if rol_encontrado == "SUPERVISOR":
+                            st.session_state.sup_autenticado = True
+                            st.session_state.admin_autenticado = False
+                        elif rol_encontrado == "ADMINISTRADOR":
+                            st.session_state.admin_autenticado = True
+                            st.session_state.sup_autenticado = False
                         else:
-                            st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
+                            st.session_state.sup_autenticado = False
+                            st.session_state.admin_autenticado = False
+
+                        sincronizar_url_sesion()
+                        st.rerun()
                     else:
-                        st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
+                        st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
+                else:
+                    st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
             else:
                 if user.strip() and password.strip():
                     exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
