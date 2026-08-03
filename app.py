@@ -1039,7 +1039,7 @@ if st.session_state.rol_sel == "MONITOREO":
         
         df_qr_m_base = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
         df_vig_rel_m_base = leer_matriz_nube("VIGILADORES")
-        df_pres_m_base = leer_matriz_nube("PRESENTISMO")
+        df_nov_m_base = leer_matriz_nube("NOVEDADES_GUARDIA")
         df_alt_m_base = leer_matriz_nube("ALERTAS")
 
         # Obtener dinámicamente únicamente a los supervisores que tienen registros QR activos
@@ -1076,20 +1076,15 @@ if st.session_state.rol_sel == "MONITOREO":
                             st.info("No hay datos de fichajes QR.")
 
                     with sub_tab_ficha_mono:
-                        if not df_pres_m_base.empty:
-                            df_pres_m_base.columns = [str(c).strip().upper() for c in df_pres_m_base.columns]
-                            mapa_pres = {}
-                            for c in df_pres_m_base.columns:
-                                if 'DNI' in c or 'LEGAJO' in c:
-                                    mapa_pres[c] = 'N° LEGAJO'
-                            df_pres_m_base = df_pres_m_base.rename(columns=mapa_pres)
-                            df_pres_m_base = df_pres_m_base.loc[:, ~df_pres_m_base.columns.duplicated()]
-
+                        if not df_nov_m_base.empty:
+                            df_nov_m_base.columns = [str(c).strip().upper() for c in df_nov_m_base.columns]
                             objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_item]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                             
-                            if len(objs_del_sup) > 0:
-                                mask_fichajes = df_pres_m_base['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if 'CARGA_UTIL' in df_pres_m_base.columns else pd.Series([False]*len(df_pres_m_base))
-                                df_fichajes_sup_filtrado = df_pres_m_base[mask_fichajes] if not isinstance(mask_fichajes, pd.DataFrame) else pd.DataFrame()
+                            if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_m_base.columns and 'TIPO_EVENTO' in df_nov_m_base.columns:
+                                mask_fich = df_nov_m_base['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) & \
+                                            df_nov_m_base['TIPO_EVENTO'].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+                                
+                                df_fichajes_sup_filtrado = df_nov_m_base[mask_fich]
                                 
                                 if not df_fichajes_sup_filtrado.empty:
                                     st.dataframe(df_fichajes_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1514,18 +1509,39 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.info("Sin registros QR en el sistema.")
 
             st.markdown("---")
-            st.markdown(f"#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA EN TUS OBJETIVOS")
+            st.markdown(f"#### 📋 FICHAJES Y MARCACIONES DE VIGILADORES EN TUS OBJETIVOS")
+            df_nov_sup_base = leer_matriz_nube("NOVEDADES_GUARDIA")
             lista_objs_supervisor = df_objetivos_filtrados['OBJETIVO'].tolist() if not df_objetivos_filtrados.empty else []
 
+            if not df_nov_sup_base.empty and len(lista_objs_supervisor) > 0:
+                df_nov_sup_base.columns = [str(c).strip().upper() for c in df_nov_sup_base.columns]
+                if 'OBJETIVO' in df_nov_sup_base.columns and 'TIPO_EVENTO' in df_nov_sup_base.columns:
+                    mask_fich_sup = df_nov_sup_base['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in lista_objs_supervisor]) & \
+                                    df_nov_sup_base['TIPO_EVENTO'].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+                    df_fich_sup_filtrado = df_nov_sup_base[mask_fich_sup]
+                    
+                    if not df_fich_sup_filtrado.empty:
+                        st.dataframe(df_fich_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                        pdf_fich_sup_dl = generar_pdf_reporte(f"FICHAJES DE VIGILADORES - {sup_activo_normalizado}", df_fich_sup_filtrado)
+                        st.download_button("📥 DESCARGAR FICHAJES DE VIGILADORES (PDF)", data=pdf_fich_sup_dl, file_name=f"fichajes_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_fich_sup_vig")
+                    else:
+                        st.info("No hay fichajes registrados en tus objetivos asignados.")
+                else:
+                    st.info("Estructura de novedades no válida.")
+            else:
+                st.info("No tienes objetivos asignados o no hay fichajes registrados.")
+
+            st.markdown("---")
+            st.markdown(f"#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA EN TUS OBJETIVOS")
             df_vig_rel_sup = leer_matriz_nube("VIGILADORES")
             if not df_vig_rel_sup.empty and len(lista_objs_supervisor) > 0:
                 df_vig_rel_sup.columns = [str(c).strip().upper() for c in df_vig_rel_sup.columns]
                 col_obj_v = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_sup.columns else df_vig_rel_sup.columns[2]
-                df_vig_rel_sup_filtrado = df_vig_rel_sup[df_vig_rel_sup[col_obj_v].astype(str).str.strip().str.upper().isin([o.upper() for o in lista_objs_supervisor])]
+                df_rel_sup_filtrado = df_vig_rel_sup[df_vig_rel_sup[col_obj_v].astype(str).str.strip().str.upper().isin([o.upper() for o in lista_objs_supervisor])]
                 
-                if not df_vig_rel_sup_filtrado.empty:
-                    st.dataframe(df_vig_rel_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                    pdf_rel_sup_dl = generar_pdf_reporte(f"RELEVOS DE VIGILADORES - {sup_activo_normalizado}", df_vig_rel_sup_filtrado)
+                if not df_rel_sup_filtrado.empty:
+                    st.dataframe(df_rel_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                    pdf_rel_sup_dl = generar_pdf_reporte(f"RELEVOS DE VIGILADORES - {sup_activo_normalizado}", df_rel_sup_filtrado)
                     st.download_button("📥 DESCARGAR RELEVOS DE VIGILADORES (PDF)", data=pdf_rel_sup_dl, file_name=f"relevos_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_rel_sup")
                 else:
                     st.info("No hay relevos registrados en tus objetivos asignados.")
