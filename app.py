@@ -1359,17 +1359,41 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 with st.form(key="form_acta_flota", clear_on_submit=True):
                     c_a, c_b = st.columns(2)
                     v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
-                    v_km_ini = c_a.number_input("KM INICIAL:", min_value=0)
-                    v_km_fin = c_b.number_input("KM FINAL:", min_value=0)
+                    
+                    v_km_ini_str = c_a.text_input("KM INICIAL:", value="0")
+                    v_km_fin_str = c_b.text_input("KM FINAL:", value="0")
+                    
                     v_combustible = c_a.selectbox("TIPO DE COMBUSTIBLE:", ["NAFTA SÚPER", "NAFTA PREMIUM", "GASOIL", "OTRO"])
-                    v_monto = c_b.number_input("MONTO CARGADO ($):", min_value=0.0, step=100.0)
+                    v_monto_str = c_b.text_input("MONTO CARGADO ($):", value="0,00")
                     v_vig = st.text_input("SUPERVISOR RESPONSABLE:", value=st.session_state.user_sel).upper()
                     
                     if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                        km_recorridos = v_km_fin - v_km_ini
+                        def parsear_numero(val_str):
+                            if not val_str:
+                                return 0.0
+                            s = str(val_str).strip().replace('$', '').replace(' ', '')
+                            s = s.replace('.', '').replace(',', '.')
+                            try:
+                                return float(s)
+                            except:
+                                return 0.0
+
+                        v_km_ini = parsear_numero(v_km_ini_str)
+                        v_km_fin = parsear_numero(v_km_fin_str)
+                        v_monto = parsear_numero(v_monto_str)
+                        
+                        km_recorridos = max(0.0, v_km_fin - v_km_ini)
                         fecha_reg = obtener_hora_argentina()
-                        escribir_registro_nube("CONTROL_FLOTA", [fecha_reg, v_vig, v_patente, str(v_km_ini), str(v_km_fin), str(km_recorridos), v_combustible, str(v_monto)])
-                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_recorridos} km | Gasto: ${v_monto}")
+                        
+                        km_rec_fmt = f"{km_recorridos:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        monto_fmt = f"{v_monto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        km_ini_fmt = f"{v_km_ini:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        km_fin_fmt = f"{v_km_fin:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+                        escribir_registro_nube("CONTROL_FLOTA", [
+                            fecha_reg, v_vig, v_patente, km_ini_fmt, km_fin_fmt, km_rec_fmt, v_combustible, monto_fmt
+                        ])
+                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_rec_fmt} km | Gasto: ${monto_fmt}")
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
 
@@ -1589,7 +1613,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
                         lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
                 
-                # Buscar comisaría más cercana al objetivo
                 com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
                 com_cercana_dir = "---"
                 com_cercana_tel = "---"
@@ -1625,7 +1648,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
 
-        # Cuadro alargado con el color transparente suave del cartel de alerta solicitado
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
             st.markdown(f"""
