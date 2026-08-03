@@ -1814,15 +1814,29 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         if not df_flota_aud.empty:
                             col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
                             if col_sup_f:
-                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
 
                         if not df_flota_sup_indiv.empty:
                             df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
+                            
+                            # Normalización de columnas de flota para garantizar la visualización exacta requerida
+                            cols_actuales = list(df_flota_sup_indiv.columns)
+                            # Mapeo estructurado para asegurar visualización clara de Patente, Km Ini, Km Fin, Km Total, Combustible y Monto
+                            mapeo_columnas = {}
+                            for c in cols_actuales:
+                                if 'PATENTE' in c or 'MOVIL' in c: mapeo_columnas[c] = 'PATENTE'
+                                elif 'INICIAL' in c: mapeo_columnas[c] = 'KM INICIAL'
+                                elif 'FINAL' in c: mapeo_columnas[c] = 'KM FINAL'
+                                elif 'RECORRIDOS' in c or 'TOTAL' in c and 'KM' in c: mapeo_columnas[c] = 'KM TOTAL'
+                                elif 'COMBUSTIBLE' in c: mapeo_columnas[c] = 'TIPO COMBUSTIBLE'
+                                elif 'MONTO' in c or '$' in c: mapeo_columnas[c] = 'MONTO CARGADO ($)'
+                            
+                            df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapeo_columnas)
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
                             
                             try:
-                                col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'REC' in c]
-                                col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c or '$' in c]
+                                col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'TOTAL' in c]
+                                col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c]
                                 if col_km_tot and col_monto:
                                     tot_km_recorridos = pd.to_numeric(df_flota_sup_indiv[col_km_tot[0]], errors='coerce').sum()
                                     tot_dinero_gastado = pd.to_numeric(df_flota_sup_indiv[col_monto[0]], errors='coerce').sum()
@@ -2028,14 +2042,26 @@ elif st.session_state.rol_sel == "GERENCIA":
                         if not df_flota_aud.empty:
                             col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
                             if col_sup_f:
-                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
 
                         if not df_flota_sup_indiv.empty:
                             df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
+                            
+                            cols_actuales = list(df_flota_sup_indiv.columns)
+                            mapeo_columnas = {}
+                            for c in cols_actuales:
+                                if 'PATENTE' in c or 'MOVIL' in c: mapeo_columnas[c] = 'PATENTE'
+                                elif 'INICIAL' in c: mapeo_columnas[c] = 'KM INICIAL'
+                                elif 'FINAL' in c: mapeo_columnas[c] = 'KM FINAL'
+                                elif 'RECORRIDOS' in c or 'TOTAL' in c and 'KM' in c: mapeo_columnas[c] = 'KM TOTAL'
+                                elif 'COMBUSTIBLE' in c: mapeo_columnas[c] = 'TIPO COMBUSTIBLE'
+                                elif 'MONTO' in c or '$' in c: mapeo_columnas[c] = 'MONTO CARGADO ($)'
+                            
+                            df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapeo_columnas)
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
                             try:
-                                col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'REC' in c]
-                                col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c or '$' in c]
+                                col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'TOTAL' in c]
+                                col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c]
                                 if col_km_tot and col_monto:
                                     tot_km_recorridos = pd.to_numeric(df_flota_sup_indiv[col_km_tot[0]], errors='coerce').sum()
                                     tot_dinero_gastado = pd.to_numeric(df_flota_sup_indiv[col_monto[0]], errors='coerce').sum()
