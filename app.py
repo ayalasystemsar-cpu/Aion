@@ -1088,7 +1088,7 @@ if st.session_state.rol_sel == "MONITOREO":
                             objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_item]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                             
                             if len(objs_del_sup) > 0:
-                                mask_fichajes = df_pres_m_base['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if 'CARGA_UTIL' in df_pres_m_base.columns else pd.DataFrame()
+                                mask_fichajes = df_pres_m_base['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if 'CARGA_UTIL' in df_pres_m_base.columns else pd.Series([False]*len(df_pres_m_base))
                                 df_fichajes_sup_filtrado = df_pres_m_base[mask_fichajes] if not isinstance(mask_fichajes, pd.DataFrame) else pd.DataFrame()
                                 
                                 if not df_fichajes_sup_filtrado.empty:
@@ -1125,11 +1125,15 @@ if st.session_state.rol_sel == "MONITOREO":
                     with sub_tab_alt_mono:
                         if not df_alt_m_base.empty:
                             df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                            df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alt_m_base.columns else df_alt_m_base
+                            df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
                             objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_item]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                             
-                            mask_alt = df_alertas_op['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if len(objs_del_sup) > 0 and 'CARGA_UTIL' in df_alertas_op.columns else pd.DataFrame()
-                            df_alt_sup_filtrado = df_alertas_op[mask_alt | (df_alertas_op['CARGA_UTIL'].str.contains(sup_item, na=False))] if not isinstance(mask_alt, pd.DataFrame) else pd.DataFrame()
+                            if not df_alertas_op.empty:
+                                mask_alt = df_alertas_op['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if len(objs_del_sup) > 0 and 'CARGA_UTIL' in df_alertas_op.columns else pd.Series([False]*len(df_alertas_op))
+                                cond_sup = df_alertas_op['CARGA_UTIL'].str.contains(sup_item, na=False) if 'CARGA_UTIL' in df_alertas_op.columns else pd.Series([False]*len(df_alertas_op))
+                                df_alt_sup_filtrado = df_alertas_op[mask_alt | cond_sup]
+                            else:
+                                df_alt_sup_filtrado = pd.DataFrame()
                             
                             if not df_alt_sup_filtrado.empty:
                                 st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1143,11 +1147,15 @@ if st.session_state.rol_sel == "MONITOREO":
                     with sub_tab_pan_mono:
                         if not df_alt_m_base.empty:
                             df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                            df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"] if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                            df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
                             objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_item]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                             
-                            mask_pan = df_panicos_op['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if len(objs_del_sup) > 0 and 'CARGA_UTIL' in df_panicos_op.columns else pd.DataFrame()
-                            df_pan_sup_filtrado = df_panicos_op[mask_pan | (df_panicos_op['CARGA_UTIL'].str.contains(sup_item, na=False))] if not isinstance(mask_pan, pd.DataFrame) else pd.DataFrame()
+                            if not df_panicos_op.empty:
+                                mask_pan = df_panicos_op['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if len(objs_del_sup) > 0 and 'CARGA_UTIL' in df_panicos_op.columns else pd.Series([False]*len(df_panicos_op))
+                                cond_pan = df_panicos_op['CARGA_UTIL'].str.contains(sup_item, na=False) if 'CARGA_UTIL' in df_panicos_op.columns else pd.Series([False]*len(df_panicos_op))
+                                df_pan_sup_filtrado = df_panicos_op[mask_pan | cond_pan]
+                            else:
+                                df_pan_sup_filtrado = pd.DataFrame()
                             
                             if not df_pan_sup_filtrado.empty:
                                 st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
