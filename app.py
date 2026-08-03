@@ -596,7 +596,7 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCION GENERAL"] or pass_limpio == "1234"):
+            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCIÓN GENERAL"] or pass_limpio == "1234"):
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = "DIRECCIÓN GENERAL"
                 st.session_state.rol_sel = "GERENCIA"
@@ -1548,7 +1548,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
                         lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
                 
-                # Buscamos la comisaría más cercana al objetivo actual para mostrarla en pantalla al vigilador
                 comisaria_cercana_vig = "COMISARÍA JURISDICCIONAL"
                 dir_com_vig = "---"
                 tel_com_vig = "---"
@@ -1818,7 +1817,22 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
 
                         if not df_flota_sup_indiv.empty:
+                            # Asegurar columnas y cálculo de totales monetarios y de km
+                            df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
+                            
+                            # Intentar mostrar métricas totales de flota si existen las columnas correspondientes
+                            try:
+                                col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'REC' in c]
+                                col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c or '$' in c]
+                                if col_km_tot and col_monto:
+                                    tot_km_recorridos = pd.to_numeric(df_flota_sup_indiv[col_km_tot[0]], errors='coerce').sum()
+                                    tot_dinero_gastado = pd.to_numeric(df_flota_sup_indiv[col_monto[0]], errors='coerce').sum()
+                                    mc1, mc2 = st.columns(2)
+                                    mc1.metric("🛣️ TOTAL KILÓMETROS RECORRIDOS", f"{tot_km_recorridos:,.0f} KM")
+                                    mc2.metric("💰 TOTAL GASTO COMBUSTIBLE", f"${tot_dinero_gastado:,.2f}")
+                            except:
+                                pass
                         else:
                             st.info("Sin registros de flota para este supervisor.")
 
@@ -2019,7 +2033,19 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
 
                         if not df_flota_sup_indiv.empty:
+                            df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
+                            try:
+                                col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'REC' in c]
+                                col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c or '$' in c]
+                                if col_km_tot and col_monto:
+                                    tot_km_recorridos = pd.to_numeric(df_flota_sup_indiv[col_km_tot[0]], errors='coerce').sum()
+                                    tot_dinero_gastado = pd.to_numeric(df_flota_sup_indiv[col_monto[0]], errors='coerce').sum()
+                                    mc1, mc2 = st.columns(2)
+                                    mc1.metric("🛣️ TOTAL KILÓMETROS RECORRIDOS", f"{tot_km_recorridos:,.0f} KM")
+                                    mc2.metric("💰 TOTAL GASTO COMBUSTIBLE", f"${tot_dinero_gastado:,.2f}")
+                            except:
+                                pass
                         else:
                             st.info("Sin registros de flota para este supervisor.")
 
