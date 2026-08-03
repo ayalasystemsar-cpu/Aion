@@ -124,6 +124,7 @@ def cargar_datos_comisarias():
         "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
         "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Salta 1450", "Av. Cnel. Díaz 2250", "Hipólito Yrigoyen 4300", "Av. Cabildo 2300", "Monseñor Bufano 3200", "Arieta 2500", "Av. Las Heras 2650", "Miller 2750", "Arias 4450", "Av. Díaz Vélez 5150", "Av. San Juan 1050", "Av. de Mayo 350"],
         "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "LANÚS", "CABA", "LA MATANZA", "LA MATANZA", "CABA", "CABA", "CABA", "CABA", "CABA", "RAMOS MEJÍA"],
+        "TELEFONO": ["011-4754-2321", "011-4821-5544", "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111", "011-4331-1122", "011-4821-5545", "011-4241-0022", "011-4788-9900", "011-4482-1111", "011-4486-2222", "011-4801-3344", "011-4541-1122", "011-4542-3344", "011-4982-5566", "011-4301-7788", "011-4464-1122"],
         "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
         "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
     }
@@ -1568,22 +1569,68 @@ elif st.session_state.rol_sel == "VIGILADOR":
             if st.button("S.O.S\nPÁNICO", type="primary"):
                 nombre_real = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
                 sup_asignado = "MONITOREO"
+                lat_obj_vig, lon_obj_vig = 0.0, 0.0
                 if not df_objetivos.empty:
                     filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                     if not filtro.empty:
                         sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
+                        lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
+                        lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
                 
+                # Buscar comisaría más cercana al objetivo para mostrarla en pantalla
+                com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
+                com_cercana_dir = "---"
+                com_cercana_tel = "---"
+                dist_min_com = float('inf')
+                
+                for _, com in df_comisarias.iterrows():
+                    try:
+                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
+                        dlon = lon2 - lon1
+                        dlat = lat2 - lat1
+                        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                        c = 2 * math.asin(math.sqrt(a))
+                        km = 6371 * c
+                        if km < dist_min_com:
+                            dist_min_com = km
+                            com_cercana_nombre = com['COMISARIA']
+                            com_cercana_dir = com['DIRECCION']
+                            com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
+                    except: pass
+
+                st.session_state.alerta_activa_vigilador = {
+                    "nombre": nombre_real,
+                    "obj": obj_detectado,
+                    "comisaria": com_cercana_nombre,
+                    "direccion": com_cercana_dir,
+                    "telefono": com_cercana_tel,
+                    "distancia": f"{dist_min_com:.2f}"
+                }
+
                 fecha = obtener_hora_argentina()
                 carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
                 escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
+
+        # Cuadro informativo de pánico enviado y comisaría jurisdiccional tal como se solicitó
+        if 'alerta_activa_vigilador' in st.session_state:
+            datos_pan = st.session_state.alerta_activa_vigilador
+            st.markdown(f"""
+                <div style="background-color: rgba(255, 0, 0, 0.15); border: 1px solid #FF0000; border-radius: 6px; padding: 10px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
+                    <div style="color: #FF5252; font-weight: bold; font-size: 13px; margin-bottom: 4px;">
+                        🚨 ALERTA ENVIADA: {datos_pan['nombre']} DESDE {datos_pan['obj']}
+                    </div>
+                    <div style="color: #FFFFFF; font-size: 12px;">
+                        👮 <b>COMISARÍA MÁS CERCANA:</b> {datos_pan['comisaria']} | <b>Dirección:</b> {datos_pan['direccion']} | <b>Teléfono:</b> <a href="tel:{datos_pan['telefono']}" style="color: #00E5FF; font-weight: bold; text-decoration: none;">{datos_pan['telefono']}</a> (~{datos_pan['distancia']} KM)
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
     else:
         st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
     
     st.markdown("---")
     
-    # CORRECCIÓN: Se usa la variable correcta 'label_msg' para definir la pestaña
     tab_presentismo, tab_relevo, t_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
   
     with tab_presentismo:
