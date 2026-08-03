@@ -122,6 +122,8 @@ def leer_matriz_nube(pestana):
 def cargar_datos_comisarias():
     data = {
         "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
+        "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Salta 1450", "Av. Cnel. Díaz 2250", "Hipólito Yrigoyen 4300", "Av. Cabildo 2300", "Monseñor Bufano 3200", "Arieta 2500", "Av. Las Heras 2650", "Miller 2750", "Arias 4450", "Av. Díaz Vélez 5150", "Av. San Juan 1050", "Av. de Mayo 350"],
+        "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "LANÚS", "CABA", "LA MATANZA", "LA MATANZA", "CABA", "CABA", "CABA", "CABA", "CABA", "RAMOS MEJÍA"],
         "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
         "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
     }
@@ -142,6 +144,50 @@ def cargar_objetivos():
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
     return pd.DataFrame()
+
+def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
+    distancia_minima = float('inf')
+    comisaria_encontrada = "COMISARÍA JURISDICCIONAL"
+    direccion_comisaria = "---"
+    localidad_comisaria = "---"
+    
+    df_comis = cargar_datos_comisarias()
+    
+    try:
+        lat_f = float(str(lat).replace(',', '.'))
+        lon_f = float(str(lon).replace(',', '.'))
+        
+        for _, com in df_comis.iterrows():
+            lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.asin(math.sqrt(a))
+            km = 6371 * c
+            
+            if km < distancia_minima:
+                distancia_minima = km
+                comisaria_encontrada = com['COMISARIA']
+                direccion_comisaria = com['DIRECCION']
+                localidad_comisaria = com['LOCALIDAD']
+    except:
+        pass
+
+    # Incluimos los datos completos de la comisaria detectada para que se plasmen directamente en la nube
+    comisaria_formateada = f"{comisaria_encontrada} - {direccion_comisaria}, {localidad_comisaria} (~{distancia_minima:.2f} KM)"
+
+    datos_nuevo_obj = [
+        str(nombre_obj).strip().upper(), 
+        str(direccion).strip().upper(), 
+        str(localidad).strip().upper(), 
+        str(supervisor).strip().upper(), 
+        str(lat), 
+        str(lon), 
+        str(responsables).strip().upper(),
+        comisaria_formateada
+    ]
+    
+    return escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
 
 def obtener_lista_supervisores_dinamica():
     base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO"]
@@ -999,7 +1045,6 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_nov:
         st.subheader("🔄 CENTRO DE REGISTROS DE MONITOREO POR SUPERVISOR")
         
-        # Sub-pestañas para separar Fichajes QR, Relevos, Alertas y Pánicos de forma individual por supervisor
         sub_tab_qr_mono, sub_tab_rel_mono, sub_tab_alt_mono, sub_tab_pan_mono = st.tabs([
             "📱 Fichajes QR (Supervisores)", "🔄 Relevos de Vigiladores", "⚠️ Alertas Operativas", "🚨 Pánicos S.O.S"
         ])
@@ -1008,7 +1053,6 @@ if st.session_state.rol_sel == "MONITOREO":
         df_vig_rel_m_base = leer_matriz_nube("VIGILADORES")
         df_alt_m_base = leer_matriz_nube("ALERTAS")
 
-        # 1. FICHAJES QR DE SUPERVISORES POR CADA SUPERVISOR
         with sub_tab_qr_mono:
             st.markdown("#### 📱 FICHAJES Y ESCANEOS QR DE SUPERVISORES")
             if not df_qr_m_base.empty:
@@ -1032,7 +1076,6 @@ if st.session_state.rol_sel == "MONITOREO":
             else:
                 st.info("No hay datos de fichajes QR.")
 
-        # 2. RELEVOS DE VIGILADORES POR CADA SUPERVISOR
         with sub_tab_rel_mono:
             st.markdown("#### 🔄 RELEVOS DE GUARDIA (VIGILADORES)")
             if not df_vig_rel_m_base.empty:
@@ -1059,12 +1102,10 @@ if st.session_state.rol_sel == "MONITOREO":
             else:
                 st.info("No hay relevos de vigiladores registrados.")
 
-        # 3. ALERTAS OPERATIVAS SEPARADAS
         with sub_tab_alt_mono:
             st.markdown("#### ⚠️ ALERTAS OPERATIVAS GENERALES")
             if not df_alt_m_base.empty:
                 df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                # Filtramos las que no sean estrictamente PÁNICO o mostramos todas las alertas operativas
                 df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alt_m_base.columns else df_alt_m_base
                 if not df_alertas_op.empty:
                     st.dataframe(df_alertas_op.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1075,7 +1116,6 @@ if st.session_state.rol_sel == "MONITOREO":
             else:
                 st.info("Sin alertas operativas registradas.")
 
-        # 4. PÁNICOS S.O.S SEPARADOS
         with sub_tab_pan_mono:
             st.markdown("#### 🚨 REGISTRO DE PÁNICOS S.O.S ACTIVOS E HISTÓRICOS")
             if not df_alt_m_base.empty:
@@ -1354,10 +1394,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
                         if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                            datos_nuevo_obj = [nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables]
-                            exito_alta = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+                            # Utilizamos la nueva función que calcula automáticamente la comisaría más cercana con su dirección y localidad
+                            exito_alta = registrar_objetivo_con_comisaria_automatica(
+                                nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
+                            )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado con éxito!")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado y enlazado con su comisaría de referencia con éxito!")
                                 st.rerun()
                             else:
                                 st.error("❌ Error al escribir en la nube.")
