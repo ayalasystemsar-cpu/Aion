@@ -1546,7 +1546,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.success("✅ Petición enviada")
     
     with t_tab_auditoria:
-        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS Y PERMANENCIA POR OBJETIVO (JORNADA)")
+        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, PERMANENCIA Y HORAS TRABAJADAS")
         df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
 
@@ -1554,27 +1554,75 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
 
-            resumen_tiempos = []
-            supervisores_activos = df_jornada_aud['SUPERVISOR'].unique() if 'SUPERVISOR' in df_jornada_aud.columns else []
+            reporte_consolidado = []
+            supervisores_en_qr = df_qr_aud['SUPERVISOR'].unique() if 'SUPERVISOR' in df_qr_aud.columns else []
 
-            for sup in supervisores_activos:
-                df_sup_qrs = df_qr_aud[df_qr_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == sup.strip().upper()]
-                if not df_sup_qrs.empty:
-                    for _, row_qr in df_sup_qrs.iterrows():
-                        resumen_tiempos.append({
-                            "SUPERVISOR": sup,
-                            "FECHA_HORA": row_qr.get('FECHA_HORA', ''),
-                            "OBJETIVO": row_qr.get('OBJETIVO', ''),
-                            "ACCIÓN": row_qr.get('ACCION', ''),
-                            "ESTADO": row_qr.get('ESTADO', 'REGISTRADO')
-                        })
-
-            if resumen_tiempos:
-                df_resumen_tiempo = pd.DataFrame(resumen_tiempos)
-                st.dataframe(df_resumen_tiempo.iloc[::-1], use_container_width=True, hide_index=True)
+            for sup in supervisores_en_qr:
+                df_sup_qrs = df_qr_aud[df_qr_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
                 
-                pdf_tiempos = generar_pdf_reporte("REPORTE DE TIEMPOS Y PERMANENCIA - SUPERVISORES", df_resumen_tiempo)
-                st.download_button("📥 DESCARGAR REPORTE DE TIEMPOS (PDF)", data=pdf_tiempos, file_name="reporte_tiempos_supervisores.pdf", mime="application/pdf", key="dl_tiempos_jefe")
+                inicio_jornada_gral = "---"
+                fin_jornada_gral = "---"
+                
+                if not df_sup_jor.empty:
+                    inicios_j = df_sup_jor[df_sup_jor['ACCION'].astype(str).str.strip().str.upper() == 'INICIO']
+                    fines_j = df_sup_jor[df_sup_jor['ACCION'].astype(str).str.strip().str.upper() == 'FIN']
+                    if not inicios_j.empty:
+                        inicio_jornada_gral = inicios_j.iloc[0].get('HORA', inicios_j.iloc[0].get('FECHA_HORA', '---'))
+                    if not fines_j.empty:
+                        fin_jornada_gral = fines_j.iloc[-1].get('HORA', fines_j.iloc[-1].get('FECHA_HORA', '---'))
+
+                objetivos_del_sup = df_sup_qrs['OBJETIVO'].unique() if 'OBJETIVO' in df_sup_qrs.columns else []
+                total_minutos_objetivos = 0
+
+                for obj in objetivos_del_sup:
+                    df_obj_t = df_sup_qrs[df_sup_qrs['OBJETIVO'].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
+                    inicios_obj = df_obj_t[df_obj_t['ACCION'].astype(str).str.strip().str.upper() == 'INICIO']
+                    fines_obj = df_obj_t[df_obj_t['ACCION'].astype(str).str.strip().str.upper() == 'FIN']
+                    
+                    hora_ingreso_obj = "---"
+                    hora_egreso_obj = "---"
+                    tiempo_permanencia_str = "En curso / Sin egreso"
+                    minutos_permanencia = 0
+
+                    if not inicios_obj.empty:
+                        fh_ingreso = str(inicios_obj.iloc[-1].get('FECHA_HORA', ''))
+                        hora_ingreso_obj = fh_ingreso.split(" ")[1] if " " in fh_ingreso else fh_ingreso
+
+                    if not fines_obj.empty:
+                        fh_egreso = str(fines_obj.iloc[-1].get('FECHA_HORA', ''))
+                        hora_egreso_obj = fh_egreso.split(" ")[1] if " " in fh_egreso else fh_egreso
+
+                    if not inicios_obj.empty and not fines_obj.empty:
+                        try:
+                            t_ing = datetime.strptime(hora_ingreso_obj, "%H:%M:%S")
+                            t_egr = datetime.strptime(hora_egreso_obj, "%H:%M:%S")
+                            if t_egr >= t_ing:
+                                diff = t_egr - t_ing
+                                minutos_permanencia = int(diff.total_seconds() // 60)
+                                total_minutos_objetivos += minutos_permanencia
+                                h_p = minutos_permanencia // 60
+                                m_p = minutos_permanencia % 60
+                                tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
+                        except:
+                            tiempo_permanencia_str = "---"
+
+                    reporte_consolidado.append({
+                        "SUPERVISOR": sup,
+                        "OBJETIVO": obj,
+                        "INICIO JORNADA": inicio_jornada_gral,
+                        "INGRESO OBJETIVO": hora_ingreso_obj,
+                        "EGRESO OBJETIVO": hora_egreso_obj,
+                        "PERMANENCIA EN OBJETIVO": tiempo_permanencia_str,
+                        "FIN JORNADA": fin_jornada_gral
+                    })
+
+            if reporte_consolidado:
+                df_final_tiempos = pd.DataFrame(reporte_consolidado)
+                st.dataframe(df_final_tiempos, use_container_width=True, hide_index=True)
+                
+                pdf_tiempos = generar_pdf_reporte("REPORTE DE TIEMPOS, PERMANENCIA Y HORAS TRABAJADAS", df_final_tiempos)
+                st.download_button("📥 DESCARGAR REPORTE DE TIEMPOS Y HORAS (PDF)", data=pdf_tiempos, file_name="reporte_horas_trabajadas_supervisores.pdf", mime="application/pdf", key="dl_tiempos_horas_pdf_jefe")
             else:
                 st.info("No hay suficientes registros cruzados de QR para calcular las permanencias aún.")
         else:
@@ -1677,7 +1725,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición enviada")
 
     with t_tab_auditoria:
-        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS Y PERMANENCIA POR OBJETIVO (JORNADA)")
+        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, PERMANENCIA Y HORAS TRABAJADAS")
         df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
 
@@ -1685,27 +1733,75 @@ elif st.session_state.rol_sel == "GERENCIA":
             df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
 
-            resumen_tiempos = []
-            supervisores_activos = df_jornada_aud['SUPERVISOR'].unique() if 'SUPERVISOR' in df_jornada_aud.columns else []
+            reporte_consolidado = []
+            supervisores_en_qr = df_qr_aud['SUPERVISOR'].unique() if 'SUPERVISOR' in df_qr_aud.columns else []
 
-            for sup in supervisores_activos:
-                df_sup_qrs = df_qr_aud[df_qr_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == sup.strip().upper()]
-                if not df_sup_qrs.empty:
-                    for _, row_qr in df_sup_qrs.iterrows():
-                        resumen_tiempos.append({
-                            "SUPERVISOR": sup,
-                            "FECHA_HORA": row_qr.get('FECHA_HORA', ''),
-                            "OBJETIVO": row_qr.get('OBJETIVO', ''),
-                            "ACCIÓN": row_qr.get('ACCION', ''),
-                            "ESTADO": row_qr.get('ESTADO', 'REGISTRADO')
-                        })
-
-            if resumen_tiempos:
-                df_resumen_tiempo = pd.DataFrame(resumen_tiempos)
-                st.dataframe(df_resumen_tiempo.iloc[::-1], use_container_width=True, hide_index=True)
+            for sup in supervisores_en_qr:
+                df_sup_qrs = df_qr_aud[df_qr_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
                 
-                pdf_tiempos = generar_pdf_reporte("REPORTE DE TIEMPOS Y PERMANENCIA - SUPERVISORES", df_resumen_tiempo)
-                st.download_button("📥 DESCARGAR REPORTE DE TIEMPOS (PDF)", data=pdf_tiempos, file_name="reporte_tiempos_supervisores.pdf", mime="application/pdf", key="dl_tiempos_ger")
+                inicio_jornada_gral = "---"
+                fin_jornada_gral = "---"
+                
+                if not df_sup_jor.empty:
+                    inicios_j = df_sup_jor[df_sup_jor['ACCION'].astype(str).str.strip().str.upper() == 'INICIO']
+                    fines_j = df_sup_jor[df_sup_jor['ACCION'].astype(str).str.strip().str.upper() == 'FIN']
+                    if not inicios_j.empty:
+                        inicio_jornada_gral = inicios_j.iloc[0].get('HORA', inicios_j.iloc[0].get('FECHA_HORA', '---'))
+                    if not fines_j.empty:
+                        fin_jornada_gral = fines_j.iloc[-1].get('HORA', fines_j.iloc[-1].get('FECHA_HORA', '---'))
+
+                objetivos_del_sup = df_sup_qrs['OBJETIVO'].unique() if 'OBJETIVO' in df_sup_qrs.columns else []
+                total_minutos_objetivos = 0
+
+                for obj in objetivos_del_sup:
+                    df_obj_t = df_sup_qrs[df_sup_qrs['OBJETIVO'].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
+                    inicios_obj = df_obj_t[df_obj_t['ACCION'].astype(str).str.strip().str.upper() == 'INICIO']
+                    fines_obj = df_obj_t[df_obj_t['ACCION'].astype(str).str.strip().str.upper() == 'FIN']
+                    
+                    hora_ingreso_obj = "---"
+                    hora_egreso_obj = "---"
+                    tiempo_permanencia_str = "En curso / Sin egreso"
+                    minutos_permanencia = 0
+
+                    if not inicios_obj.empty:
+                        fh_ingreso = str(inicios_obj.iloc[-1].get('FECHA_HORA', ''))
+                        hora_ingreso_obj = fh_ingreso.split(" ")[1] if " " in fh_ingreso else fh_ingreso
+
+                    if not fines_obj.empty:
+                        fh_egreso = str(fines_obj.iloc[-1].get('FECHA_HORA', ''))
+                        hora_egreso_obj = fh_egreso.split(" ")[1] if " " in fh_egreso else fh_egreso
+
+                    if not inicios_obj.empty and not fines_obj.empty:
+                        try:
+                            t_ing = datetime.strptime(hora_ingreso_obj, "%H:%M:%S")
+                            t_egr = datetime.strptime(hora_egreso_obj, "%H:%M:%S")
+                            if t_egr >= t_ing:
+                                diff = t_egr - t_ing
+                                minutos_permanencia = int(diff.total_seconds() // 60)
+                                total_minutos_objetivos += minutos_permanencia
+                                h_p = minutos_permanencia // 60
+                                m_p = minutos_permanencia % 60
+                                tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
+                        except:
+                            tiempo_permanencia_str = "---"
+
+                    reporte_consolidado.append({
+                        "SUPERVISOR": sup,
+                        "OBJETIVO": obj,
+                        "INICIO JORNADA": inicio_jornada_gral,
+                        "INGRESO OBJETIVO": hora_ingreso_obj,
+                        "EGRESO OBJETIVO": hora_egreso_obj,
+                        "PERMANENCIA EN OBJETIVO": tiempo_permanencia_str,
+                        "FIN JORNADA": fin_jornada_gral
+                    })
+
+            if reporte_consolidado:
+                df_final_tiempos = pd.DataFrame(reporte_consolidado)
+                st.dataframe(df_final_tiempos, use_container_width=True, hide_index=True)
+                
+                pdf_tiempos = generar_pdf_reporte("REPORTE DE TIEMPOS, PERMANENCIA Y HORAS TRABAJADAS", df_final_tiempos)
+                st.download_button("📥 DESCARGAR REPORTE DE TIEMPOS Y HORAS (PDF)", data=pdf_tiempos, file_name="reporte_horas_trabajadas_supervisores.pdf", mime="application/pdf", key="dl_tiempos_horas_pdf_ger")
             else:
                 st.info("No hay suficientes registros cruzados de QR para calcular las permanencias aún.")
         else:
