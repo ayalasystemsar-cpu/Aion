@@ -1101,24 +1101,22 @@ if st.session_state.rol_sel == "MONITOREO":
                     with sub_tab_ficha_mono:
                         if not df_nov_m_base.empty:
                             df_nov_m_base.columns = [str(c).strip().upper() for c in df_nov_m_base.columns]
-                            objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_item]['OBJETIVO'].tolist() if not df_objetivos.empty else []
+                            objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_item).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                             
-                            if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_m_base.columns and 'TIPO_EVENTO' in df_nov_m_base.columns:
-                                mask_fich = df_nov_m_base['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) & \
-                                            df_nov_m_base['TIPO_EVENTO'].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                                
-                                df_fichajes_sup_filtrado = df_nov_m_base[mask_fich]
+                            if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_m_base.columns:
+                                df_nov_m_base['OBJETIVO_CLEAN'] = df_nov_m_base['OBJETIVO'].astype(str).str.strip().str.upper()
+                                df_fichajes_sup_filtrado = df_nov_m_base[df_nov_m_base['OBJETIVO_CLEAN'].isin(objs_del_sup)]
                                 
                                 if not df_fichajes_sup_filtrado.empty:
-                                    st.dataframe(df_fichajes_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                                    pdf_pres_sup_m = generar_pdf_reporte(f"MONITOREO - FICHAJES VIGILADORES ({sup_item})", df_fichajes_sup_filtrado)
-                                    st.download_button(f"📥 DESCARGAR FICHAJES DE {sup_item} (PDF)", data=pdf_pres_sup_m, file_name=f"monitoreo_fichajes_{sup_item.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_fichajes_sup_mono_{idx_sup_m}")
+                                    st.dataframe(df_fichajes_sup_filtrado.drop(columns=['OBJETIVO_CLEAN']).iloc[::-1], use_container_width=True, hide_index=True)
+                                    pdf_pres_sup_m = generar_pdf_reporte(f"MONITOREO - NOVEDADES Y FICHAJES ({sup_item})", df_fichajes_sup_filtrado.drop(columns=['OBJETIVO_CLEAN']))
+                                    st.download_button(f"📥 DESCARGAR NOVEDADES DE {sup_item} (PDF)", data=pdf_pres_sup_m, file_name=f"monitoreo_novedades_{sup_item.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_fichajes_sup_mono_{idx_sup_m}")
                                 else:
-                                    st.info(f"No hay fichajes registrados para los objetivos de {sup_item}.")
+                                    st.info(f"No hay registros de novedades para los objetivos de {sup_item}.")
                             else:
                                 st.info(f"El supervisor {sup_item} no tiene objetivos asignados en la red.")
                         else:
-                            st.info("No hay fichajes de vigiladores registrados.")
+                            st.info("No hay novedades de guardia registradas.")
 
                     with sub_tab_rel_mono:
                         if not df_vig_rel_m_base.empty:
@@ -1536,27 +1534,26 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.info("Sin registros QR en el sistema.")
 
             st.markdown("---")
-            st.markdown(f"#### 📋 FICHAJES Y MARCACIONES DE VIGILADORES EN TUS OBJETIVOS")
+            st.markdown(f"#### 📋 FICHAJES Y NOVEDADES DE GUARDIA EN TUS OBJETIVOS")
             df_nov_sup_base = leer_matriz_nube("NOVEDADES GUARDIA")
-            lista_objs_supervisor = df_objetivos_filtrados['OBJETIVO'].tolist() if not df_objetivos_filtrados.empty else []
+            lista_objs_supervisor = [o.strip().upper() for o in df_objetivos_filtrados['OBJETIVO'].tolist()] if not df_objetivos_filtrados.empty else []
 
             if not df_nov_sup_base.empty and len(lista_objs_supervisor) > 0:
                 df_nov_sup_base.columns = [str(c).strip().upper() for c in df_nov_sup_base.columns]
-                if 'OBJETIVO' in df_nov_sup_base.columns and 'TIPO_EVENTO' in df_nov_sup_base.columns:
-                    mask_fich_sup = df_nov_sup_base['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in lista_objs_supervisor]) & \
-                                    df_nov_sup_base['TIPO_EVENTO'].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                    df_fich_sup_filtrado = df_nov_sup_base[mask_fich_sup]
+                if 'OBJETIVO' in df_nov_sup_base.columns:
+                    df_nov_sup_base['OBJETIVO_CLEAN'] = df_nov_sup_base['OBJETIVO'].astype(str).str.strip().str.upper()
+                    df_fich_sup_filtrado = df_nov_sup_base[df_nov_sup_base['OBJETIVO_CLEAN'].isin(lista_objs_supervisor)]
                     
                     if not df_fich_sup_filtrado.empty:
-                        st.dataframe(df_fich_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                        pdf_fich_sup_dl = generar_pdf_reporte(f"FICHAJES DE VIGILADORES - {sup_activo_normalizado}", df_fich_sup_filtrado)
-                        st.download_button("📥 DESCARGAR FICHAJES DE VIGILADORES (PDF)", data=pdf_fich_sup_dl, file_name=f"fichajes_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_fich_sup_vig")
+                        st.dataframe(df_fich_sup_filtrado.drop(columns=['OBJETIVO_CLEAN']).iloc[::-1], use_container_width=True, hide_index=True)
+                        pdf_fich_sup_dl = generar_pdf_reporte(f"NOVEDADES DE GUARDIA - {sup_activo_normalizado}", df_fich_sup_filtrado.drop(columns=['OBJETIVO_CLEAN']))
+                        st.download_button("📥 DESCARGAR NOVEDADES DE VIGILADORES (PDF)", data=pdf_fich_sup_dl, file_name=f"novedades_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_fich_sup_vig")
                     else:
-                        st.info("No hay fichajes registrados en tus objetivos asignados.")
+                        st.info("No hay novedades registradas en tus objetivos asignados.")
                 else:
                     st.info("Estructura de novedades no válida.")
             else:
-                st.info("No tienes objetivos asignados o no hay fichajes registrados.")
+                st.info("No tienes objetivos asignados o no hay registros en la nube.")
 
             st.markdown("---")
             st.markdown(f"#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA EN TUS OBJETIVOS")
