@@ -520,7 +520,7 @@ def limpiar_matriz_nube(nombre_hoja):
     except: return False
 
 def ejecutar_cierre_táctico():
-    matrices = ["JORNADA_SUPERVISORES", "REGISTRO_QR_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
+    matrices = ["JORNADA_SUPERVISORES", "REGISTRO_QR_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA", "PRESENTISMO"]
     fecha_hoy = obtener_hora_argentina()
     mes_actual = fecha_hoy.split("-")[1] 
     try:
@@ -813,8 +813,8 @@ if st.session_state.rol_sel == "MONITOREO":
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
-    t_radar, t_mensajeria, t_vig, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", label_msg, "👥 PADRÓN VIGILADORES", "🔄 NOVEDADES Y FICHAJES"
+    t_radar, t_mensajeria, t_nov = st.tabs([
+        "🚨 RADAR S.O.S", label_msg, "🔄 NOVEDADES Y FICHAJES"
     ]) 
 
     with t_radar:
@@ -1033,24 +1033,17 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_mensajeria:
         renderizar_mensajeria_global("MONITOREO")
-    with t_vig:
-        st.subheader("👥 PADRÓN VIGILADORES")
-        df_padrero = leer_matriz_nube("VIGILADORES")
-        if not df_padrero.empty:
-            df_padrero.columns = df_padrero.columns.str.strip().str.upper()
-            st.dataframe(df_padrero.iloc[::-1], use_container_width=True)
-        else:
-            st.info("No hay datos en la pestaña de relevos (Vigiladores).")
             
     with t_nov:
         st.subheader("🔄 CENTRO DE REGISTROS DE MONITOREO POR SUPERVISOR")
         
-        sub_tab_qr_mono, sub_tab_rel_mono, sub_tab_alt_mono, sub_tab_pan_mono = st.tabs([
-            "📱 Fichajes QR (Supervisores)", "🔄 Relevos de Vigiladores", "⚠️ Alertas Operativas", "🚨 Pánicos S.O.S"
+        sub_tab_qr_mono, sub_tab_ficha_mono, sub_tab_rel_mono, sub_tab_alt_mono, sub_tab_pan_mono = st.tabs([
+            "📱 Fichajes QR (Supervisores)", "📋 Fichaje de Vigiladores", "🔄 Relevos de Vigiladores", "⚠️ Alertas Operativas", "🚨 Pánicos S.O.S"
         ])
 
         df_qr_m_base = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
         df_vig_rel_m_base = leer_matriz_nube("VIGILADORES")
+        df_pres_m_base = leer_matriz_nube("PRESENTISMO")
         df_alt_m_base = leer_matriz_nube("ALERTAS")
 
         with sub_tab_qr_mono:
@@ -1075,6 +1068,16 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.info("No hay supervisores registrados en los fichajes QR.")
             else:
                 st.info("No hay datos de fichajes QR.")
+
+        with sub_tab_ficha_mono:
+            st.markdown("#### 📋 FICHAJE DE VIGILADORES")
+            if not df_pres_m_base.empty:
+                df_pres_m_base.columns = [str(c).strip().upper() for c in df_pres_m_base.columns]
+                st.dataframe(df_pres_m_base.iloc[::-1], use_container_width=True, hide_index=True)
+                pdf_pres_m = generar_pdf_reporte("MONITOREO - FICHAJES DE VIGILADORES", df_pres_m_base)
+                st.download_button("📥 DESCARGAR FICHAJES DE VIGILADORES (PDF)", data=pdf_pres_m, file_name="monitoreo_fichajes_vigiladores.pdf", mime="application/pdf", key="dl_pres_mono")
+            else:
+                st.info("No hay fichajes de vigiladores registrados.")
 
         with sub_tab_rel_mono:
             st.markdown("#### 🔄 RELEVOS DE GUARDIA (VIGILADORES)")
@@ -1476,9 +1479,27 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.info("Sin registros QR en el sistema.")
 
             st.markdown("---")
-            st.markdown(f"#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA EN TUS OBJETIVOS")
+            st.markdown(f"#### 📋 FICHAJE DE VIGILADORES EN TUS OBJETIVOS")
             lista_objs_supervisor = df_objetivos_filtrados['OBJETIVO'].tolist() if not df_objetivos_filtrados.empty else []
 
+            df_pres_sup = leer_matriz_nube("PRESENTISMO")
+            if not df_pres_sup.empty and len(lista_objs_supervisor) > 0:
+                df_pres_sup.columns = [str(c).strip().upper() for c in df_pres_sup.columns]
+                # Filtrar fichajes de vigiladores que correspondan a los objetivos asignados
+                mask_pres = df_pres_sup['CARGA_UTIL'].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor)) if 'CARGA_UTIL' in df_pres_sup.columns else df_pres_sup.iloc[:, 3].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor))
+                df_pres_sup_filtrado = df_pres_sup[mask_pres]
+                
+                if not df_pres_sup_filtrado.empty:
+                    st.dataframe(df_pres_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                    pdf_pres_sup_dl = generar_pdf_reporte(f"FICHAJES DE VIGILADORES - {sup_activo_normalizado}", df_pres_sup_filtrado)
+                    st.download_button("📥 DESCARGAR FICHAJES DE VIGILADORES (PDF)", data=pdf_pres_sup_dl, file_name=f"fichajes_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_pres_sup")
+                else:
+                    st.info("No hay fichajes de vigiladores registrados en tus objetivos.")
+            else:
+                st.info("No tienes objetivos asignados o no hay fichajes en la base.")
+
+            st.markdown("---")
+            st.markdown(f"#### 🔄 RELEVO DE GUARDIA Y ASISTENCIA EN TUS OBJETIVOS")
             df_vig_rel_sup = leer_matriz_nube("VIGILADORES")
             if not df_vig_rel_sup.empty and len(lista_objs_supervisor) > 0:
                 df_vig_rel_sup.columns = [str(c).strip().upper() for c in df_vig_rel_sup.columns]
