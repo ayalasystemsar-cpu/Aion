@@ -75,19 +75,29 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
+def obtener_mapeo_solapas():
+    return {
+        "NOVEDADES GUARDIA": "NOVEDADES GUARDIA",
+        "REGISTRO QR SUPERVISORES": "REGISTRO QR SUPERVISORES",
+        "JORNADA SUPERVISORES": "JORNADA SUPERVISORES",
+        "CONTROL DE FLOTA": "CONTROL DE FLOTA",
+        "CONTROL FLOTA": "CONTROL DE FLOTA",
+        "SOLICITUDES DE ACCESO": "SOLICITUDES DE ACCESO",
+        "SOLICITUDES ACCESO": "SOLICITUDES DE ACCESO",
+        "OBJETIVOS": "OBJETIVOS",
+        "COMISARIAS": "COMISARIAS",
+        "USUARIOS": "USUARIOS",
+        "ALERTAS": "ALERTAS",
+        "MENSAJERIA": "MENSAJERIA",
+        "PRESENTISMO": "PRESENTISMO",
+        "VIGILADORES": "VIGILADORES"
+    }
+
 def actualizar_celda(pestana, fila, columna, valor):
     try:
         gc = conectar_google()
         if gc:
-            nombres_mapeo = {
-                "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
-                "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
-                "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
-                "CONTROL_FLOTA": "CONTROL FLOTA",
-                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO",
-                "REGISTRO-QR-SUPERVISORES": "REGISTRO QR SUPERVISORES"
-            }
-            nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
+            nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             hoja.update_acell(f"{columna}{fila}", valor)
             st.cache_data.clear()
@@ -100,15 +110,7 @@ def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
         if gc:
-            nombres_mapeo = {
-                "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
-                "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
-                "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
-                "CONTROL_FLOTA": "CONTROL FLOTA",
-                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO",
-                "REGISTRO-QR-SUPERVISORES": "REGISTRO QR SUPERVISORES"
-            }
-            nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
+            nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             hoja.append_row(datos_fila)
             st.cache_data.clear() 
@@ -123,16 +125,7 @@ def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
         try:
-            nombres_mapeo = {
-                "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
-                "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
-                "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
-                "CONTROL_FLOTA": "CONTROL FLOTA",
-                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO",
-                "REGISTRO-QR-SUPERVISORES": "REGISTRO QR SUPERVISORES"
-            }
-            nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
-            
+            nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             todas_filas = hoja.get_all_values()
             if not todas_filas or len(todas_filas) == 0:
@@ -280,7 +273,7 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
         if gc:
             sh = gc.open_by_key(ID_MAESTRO_DB)
             hoja = None
-            nombres_posibles = ["REGISTRO QR SUPERVISORES", "REGISTRO_QR_SUPERVISORES", "REGISTRO-QR-SUPERVISORES"]
+            nombres_posibles = ["REGISTRO QR SUPERVISORES", "REGISTRO-QR-SUPERVISORES"]
             
             for nombre in nombres_posibles:
                 try:
@@ -543,14 +536,7 @@ def limpiar_matriz_nube(nombre_hoja):
     try:
         gc = conectar_google()
         if gc:
-            nombres_mapeo = {
-                "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
-                "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
-                "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
-                "CONTROL_FLOTA": "CONTROL FLOTA",
-                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO"
-            }
-            nombre_hoja_real = nombres_mapeo.get(nombre_hoja, nombre_hoja)
+            nombre_hoja_real = obtener_mapeo_solapas().get(nombre_hoja.upper().strip(), nombre_hoja)
             worksheet = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             worksheet.delete_rows(2, worksheet.row_count)
             st.cache_data.clear()
@@ -558,7 +544,7 @@ def limpiar_matriz_nube(nombre_hoja):
     except: return False
 
 def ejecutar_cierre_táctico():
-    matrices = ["JORNADA_SUPERVISORES", "REGISTRO_QR_SUPERVISORES", "ALERTAS", "NOVEDADES_GUARDIA", "CONTROL_FLOTA"]
+    matrices = ["JORNADA SUPERVISORES", "REGISTRO QR SUPERVISORES", "ALERTAS", "NOVEDADES GUARDIA", "CONTROL DE FLOTA"]
     fecha_hoy = obtener_hora_argentina()
     mes_actual = fecha_hoy.split("-")[1] 
     try:
@@ -827,7 +813,7 @@ if st.session_state.rol_sel == "MONITOREO":
             df_alertas = leer_matriz_nube("ALERTAS")
             if not df_alertas.empty:
                 df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
-                total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"])
+                total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if 'ESTADO' in df_alertas.columns else 0
                 st.metric("🚨 S.O.S ACTIVOS", total_sos)
             else:
                 st.metric("🚨 S.O.S ACTIVOS", "0")
@@ -876,7 +862,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.warning("⚠️ La columna 'SUPERVISOR' no se encuentra en la solapa OBJETIVOS.")
 
         if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
-            df_jornadas_mon = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+            df_jornadas_mon = leer_matriz_nube("REGISTRO QR SUPERVISORES")
             total_objs_sup = len(df_mapa_filtrado_sup['OBJETIVO'].unique())
             visitados_sup_count = 0
             
@@ -975,7 +961,7 @@ if st.session_state.rol_sel == "MONITOREO":
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
             df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
             with st.form(key="form_finalizar_panico", clear_on_submit=True):
-                opciones_alertas = {f"{r['FECHA']} - {r['USUARIO']}": idx for idx, r in df_pendientes_form.iterrows()}
+                opciones_alertas = {f"{r.get('FECHA', '')} - {r.get('USUARIO', '')}": idx for idx, r in df_pendientes_form.iterrows()}
                 alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
                 txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución...")
                 if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
@@ -1013,9 +999,9 @@ if st.session_state.rol_sel == "MONITOREO":
                     alerta_activa = df_emergencias[
                         (df_emergencias['CARGA_UTIL'].str.contains(r['OBJETIVO'])) & 
                         (df_emergencias['ESTADO'] == 'PENDIENTE')
-                    ]
+                    ] if 'CARGA_UTIL' in df_emergencias.columns else pd.DataFrame()
                     if not alerta_activa.empty:
-                        nombre_vigilante = alerta_activa.iloc[-1]['USUARIO']
+                        nombre_vigilante = alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')
                         texto_tooltip = f"🚨 {nombre_vigilante} | {r['OBJETIVO']}"
 
                 if es_panico or es_el_seleccionado:
@@ -1075,9 +1061,9 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_nov:
         st.subheader("🔄 AUDITORÍA Y REGISTROS DE MONITOREO POR SUPERVISOR")
         
-        df_qr_m_base = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+        df_qr_m_base = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         df_vig_rel_m_base = leer_matriz_nube("VIGILADORES")
-        df_nov_m_base = leer_matriz_nube("NOVEDADES_GUARDIA")
+        df_nov_m_base = leer_matriz_nube("NOVEDADES GUARDIA")
         df_alt_m_base = leer_matriz_nube("ALERTAS")
 
         sups_dinamicos_qr = []
@@ -1160,9 +1146,9 @@ if st.session_state.rol_sel == "MONITOREO":
                             df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
                             objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_item]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                             
-                            if not df_alertas_op.empty:
-                                mask_alt = df_alertas_op['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if len(objs_del_sup) > 0 and 'CARGA_UTIL' in df_alertas_op.columns else pd.Series([False]*len(df_alertas_op))
-                                cond_sup = df_alertas_op['CARGA_UTIL'].str.contains(sup_item, na=False) if 'CARGA_UTIL' in df_alertas_op.columns else pd.Series([False]*len(df_alertas_op))
+                            if not df_alertas_op.empty and 'CARGA_UTIL' in df_alertas_op.columns:
+                                mask_alt = df_alertas_op['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if len(objs_del_sup) > 0 else pd.Series([False]*len(df_alertas_op))
+                                cond_sup = df_alertas_op['CARGA_UTIL'].str.contains(sup_item, na=False)
                                 df_alt_sup_filtrado = df_alertas_op[mask_alt | cond_sup]
                             else:
                                 df_alt_sup_filtrado = pd.DataFrame()
@@ -1182,9 +1168,9 @@ if st.session_state.rol_sel == "MONITOREO":
                             df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
                             objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_item]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                             
-                            if not df_panicos_op.empty:
-                                mask_pan = df_panicos_op['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if len(objs_del_sup) > 0 and 'CARGA_UTIL' in df_panicos_op.columns else pd.Series([False]*len(df_panicos_op))
-                                cond_pan = df_panicos_op['CARGA_UTIL'].str.contains(sup_item, na=False) if 'CARGA_UTIL' in df_panicos_op.columns else pd.Series([False]*len(df_panicos_op))
+                            if not df_panicos_op.empty and 'CARGA_UTIL' in df_panicos_op.columns:
+                                mask_pan = df_panicos_op['CARGA_UTIL'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup)) if len(objs_del_sup) > 0 else pd.Series([False]*len(df_panicos_op))
+                                cond_pan = df_panicos_op['CARGA_UTIL'].str.contains(sup_item, na=False)
                                 df_pan_sup_filtrado = df_panicos_op[mask_pan | cond_pan]
                             else:
                                 df_pan_sup_filtrado = pd.DataFrame()
@@ -1249,7 +1235,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 carga_sos = f"SUP:{st.session_state.user_sel}|OBJ:{obj_actual}|LAT:{lat_envio}|LON:{lon_envio}"
                 exito = escribir_registro_nube("ALERTAS", [
-                    obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos
+                    obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"
                 ])
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
@@ -1264,7 +1250,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
-                df_jornadas_act = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+                df_jornadas_act = leer_matriz_nube("REGISTRO QR SUPERVISORES")
                 
                 total_asignados = len(df_objetivos_filtrados['OBJETIVO'].unique())
                 visitados_count = 0
@@ -1379,7 +1365,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                             if exito_registro:
                                 try:
-                                    escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                                    escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
                                 except:
                                     pass
                                 
@@ -1464,7 +1450,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         km_fin_fmt = f"{v_km_fin:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                         costo_km_fmt = f"{costo_km:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-                        escribir_registro_nube("CONTROL_FLOTA", [
+                        escribir_registro_nube("CONTROL DE FLOTA", [
                             fecha_reg, v_vig, v_patente, km_ini_fmt, km_fin_fmt, km_rec_fmt, v_combustible, monto_fmt, costo_km_fmt, estado_auditoria
                         ])
                         st.success(f"✅ Acta registrada. Distancia recorrida: {km_rec_fmt} km | Gasto: ${monto_fmt}")
@@ -1507,7 +1493,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         obj_a_baja = st.selectbox("SELECCIONE OBJETIVO A DAR DE BAJA:", df_objetivos_filtrados['OBJETIVO'].unique())
                         motivo_baja = st.text_input("MOTIVO DE LA BAJA:")
                         if st.form_submit_button("🗑️ SOLICITAR BAJA DE OBJETIVO"):
-                            escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", f"{obj_a_baja} - MOTIVO: {motivo_baja}"])
+                            escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", f"{obj_a_baja} - MOTIVO: {motivo_baja}", "PENDIENTE"])
                             st.success(f"✅ Petición de baja enviada para '{obj_a_baja}'.")
 
         with t_ruta_gmaps:
@@ -1527,7 +1513,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
             if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES_GUARDIA", [obtener_hora_argentina(), obj_actual, "NOVEDAD OPERATIVA", novedad_sup.strip().upper(), st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_actual, "NOVEDAD OPERATIVA", novedad_sup.strip().upper(), st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
                 st.success("✅ Cargado correctamente")
 
         with t_mensajeria_sup:
@@ -1535,7 +1521,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with t_pres_sup:
             st.markdown(f"#### 📱 MIS ESCANEOS QR REGISTRADOS EN CAMPO")
-            df_qr_sup_base = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+            df_qr_sup_base = leer_matriz_nube("REGISTRO QR SUPERVISORES")
             if not df_qr_sup_base.empty:
                 df_qr_sup_base.columns = [str(c).strip().upper() for c in df_qr_sup_base.columns]
                 col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_sup_base.columns else df_qr_sup_base.columns[3]
@@ -1551,7 +1537,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
             st.markdown("---")
             st.markdown(f"#### 📋 FICHAJES Y MARCACIONES DE VIGILADORES EN TUS OBJETIVOS")
-            df_nov_sup_base = leer_matriz_nube("NOVEDADES_GUARDIA")
+            df_nov_sup_base = leer_matriz_nube("NOVEDADES GUARDIA")
             lista_objs_supervisor = df_objetivos_filtrados['OBJETIVO'].tolist() if not df_objetivos_filtrados.empty else []
 
             if not df_nov_sup_base.empty and len(lista_objs_supervisor) > 0:
@@ -1591,7 +1577,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
             st.markdown("---")
             st.markdown(f"#### 🚗 CONTROL DE FLOTA REGISTRADO")
-            df_flota_sup = leer_matriz_nube("CONTROL_FLOTA")
+            df_flota_sup = leer_matriz_nube("CONTROL DE FLOTA")
             if not df_flota_sup.empty:
                 df_flota_sup.columns = [str(c).strip().upper() for c in df_flota_sup.columns]
                 col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_sup.columns else (df_flota_sup.columns[1] if len(df_flota_sup.columns) > 1 else None)
@@ -1650,8 +1636,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_pan_sup = leer_matriz_nube("ALERTAS")
             if not df_pan_sup.empty and len(lista_objs_supervisor) > 0:
                 df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
-                mask_objs = df_pan_sup['CARGA_UTIL'].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor))
-                df_pan_sup_filtro = df_pan_sup[mask_objs | (df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False))]
+                if 'CARGA_UTIL' in df_pan_sup.columns:
+                    mask_objs = df_pan_sup['CARGA_UTIL'].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor))
+                    df_pan_sup_filtro = df_pan_sup[mask_objs | (df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False))]
+                else:
+                    df_pan_sup_filtro = df_pan_sup.copy()
                 
                 if not df_pan_sup_filtro.empty:
                     st.dataframe(df_pan_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1779,7 +1768,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
                     
                     escribir_registro_nube("PRESENTISMO", [fecha_hora_arg.split(" ")[0], fecha_hora_arg.split(" ")[1], v_dni, f"{v_nombre_completo.upper()} - {v_obj}", "", "OK", v_tipo_marcacion])
-                    escribir_registro_nube("NOVEDADES_GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
+                    escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_dni, "PROCESADO", sup_responsable])
                     st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
                 else:
                     st.error("⚠️ Por favor, complete el apellido, nombre y legajo.")
@@ -1795,7 +1784,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 st.session_state.obj_actual_vig = v_obj_relevo
                 sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                 fecha = obtener_hora_argentina()
-                escribir_registro_nube("NOVEDADES_GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
+                escribir_registro_nube("NOVEDADES GUARDIA", [fecha, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
@@ -1814,7 +1803,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         @st.fragment(run_every=5)
         def mostrar_sos():
             df_alertas = leer_matriz_nube("ALERTAS")
-            total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if not df_alertas.empty else 0
+            total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if not df_alertas.empty and 'ESTADO' in df_alertas.columns else 0
             st.metric("🚨 S.O.S ACTIVOS", total_sos)
         mostrar_sos()
 
@@ -1829,7 +1818,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
     total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | 
                             (df_msg['DESTINATARIO'] == "JEFE DE OPERACIONES") | 
                             (df_msg['DESTINATARIO'] == nombre_user)) & 
-                           (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty else 0
+                           (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
     
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
     
@@ -1847,20 +1836,20 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             g_alta_nom = st.text_input("Nombre:", key="jefe_alta_nom")
             g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="jefe_alta_asig")
             if st.button("Solicitar Alta"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
+                escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", f"{g_alta_nom} | ASIG: {g_alta_asig}", "PENDIENTE"])
                 st.success("✅ Petición enviada")
         with col_g2:
             st.subheader("BAJA DE OBJETIVO")
             g_baja_obj = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"], key="jefe_baja_obj")
             if st.button("Solicitar Baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
+                escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", g_baja_obj, "PENDIENTE"])
                 st.success("✅ Petición enviada")
     
     with t_tab_auditoria:
         st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
-        df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
-        df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
-        df_flota_aud = leer_matriz_nube("CONTROL_FLOTA")
+        df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
+        df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
+        df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
 
         if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
@@ -2050,7 +2039,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 # =========================================================================
 elif st.session_state.rol_sel == "GERENCIA":
     fecha_hoy = obtener_hora_argentina().split(" ")[0]
-    df_jornada_actual = leer_matriz_nube("JORNADA_SUPERVISORES")
+    df_jornada_actual = leer_matriz_nube("JORNADA SUPERVISORES")
     
     if not df_jornada_actual.empty:
         df_jornada_actual.columns = [str(c).strip().upper() for c in df_jornada_actual.columns]
@@ -2087,20 +2076,20 @@ elif st.session_state.rol_sel == "GERENCIA":
             g_alta_nom = st.text_input("Nombre:", key="ger_alta_nom")
             g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="ger_alta_asig")
             if st.button("Solicitar Alta"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", "OBJETIVO", f"{g_alta_nom} | ASIG: {g_alta_asig}"])
+                escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", f"{g_alta_nom} | ASIG: {g_alta_asig}", "PENDIENTE"])
                 st.success("✅ Petición enviada")
         with col_g2:
             st.subheader("BAJA DE OBJETIVO")
             g_baja_obj = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"], key="ger_baja_obj")
             if st.button("Solicitar Baja"):
-                escribir_registro_nube("PETICIONES", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", "OBJETIVO", g_baja_obj])
+                escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", g_baja_obj, "PENDIENTE"])
                 st.success("✅ Petición enviada")
 
     with t_tab_auditoria:
         st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
-        df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
-        df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
-        df_flota_aud = leer_matriz_nube("CONTROL_FLOTA")
+        df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
+        df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
+        df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
 
         if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
