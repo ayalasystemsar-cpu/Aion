@@ -1073,6 +1073,15 @@ if st.session_state.rol_sel == "MONITOREO":
             st.markdown("#### 📋 FICHAJE DE VIGILADORES")
             if not df_pres_m_base.empty:
                 df_pres_m_base.columns = [str(c).strip().upper() for c in df_pres_m_base.columns]
+                
+                # Renombrar la columna DNI/Legajo para mayor claridad
+                mapa_pres = {}
+                for c in df_pres_m_base.columns:
+                    if 'DNI' in c or 'LEGAJO' in c:
+                        mapa_pres[c] = 'N° LEGAJO'
+                df_pres_m_base = df_pres_m_base.rename(columns=mapa_pres)
+                df_pres_m_base = df_pres_m_base.loc[:, ~df_pres_m_base.columns.duplicated()]
+
                 st.dataframe(df_pres_m_base.iloc[::-1], use_container_width=True, hide_index=True)
                 pdf_pres_m = generar_pdf_reporte("MONITOREO - FICHAJES DE VIGILADORES", df_pres_m_base)
                 st.download_button("📥 DESCARGAR FICHAJES DE VIGILADORES (PDF)", data=pdf_pres_m, file_name="monitoreo_fichajes_vigiladores.pdf", mime="application/pdf", key="dl_pres_mono")
@@ -1485,7 +1494,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_pres_sup = leer_matriz_nube("PRESENTISMO")
             if not df_pres_sup.empty and len(lista_objs_supervisor) > 0:
                 df_pres_sup.columns = [str(c).strip().upper() for c in df_pres_sup.columns]
-                # Filtrar fichajes de vigiladores que correspondan a los objetivos asignados
+                
+                # Renombrar DNI por N° LEGAJO
+                mapa_pres_sup = {}
+                for c in df_pres_sup.columns:
+                    if 'DNI' in c or 'LEGAJO' in c:
+                        mapa_pres_sup[c] = 'N° LEGAJO'
+                df_pres_sup = df_pres_sup.rename(columns=mapa_pres_sup)
+                df_pres_sup = df_pres_sup.loc[:, ~df_pres_sup.columns.duplicated()]
+
                 mask_pres = df_pres_sup['CARGA_UTIL'].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor)) if 'CARGA_UTIL' in df_pres_sup.columns else df_pres_sup.iloc[:, 3].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor))
                 df_pres_sup_filtrado = df_pres_sup[mask_pres]
                 
@@ -1716,7 +1733,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
             v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
             vig_saliente = st.text_input("SALE:", value="AGENTE SALIENTE").upper().strip()
             vig_entrante = st.text_input("ENTRA:", value="AGENTE ENTRANTE").upper().strip()
-            v_dni_relevo = st.text_input("DNI RESPONSABLE:", value="12345678").strip()
+            v_dni_relevo = st.text_input("LEGAJO RESPONSABLE:", value="12345678").strip()
             if st.form_submit_button("SANCIONAR CAMBIO"):
                 st.session_state.obj_actual_vig = v_obj_relevo
                 sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
