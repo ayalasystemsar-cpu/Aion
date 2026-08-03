@@ -1568,6 +1568,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 
                 inicio_jornada_gral = "---"
                 fin_jornada_gral = "---"
+                total_horas_jornada_str = "---"
                 
                 if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
                     df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
@@ -1577,13 +1578,36 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         
                         inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
                         fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
+                        
+                        dt_ini_j = None
+                        dt_fin_j = None
+                        
                         if not inicios_j.empty:
-                            inicio_jornada_gral = str(inicios_j.iloc[0].get(col_hora_j, '---'))
+                            val_h_ini = str(inicios_j.iloc[0].get(col_hora_j, '---'))
+                            inicio_jornada_gral = val_h_ini.split(" ")[1] if " " in val_h_ini else val_h_ini
+                            try:
+                                dt_ini_j = datetime.strptime(inicio_jornada_gral, "%H:%M:%S")
+                            except: pass
+
                         if not fines_j.empty:
-                            fin_jornada_gral = str(fines_j.iloc[-1].get(col_hora_j, '---'))
+                            val_h_fin = str(fines_j.iloc[-1].get(col_hora_j, '---'))
+                            fin_jornada_gral = val_h_fin.split(" ")[1] if " " in val_h_fin else val_h_fin
+                            try:
+                                dt_fin_j = datetime.strptime(fin_jornada_gral, "%H:%M:%S")
+                            except: pass
+
+                        if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
+                            diff_j = dt_fin_j - dt_ini_j
+                            mins_j = int(diff_j.total_seconds() // 60)
+                            h_j = mins_j // 60
+                            m_j = mins_j % 60
+                            total_horas_jornada_str = f"{h_j}h {m_j}m"
 
                 objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
+                total_minutos_acumulados = 0
 
+                # Primera pasada para calcular total de minutos en objetivos de este supervisor
+                filas_supervisor_temp = []
                 for obj in objetivos_del_sup:
                     df_obj_t = df_sup_qrs[df_sup_qrs[col_obj_q].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
                     inicios_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'INICIO']
@@ -1591,7 +1615,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     
                     hora_ingreso_obj = "---"
                     hora_egreso_obj = "---"
-                    tiempo_permanencia_str = "En curso / Sin egreso"
+                    tiempo_permanencia_str = "---"
+                    minutos_obj = 0
 
                     if not inicios_obj.empty:
                         fh_ingreso = str(inicios_obj.iloc[-1].get(col_fec_q, ''))
@@ -1607,22 +1632,34 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             t_egr = datetime.strptime(hora_egreso_obj, "%H:%M:%S")
                             if t_egr >= t_ing:
                                 diff = t_egr - t_ing
-                                minutos_permanencia = int(diff.total_seconds() // 60)
-                                h_p = minutos_permanencia // 60
-                                m_p = minutos_permanencia % 60
+                                minutos_obj = int(diff.total_seconds() // 60)
+                                total_minutos_acumulados += minutos_obj
+                                h_p = minutos_obj // 60
+                                m_p = minutos_obj % 60
                                 tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
                         except:
                             tiempo_permanencia_str = "---"
 
-                    reporte_consolidado.append({
+                    filas_supervisor_temp.append({
                         "SUPERVISOR": sup,
-                        "OBJETIVO": obj,
                         "INICIO JORNADA": inicio_jornada_gral,
+                        "FIN JORNADA": fin_jornada_gral,
+                        "TOTAL HORAS TRABAJADAS": total_horas_jornada_str,
+                        "OBJETIVO": obj,
                         "INGRESO OBJETIVO": hora_ingreso_obj,
                         "EGRESO OBJETIVO": hora_egreso_obj,
                         "PERMANENCIA EN OBJETIVO": tiempo_permanencia_str,
-                        "FIN JORNADA": fin_jornada_gral
+                        "_minutos": total_minutos_acumulados
                     })
+
+                tot_h_acum = total_minutos_acumulados // 60
+                tot_m_acum = total_minutos_acumulados % 60
+                str_total_acumulado = f"{tot_h_acum}h {tot_m_acum}m" if tot_h_acum > 0 else f"{tot_m_acum} min"
+
+                for fila_item in filas_supervisor_temp:
+                    fila_item["TOTAL TIEMPO EN OBJETIVOS"] = str_total_acumulado
+                    del fila_item["_minutos"]
+                    reporte_consolidado.append(fila_item)
 
             if reporte_consolidado:
                 df_final_tiempos = pd.DataFrame(reporte_consolidado)
@@ -1754,6 +1791,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 
                 inicio_jornada_gral = "---"
                 fin_jornada_gral = "---"
+                total_horas_jornada_str = "---"
                 
                 if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
                     df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
@@ -1763,13 +1801,35 @@ elif st.session_state.rol_sel == "GERENCIA":
                         
                         inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
                         fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
+                        
+                        dt_ini_j = None
+                        dt_fin_j = None
+                        
                         if not inicios_j.empty:
-                            inicio_jornada_gral = str(inicios_j.iloc[0].get(col_hora_j, '---'))
+                            val_h_ini = str(inicios_j.iloc[0].get(col_hora_j, '---'))
+                            inicio_jornada_gral = val_h_ini.split(" ")[1] if " " in val_h_ini else val_h_ini
+                            try:
+                                dt_ini_j = datetime.strptime(inicio_jornada_gral, "%H:%M:%S")
+                            except: pass
+
                         if not fines_j.empty:
-                            fin_jornada_gral = str(fines_j.iloc[-1].get(col_hora_j, '---'))
+                            val_h_fin = str(fines_j.iloc[-1].get(col_hora_j, '---'))
+                            fin_jornada_gral = val_h_fin.split(" ")[1] if " " in val_h_fin else val_h_fin
+                            try:
+                                dt_fin_j = datetime.strptime(fin_jornada_gral, "%H:%M:%S")
+                            except: pass
+
+                        if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
+                            diff_j = dt_fin_j - dt_ini_j
+                            mins_j = int(diff_j.total_seconds() // 60)
+                            h_j = mins_j // 60
+                            m_j = mins_j % 60
+                            total_horas_jornada_str = f"{h_j}h {m_j}m"
 
                 objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
+                total_minutos_acumulados = 0
 
+                filas_supervisor_temp = []
                 for obj in objetivos_del_sup:
                     df_obj_t = df_sup_qrs[df_sup_qrs[col_obj_q].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
                     inicios_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'INICIO']
@@ -1777,7 +1837,8 @@ elif st.session_state.rol_sel == "GERENCIA":
                     
                     hora_ingreso_obj = "---"
                     hora_egreso_obj = "---"
-                    tiempo_permanencia_str = "En curso / Sin egreso"
+                    tiempo_permanencia_str = "---"
+                    minutos_obj = 0
 
                     if not inicios_obj.empty:
                         fh_ingreso = str(inicios_obj.iloc[-1].get(col_fec_q, ''))
@@ -1793,22 +1854,34 @@ elif st.session_state.rol_sel == "GERENCIA":
                             t_egr = datetime.strptime(hora_egreso_obj, "%H:%M:%S")
                             if t_egr >= t_ing:
                                 diff = t_egr - t_ing
-                                minutos_permanencia = int(diff.total_seconds() // 60)
-                                h_p = minutos_permanencia // 60
-                                m_p = minutos_permanencia % 60
+                                minutos_obj = int(diff.total_seconds() // 60)
+                                total_minutos_acumulados += minutos_obj
+                                h_p = minutos_obj // 60
+                                m_p = minutos_obj % 60
                                 tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
                         except:
                             tiempo_permanencia_str = "---"
 
-                    reporte_consolidado.append({
+                    filas_supervisor_temp.append({
                         "SUPERVISOR": sup,
-                        "OBJETIVO": obj,
                         "INICIO JORNADA": inicio_jornada_gral,
+                        "FIN JORNADA": fin_jornada_gral,
+                        "TOTAL HORAS TRABAJADAS": total_horas_jornada_str,
+                        "OBJETIVO": obj,
                         "INGRESO OBJETIVO": hora_ingreso_obj,
                         "EGRESO OBJETIVO": hora_egreso_obj,
                         "PERMANENCIA EN OBJETIVO": tiempo_permanencia_str,
-                        "FIN JORNADA": fin_jornada_gral
+                        "_minutos": total_minutos_acumulados
                     })
+
+                tot_h_acum = total_minutos_acumulados // 60
+                tot_m_acum = total_minutos_acumulados % 60
+                str_total_acumulado = f"{tot_h_acum}h {tot_m_acum}m" if tot_h_acum > 0 else f"{tot_m_acum} min"
+
+                for fila_item in filas_supervisor_temp:
+                    fila_item["TOTAL TIEMPO EN OBJETIVOS"] = str_total_acumulado
+                    del fila_item["_minutos"]
+                    reporte_consolidado.append(fila_item)
 
             if reporte_consolidado:
                 df_final_tiempos = pd.DataFrame(reporte_consolidado)
