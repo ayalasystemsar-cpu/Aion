@@ -1517,8 +1517,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             elif 'AUDITORIA' in c or 'ESTADO' in c: mapa_f[c] = 'ESTADO AUDITORÍA'
                         
                         df_flota_propio = df_flota_propio.rename(columns=mapa_f)
-                        
-                        # EVITAMOS COLUMNAS DUPLICADAS PARA QUE NO DÉ ERROR
                         df_flota_propio = df_flota_propio.loc[:, ~df_flota_propio.columns.duplicated()]
                         
                         for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
@@ -1533,7 +1531,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
                             )
 
-                        # FORMATEO CON COMAS PARA DECIMALES Y PUNTOS PARA MILES
                         for col_fmt in ['MONTO CARGADO ($)', 'COSTO x KM ($)']:
                             if col_fmt in df_flota_propio.columns:
                                 df_flota_propio[col_fmt] = df_flota_propio[col_fmt].apply(
@@ -1898,9 +1895,48 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         if not df_flota_aud.empty:
                             col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
                             if col_sup_f:
-                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
 
                         if not df_flota_sup_indiv.empty:
+                            df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
+                            
+                            mapa_f = {}
+                            for c in df_flota_sup_indiv.columns:
+                                if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
+                                elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
+                                elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
+                                elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
+                                elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
+                                elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
+                                elif 'COSTO' in c: mapa_f[c] = 'COSTO x KM ($)'
+                                elif 'AUDITORIA' in c or 'ESTADO' in c: mapa_f[c] = 'ESTADO AUDITORÍA'
+                            
+                            df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapa_f)
+                            df_flota_sup_indiv = df_flota_sup_indiv.loc[:, ~df_flota_sup_indiv.columns.duplicated()]
+                            
+                            for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
+                                if col_num in df_flota_sup_indiv.columns:
+                                    df_flota_sup_indiv[col_num] = pd.to_numeric(df_flota_sup_indiv[col_num].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
+                            
+                            if 'KM TOTAL' in df_flota_sup_indiv.columns and 'MONTO CARGADO ($)' in df_flota_sup_indiv.columns:
+                                df_flota_sup_indiv['COSTO x KM ($)'] = df_flota_sup_indiv.apply(
+                                    lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
+                                )
+                                df_flota_sup_indiv['ESTADO AUDITORÍA'] = df_flota_sup_indiv['COSTO x KM ($)'].apply(
+                                    lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
+                                )
+
+                            for col_fmt in ['MONTO CARGADO ($)', 'COSTO x KM ($)']:
+                                if col_fmt in df_flota_sup_indiv.columns:
+                                    df_flota_sup_indiv[col_fmt] = df_flota_sup_indiv[col_fmt].apply(
+                                        lambda x: f"{float(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                                    )
+
+                            cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
+                            cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
+                            if cols_finales_disp:
+                                df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
+
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
                         else:
                             st.info("Sin registros de flota para este supervisor.")
@@ -2099,9 +2135,48 @@ elif st.session_state.rol_sel == "GERENCIA":
                         if not df_flota_aud.empty:
                             col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
                             if col_sup_f:
-                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
 
                         if not df_flota_sup_indiv.empty:
+                            df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
+                            
+                            mapa_f = {}
+                            for c in df_flota_sup_indiv.columns:
+                                if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
+                                elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
+                                elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
+                                elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
+                                elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
+                                elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
+                                elif 'COSTO' in c: mapa_f[c] = 'COSTO x KM ($)'
+                                elif 'AUDITORIA' in c or 'ESTADO' in c: mapa_f[c] = 'ESTADO AUDITORÍA'
+                            
+                            df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapa_f)
+                            df_flota_sup_indiv = df_flota_sup_indiv.loc[:, ~df_flota_sup_indiv.columns.duplicated()]
+                            
+                            for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
+                                if col_num in df_flota_sup_indiv.columns:
+                                    df_flota_sup_indiv[col_num] = pd.to_numeric(df_flota_sup_indiv[col_num].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
+                            
+                            if 'KM TOTAL' in df_flota_sup_indiv.columns and 'MONTO CARGADO ($)' in df_flota_sup_indiv.columns:
+                                df_flota_sup_indiv['COSTO x KM ($)'] = df_flota_sup_indiv.apply(
+                                    lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
+                                )
+                                df_flota_sup_indiv['ESTADO AUDITORÍA'] = df_flota_sup_indiv['COSTO x KM ($)'].apply(
+                                    lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
+                                )
+
+                            for col_fmt in ['MONTO CARGADO ($)', 'COSTO x KM ($)']:
+                                if col_fmt in df_flota_sup_indiv.columns:
+                                    df_flota_sup_indiv[col_fmt] = df_flota_sup_indiv[col_fmt].apply(
+                                        lambda x: f"{float(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                                    )
+
+                            cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
+                            cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
+                            if cols_finales_disp:
+                                df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
+
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
                         else:
                             st.info("Sin registros de flota para este supervisor.")
