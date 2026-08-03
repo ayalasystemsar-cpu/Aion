@@ -1613,15 +1613,15 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
 
-        # Cuadro único alargado transparente/translúcido con el diseño exacto superior
+        # Cuadro único alargado translúcido idéntico al banner superior de alerta
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
             st.markdown(f"""
-                <div style="background-color: rgba(255, 0, 0, 0.2); border: 1px solid #FF3B3B; border-radius: 6px; padding: 10px 14px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
-                    <div style="color: #FF5252; font-weight: bold; font-size: 13px; margin-bottom: 2px;">
-                        🚨 ALERTA ENVIADA: {datos_pan['nombre']} DESDE {datos_pan['obj']}
+                <div style="background-color: rgba(139, 0, 0, 0.4); border: 1px solid #8B0000; border-radius: 6px; padding: 12px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
+                    <div style="color: #FF5252; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                        🚨 ALERTA ENVIADA: VIGILADOR EN PUESTO DESDE {datos_pan['obj']}
                     </div>
-                    <div style="color: #FFFFFF; font-size: 12px; margin-top: 4px;">
+                    <div style="color: #E0E0E0; font-size: 13px; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                         👮 <b>COMISARÍA MÁS CERCANA:</b> {datos_pan['comisaria']} | <b>Dirección:</b> {datos_pan['direccion']} | <b>Teléfono:</b> <a href="tel:{datos_pan['telefono']}" style="color: #00E5FF; font-weight: bold; text-decoration: none;">{datos_pan['telefono']}</a> (~{datos_pan['distancia']} KM)
                     </div>
                 </div>
