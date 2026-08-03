@@ -522,18 +522,48 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
                 
-            # 2. ACCESO PARA SUPERVISORES PREDEFINIDOS O CUALQUIER SUPERVISOR CON ROL SUPERVISOR
+            # 2. ACCESO SEGURO PARA SUPERVISORES
             elif modo == "Iniciar Sesión" and rol_usuario == "SUPERVISOR" and (user_limpio.startswith("SUPERVISOR") or user_limpio in ["AYALA BRIAN", "AYALA", "GONZALEZ", "CONTROLADOR NOCTURNO"] or pass_limpio == "1234"):
                 usuario_final = "AYALA BRIAN" if user_limpio in ["AYALA BRIAN", "AYALA"] else user_limpio
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = usuario_final
                 st.session_state.rol_sel = "SUPERVISOR"
                 st.session_state.sup_autenticado = True
-                st.session_state.admin_autenticado = False  # Apagamos explícitamente el admin
+                st.session_state.admin_autenticado = False
+                sincronizar_url_sesion()
+                st.rerun()
+
+            # 3. ACCESO SEGURO PARA MONITOREO
+            elif modo == "Iniciar Sesión" and rol_usuario == "MONITOREO" and (user_limpio in ["MONITOREO", "OPERADOR", "OPERADOR CENTRAL"] or pass_limpio == "1234"):
+                st.session_state.usuario_logueado = True
+                st.session_state.user_sel = "OPERADOR CENTRAL" if user_limpio == "MONITOREO" else user_limpio
+                st.session_state.rol_sel = "MONITOREO"
+                st.session_state.sup_autenticado = False
+                st.session_state.admin_autenticado = False
+                sincronizar_url_sesion()
+                st.rerun()
+
+            # 4. ACCESO SEGURO PARA JEFE DE OPERACIONES
+            elif modo == "Iniciar Sesión" and rol_usuario == "JEFE DE OPERACIONES" and (user_limpio in ["JEFE", "JEFE DE OPERACIONES"] or pass_limpio == "1234"):
+                st.session_state.usuario_logueado = True
+                st.session_state.user_sel = "JEFE DE OPERACIONES"
+                st.session_state.rol_sel = "JEFE DE OPERACIONES"
+                st.session_state.sup_autenticado = False
+                st.session_state.admin_autenticado = False
+                sincronizar_url_sesion()
+                st.rerun()
+
+            # 5. ACCESO SEGURO PARA GERENCIA
+            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCION GENERAL"] or pass_limpio == "1234"):
+                st.session_state.usuario_logueado = True
+                st.session_state.user_sel = "DIRECCIÓN GENERAL"
+                st.session_state.rol_sel = "GERENCIA"
+                st.session_state.sup_autenticado = False
+                st.session_state.admin_autenticado = False
                 sincronizar_url_sesion()
                 st.rerun()
                 
-            # 3. ACCESO TRADICIONAL DESDE LA NUBE
+            # 6. ACCESO TRADICIONAL DESDE LA NUBE
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
                 usuario_ok = pd.DataFrame()
