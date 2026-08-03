@@ -1358,25 +1358,42 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 with st.form(key="form_acta_flota", clear_on_submit=True):
                     c_a, c_b = st.columns(2)
-                    v_fecha_flota = obtener_hora_argentina().split(" ")[0]
-                    v_patente = c_a.text_input("PATENTE / MÓVIL:").upper()
-                    v_km_ini = c_a.number_input("KILÓMETRO INICIAL:", min_value=0, step=1)
-                    v_km_fin = c_b.number_input("KILÓMETRO FINAL:", min_value=0, step=1)
+                    v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
+                    
+                    v_km_ini_str = c_a.text_input("KM INICIAL:", value="0")
+                    v_km_fin_str = c_b.text_input("KM FINAL:", value="0")
+                    
                     v_combustible = c_a.selectbox("TIPO DE COMBUSTIBLE:", ["NAFTA SÚPER", "NAFTA PREMIUM", "GASOIL", "OTRO"])
-                    v_monto = c_b.number_input("MONTO CARGADO ($):", min_value=0.0, step=100.0)
+                    v_monto_str = c_b.text_input("MONTO CARGADO ($):", value="0,00")
                     v_vig = st.text_input("SUPERVISOR RESPONSABLE:", value=st.session_state.user_sel).upper()
                     
                     if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                        km_recorridos = v_km_fin - v_km_ini
-                        costo_x_km = round(v_monto / km_recorridos, 2) if km_recorridos > 0 else 0.0
-                        estado_aud = "⚠️ REVISAR" if costo_x_km > 300 or costo_x_km == 0 else "✅ ACORDE"
+                        def parsear_numero(val_str):
+                            if not val_str:
+                                return 0.0
+                            s = str(val_str).strip().replace('$', '').replace(' ', '')
+                            s = s.replace('.', '').replace(',', '.')
+                            try:
+                                return float(s)
+                            except:
+                                return 0.0
+
+                        v_km_ini = parsear_numero(v_km_ini_str)
+                        v_km_fin = parsear_numero(v_km_fin_str)
+                        v_monto = parsear_numero(v_monto_str)
                         
-                        # Guardamos en la nube con las columnas exactas
+                        km_recorridos = max(0.0, v_km_fin - v_km_ini)
+                        fecha_reg = obtener_hora_argentina()
+                        
+                        km_rec_fmt = f"{km_recorridos:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        monto_fmt = f"{v_monto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        km_ini_fmt = f"{v_km_ini:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        km_fin_fmt = f"{v_km_fin:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
                         escribir_registro_nube("CONTROL_FLOTA", [
-                            v_fecha_flota, v_vig, v_patente, str(v_km_ini), str(v_km_fin), 
-                            str(km_recorridos), v_combustible, str(v_monto), str(costo_x_km), estado_aud
+                            fecha_reg, v_vig, v_patente, km_ini_fmt, km_fin_fmt, km_rec_fmt, v_combustible, monto_fmt
                         ])
-                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_recorridos} km | Gasto: ${v_monto}")
+                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_rec_fmt} km | Gasto: ${monto_fmt}")
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
 
@@ -1500,6 +1517,31 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             elif 'AUDITORIA' in c or 'ESTADO' in c: mapa_f[c] = 'ESTADO AUDITORÍA'
                         
                         df_flota_propio = df_flota_propio.rename(columns=mapa_f)
+                        df_flota_propio = df_flota_propio.loc[:, ~df_flota_propio.columns.duplicated()]
+                        
+                        for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
+                            if col_num in df_flota_propio.columns:
+                                df_flota_propio[col_num] = pd.to_numeric(df_flota_propio[col_num].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
+                        
+                        if 'KM TOTAL' in df_flota_propio.columns and 'MONTO CARGADO ($)' in df_flota_propio.columns:
+                            df_flota_propio['COSTO x KM ($)'] = df_flota_propio.apply(
+                                lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
+                            )
+                            df_flota_propio['ESTADO AUDITORÍA'] = df_flota_propio['COSTO x KM ($)'].apply(
+                                lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
+                            )
+
+                        for col_fmt in ['MONTO CARGADO ($)', 'COSTO x KM ($)']:
+                            if col_fmt in df_flota_propio.columns:
+                                df_flota_propio[col_fmt] = df_flota_propio[col_fmt].apply(
+                                    lambda x: f"{float(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                                )
+
+                        cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
+                        cols_finales_disp = [c for c in cols_deseadas if c in df_flota_propio.columns]
+                        if cols_finales_disp:
+                            df_flota_propio = df_flota_propio[cols_finales_disp]
+
                         st.dataframe(df_flota_propio.iloc[::-1], use_container_width=True, hide_index=True)
                     else:
                         st.info("No tienes registros de flota cargados.")
@@ -1725,6 +1767,9 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
         df_flota_aud = leer_matriz_nube("CONTROL_FLOTA")
 
+        if df_qr_aud.empty:
+            df_qr_aud = leer_matriz_nube("REGISTRO-QR-SUPERVISORES")
+
         if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
             if not df_jornada_aud.empty:
@@ -1866,7 +1911,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             else:
                 st.info("No hay registros de supervisores en el sistema.")
         else:
-            st.info("Esperando registros para procesar el consolidado.")
+            st.info("⚠️ La solapa 'REGISTRO_QR_SUPERVISORES' no devolvió datos o está vacía. Verificá que exista en tu Google Sheets.")
 
 
 # =========================================================================
@@ -1925,6 +1970,9 @@ elif st.session_state.rol_sel == "GERENCIA":
         df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
         df_flota_aud = leer_matriz_nube("CONTROL_FLOTA")
+
+        if df_qr_aud.empty:
+            df_qr_aud = leer_matriz_nube("REGISTRO-QR-SUPERVISORES")
 
         if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
@@ -2067,7 +2115,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             else:
                 st.info("No hay registros de supervisores en el sistema.")
         else:
-            st.info("Esperando registros para procesar el consolidado.")
+            st.info("⚠️ La solapa 'REGISTRO_QR_SUPERVISORES' no devolvió datos o está vacía. Verificá que exista en tu Google Sheets.")
 
         st.markdown("---")
         st.markdown("### 🔒 PROTOCOLO DE CIERRE TÁCTICO MENSUAL")
