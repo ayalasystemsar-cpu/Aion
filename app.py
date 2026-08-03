@@ -1667,17 +1667,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         else:
             st.info("Esperando escaneos QR para procesar el consolidado de tiempos.")
 
-        st.markdown("---")
-        st.markdown("### 📋 AUDITORÍA GENERAL Y DESCARGAS")
-        df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
-        if not df_jornadas.empty:
-            df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
-            st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
-            pdf_jornadas = generar_pdf_reporte("REPORTE DE JORNADAS DE SUPERVISORES", df_jornadas)
-            st.download_button("📥 DESCARGAR REPORTE DE JORNADAS (PDF)", data=pdf_jornadas, file_name="reporte_jornadas.pdf", mime="application/pdf", key="dl_jornadas_jefe")
-        else:
-            st.write("*(Sin jornadas registradas)*")
-
 
 # =========================================================================
 # ROL: GERENCIA
@@ -1861,17 +1850,6 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.info("No hay registros de supervisores en el sistema.")
         else:
             st.info("Esperando escaneos QR para procesar el consolidado de tiempos.")
-
-        st.markdown("---")
-        st.markdown("### 📋 TABLERO GERENCIAL Y DESCARGAS")
-        df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
-        if not df_jornadas.empty:
-            df_jornadas.columns = [str(c).strip().upper() for c in df_jornadas.columns]
-            st.dataframe(df_jornadas, use_container_width=True, hide_index=True)
-            pdf_jornadas_ger = generar_pdf_reporte("REPORTE GERENCIAL DE JORNADAS", df_jornadas)
-            st.download_button("📥 DESCARGAR REPORTE DE JORNADAS (PDF)", data=pdf_jornadas_ger, file_name="reporte_gerencial_jornadas.pdf", mime="application/pdf", key="dl_jornadas_ger")
-        else:
-            st.write("*(Sin jornadas registradas)*")
 
         st.markdown("---")
         st.markdown("### 🔒 PROTOCOLO DE CIERRE TÁCTICO MENSUAL")
