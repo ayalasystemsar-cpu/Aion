@@ -691,13 +691,13 @@ else:
             st.query_params.clear()
             st.rerun()
 
-# --- BIENVENIDA AUTOMÁTICA Y VISUAL PARA ROLES OPERATIVOS ---
+# --- BIENVENIDA AUTOMÁTICA Y VISUAL PARA ROLES OPERATIVOS (ESTILO SUAVE) ---
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
 st.markdown(f"""
-    <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid #00E5FF; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);">
-        <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 18px; font-weight: bold; text-transform: uppercase;">⚡ BIENVENIDO A LA ESTACIÓN TÁCTICA AION-YAROKU ⚡</span><br>
-        <span style="font-family: 'Rajdhani', sans-serif; color: #FFFFFF; font-size: 14px; letter-spacing: 1px;">MODO DE ACCESO AUTORIZADO: <b>{st.session_state.rol_sel}</b> ({st.session_state.user_sel})</span>
+    <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
+        <span style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">⚡ ESTACIÓN TÁCTICA AION-YAROKU ⚡</span><br>
+        <span style="font-family: 'Rajdhani', sans-serif; color: #CBD5E1; font-size: 13px; letter-spacing: 0.5px;">MODO DE ACCESO AUTORIZADO: <b>{st.session_state.rol_sel}</b> ({st.session_state.user_sel})</span>
     </div>
 """, unsafe_allow_html=True)
 
