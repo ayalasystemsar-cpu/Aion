@@ -1501,7 +1501,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         
                         df_flota_propio = df_flota_propio.rename(columns=mapa_f)
                         
-                        cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)']
+                        # Cálculo automático de auditoría integrado en la misma tabla
+                        if 'KM TOTAL' in df_flota_propio.columns and 'MONTO CARGADO ($)' in df_flota_propio.columns:
+                            df_flota_propio['KM TOTAL'] = pd.to_numeric(df_flota_propio['KM TOTAL'], errors='coerce').fillna(0)
+                            df_flota_propio['MONTO CARGADO ($)'] = pd.to_numeric(df_flota_propio['MONTO CARGADO ($)'], errors='coerce').fillna(0)
+                            
+                            df_flota_propio['COSTO x KM ($)'] = df_flota_propio.apply(
+                                lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0, axis=1
+                            )
+                            df_flota_propio['ESTADO AUDITORÍA'] = df_flota_propio['COSTO x KM ($)'].apply(
+                                lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
+                            )
+
+                        cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
                         cols_finales_disp = [c for c in cols_deseadas if c in df_flota_propio.columns]
                         if cols_finales_disp:
                             df_flota_propio = df_flota_propio[cols_finales_disp]
