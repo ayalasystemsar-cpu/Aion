@@ -79,20 +79,21 @@ def actualizar_celda(pestana, fila, columna, valor):
     try:
         gc = conectar_google()
         if gc:
-            # Mapeo por si se invoca con guiones
             nombres_mapeo = {
                 "NOVEDADES_GUARDIA": "NOVEDADES GUARDIA",
                 "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
                 "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
                 "CONTROL_FLOTA": "CONTROL FLOTA",
-                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO"
+                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO",
+                "REGISTRO-QR-SUPERVISORES": "REGISTRO QR SUPERVISORES"
             }
             nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
             hoja.update_acell(f"{columna}{fila}", valor)
             st.cache_data.clear()
             return True
-    except: 
+    except Exception as e: 
+        print(f"Error actualizando celda en {pestana}: {e}")
         return False
 
 def escribir_registro_nube(pestana, datos_fila):
@@ -104,7 +105,8 @@ def escribir_registro_nube(pestana, datos_fila):
                 "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
                 "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
                 "CONTROL_FLOTA": "CONTROL FLOTA",
-                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO"
+                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO",
+                "REGISTRO-QR-SUPERVISORES": "REGISTRO QR SUPERVISORES"
             }
             nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
             hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
@@ -113,7 +115,7 @@ def escribir_registro_nube(pestana, datos_fila):
             return True
     except Exception as e:
         print(f"Error de nube en {pestana}: {e}")
-        st.error(f"⚠️ Error técnico en nube: {e}")
+        st.error(f"⚠️ Error técnico en nube ({pestana}): {e}")
         return False
 
 @st.cache_data(ttl=30)
@@ -126,7 +128,8 @@ def leer_matriz_nube(pestana):
                 "REGISTRO_QR_SUPERVISORES": "REGISTRO QR SUPERVISORES",
                 "JORNADA_SUPERVISORES": "JORNADA SUPERVISORES",
                 "CONTROL_FLOTA": "CONTROL FLOTA",
-                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO"
+                "SOLICITUDES_ACCESO": "SOLICITUDES ACCESO",
+                "REGISTRO-QR-SUPERVISORES": "REGISTRO QR SUPERVISORES"
             }
             nombre_hoja_real = nombres_mapeo.get(pestana, pestana)
             
@@ -140,7 +143,8 @@ def leer_matriz_nube(pestana):
             df.columns = [str(c).strip().upper() for c in df.columns]
             df = df.loc[:, ~df.columns.duplicated()]
             return df
-        except: 
+        except Exception as e: 
+            print(f"Error leyendo {pestana}: {e}")
             return pd.DataFrame()
     return pd.DataFrame()
 
@@ -1076,7 +1080,6 @@ if st.session_state.rol_sel == "MONITOREO":
         df_nov_m_base = leer_matriz_nube("NOVEDADES_GUARDIA")
         df_alt_m_base = leer_matriz_nube("ALERTAS")
 
-        # Obtener dinámicamente únicamente a los supervisores que tienen registros QR activos
         sups_dinamicos_qr = []
         if not df_qr_m_base.empty:
             df_qr_m_base.columns = [str(c).strip().upper() for c in df_qr_m_base.columns]
@@ -1450,15 +1453,19 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         v_monto = parsear_numero(v_monto_str)
                         
                         km_recorridos = max(0.0, v_km_fin - v_km_ini)
+                        costo_km = round(v_monto / km_recorridos, 2) if km_recorridos > 0 else 0.0
+                        estado_auditoria = "⚠️ REVISAR" if costo_km > 300 or costo_km == 0 else "✅ ACORDE"
+
                         fecha_reg = obtener_hora_argentina()
                         
                         km_rec_fmt = f"{km_recorridos:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                         monto_fmt = f"{v_monto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                         km_ini_fmt = f"{v_km_ini:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                         km_fin_fmt = f"{v_km_fin:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        costo_km_fmt = f"{costo_km:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
                         escribir_registro_nube("CONTROL_FLOTA", [
-                            fecha_reg, v_vig, v_patente, km_ini_fmt, km_fin_fmt, km_rec_fmt, v_combustible, monto_fmt
+                            fecha_reg, v_vig, v_patente, km_ini_fmt, km_fin_fmt, km_rec_fmt, v_combustible, monto_fmt, costo_km_fmt, estado_auditoria
                         ])
                         st.success(f"✅ Acta registrada. Distancia recorrida: {km_rec_fmt} km | Gasto: ${monto_fmt}")
             else:
