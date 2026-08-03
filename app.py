@@ -124,7 +124,6 @@ def cargar_datos_comisarias():
         "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
         "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Salta 1450", "Av. Cnel. Díaz 2250", "Hipólito Yrigoyen 4300", "Av. Cabildo 2300", "Monseñor Bufano 3200", "Arieta 2500", "Av. Las Heras 2650", "Miller 2750", "Arias 4450", "Av. Díaz Vélez 5150", "Av. San Juan 1050", "Av. de Mayo 350"],
         "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "LANÚS", "CABA", "LA MATANZA", "LA MATANZA", "CABA", "CABA", "CABA", "CABA", "CABA", "RAMOS MEJÍA"],
-        "TELEFONO": ["011-4754-2321", "011-4821-5500", "011-4201-2211", "03489-422111", "011-4744-1122", "011-4749-0010", "0230-4490123", "011-4381-1234", "011-4821-5500", "011-4241-1122", "011-4788-3322", "011-4482-1111", "011-4464-2222", "011-4801-4433", "011-4541-1122", "011-4542-3344", "011-4981-2211", "011-4300-5566", "011-4658-1122"],
         "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
         "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
     }
@@ -174,6 +173,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     except:
         pass
 
+    # Incluimos los datos completos de la comisaria detectada para que se plasmen directamente en la nube
     comisaria_formateada = f"{comisaria_encontrada} - {direccion_comisaria}, {localidad_comisaria} (~{distancia_minima:.2f} KM)"
 
     datos_nuevo_obj = [
@@ -596,7 +596,7 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCIÓN GENERAL"] or pass_limpio == "1234"):
+            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCION GENERAL"] or pass_limpio == "1234"):
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = "DIRECCIÓN GENERAL"
                 st.session_state.rol_sel = "GERENCIA"
@@ -1368,17 +1368,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
                         km_recorridos = v_km_fin - v_km_ini
                         fecha_reg = obtener_hora_argentina()
-                        escribir_registro_nube("CONTROL_FLOTA", [
-                            fecha_reg, 
-                            v_vig, 
-                            v_patente, 
-                            str(v_km_ini), 
-                            str(v_km_fin), 
-                            str(km_recorridos), 
-                            v_combustible, 
-                            str(v_monto)
-                        ])
-                        st.success(f"✅ Acta registrada. Patente: {v_patente} | Distancia recorrida: {km_recorridos} km | Gasto: ${v_monto}")
+                        escribir_registro_nube("CONTROL_FLOTA", [fecha_reg, v_vig, v_patente, str(v_km_ini), str(v_km_fin), str(km_recorridos), v_combustible, str(v_monto)])
+                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_recorridos} km | Gasto: ${v_monto}")
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
 
@@ -1403,6 +1394,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
                         if nuevo_nombre_obj and nueva_lat and nueva_lon:
+                            # Utilizamos la nueva función que calcula automáticamente la comisaría más cercana con su dirección y localidad
                             exito_alta = registrar_objetivo_con_comisaria_automatica(
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
@@ -1486,39 +1478,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_flota_sup.columns = [str(c).strip().upper() for c in df_flota_sup.columns]
                 col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_sup.columns else (df_flota_sup.columns[1] if len(df_flota_sup.columns) > 1 else None)
                 if col_sup_f:
-                    df_flota_propio = df_flota_sup[df_flota_sup[col_sup_f].astype(str).str.strip().str.upper() == sup_activo_normalizado].copy()
+                    df_flota_propio = df_flota_sup[df_flota_sup[col_sup_f].astype(str).str.strip().str.upper() == sup_activo_normalizado]
                     if not df_flota_propio.empty:
-                        df_flota_propio.columns = [str(c).strip().upper() for c in df_flota_propio.columns]
-                        
-                        mapa_f = {}
-                        for c in df_flota_propio.columns:
-                            if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
-                            elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
-                            elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
-                            elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
-                            elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
-                            elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
-                        
-                        df_flota_propio = df_flota_propio.rename(columns=mapa_f)
-                        
-                        # Limpieza y cálculos integrados directamente en la tabla limpia
-                        if 'KM TOTAL' in df_flota_propio.columns and 'MONTO CARGADO ($)' in df_flota_propio.columns:
-                            df_flota_propio['KM TOTAL'] = pd.to_numeric(df_flota_propio['KM TOTAL'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').fillna(0)
-                            df_flota_propio['MONTO CARGADO ($)'] = pd.to_numeric(df_flota_propio['MONTO CARGADO ($)'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').fillna(0)
-                            
-                            df_flota_propio['COSTO x KM ($)'] = df_flota_propio.apply(
-                                lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
-                            )
-                            df_flota_propio['ESTADO AUDITORÍA'] = df_flota_propio['COSTO x KM ($)'].apply(
-                                lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
-                            )
-
-                        cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
-                        cols_finales_disp = [c for c in cols_deseadas if c in df_flota_propio.columns]
-                        if cols_finales_disp:
-                            df_flota_propio = df_flota_propio[cols_finales_disp]
-                            
-                        # Muestra todo integrado de manera limpia y profesional en una sola tabla unificada
                         st.dataframe(df_flota_propio.iloc[::-1], use_container_width=True, hide_index=True)
                     else:
                         st.info("No tienes registros de flota cargados.")
@@ -1579,49 +1540,22 @@ elif st.session_state.rol_sel == "VIGILADOR":
             if st.button("S.O.S\nPÁNICO", type="primary"):
                 nombre_real = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
                 sup_asignado = "MONITOREO"
-                lat_obj_vig, lon_obj_vig = 0.0, 0.0
-                
                 if not df_objetivos.empty:
                     filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                     if not filtro.empty:
                         sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-                        lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
-                        lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
                 
-                comisaria_cercana_vig = "COMISARÍA JURISDICCIONAL"
-                dir_com_vig = "---"
-                tel_com_vig = "---"
-                dist_min_vig = float('inf')
-                
-                for _, com in df_comisarias.iterrows():
-                    lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
-                    dlon = lon2 - lon1
-                    dlat = lat2 - lat1
-                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                    c = 2 * math.asin(math.sqrt(a))
-                    km = 6371 * c
-                    if km < dist_min_vig:
-                        dist_min_vig = km
-                        comisaria_cercana_vig = com['COMISARIA']
-                        dir_com_vig = com['DIRECCION']
-                        tel_com_vig = com.get('TELEFONO', 'N/A')
-
-                st.session_state.info_comisaria_panico = f"🚨 **COMISARÍA MÁS CERCANA:** {comisaria_cercana_vig} | **Dirección:** {dir_com_vig} | **Teléfono:** {tel_com_vig} (~{dist_min_vig:.2f} KM)"
-
                 fecha = obtener_hora_argentina()
                 carga_sos = f"VIG:{nombre_real}|OBJ:{obj_detectado}|SUP:{sup_asignado}"
                 escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", carga_sos, "PRUEBA"])
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
-
-        if 'info_comisaria_panico' in st.session_state:
-            st.error(st.session_state.info_comisaria_panico)
     else:
         st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
     
     st.markdown("---")
     
-    tab_presentismo, tab_relevo, tab_mensajeria_vig = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
+    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
   
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
@@ -1663,7 +1597,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
-    with t_mensajeria_vig:
+    with t_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1854,40 +1788,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         if not df_flota_aud.empty:
                             col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
                             if col_sup_f:
-                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
+                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
 
                         if not df_flota_sup_indiv.empty:
-                            df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
-                            
-                            cols_actuales = list(df_flota_sup_indiv.columns)
-                            mapeo_columnas = {}
-                            for c in cols_actuales:
-                                if 'PATENTE' in c or 'MOVIL' in c: mapeo_columnas[c] = 'PATENTE'
-                                elif 'INICIAL' in c: mapeo_columnas[c] = 'KM INICIAL'
-                                elif 'FINAL' in c: mapeo_columnas[c] = 'KM FINAL'
-                                elif 'RECORRIDOS' in c or 'TOTAL' in c: mapeo_columnas[c] = 'KM TOTAL'
-                                elif 'COMBUSTIBLE' in c: mapeo_columnas[c] = 'TIPO COMBUSTIBLE'
-                                elif 'MONTO' in c or '$' in c: mapeo_columnas[c] = 'MONTO CARGADO ($)'
-                            
-                            df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapeo_columnas)
-                            cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)']
-                            cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
-                            if cols_finales_disp:
-                                df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
-
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
-                            
-                            try:
-                                col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'TOTAL' in c]
-                                col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c]
-                                if col_km_tot and col_monto:
-                                    tot_km_recorridos = pd.to_numeric(df_flota_sup_indiv[col_km_tot[0]], errors='coerce').sum()
-                                    tot_dinero_gastado = pd.to_numeric(df_flota_sup_indiv[col_monto[0]], errors='coerce').sum()
-                                    mc1, mc2 = st.columns(2)
-                                    mc1.metric("🛣️ TOTAL KILÓMETROS RECORRIDOS", f"{tot_km_recorridos:,.0f} KM")
-                                    mc2.metric("💰 TOTAL GASTO COMBUSTIBLE", f"${tot_dinero_gastado:,.2f}")
-                            except:
-                                pass
                         else:
                             st.info("Sin registros de flota para este supervisor.")
 
@@ -2085,39 +1989,10 @@ elif st.session_state.rol_sel == "GERENCIA":
                         if not df_flota_aud.empty:
                             col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
                             if col_sup_f:
-                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
+                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
 
                         if not df_flota_sup_indiv.empty:
-                            df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
-                            
-                            cols_actuales = list(df_flota_sup_indiv.columns)
-                            mapeo_columnas = {}
-                            for c in cols_actuales:
-                                if 'PATENTE' in c or 'MOVIL' in c: mapeo_columnas[c] = 'PATENTE'
-                                elif 'INICIAL' in c: mapeo_columnas[c] = 'KM INICIAL'
-                                elif 'FINAL' in c: mapeo_columnas[c] = 'KM FINAL'
-                                elif 'RECORRIDOS' in c or 'TOTAL' in c: mapeo_columnas[c] = 'KM TOTAL'
-                                elif 'COMBUSTIBLE' in c: mapeo_columnas[c] = 'TIPO COMBUSTIBLE'
-                                elif 'MONTO' in c or '$' in c: mapeo_columnas[c] = 'MONTO CARGADO ($)'
-                            
-                            df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapeo_columnas)
-                            cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)']
-                            cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
-                            if cols_finales_disp:
-                                df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
-
                             st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
-                            try:
-                                col_km_tot = [c for c in df_flota_sup_indiv.columns if 'KM' in c and 'TOTAL' in c]
-                                col_monto = [c for c in df_flota_sup_indiv.columns if 'MONTO' in c]
-                                if col_km_tot and col_monto:
-                                    tot_km_recorridos = pd.to_numeric(df_flota_sup_indiv[col_km_tot[0]], errors='coerce').sum()
-                                    tot_dinero_gastado = pd.to_numeric(df_flota_sup_indiv[col_monto[0]], errors='coerce').sum()
-                                    mc1, mc2 = st.columns(2)
-                                    mc1.metric("🛣️ TOTAL KILÓMETROS RECORRIDOS", f"{tot_km_recorridos:,.0f} KM")
-                                    mc2.metric("💰 TOTAL GASTO COMBUSTIBLE", f"${tot_dinero_gastado:,.2f}")
-                            except:
-                                pass
                         else:
                             st.info("Sin registros de flota para este supervisor.")
 
