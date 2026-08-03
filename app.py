@@ -1368,8 +1368,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
                         km_recorridos = v_km_fin - v_km_ini
                         fecha_reg = obtener_hora_argentina()
-                        escribir_registro_nube("CONTROL_FLOTA", [fecha_reg, v_vig, v_patente, str(v_km_ini), str(v_km_fin), str(km_recorridos), v_combustible, str(v_monto)])
-                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_recorridos} km | Gasto: ${v_monto}")
+                        escribir_registro_nube("CONTROL_FLOTA", [
+                            fecha_reg, 
+                            v_vig, 
+                            v_patente, 
+                            str(v_km_ini), 
+                            str(v_km_fin), 
+                            str(km_recorridos), 
+                            v_combustible, 
+                            str(v_monto)
+                        ])
+                        st.success(f"✅ Acta registrada. Patente: {v_patente} | Distancia recorrida: {km_recorridos} km | Gasto: ${v_monto}")
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
 
@@ -1479,21 +1488,24 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if col_sup_f:
                     df_flota_propio = df_flota_sup[df_flota_sup[col_sup_f].astype(str).str.strip().str.upper() == sup_activo_normalizado].copy()
                     if not df_flota_propio.empty:
-                        # Forzamos mapeo exacto de 6 columnas requeridas
-                        cols_a = list(df_flota_propio.columns)
+                        df_flota_propio.columns = [str(c).strip().upper() for c in df_flota_propio.columns]
+                        
                         mapa_f = {}
-                        for c in cols_a:
+                        for c in df_flota_propio.columns:
                             if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
                             elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
                             elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
-                            elif 'RECORRIDOS' in c or ('TOTAL' in c and 'KM' in c): mapa_f[c] = 'KM TOTAL'
+                            elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
                             elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
                             elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
+                        
                         df_flota_propio = df_flota_propio.rename(columns=mapa_f)
+                        
                         cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)']
                         cols_finales_disp = [c for c in cols_deseadas if c in df_flota_propio.columns]
                         if cols_finales_disp:
                             df_flota_propio = df_flota_propio[cols_finales_disp]
+                            
                         st.dataframe(df_flota_propio.iloc[::-1], use_container_width=True, hide_index=True)
                     else:
                         st.info("No tienes registros de flota cargados.")
@@ -1840,7 +1852,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 if 'PATENTE' in c or 'MOVIL' in c: mapeo_columnas[c] = 'PATENTE'
                                 elif 'INICIAL' in c: mapeo_columnas[c] = 'KM INICIAL'
                                 elif 'FINAL' in c: mapeo_columnas[c] = 'KM FINAL'
-                                elif 'RECORRIDOS' in c or ('TOTAL' in c and 'KM' in c): mapeo_columnas[c] = 'KM TOTAL'
+                                elif 'RECORRIDOS' in c or 'TOTAL' in c: mapeo_columnas[c] = 'KM TOTAL'
                                 elif 'COMBUSTIBLE' in c: mapeo_columnas[c] = 'TIPO COMBUSTIBLE'
                                 elif 'MONTO' in c or '$' in c: mapeo_columnas[c] = 'MONTO CARGADO ($)'
                             
@@ -2071,7 +2083,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 if 'PATENTE' in c or 'MOVIL' in c: mapeo_columnas[c] = 'PATENTE'
                                 elif 'INICIAL' in c: mapeo_columnas[c] = 'KM INICIAL'
                                 elif 'FINAL' in c: mapeo_columnas[c] = 'KM FINAL'
-                                elif 'RECORRIDOS' in c or ('TOTAL' in c and 'KM' in c): mapeo_columnas[c] = 'KM TOTAL'
+                                elif 'RECORRIDOS' in c or 'TOTAL' in c: mapeo_columnas[c] = 'KM TOTAL'
                                 elif 'COMBUSTIBLE' in c: mapeo_columnas[c] = 'TIPO COMBUSTIBLE'
                                 elif 'MONTO' in c or '$' in c: mapeo_columnas[c] = 'MONTO CARGADO ($)'
                             
