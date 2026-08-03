@@ -1487,7 +1487,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("VIGILADORES", [fecha.split(" ")[0], fecha.split(" ")[1], v_obj_relevo, vig_saliente, vig_entrante, sup_resp, "RELEVO_EFECTUADO"])
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
 
-    with tab_mensajeria:
+    with t_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1545,6 +1545,41 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.success("✅ Petición enviada")
     
     with t_tab_auditoria:
+        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS Y PERMANENCIA POR OBJETIVO (JORNADA)")
+        df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
+        df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+
+        if not df_jornada_aud.empty and not df_qr_aud.empty:
+            df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
+            df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
+
+            resumen_tiempos = []
+            supervisores_activos = df_jornada_aud['SUPERVISOR'].unique() if 'SUPERVISOR' in df_jornada_aud.columns else []
+
+            for sup in supervisores_activos:
+                df_sup_qrs = df_qr_aud[df_qr_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == sup.strip().upper()]
+                if not df_sup_qrs.empty:
+                    for _, row_qr in df_sup_qrs.iterrows():
+                        resumen_tiempos.append({
+                            "SUPERVISOR": sup,
+                            "FECHA_HORA": row_qr.get('FECHA_HORA', ''),
+                            "OBJETIVO": row_qr.get('OBJETIVO', ''),
+                            "ACCIÓN": row_qr.get('ACCION', ''),
+                            "ESTADO": row_qr.get('ESTADO', 'REGISTRADO')
+                        })
+
+            if resumen_tiempos:
+                df_resumen_tiempo = pd.DataFrame(resumen_tiempos)
+                st.dataframe(df_resumen_tiempo.iloc[::-1], use_container_width=True, hide_index=True)
+                
+                pdf_tiempos = generar_pdf_reporte("REPORTE DE TIEMPOS Y PERMANENCIA - SUPERVISORES", df_resumen_tiempo)
+                st.download_button("📥 DESCARGAR REPORTE DE TIEMPOS (PDF)", data=pdf_tiempos, file_name="reporte_tiempos_supervisores.pdf", mime="application/pdf", key="dl_tiempos_jefe")
+            else:
+                st.info("No hay suficientes registros cruzados de QR para calcular las permanencias aún.")
+        else:
+            st.info("Esperando registros de jornadas y escaneos QR para procesar el consolidado de tiempos.")
+
+        st.markdown("---")
         st.markdown("### 📋 AUDITORÍA DE SUPERVISIÓN Y DESCARGAS PDF")
         df_jornadas = leer_matriz_nube("JORNADA_SUPERVISORES")
         if not df_jornadas.empty:
@@ -1641,6 +1676,41 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición enviada")
 
     with t_tab_auditoria:
+        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS Y PERMANENCIA POR OBJETIVO (JORNADA)")
+        df_jornada_aud = leer_matriz_nube("JORNADA_SUPERVISORES")
+        df_qr_aud = leer_matriz_nube("REGISTRO_QR_SUPERVISORES")
+
+        if not df_jornada_aud.empty and not df_qr_aud.empty:
+            df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
+            df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
+
+            resumen_tiempos = []
+            supervisores_activos = df_jornada_aud['SUPERVISOR'].unique() if 'SUPERVISOR' in df_jornada_aud.columns else []
+
+            for sup in supervisores_activos:
+                df_sup_qrs = df_qr_aud[df_qr_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == sup.strip().upper()]
+                if not df_sup_qrs.empty:
+                    for _, row_qr in df_sup_qrs.iterrows():
+                        resumen_tiempos.append({
+                            "SUPERVISOR": sup,
+                            "FECHA_HORA": row_qr.get('FECHA_HORA', ''),
+                            "OBJETIVO": row_qr.get('OBJETIVO', ''),
+                            "ACCIÓN": row_qr.get('ACCION', ''),
+                            "ESTADO": row_qr.get('ESTADO', 'REGISTRADO')
+                        })
+
+            if resumen_tiempos:
+                df_resumen_tiempo = pd.DataFrame(resumen_tiempos)
+                st.dataframe(df_resumen_tiempo.iloc[::-1], use_container_width=True, hide_index=True)
+                
+                pdf_tiempos = generar_pdf_reporte("REPORTE DE TIEMPOS Y PERMANENCIA - SUPERVISORES", df_resumen_tiempo)
+                st.download_button("📥 DESCARGAR REPORTE DE TIEMPOS (PDF)", data=pdf_tiempos, file_name="reporte_tiempos_supervisores.pdf", mime="application/pdf", key="dl_tiempos_ger")
+            else:
+                st.info("No hay suficientes registros cruzados de QR para calcular las permanencias aún.")
+        else:
+            st.info("Esperando registros de jornadas y escaneos QR para procesar el consolidado de tiempos.")
+
+        st.markdown("---")
         st.markdown("### 📋 TABLERO GERENCIAL Y DESCARGAS PDF")
         
         st.markdown("#### 📋 AUDITORÍA DE SUPERVISIÓN")
