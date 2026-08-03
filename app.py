@@ -1491,7 +1491,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         
                         df_flota_propio = df_flota_propio.rename(columns=mapa_f)
                         
-                        # Conversión y cálculo estricto de costo por kilómetro y auditoría
                         for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
                             if col_num in df_flota_propio.columns:
                                 df_flota_propio[col_num] = pd.to_numeric(df_flota_propio[col_num].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').fillna(0)
@@ -1584,7 +1583,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
     
     st.markdown("---")
     
-    tab_presentismo, tab_relevo, tab_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
+    # CORRECCIÓN: Se usa la variable correcta 'label_msg' para definir la pestaña
+    tab_presentismo, tab_relevo, t_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
   
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
