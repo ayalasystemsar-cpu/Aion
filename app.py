@@ -1092,8 +1092,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         df_sup_qrs_m = df_qr_m_base[df_qr_m_base[col_sup_qm].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]
                         if not df_sup_qrs_m.empty:
                             st.dataframe(df_sup_qrs_m.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_qr_sup_m = generar_pdf_reporte(f"MONITOREO - FICHAJES QR: {sup_seleccionado_mono}", df_sup_qrs_m)
-                            st.download_button(f"📥 DESCARGAR FICHAJES QR (PDF)", data=pdf_qr_sup_m, file_name=f"monitoreo_qr_{sup_seleccionado_mono.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_qr_mono_{sup_seleccionado_mono}_{idx_p}")
                         else:
                             st.info("Sin registros QR para este supervisor.")
                     else:
@@ -1127,8 +1125,6 @@ if st.session_state.rol_sel == "MONITOREO":
                             
                             if not df_fichajes_sup_filtrado.empty:
                                 st.dataframe(df_fichajes_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                                pdf_pres_sup_m = generar_pdf_reporte(f"MONITOREO - FICHAJE DE VIGILADORES ({sup_seleccionado_mono})", df_fichajes_sup_filtrado)
-                                st.download_button(f"📥 DESCARGAR FICHAJE DE VIGILADORES (PDF)", data=pdf_pres_sup_m, file_name=f"monitoreo_fichajes_{sup_seleccionado_mono.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_fichajes_sup_mono_{sup_seleccionado_mono}_{idx_p}")
                             else:
                                 st.info("No hay fichajes de vigiladores registrados para los objetivos de este supervisor.")
                         else:
@@ -1150,8 +1146,6 @@ if st.session_state.rol_sel == "MONITOREO":
                             
                             if not df_rel_sup_filtrado.empty:
                                 st.dataframe(df_rel_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                                pdf_rel_sup_m = generar_pdf_reporte(f"MONITOREO - RELEVOS DE VIGILADORES ({sup_seleccionado_mono})", df_rel_sup_filtrado)
-                                st.download_button(f"📥 DESCARGAR RELEVOS DE VIGILADORES (PDF)", data=pdf_rel_sup_m, file_name=f"monitoreo_relevos_{sup_seleccionado_mono.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_rel_sup_mono_{sup_seleccionado_mono}_{idx_p}")
                             else:
                                 st.info("No hay relevos de vigiladores registrados para los objetivos de este supervisor.")
                         else:
@@ -1180,8 +1174,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         
                         if not df_alt_sup_filtrado.empty:
                             st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_alt_sup_m = generar_pdf_reporte(f"MONITOREO - ALERTAS OPERATIVAS ({sup_seleccionado_mono})", df_alt_sup_filtrado)
-                            st.download_button(f"📥 DESCARGAR ALERTAS (PDF)", data=pdf_alt_sup_m, file_name=f"monitoreo_alertas_{sup_seleccionado_mono.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_alt_sup_mono_{sup_seleccionado_mono}_{idx_p}")
                         else:
                             st.info("No hay alertas operativas para este supervisor.")
                     else:
@@ -1204,8 +1196,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         
                         if not df_pan_sup_filtrado.empty:
                             st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_sup_m = generar_pdf_reporte(f"MONITOREO - PÁNICO S.O.S DE SUPERVISOR ({sup_seleccionado_mono})", df_pan_sup_filtrado)
-                            st.download_button(f"📥 DESCARGAR PÁNICO S.O.S DE SUPERVISOR (PDF)", data=pdf_pan_sup_m, file_name=f"monitoreo_panico_sup_{sup_seleccionado_mono.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pan_sup_mono_{sup_seleccionado_mono}_{idx_p}")
                         else:
                             st.info("No hay pánicos S.O.S de supervisor registrados.")
                     else:
@@ -1230,8 +1220,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         
                         if not df_pan_vig_filtrado.empty:
                             st.dataframe(df_pan_vig_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_vig_m = generar_pdf_reporte(f"MONITOREO - PÁNICO S.O.S VIGILADOR ({sup_seleccionado_mono})", df_pan_vig_filtrado)
-                            st.download_button(f"📥 DESCARGAR PÁNICO S.O.S VIGILADOR (PDF)", data=pdf_pan_vig_m, file_name=f"monitoreo_panico_vig_{sup_seleccionado_mono.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pan_vig_mono_{sup_seleccionado_mono}_{idx_p}")
                         else:
                             st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
                     else:
@@ -1572,8 +1560,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_qr_sup_propio = df_qr_sup_base[df_qr_sup_base[col_sup_q].astype(str).str.strip().str.upper() == sup_activo_normalizado]
                 if not df_qr_sup_propio.empty:
                     st.dataframe(df_qr_sup_propio.iloc[::-1], use_container_width=True, hide_index=True)
-                    pdf_qr_sup_dl = generar_pdf_reporte(f"MIS ESCANEOS QR - SUPERVISOR: {sup_activo_normalizado}", df_qr_sup_propio)
-                    st.download_button("📥 DESCARGAR MIS ESCANEOS QR (PDF)", data=pdf_qr_sup_dl, file_name=f"mis_escaneos_qr_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_qr_sup")
                 else:
                     st.info("No tienes escaneos QR registrados en este turno.")
             else:
@@ -1606,8 +1592,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     
                     if not df_fich_sup_filtrado.empty:
                         st.dataframe(df_fich_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                        pdf_fich_sup_dl = generar_pdf_reporte(f"NOVEDADES DE GUARDIA - {sup_activo_normalizado}", df_fich_sup_filtrado)
-                        st.download_button("📥 DESCARGAR NOVEDADES DE VIGILADORES (PDF)", data=pdf_fich_sup_dl, file_name=f"novedades_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_fich_sup_vig")
                     else:
                         st.info("No hay fichajes registrados en tus objetivos asignados.")
                 else:
@@ -1625,8 +1609,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 if not df_rel_sup_filtrado.empty:
                     st.dataframe(df_rel_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                    pdf_rel_sup_dl = generar_pdf_reporte(f"RELEVOS DE VIGILADORES - {sup_activo_normalizado}", df_rel_sup_filtrado)
-                    st.download_button("📥 DESCARGAR RELEVOS DE VIGILADORES (PDF)", data=pdf_rel_sup_dl, file_name=f"relevos_vigiladores_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_rel_sup")
                 else:
                     st.info("No hay relevos registrados en tus objetivos asignados.")
             else:
@@ -1650,8 +1632,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 if not df_pan_sup_filtro.empty:
                     st.dataframe(df_pan_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
-                    pdf_pan_sup_dl = generar_pdf_reporte(f"ALERTAS DE PÁNICO VIGILADORES - {sup_activo_normalizado}", df_pan_sup_filtro)
-                    st.download_button("📥 DESCARGAR ALERTAS DE PÁNICO (PDF)", data=pdf_pan_sup_dl, file_name=f"alertas_panico_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_pan_sup")
                 else:
                     st.info("Sin alertas de pánico de vigiladores en tus objetivos.")
             else:
@@ -2058,6 +2038,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     
                     objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                     
+                    # --- CORRECCIÓN EXACTA DE FICHAJE DE VIGILADORES ---
                     df_fich_filtrado = pd.DataFrame()
                     if not df_nov_aud.empty and len(objs_del_sup) > 0:
                         df_nov_aud.columns = [str(c).strip().upper() for c in df_nov_aud.columns]
@@ -2067,7 +2048,34 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
                             df_fich_raw = df_nov_aud[mask_f].copy()
                             if not df_fich_raw.empty:
-                                df_fich_filtrado = df_fich_raw.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
+                                # Normalizamos o renombramos columnas para garantizar que el Ingreso aparezca en Ingreso y no en Egreso
+                                cols_fich = list(df_fich_raw.columns)
+                                # Estructura típica de Novedades Guardia: [FECHA_HORA, OBJETIVO, TIPO_EVENTO, DATO1, DATO2, LEGAJO, ESTADO, SUPERVISOR]
+                                # Vamos a formatear un DataFrame limpio para visualización y PDF
+                                filas_fich_limpias = []
+                                for _, r in df_fich_raw.iterrows():
+                                    fh_val = str(r.iloc[0])
+                                    obj_val = str(r.iloc[1])
+                                    ev_val = str(r.iloc[2])
+                                    dato_extra1 = str(r.iloc[3]) # por ej "---"
+                                    nombre_vig = str(r.iloc[4]) # nombre de la persona
+                                    leg_val = str(r.iloc[5])
+                                    est_val = str(r.iloc[6]) if len(r) > 6 else "PROCESADO"
+                                    
+                                    # Determinamos si es ingreso o egreso según el evento
+                                    ingreso_col = nombre_vig if "INGRESO" in ev_val.upper() or "MARCACIÓN_INGRESO" in ev_val.upper() else "---"
+                                    egreso_col = nombre_vig if "EGRESO" in ev_val.upper() or "MARCACIÓN_EGRESO" in ev_val.upper() else "---"
+                                    
+                                    filas_fich_limpias.append({
+                                        "FECHA": fh_val,
+                                        "OBJETIVO": obj_val,
+                                        "EVENTO": ev_val,
+                                        "INGRESO": ingreso_col,
+                                        "EGRESO": egreso_col,
+                                        "LEGAJO / DNI": leg_val,
+                                        "ESTADO": est_val
+                                    })
+                                df_fich_filtrado = pd.DataFrame(filas_fich_limpias)
 
                     df_rel_filtrado = pd.DataFrame()
                     if not df_vig_rel_aud.empty and len(objs_del_sup) > 0:
@@ -2105,15 +2113,73 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
                     
+                    # --- VISTA PREVIA EN PANTALLA ANTES DE GENERAR EL PDF ---
+                    with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
+                        st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
+                        
+                        st.markdown("##### ⏱️ Control de Jornada y Horas Trabajadas")
+                        df_resumen_jor_prev = pd.DataFrame({
+                            "INICIO DE JORNADA": [inicio_jornada_gen],
+                            "CIERRE DE JORNADA": [fin_jornada_gen],
+                            "TOTAL HORAS TRABAJADAS": [total_horas_trabajadas]
+                        })
+                        st.dataframe(df_resumen_jor_prev, use_container_width=True, hide_index=True)
+                        
+                        st.markdown("##### 📍 Detalle de Escaneos QR y Permanencia")
+                        if not df_tabla_permanencia.empty:
+                            st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros QR en este periodo.")
+                            
+                        st.markdown("##### 📋 Fichaje de Vigiladores")
+                        if not df_fich_filtrado.empty:
+                            st.dataframe(df_fich_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin fichajes registrados.")
+
+                        st.markdown("##### 🔄 Relevos de Vigiladores")
+                        if not df_rel_filtrado.empty:
+                            st.dataframe(df_rel_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin relevos registrados.")
+
+                        st.markdown("##### ⚠️ Alertas Operativas")
+                        if not df_alt_sup_filtrado.empty:
+                            st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin alertas operativas.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
+                        if not df_pan_sup_filtrado.empty:
+                            st.dataframe(df_pan_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de supervisor.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Vigiladores")
+                        if not df_pan_vig_filtrado.empty:
+                            st.dataframe(df_pan_vig_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de vigiladores.")
+
+                        st.markdown("##### 🚗 Control de Flota")
+                        if not df_flota_sup_filtro.empty:
+                            st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros de flota.")
+
+                    st.markdown("---")
+
+                    # --- FUNCIÓN PDF OPTIMIZADA (SIN ENCIMAMIENTO Y CON ANCHOS AMPLIOS) ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
+                        # Usamos tamaño Landscape (horizontal) u orientamos con márgenes más amplios para evitar encimamientos
+                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=15, leftMargin=15, topMargin=20, bottomMargin=20)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=8, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#000000'), spaceBefore=6, spaceAfter=3)
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -2123,24 +2189,24 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[190, 190, 192])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[190, 190, 202])
                         t_jor.setStyle(TableStyle([
                             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 8),
+                            ('FONTSIZE', (0, 0), (-1, 0), 7.5),
                             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9F9F9')),
                             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
                             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 1), (-1, -1), 8),
-                            ('TOPPADDING', (0, 1), (-1, -1), 4),
-                            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                            ('FONTSIZE', (0, 1), (-1, -1), 7.5),
+                            ('TOPPADDING', (0, 1), (-1, -1), 3),
+                            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
                         ]))
                         elementos.append(t_jor)
-                        elementos.append(Spacer(1, 8))
+                        elementos.append(Spacer(1, 4))
 
-                        def agregar_tabla_pdf(titulo_sec, df_in, es_flota=False):
+                        def agregar_tabla_pdf(titulo_sec, df_in, tipo_tabla="normal"):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
                             if not df_in.empty:
                                 cols = list(df_in.columns)
@@ -2149,19 +2215,24 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
                                 num_cols = len(cols)
-                                if es_flota and num_cols > 0:
-                                    anchos_lista = [55, 55, 55, 55, 95, 80, 85, 92][:num_cols]
+                                ancho_total_disponible = 582.0 # Ancho total óptimo para márgenes de 15pt en hoja Letter
+                                
+                                # Asignación de anchos de columna personalizados según el tipo de tabla para que nada se encime
+                                if tipo_tabla == "flota" and num_cols >= 8:
+                                    anchos_lista = [55, 55, 55, 55, 95, 80, 85, 102]
+                                elif tipo_tabla == "fichaje" and num_cols >= 6:
+                                    anchos_lista = [85, 110, 95, 80, 80, 65, 67] # Anchos generosos para Fichaje
                                     if len(anchos_lista) < num_cols:
-                                        anchos_lista = [572.0 / num_cols] * num_cols
+                                        anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
-                                    ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
-                                    anchos_lista = [ancho_columna] * num_cols
+                                    anchos_lista = [ancho_total_disponible / num_cols] * num_cols
 
                                 t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
                                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
                                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                                     ('FONTSIZE', (0, 0), (-1, 0), 7),
                                     ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
@@ -2173,16 +2244,16 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 ]))
                                 elementos.append(t)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", ParagraphStyle('tn', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#555555'))))
-                            elementos.append(Spacer(1, 6))
+                                elementos.append(Paragraph("Sin registros en este periodo.", ParagraphStyle('tn', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor('#555555'))))
+                            elementos.append(Spacer(1, 4))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
-                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich)
+                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, tipo_tabla="fichaje")
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel)
                         agregar_tabla_pdf("Alertas Operativas:", d_alt)
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
-                        agregar_tabla_pdf("Control de Flota:", d_flota, es_flota=True)
+                        agregar_tabla_pdf("Control de Flota:", d_flota, tipo_tabla="flota")
 
                         doc.build(elementos)
                         buffer.seek(0)
@@ -2395,6 +2466,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                     
                     objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                     
+                    # --- CORRECCIÓN EXACTA DE FICHAJE DE VIGILADORES ---
                     df_fich_filtrado = pd.DataFrame()
                     if not df_nov_aud.empty and len(objs_del_sup) > 0:
                         df_nov_aud.columns = [str(c).strip().upper() for c in df_nov_aud.columns]
@@ -2404,7 +2476,29 @@ elif st.session_state.rol_sel == "GERENCIA":
                             mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
                             df_fich_raw = df_nov_aud[mask_f].copy()
                             if not df_fich_raw.empty:
-                                df_fich_filtrado = df_fich_raw.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
+                                filas_fich_limpias = []
+                                for _, r in df_fich_raw.iterrows():
+                                    fh_val = str(r.iloc[0])
+                                    obj_val = str(r.iloc[1])
+                                    ev_val = str(r.iloc[2])
+                                    dato_extra1 = str(r.iloc[3])
+                                    nombre_vig = str(r.iloc[4])
+                                    leg_val = str(r.iloc[5])
+                                    est_val = str(r.iloc[6]) if len(r) > 6 else "PROCESADO"
+                                    
+                                    ingreso_col = nombre_vig if "INGRESO" in ev_val.upper() or "MARCACIÓN_INGRESO" in ev_val.upper() else "---"
+                                    egreso_col = nombre_vig if "EGRESO" in ev_val.upper() or "MARCACIÓN_EGRESO" in ev_val.upper() else "---"
+                                    
+                                    filas_fich_limpias.append({
+                                        "FECHA": fh_val,
+                                        "OBJETIVO": obj_val,
+                                        "EVENTO": ev_val,
+                                        "INGRESO": ingreso_col,
+                                        "EGRESO": egreso_col,
+                                        "LEGAJO / DNI": leg_val,
+                                        "ESTADO": est_val
+                                    })
+                                df_fich_filtrado = pd.DataFrame(filas_fich_limpias)
 
                     df_rel_filtrado = pd.DataFrame()
                     if not df_vig_rel_aud.empty and len(objs_del_sup) > 0:
@@ -2442,15 +2536,72 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
                     
+                    # --- VISTA PREVIA EN PANTALLA ANTES DE GENERAR EL PDF ---
+                    with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_ger}", expanded=True):
+                        st.markdown(f"**Supervisor:** {sup_seleccionado_ger} | **Emisión:** {obtener_hora_argentina()}")
+                        
+                        st.markdown("##### ⏱️ Control de Jornada y Horas Trabajadas")
+                        df_resumen_jor_prev = pd.DataFrame({
+                            "INICIO DE JORNADA": [inicio_jornada_gen],
+                            "CIERRE DE JORNADA": [fin_jornada_gen],
+                            "TOTAL HORAS TRABAJADAS": [total_horas_trabajadas]
+                        })
+                        st.dataframe(df_resumen_jor_prev, use_container_width=True, hide_index=True)
+                        
+                        st.markdown("##### 📍 Detalle de Escaneos QR y Permanencia")
+                        if not df_tabla_permanencia.empty:
+                            st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros QR en este periodo.")
+                            
+                        st.markdown("##### 📋 Fichaje de Vigiladores")
+                        if not df_fich_filtrado.empty:
+                            st.dataframe(df_fich_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin fichajes registrados.")
+
+                        st.markdown("##### 🔄 Relevos de Vigiladores")
+                        if not df_rel_filtrado.empty:
+                            st.dataframe(df_rel_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin relevos registrados.")
+
+                        st.markdown("##### ⚠️ Alertas Operativas")
+                        if not df_alt_sup_filtrado.empty:
+                            st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin alertas operativas.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
+                        if not df_pan_sup_filtrado.empty:
+                            st.dataframe(df_pan_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de supervisor.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Vigiladores")
+                        if not df_pan_vig_filtrado.empty:
+                            st.dataframe(df_pan_vig_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de vigiladores.")
+
+                        st.markdown("##### 🚗 Control de Flota")
+                        if not df_flota_sup_filtro.empty:
+                            st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros de flota.")
+
+                    st.markdown("---")
+
+                    # --- FUNCIÓN PDF OPTIMIZADA (SIN ENCIMAMIENTO Y CON ANCHOS AMPLIOS) ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
+                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=15, leftMargin=15, topMargin=20, bottomMargin=20)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=8, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#000000'), spaceBefore=6, spaceAfter=3)
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -2460,24 +2611,24 @@ elif st.session_state.rol_sel == "GERENCIA":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[190, 190, 192])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[190, 190, 202])
                         t_jor.setStyle(TableStyle([
                             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 8),
+                            ('FONTSIZE', (0, 0), (-1, 0), 7.5),
                             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9F9F9')),
                             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
                             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 1), (-1, -1), 8),
-                            ('TOPPADDING', (0, 1), (-1, -1), 4),
-                            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                            ('FONTSIZE', (0, 1), (-1, -1), 7.5),
+                            ('TOPPADDING', (0, 1), (-1, -1), 3),
+                            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
                         ]))
                         elementos.append(t_jor)
-                        elementos.append(Spacer(1, 8))
+                        elementos.append(Spacer(1, 4))
 
-                        def agregar_tabla_pdf(titulo_sec, df_in, es_flota=False):
+                        def agregar_tabla_pdf(titulo_sec, df_in, tipo_tabla="normal"):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
                             if not df_in.empty:
                                 cols = list(df_in.columns)
@@ -2486,19 +2637,23 @@ elif st.session_state.rol_sel == "GERENCIA":
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
                                 num_cols = len(cols)
-                                if es_flota and num_cols > 0:
-                                    anchos_lista = [55, 55, 55, 55, 95, 80, 85, 92][:num_cols]
+                                ancho_total_disponible = 582.0
+                                
+                                if tipo_tabla == "flota" and num_cols >= 8:
+                                    anchos_lista = [55, 55, 55, 55, 95, 80, 85, 102]
+                                elif tipo_tabla == "fichaje" and num_cols >= 6:
+                                    anchos_lista = [85, 110, 95, 80, 80, 65, 67]
                                     if len(anchos_lista) < num_cols:
-                                        anchos_lista = [572.0 / num_cols] * num_cols
+                                        anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
-                                    ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
-                                    anchos_lista = [ancho_columna] * num_cols
+                                    anchos_lista = [ancho_total_disponible / num_cols] * num_cols
 
                                 t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
                                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
                                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                                     ('FONTSIZE', (0, 0), (-1, 0), 7),
                                     ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
@@ -2510,16 +2665,16 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 ]))
                                 elementos.append(t)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", ParagraphStyle('tn', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#555555'))))
-                            elementos.append(Spacer(1, 6))
+                                elements.append(Paragraph("Sin registros en este periodo.", ParagraphStyle('tn', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor('#555555'))))
+                            elementos.append(Spacer(1, 4))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
-                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich)
+                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, tipo_tabla="fichaje")
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel)
                         agregar_tabla_pdf("Alertas Operativas:", d_alt)
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
-                        agregar_tabla_pdf("Control de Flota:", d_flota, es_flota=True)
+                        agregar_tabla_pdf("Control de Flota:", d_flota, tipo_tabla="flota")
 
                         doc.build(elementos)
                         buffer.seek(0)
