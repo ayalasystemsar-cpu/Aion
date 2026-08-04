@@ -82,8 +82,7 @@ def obtener_mapeo_solapas():
         "JORNADA SUPERVISORES": "JORNADA SUPERVISORES",
         "CONTROL DE FLOTA": "CONTROL DE FLOTA",
         "CONTROL FLOTA": "CONTROL DE FLOTA",
-        "SOLICITUDES DE ACCESO": "SOLICITUDES DE ACCESO",
-        "SOLICITUDES ACCESO": "SOLICITUDES ACCESO",
+        "SOLICITUDES DE ACCESO": "SOLICITUDES ACCESO",
         "OBJETIVOS": "OBJETIVOS",
         "COMISARIAS": "COMISARIAS",
         "USUARIOS": "USUARIOS",
@@ -2021,8 +2020,111 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 with pestanas_jefe[idx_pj]:
                     st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_jefe}**")
                     
-                    # Recopilación de fuentes para el reporte unificado
+                    # --- BLOQUE RECUPERADO: GESTIÓN DE JORNADA Y TIEMPOS DE PERMANENCIA POR OBJETIVO ---
+                    st.markdown("#### ⏱️ Gestión de Jornada y Tiempos de Permanencia por Objetivo")
+                    
+                    # 1. Horario de inicio y finalización de jornada general del supervisor
+                    inicio_jornada_gen = "---"
+                    fin_jornada_gen = "---"
+                    total_horas_trabajadas = "---"
+                    
+                    if not df_jornada_aud.empty:
+                        df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
+                        col_f_j = df_jornada_aud.columns[0]
+                        col_s_j = df_jornada_aud.columns[1]
+                        col_a_j = df_jornada_aud.columns[3]
+                        col_h_j = df_jornada_aud.columns[4]
+                        
+                        df_sup_jor = df_jornada_aud[df_jornada_aud[col_s_j].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]
+                        if not df_sup_jor.empty:
+                            inicios_jor = df_sup_jor[df_sup_jor[col_a_j].astype(str).str.strip().str.upper() == 'INICIO']
+                            fines_jor = df_sup_jor[df_sup_jor[col_a_j].astype(str).str.strip().str.upper() == 'FIN']
+                            
+                            dt_ini_j = None
+                            dt_fin_j = None
+                            
+                            if not inicios_jor.empty:
+                                inicio_jornada_gen = str(inicios_jor.iloc[-1][col_h_j])
+                                try:
+                                    dt_ini_j = datetime.strptime(inicio_jornada_gen, "%H:%M:%S")
+                                except: pass
+                            if not fines_jor.empty:
+                                fin_jornada_gen = str(fines_jor.iloc[-1][col_h_j])
+                                try:
+                                    dt_fin_j = datetime.strptime(fin_jornada_gen, "%H:%M:%S")
+                                except: pass
+                                
+                            if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
+                                dif_j = dt_fin_j - dt_ini_j
+                                m_tot_j = int(dif_j.total_seconds() // 60)
+                                h_j = m_tot_j // 60
+                                mi_j = m_tot_j % 60
+                                total_horas_trabajadas = f"{h_j}h {mi_j}m" if h_j > 0 else f"{mi_j} min"
+
+                    c_jor1, c_jor2, c_jor3 = st.columns(3)
+                    c_jor1.metric("🚀 INICIO DE JORNADA", inicio_jornada_gen)
+                    c_jor2.metric("🏁 CIERRE DE JORNADA", fin_jornada_gen)
+                    c_jor3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_trabajadas)
+
+                    # 2. Detalle de QR, Ingreso, Egreso y Tiempo de Permanencia por Objetivo
                     df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
+                    
+                    if not df_sup_qrs.empty:
+                        df_sup_qrs.columns = [str(c).strip().upper() for c in df_sup_qrs.columns]
+                        col_fh_qr = df_sup_qrs.columns[0]
+                        col_obj_qr = df_sup_qrs.columns[1]
+                        col_acc_qr = df_sup_qrs.columns[2]
+                        
+                        lista_resumen_permanencia = []
+                        objetivos_visitados_set = df_sup_qrs[col_obj_qr].dropna().astype(str).str.strip().str.upper().unique()
+                        
+                        for obj_v in objetivos_visitados_set:
+                            df_obj_reg = df_sup_qrs[df_sup_qrs[col_obj_qr].astype(str).str.strip().str.upper() == obj_v]
+                            inicios_obj = df_obj_reg[df_obj_reg[col_acc_qr].astype(str).str.strip().str.upper() == 'INICIO']
+                            fines_obj = df_obj_reg[df_obj_reg[col_acc_qr].astype(str).str.strip().str.upper() == 'FIN']
+                            
+                            ingreso_str = "---"
+                            egreso_str = "---"
+                            permanencia_calc = "---"
+                            
+                            dt_ing = None
+                            dt_egr = None
+                            
+                            if not inicios_obj.empty:
+                                fh_ing_raw = str(inicios_obj.iloc[-1][col_fh_qr])
+                                ingreso_str = fh_ing_raw.split(" ")[1] if " " in fh_ing_raw else fh_ing_raw
+                                try:
+                                    dt_ing = datetime.strptime(ingreso_str, "%H:%M:%S")
+                                except: pass
+                                
+                            if not fines_obj.empty:
+                                fh_egr_raw = str(fines_obj.iloc[-1][col_fh_qr])
+                                egreso_str = fh_egr_raw.split(" ")[1] if " " in fh_egr_raw else fh_egr_raw
+                                try:
+                                    dt_egr = datetime.strptime(egreso_str, "%H:%M:%S")
+                                except: pass
+                                
+                            if dt_ing and dt_egr and dt_egr >= dt_ing:
+                                dif_p = dt_egr - dt_ing
+                                m_tot_p = int(dif_p.total_seconds() // 60)
+                                hp = m_tot_p // 60
+                                mp = m_tot_p % 60
+                                permanencia_calc = f"{hp}h {mp}m" if hp > 0 else f"{mp} min"
+                                
+                            lista_resumen_permanencia.append({
+                                "OBJETIVO": obj_v,
+                                "HORARIO INGRESO": ingreso_str,
+                                "HORARIO EGRESO": egreso_str,
+                                "TIEMPO DE PERMANENCIA": permanencia_calc
+                            })
+                            
+                        df_tabla_permanencia = pd.DataFrame(lista_resumen_permanencia)
+                        st.markdown("##### 📍 Detalle de Permanencia por Objetivo (Escaneos QR)")
+                        st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No hay registros de escaneos QR para este supervisor.")
+
+                    st.markdown("---")
                     
                     objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                     
@@ -2254,8 +2356,111 @@ elif st.session_state.rol_sel == "GERENCIA":
                 with pestanas_ger[idx_pg]:
                     st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_ger}**")
                     
-                    # Recopilación de fuentes para el reporte unificado
+                    # --- BLOQUE RECUPERADO: GESTIÓN DE JORNADA Y TIEMPOS DE PERMANENCIA POR OBJETIVO ---
+                    st.markdown("#### ⏱️ Gestión de Jornada y Tiempos de Permanencia por Objetivo")
+                    
+                    # 1. Horario de inicio y finalización de jornada general del supervisor
+                    inicio_jornada_gen = "---"
+                    fin_jornada_gen = "---"
+                    total_horas_trabajadas = "---"
+                    
+                    if not df_jornada_aud.empty:
+                        df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
+                        col_f_j = df_jornada_aud.columns[0]
+                        col_s_j = df_jornada_aud.columns[1]
+                        col_a_j = df_jornada_aud.columns[3]
+                        col_h_j = df_jornada_aud.columns[4]
+                        
+                        df_sup_jor = df_jornada_aud[df_jornada_aud[col_s_j].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()]
+                        if not df_sup_jor.empty:
+                            inicios_jor = df_sup_jor[df_sup_jor[col_a_j].astype(str).str.strip().str.upper() == 'INICIO']
+                            fines_jor = df_sup_jor[df_sup_jor[col_a_j].astype(str).str.strip().str.upper() == 'FIN']
+                            
+                            dt_ini_j = None
+                            dt_fin_j = None
+                            
+                            if not inicios_jor.empty:
+                                inicio_jornada_gen = str(inicios_jor.iloc[-1][col_h_j])
+                                try:
+                                    dt_ini_j = datetime.strptime(inicio_jornada_gen, "%H:%M:%S")
+                                except: pass
+                            if not fines_jor.empty:
+                                fin_jornada_gen = str(fines_jor.iloc[-1][col_h_j])
+                                try:
+                                    dt_fin_j = datetime.strptime(fin_jornada_gen, "%H:%M:%S")
+                                except: pass
+                                
+                            if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
+                                dif_j = dt_fin_j - dt_ini_j
+                                m_tot_j = int(dif_j.total_seconds() // 60)
+                                h_j = m_tot_j // 60
+                                mi_j = m_tot_j % 60
+                                total_horas_trabajadas = f"{h_j}h {mi_j}m" if h_j > 0 else f"{mi_j} min"
+
+                    c_jor1, c_jor2, c_jor3 = st.columns(3)
+                    c_jor1.metric("🚀 INICIO DE JORNADA", inicio_jornada_gen)
+                    c_jor2.metric("🏁 CIERRE DE JORNADA", fin_jornada_gen)
+                    c_jor3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_trabajadas)
+
+                    # 2. Detalle de QR, Ingreso, Egreso y Tiempo de Permanencia por Objetivo
                     df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
+                    
+                    if not df_sup_qrs.empty:
+                        df_sup_qrs.columns = [str(c).strip().upper() for c in df_sup_qrs.columns]
+                        col_fh_qr = df_sup_qrs.columns[0]
+                        col_obj_qr = df_sup_qrs.columns[1]
+                        col_acc_qr = df_sup_qrs.columns[2]
+                        
+                        lista_resumen_permanencia = []
+                        objetivos_visitados_set = df_sup_qrs[col_obj_qr].dropna().astype(str).str.strip().str.upper().unique()
+                        
+                        for obj_v in objetivos_visitados_set:
+                            df_obj_reg = df_sup_qrs[df_sup_qrs[col_obj_qr].astype(str).str.strip().str.upper() == obj_v]
+                            inicios_obj = df_obj_reg[df_obj_reg[col_acc_qr].astype(str).str.strip().str.upper() == 'INICIO']
+                            fines_obj = df_obj_reg[df_obj_reg[col_acc_qr].astype(str).str.strip().str.upper() == 'FIN']
+                            
+                            ingreso_str = "---"
+                            egreso_str = "---"
+                            permanencia_calc = "---"
+                            
+                            dt_ing = None
+                            dt_egr = None
+                            
+                            if not inicios_obj.empty:
+                                fh_ing_raw = str(inicios_obj.iloc[-1][col_fh_qr])
+                                ingreso_str = fh_ing_raw.split(" ")[1] if " " in fh_ing_raw else fh_ing_raw
+                                try:
+                                    dt_ing = datetime.strptime(ingreso_str, "%H:%M:%S")
+                                except: pass
+                                
+                            if not fines_obj.empty:
+                                fh_egr_raw = str(fines_obj.iloc[-1][col_fh_qr])
+                                egreso_str = fh_egr_raw.split(" ")[1] if " " in fh_egr_raw else fh_egr_raw
+                                try:
+                                    dt_egr = datetime.strptime(egreso_str, "%H:%M:%S")
+                                except: pass
+                                
+                            if dt_ing and dt_egr and dt_egr >= dt_ing:
+                                dif_p = dt_egr - dt_ing
+                                m_tot_p = int(dif_p.total_seconds() // 60)
+                                hp = m_tot_p // 60
+                                mp = m_tot_p % 60
+                                permanencia_calc = f"{hp}h {mp}m" if hp > 0 else f"{mp} min"
+                                
+                            lista_resumen_permanencia.append({
+                                "OBJETIVO": obj_v,
+                                "HORARIO INGRESO": ingreso_str,
+                                "HORARIO EGRESO": egreso_str,
+                                "TIEMPO DE PERMANENCIA": permanencia_calc
+                            })
+                            
+                        df_tabla_permanencia = pd.DataFrame(lista_resumen_permanencia)
+                        st.markdown("##### 📍 Detalle de Permanencia por Objetivo (Escaneos QR)")
+                        st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No hay registros de escaneos QR para este supervisor.")
+
+                    st.markdown("---")
                     
                     objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                     
