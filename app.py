@@ -1138,12 +1138,14 @@ if st.session_state.rol_sel == "MONITOREO":
                                 if len(cols_actuales) >= 8:
                                     df_limpia["FECHA Y HORA"] = df_fichajes_sup_filtrado.iloc[:, 0]
                                     df_limpia["OBJETIVO"] = df_fichajes_sup_filtrado.iloc[:, 1]
-                                    df_limpia["EVENTO"] = df_fichajes_sup_filtrado.iloc[:, 2]
+                                    df_limpia["EVENTO"] = df_fichajes_sup_filtrado.iloc[:, 2].astype(str).str.replace("_", " ", regex=False)
                                     df_limpia["APELLIDO Y NOMBRE"] = df_fichajes_sup_filtrado.iloc[:, 4]
                                     df_limpia["LEGAJO"] = df_fichajes_sup_filtrado.iloc[:, 5]
                                     df_limpia["ESTADO"] = df_fichajes_sup_filtrado.iloc[:, 6]
                                 else:
                                     df_limpia = df_fichajes_sup_filtrado.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
+                                    if "EVENTO" in df_limpia.columns:
+                                        df_limpia["EVENTO"] = df_limpia["EVENTO"].astype(str).str.replace("_", " ", regex=False)
 
                                 st.dataframe(df_limpia.iloc[::-1], use_container_width=True, hide_index=True)
                                 pdf_pres_sup_m = generar_pdf_reporte(f"MONITOREO - FICHAJE DE VIGILADORES ({sup_seleccionado_mono})", df_limpia)
@@ -1305,7 +1307,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         if obj_actual != "SIN OBJETIVO":
-            st.success(f"📍 OBJETIVO DETECTADO PARA PÁNICO: **{obj_actual}**")
+            st.success(f"📍 OBJETO DETECTADO PARA PÁNICO: **{obj_actual}**")
         else:
             st.warning("⚠️ Selecciona tu objetivo en 'Visita QR' para activar el pánico correctamente.")
 
@@ -1653,12 +1655,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         if len(cols_actuales) >= 8:
                             df_limpia_sup["FECHA Y HORA"] = df_fich_sup_filtrado.iloc[:, 0]
                             df_limpia_sup["OBJETIVO"] = df_fich_sup_filtrado.iloc[:, 1]
-                            df_limpia_sup["EVENTO"] = df_fich_sup_filtrado.iloc[:, 2]
+                            df_limpia_sup["EVENTO"] = df_fich_sup_filtrado.iloc[:, 2].astype(str).str.replace("_", " ", regex=False)
                             df_limpia_sup["APELLIDO Y NOMBRE"] = df_fich_sup_filtrado.iloc[:, 4]
                             df_limpia_sup["LEGAJO"] = df_fich_sup_filtrado.iloc[:, 5]
                             df_limpia_sup["ESTADO"] = df_fich_sup_filtrado.iloc[:, 6]
                         else:
                             df_limpia_sup = df_fich_sup_filtrado.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
+                            if "EVENTO" in df_limpia_sup.columns:
+                                df_limpia_sup["EVENTO"] = df_limpia_sup["EVENTO"].astype(str).str.replace("_", " ", regex=False)
 
                         st.dataframe(df_limpia_sup.iloc[::-1], use_container_width=True, hide_index=True)
                         pdf_fich_sup_dl = generar_pdf_reporte(f"NOVEDADES DE GUARDIA - {sup_activo_normalizado}", df_limpia_sup)
@@ -1811,7 +1815,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     obj_detectado = st.session_state.get("obj_actual_vig", None)
 
     if obj_detectado:
-        st.success(f"📍 OBJETIVO DETECTADO PARA PÁNICO: **{obj_detectado}**")
+        st.success(f"📍 OBJETO DETECTADO PARA PÁNICO: **{obj_detectado}**")
         col_pv1, col_pv2, col_pv3 = st.columns([1, 1, 1])
         with col_pv2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
@@ -2121,7 +2125,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     
                     objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                     
-                    # Fichajes vigiladores
+                    # Fichajes vigiladores con columnas limpias idénticas al monitoreo
                     df_fich_filtrado = pd.DataFrame()
                     if not df_nov_aud.empty and len(objs_del_sup) > 0:
                         df_nov_aud.columns = [str(c).strip().upper() for c in df_nov_aud.columns]
@@ -2129,7 +2133,21 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         col_ev = next((p for p in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO'] if p in df_nov_aud.columns), df_nov_aud.columns[2] if len(df_nov_aud.columns) > 2 else None)
                         if col_ev:
                             mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                            df_fich_filtrado = df_nov_aud[mask_f].copy()
+                            df_fich_raw = df_nov_aud[mask_f].copy()
+                            if not df_fich_raw.empty:
+                                cols_act = list(df_fich_raw.columns)
+                                df_fich_filtrado = pd.DataFrame()
+                                if len(cols_act) >= 8:
+                                    df_fich_filtrado["FECHA Y HORA"] = df_fich_raw.iloc[:, 0]
+                                    df_fich_filtrado["OBJETIVO"] = df_fich_raw.iloc[:, 1]
+                                    df_fich_filtrado["EVENTO"] = df_fich_raw.iloc[:, 2].astype(str).str.replace("_", " ", regex=False)
+                                    df_fich_filtrado["APELLIDO Y NOMBRE"] = df_fich_raw.iloc[:, 4]
+                                    df_fich_filtrado["LEGAJO"] = df_fich_raw.iloc[:, 5]
+                                    df_fich_filtrado["ESTADO"] = df_fich_raw.iloc[:, 6]
+                                else:
+                                    df_fich_filtrado = df_fich_raw.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
+                                    if "EVENTO" in df_fich_filtrado.columns:
+                                        df_fich_filtrado["EVENTO"] = df_fich_filtrado["EVENTO"].astype(str).str.replace("_", " ", regex=False)
 
                     # Relevos
                     df_rel_filtrado = pd.DataFrame()
@@ -2175,7 +2193,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Usamos left/right margin de 20 para dar más espacio horizontal útil (ancho total 612 - 40 = 572 pt)
                         doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
@@ -2187,7 +2204,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
                         
-                        # 1. Jornada (Ancho total 572 pt)
+                        # 1. Jornada
                         elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
                         datos_jornada_resumen = [
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
@@ -2218,7 +2235,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 for _, row in df_in.iterrows():
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
-                                # Distribuir anchos de columna automáticamente para que no se corten
                                 num_cols = len(cols)
                                 ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
                                 anchos_lista = [ancho_columna] * num_cols
@@ -2271,7 +2287,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
 
-                    # --- RECUPERADA: VISTA PREVIA INTERACTIVA COMPLETA ---
+                    # --- VISTA PREVIA INTERACTIVA COMPLETA ---
                     with st.expander("👁️ Vista previa interactiva de los datos incluidos en el reporte"):
                         st.markdown("##### 📍 Detalle de Permanencia por Objetivo")
                         if not df_tabla_permanencia.empty:
@@ -2516,7 +2532,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                     
                     objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                     
-                    # Fichajes vigiladores
+                    # Fichajes vigiladores con columnas limpias idénticas al monitoreo
                     df_fich_filtrado = pd.DataFrame()
                     if not df_nov_aud.empty and len(objs_del_sup) > 0:
                         df_nov_aud.columns = [str(c).strip().upper() for c in df_nov_aud.columns]
@@ -2524,7 +2540,21 @@ elif st.session_state.rol_sel == "GERENCIA":
                         col_ev = next((p for p in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO'] if p in df_nov_aud.columns), df_nov_aud.columns[2] if len(df_nov_aud.columns) > 2 else None)
                         if col_ev:
                             mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                            df_fich_filtrado = df_nov_aud[mask_f].copy()
+                            df_fich_raw = df_nov_aud[mask_f].copy()
+                            if not df_fich_raw.empty:
+                                cols_act = list(df_fich_raw.columns)
+                                df_fich_filtrado = pd.DataFrame()
+                                if len(cols_act) >= 8:
+                                    df_fich_filtrado["FECHA Y HORA"] = df_fich_raw.iloc[:, 0]
+                                    df_fich_filtrado["OBJETIVO"] = df_fich_raw.iloc[:, 1]
+                                    df_fich_filtrado["EVENTO"] = df_fich_raw.iloc[:, 2].astype(str).str.replace("_", " ", regex=False)
+                                    df_fich_filtrado["APELLIDO Y NOMBRE"] = df_fich_raw.iloc[:, 4]
+                                    df_fich_filtrado["LEGAJO"] = df_fich_raw.iloc[:, 5]
+                                    df_fich_filtrado["ESTADO"] = df_fich_raw.iloc[:, 6]
+                                else:
+                                    df_fich_filtrado = df_fich_raw.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
+                                    if "EVENTO" in df_fich_filtrado.columns:
+                                        df_fich_filtrado["EVENTO"] = df_fich_filtrado["EVENTO"].astype(str).str.replace("_", " ", regex=False)
 
                     # Relevos
                     df_rel_filtrado = pd.DataFrame()
@@ -2664,7 +2694,7 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
 
-                    # --- RECUPERADA: VISTA PREVIA INTERACTIVA COMPLETA ---
+                    # --- VISTA PREVIA INTERACTIVA COMPLETA ---
                     with st.expander("👁️ Vista previa interactiva de los datos incluidos en el reporte"):
                         st.markdown("##### 📍 Detalle de Permanencia por Objetivo")
                         if not df_tabla_permanencia.empty:
