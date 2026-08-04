@@ -2140,7 +2140,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         elementos.append(t_jor)
                         elementos.append(Spacer(1, 8))
 
-                        def agregar_tabla_pdf(titulo_sec, df_in):
+                        def agregar_tabla_pdf(titulo_sec, df_in, es_flota=False):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
                             if not df_in.empty:
                                 cols = list(df_in.columns)
@@ -2149,8 +2149,13 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
                                 num_cols = len(cols)
-                                ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
-                                anchos_lista = [ancho_columna] * num_cols
+                                if es_flota and num_cols > 0:
+                                    anchos_lista = [55, 55, 55, 55, 95, 80, 85, 92][:num_cols]
+                                    if len(anchos_lista) < num_cols:
+                                        anchos_lista = [572.0 / num_cols] * num_cols
+                                else:
+                                    ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
+                                    anchos_lista = [ancho_columna] * num_cols
 
                                 t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
@@ -2177,7 +2182,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         agregar_tabla_pdf("Alertas Operativas:", d_alt)
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
-                        agregar_tabla_pdf("Control de Flota:", d_flota)
+                        agregar_tabla_pdf("Control de Flota:", d_flota, es_flota=True)
 
                         doc.build(elementos)
                         buffer.seek(0)
@@ -2472,7 +2477,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                         elementos.append(t_jor)
                         elementos.append(Spacer(1, 8))
 
-                        def agregar_tabla_pdf(titulo_sec, df_in):
+                        def agregar_tabla_pdf(titulo_sec, df_in, es_flota=False):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
                             if not df_in.empty:
                                 cols = list(df_in.columns)
@@ -2481,8 +2486,13 @@ elif st.session_state.rol_sel == "GERENCIA":
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
                                 num_cols = len(cols)
-                                ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
-                                anchos_lista = [ancho_columna] * num_cols
+                                if es_flota and num_cols > 0:
+                                    anchos_lista = [55, 55, 55, 55, 95, 80, 85, 92][:num_cols]
+                                    if len(anchos_lista) < num_cols:
+                                        anchos_lista = [572.0 / num_cols] * num_cols
+                                else:
+                                    ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
+                                    anchos_lista = [ancho_columna] * num_cols
 
                                 t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
@@ -2509,7 +2519,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                         agregar_tabla_pdf("Alertas Operativas:", d_alt)
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
-                        agregar_tabla_pdf("Control de Flota:", d_flota)
+                        agregar_tabla_pdf("Control de Flota:", d_flota, es_flota=True)
 
                         doc.build(elementos)
                         buffer.seek(0)
