@@ -2170,29 +2170,30 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         if col_sf:
                             df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sf].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()].copy()
 
-                    # --- BOTÓN DE DESCARGA INTEGRAL EN PDF ---
+                    # --- BOTÓN DE DESCARGA INTEGRAL EN PDF CON ANCHO CONTROLADO ---
                     st.markdown("---")
                     
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+                        # Usamos left/right margin de 20 para dar más espacio horizontal útil (ancho total 612 - 40 = 572 pt)
+                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
                         estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
                         
-                        # 1. Jornada
+                        # 1. Jornada (Ancho total 572 pt)
                         elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
                         datos_jornada_resumen = [
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[150, 150, 154])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[190, 190, 192])
                         t_jor.setStyle(TableStyle([
                             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -2216,17 +2217,23 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 datos = [[str(c) for c in cols]]
                                 for _, row in df_in.iterrows():
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
-                                t = Table(datos, repeatRows=1)
+                                
+                                # Distribuir anchos de columna automáticamente para que no se corten
+                                num_cols = len(cols)
+                                ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
+                                anchos_lista = [ancho_columna] * num_cols
+
+                                t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
                                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
                                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                                    ('FONTSIZE', (0, 0), (-1, 0), 7),
                                     ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
                                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
                                     ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                                    ('FONTSIZE', (0, 1), (-1, -1), 7),
+                                    ('FONTSIZE', (0, 1), (-1, -1), 6),
                                     ('TOPPADDING', (0, 1), (-1, -1), 3),
                                     ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
                                 ]))
@@ -2261,6 +2268,58 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         key=f"btn_pdf_integral_jefe_{sup_seleccionado_jefe}_{idx_pj}",
                         use_container_width=True
                     )
+
+                    st.markdown("---")
+
+                    # --- RECUPERADA: VISTA PREVIA INTERACTIVA COMPLETA ---
+                    with st.expander("👁️ Vista previa interactiva de los datos incluidos en el reporte"):
+                        st.markdown("##### 📍 Detalle de Permanencia por Objetivo")
+                        if not df_tabla_permanencia.empty:
+                            st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros de permanencia QR.")
+
+                        st.markdown("##### 📱 Fichajes QR de Supervisor")
+                        if not df_sup_qrs.empty:
+                            st.dataframe(df_sup_qrs, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin fichajes QR.")
+
+                        st.markdown("##### 📋 Fichaje de Vigiladores")
+                        if not df_fich_filtrado.empty:
+                            st.dataframe(df_fich_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin fichajes de vigiladores.")
+
+                        st.markdown("##### 🔄 Relevos de Vigiladores")
+                        if not df_rel_filtrado.empty:
+                            st.dataframe(df_rel_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin relevos.")
+
+                        st.markdown("##### ⚠️ Alertas Operativas")
+                        if not df_alt_sup_filtrado.empty:
+                            st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin alertas.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
+                        if not df_pan_sup_filtrado.empty:
+                            st.dataframe(df_pan_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de supervisor.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Vigiladores")
+                        if not df_pan_vig_filtrado.empty:
+                            st.dataframe(df_pan_vig_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de vigiladores.")
+
+                        st.markdown("##### 🚗 Control de Flota")
+                        if not df_flota_sup_filtro.empty:
+                            st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros de flota.")
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
 
@@ -2506,18 +2565,18 @@ elif st.session_state.rol_sel == "GERENCIA":
                         if col_sf:
                             df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sf].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()].copy()
 
-                    # --- BOTÓN DE DESCARGA INTEGRAL EN PDF ---
+                    # --- BOTÓN DE DESCARGA INTEGRAL EN PDF CON ANCHO CONTROLADO ---
                     st.markdown("---")
                     
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
                         estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -2528,7 +2587,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[150, 150, 154])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[190, 190, 192])
                         t_jor.setStyle(TableStyle([
                             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -2552,17 +2611,22 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 datos = [[str(c) for c in cols]]
                                 for _, row in df_in.iterrows():
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
-                                t = Table(datos, repeatRows=1)
+                                
+                                num_cols = len(cols)
+                                ancho_columna = 572.0 / num_cols if num_cols > 0 else 572.0
+                                anchos_lista = [ancho_columna] * num_cols
+
+                                t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
                                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
                                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                                    ('FONTSIZE', (0, 0), (-1, 0), 7),
                                     ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
                                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
                                     ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                                    ('FONTSIZE', (0, 1), (-1, -1), 7),
+                                    ('FONTSIZE', (0, 1), (-1, -1), 6),
                                     ('TOPPADDING', (0, 1), (-1, -1), 3),
                                     ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
                                 ]))
@@ -2597,6 +2661,58 @@ elif st.session_state.rol_sel == "GERENCIA":
                         key=f"btn_pdf_integral_ger_{sup_seleccionado_ger}_{idx_pg}",
                         use_container_width=True
                     )
+
+                    st.markdown("---")
+
+                    # --- RECUPERADA: VISTA PREVIA INTERACTIVA COMPLETA ---
+                    with st.expander("👁️ Vista previa interactiva de los datos incluidos en el reporte"):
+                        st.markdown("##### 📍 Detalle de Permanencia por Objetivo")
+                        if not df_tabla_permanencia.empty:
+                            st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros de permanencia QR.")
+
+                        st.markdown("##### 📱 Fichajes QR de Supervisor")
+                        if not df_sup_qrs.empty:
+                            st.dataframe(df_sup_qrs, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin fichajes QR.")
+
+                        st.markdown("##### 📋 Fichaje de Vigiladores")
+                        if not df_fich_filtrado.empty:
+                            st.dataframe(df_fich_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin fichajes de vigiladores.")
+
+                        st.markdown("##### 🔄 Relevos de Vigiladores")
+                        if not df_rel_filtrado.empty:
+                            st.dataframe(df_rel_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin relevos.")
+
+                        st.markdown("##### ⚠️ Alertas Operativas")
+                        if not df_alt_sup_filtrado.empty:
+                            st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin alertas.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
+                        if not df_pan_sup_filtrado.empty:
+                            st.dataframe(df_pan_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de supervisor.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Vigiladores")
+                        if not df_pan_vig_filtrado.empty:
+                            st.dataframe(df_pan_vig_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de vigiladores.")
+
+                        st.markdown("##### 🚗 Control de Flota")
+                        if not df_flota_sup_filtro.empty:
+                            st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros de flota.")
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
 
