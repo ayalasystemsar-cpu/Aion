@@ -813,7 +813,12 @@ if st.session_state.rol_sel == "MONITOREO":
             df_alertas = leer_matriz_nube("ALERTAS")
             if not df_alertas.empty:
                 df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
-                total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if 'ESTADO' in df_alertas.columns else 0
+                # Filtrar solo pánicos de vigiladores
+                df_pan_vig = df_alertas[
+                    (df_alertas['TIPO'].astype(str).str.upper() == "PÁNICO") & 
+                    (df_alertas['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+                ] if 'TIPO' in df_alertas.columns else pd.DataFrame()
+                total_sos = len(df_pan_vig)
                 st.metric("🚨 S.O.S ACTIVOS", total_sos)
             else:
                 st.metric("🚨 S.O.S ACTIVOS", "0")
@@ -1106,7 +1111,6 @@ if st.session_state.rol_sel == "MONITOREO":
                             if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_m_base.columns:
                                 df_nov_m_base['OBJETIVO_CLEAN'] = df_nov_m_base['OBJETIVO'].astype(str).str.strip().str.upper()
                                 
-                                # DETECCIÓN SEGURA DE LA COLUMNA DE TIPO DE EVENTO / ACCIÓN
                                 col_evento_real = None
                                 for posible_col in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO']:
                                     if posible_col in df_nov_m_base.columns:
@@ -1582,7 +1586,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if 'OBJETIVO' in df_nov_sup_base.columns:
                     df_nov_sup_base['OBJETIVO_CLEAN'] = df_nov_sup_base['OBJETIVO'].astype(str).str.strip().str.upper()
                     
-                    # DETECCIÓN SEGURA DE LA COLUMNA DE TIPO DE EVENTO / ACCIÓN
                     col_evento_real = None
                     for posible_col in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO']:
                         if posible_col in df_nov_sup_base.columns:
@@ -1650,6 +1653,28 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.info("No tienes objetivos asignados o no hay relevos en la base.")
 
+            # --- SECCIÓN ORDENADA: PÁNICOS DE VIGILADORES ARRIBA DE CONTROL DE FLOTA ---
+            st.markdown("---")
+            st.markdown(f"#### 🚨 ALERTAS DE PÁNICO DE TUS OBJETIVOS (VIGILADORES)")
+            df_pan_sup = leer_matriz_nube("ALERTAS")
+            if not df_pan_sup.empty and len(lista_objs_supervisor) > 0:
+                df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
+                # Filtrar estrictamente pánicos de vigiladores o asignados al objetivo/supervisor
+                df_pan_sup_filtro = pd.DataFrame()
+                if 'TIPO' in df_pan_sup.columns and 'CARGA_UTIL' in df_pan_sup.columns:
+                    mask_tipo = df_pan_sup['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"
+                    mask_objs = df_pan_sup['CARGA_UTIL'].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor))
+                    df_pan_sup_filtro = df_pan_sup[mask_tipo & (mask_objs | df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False))]
+                
+                if not df_pan_sup_filtro.empty:
+                    st.dataframe(df_pan_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
+                    pdf_pan_sup_dl = generar_pdf_reporte(f"ALERTAS DE PÁNICO VIGILADORES - {sup_activo_normalizado}", df_pan_sup_filtro)
+                    st.download_button("📥 DESCARGAR ALERTAS DE PÁNICO (PDF)", data=pdf_pan_sup_dl, file_name=f"alertas_panico_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_pan_sup")
+                else:
+                    st.info("Sin alertas de pánico de vigiladores en tus objetivos.")
+            else:
+                st.info("Sin alertas de pánico registradas.")
+
             st.markdown("---")
             st.markdown(f"#### 🚗 CONTROL DE FLOTA REGISTRADO")
             df_flota_sup = leer_matriz_nube("CONTROL DE FLOTA")
@@ -1705,26 +1730,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.dataframe(df_flota_sup.iloc[::-1], use_container_width=True, hide_index=True)
             else:
                 st.info("Sin registros de flota en el sistema.")
-
-            st.markdown("---")
-            st.markdown(f"#### 🚨 ALERTAS DE PÁNICO DE TUS OBJETIVOS")
-            df_pan_sup = leer_matriz_nube("ALERTAS")
-            if not df_pan_sup.empty and len(lista_objs_supervisor) > 0:
-                df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
-                if 'CARGA_UTIL' in df_pan_sup.columns:
-                    mask_objs = df_pan_sup['CARGA_UTIL'].apply(lambda x: any(obj.upper() in str(x).upper() for obj in lista_objs_supervisor))
-                    df_pan_sup_filtro = df_pan_sup[mask_objs | (df_pan_sup['CARGA_UTIL'].str.contains(sup_activo_normalizado, na=False))]
-                else:
-                    df_pan_sup_filtro = df_pan_sup.copy()
-                
-                if not df_pan_sup_filtro.empty:
-                    st.dataframe(df_pan_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
-                    pdf_pan_sup_dl = generar_pdf_reporte(f"ALERTAS DE PÁNICO - {sup_activo_normalizado}", df_pan_sup_filtro)
-                    st.download_button("📥 DESCARGAR ALERTAS DE PÁNICO (PDF)", data=pdf_pan_sup_dl, file_name=f"alertas_panico_{sup_activo_normalizado}.pdf", mime="application/pdf", key="dl_pan_sup")
-                else:
-                    st.info("Sin alertas de pánico en tus objetivos.")
-            else:
-                st.info("Sin alertas de pánico registradas.")
     else:
         st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
 
@@ -1817,7 +1822,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 </div>
             """, unsafe_allow_html=True)
     else:
-        st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
+        st.warning("⚠️ Debes realizar el Fichaje or Relevo primero para activar el sistema de pánico.")
     
     st.markdown("---")
     
@@ -1878,7 +1883,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         @st.fragment(run_every=5)
         def mostrar_sos():
             df_alertas = leer_matriz_nube("ALERTAS")
-            total_sos = len(df_alertas[df_alertas['ESTADO'] == "PENDIENTE"]) if not df_alertas.empty and 'ESTADO' in df_alertas.columns else 0
+            df_pan_vig_jefe = df_alertas[
+                (df_alertas['TIPO'].astype(str).str.upper() == "PÁNICO") & 
+                (df_alertas['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+            ] if not df_alertas.empty and 'TIPO' in df_alertas.columns else pd.DataFrame()
+            total_sos = len(df_pan_vig_jefe)
             st.metric("🚨 S.O.S ACTIVOS", total_sos)
         mostrar_sos()
 
@@ -2377,7 +2386,11 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         
         total_usrs = len(df_usr_m) if not df_usr_m.empty else 0
         total_objs = len(df_obj_m) if not df_obj_m.empty else 0
-        pend_sos = len(df_alt_m[df_alt_m['ESTADO'].astype(str).str.upper() == "PENDIENTE"]) if not df_alt_m.empty and 'ESTADO' in df_alt_m.columns else 0
+        df_pan_vig_adm = df_alt_m[
+            (df_alt_m['TIPO'].astype(str).str.upper() == "PÁNICO") & 
+            (df_alt_m['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+        ] if not df_alt_m.empty and 'TIPO' in df_alt_m.columns else pd.DataFrame()
+        pend_sos = len(df_pan_vig_adm)
 
         c_adm1, c_adm2, c_adm3 = st.columns(3)
         c_adm1.metric("👥 TOTAL USUARIOS", total_usrs)
