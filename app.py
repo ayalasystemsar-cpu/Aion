@@ -1217,17 +1217,6 @@ if st.session_state.rol_sel == "MONITOREO":
                             if not df_pan_sup_filtrado.empty:
                                 st.markdown("### 🚨 PÁNICOS S.O.S ACTIVOS Y REGISTRADOS")
                                 st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                                
-                                with st.form(key=f"form_cierre_panico_mono_{idx_sup_m}", clear_on_submit=True):
-                                    opciones_p_cierre = {f"{r.get('FECHA', '')} - {r.get('USUARIO', '')} (Obj: {r.get('OBJETIVO', 'N/A')})": idx for idx, r in df_pan_sup_filtrado.iterrows()}
-                                    panico_a_cerrar = st.selectbox("SELECCIONE PÁNICO A FINALIZAR:", list(opciones_p_cierre.keys()))
-                                    informe_cierre_txt = st.text_area("INFORME DE RESOLUCIÓN:")
-                                    if st.form_submit_button("🚨 FINALIZAR PÁNICO") and informe_cierre_txt.strip():
-                                        idx_real = opciones_p_cierre[panico_a_cerrar]
-                                        actualizar_celda("ALERTAS", idx_real + 2, "D", "FINALIZADO")
-                                        actualizar_celda("ALERTAS", idx_real + 2, "E", informe_cierre_txt.strip().upper())
-                                        st.success("✅ Pánico finalizado y registrado correctamente.")
-                                        st.rerun()
 
                                 pdf_pan_sup_m = generar_pdf_reporte(f"MONITOREO - PÁNICOS S.O.S ({sup_item})", df_pan_sup_filtrado)
                                 st.download_button(f"📥 DESCARGAR PÁNICOS DE {sup_item} (PDF)", data=pdf_pan_sup_m, file_name=f"monitoreo_panicos_{sup_item.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pan_sup_mono_{idx_sup_m}")
