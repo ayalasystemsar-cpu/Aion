@@ -858,24 +858,6 @@ if st.session_state.rol_sel == "MONITOREO":
             st.cache_data.clear()
             st.rerun()
 
-        if sos_activos > 0:
-            st.markdown('<div class="panel-novedad" style="border: 2px solid #FF0000;">', unsafe_allow_html=True)
-            st.markdown("### 🚨 PÁNICOS S.O.S ACTIVOS EN LA RED")
-            df_pendientes_view = df_emergencias[(df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE') & (df_emergencias['TIPO'].astype(str).str.upper() == 'PÁNICO')]
-            st.dataframe(df_pendientes_view, use_container_width=True, hide_index=True)
-            
-            with st.form(key="form_finalizar_panico_mono", clear_on_submit=True):
-                opciones_alertas = {f"{r.get('FECHA', '')} - {r.get('USUARIO', '')} (Obj: {r.get('OBJETIVO', 'N/A')})": idx for idx, r in df_pendientes_view.iterrows()}
-                alerta_seleccionada = st.selectbox("SELECCIONE EVENTO DE PÁNICO A FINALIZAR:", list(opciones_alertas.keys()))
-                txt_informe_cierre = st.text_area("INFORME OPERATIVO DE CIERRE:", placeholder="Describa la resolución de la emergencia...")
-                if st.form_submit_button("🚨 FINALIZAR PÁNICO Y NORMALIZAR") and txt_informe_cierre.strip():
-                    idx_df = opciones_alertas[alerta_seleccionada]
-                    actualizar_celda("ALERTAS", idx_df + 2, "D", "FINALIZADO")
-                    actualizar_celda("ALERTAS", idx_df + 2, "E", txt_informe_cierre.strip().upper())
-                    st.success("✅ Pánico finalizado y normalizado correctamente.")
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         col_filt1, col_filt2 = st.columns(2)
         lista_sups_monitoreo = ["TODOS LOS SUPERVISORES"] + LISTA_SUPS_TACTICOS
@@ -1233,7 +1215,21 @@ if st.session_state.rol_sel == "MONITOREO":
                                 df_pan_sup_filtrado = pd.DataFrame()
                             
                             if not df_pan_sup_filtrado.empty:
+                                st.markdown("### 🚨 PÁNICOS S.O.S ACTIVOS Y REGISTRADOS")
                                 st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                                
+                                # Formulario de cierre de pánico integrado en la subpestaña del supervisor
+                                with st.form(key=f"form_cierre_panico_mono_{idx_sup_m}", clear_on_submit=True):
+                                    opciones_p_cierre = {f"{r.get('FECHA', '')} - {r.get('USUARIO', '')} (Obj: {r.get('OBJETIVO', 'N/A')})": idx for idx, r in df_pan_sup_filtrado.iterrows()}
+                                    panico_a_cerrar = st.selectbox("SELECCIONE PÁNICO A FINALIZAR:", list(opciones_p_cierre.keys()))
+                                    informe_cierre_txt = st.text_area("INFORME DE RESOLUCIÓN:")
+                                    if st.form_submit_button("🚨 FINALIZAR PÁNICO") and informe_cierre_txt.strip():
+                                        idx_real = opciones_p_cierre[panico_a_cerrar]
+                                        actualizar_celda("ALERTAS", idx_real + 2, "D", "FINALIZADO")
+                                        actualizar_celda("ALERTAS", idx_real + 2, "E", informe_cierre_txt.strip().upper())
+                                        st.success("✅ Pánico finalizado y registrado correctamente.")
+                                        st.rerun()
+
                                 pdf_pan_sup_m = generar_pdf_reporte(f"MONITOREO - PÁNICOS S.O.S ({sup_item})", df_pan_sup_filtrado)
                                 st.download_button(f"📥 DESCARGAR PÁNICOS DE {sup_item} (PDF)", data=pdf_pan_sup_m, file_name=f"monitoreo_panicos_{sup_item.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pan_sup_mono_{idx_sup_m}")
                             else:
