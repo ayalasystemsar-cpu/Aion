@@ -2019,246 +2019,146 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             
             for idx_pj, sup_seleccionado_jefe in enumerate(supervisores_en_qr):
                 with pestanas_jefe[idx_pj]:
-                    st.markdown(f"### 🛡️ REPORTE TÁCTICO DE SUPERVISIÓN: **{sup_seleccionado_jefe}**")
+                    st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_jefe}**")
                     
+                    # Recopilación de fuentes para el reporte unificado
                     df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
                     
-                    inicio_jornada_gral = "---"
-                    fin_jornada_gral = "---"
-                    total_horas_jornada_str = "---"
+                    objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                     
-                    if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
-                        df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]
-                        if not df_sup_jor.empty:
-                            col_acc_j = 'ACCION' if 'ACCION' in df_sup_jor.columns else df_sup_jor.columns[3]
-                            col_hora_j = 'HORA' if 'HORA' in df_sup_jor.columns else df_sup_jor.columns[4]
-                            
-                            inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
-                            
-                            dt_ini_j = None
-                            dt_fin_j = None
-                            
-                            if not inicios_j.empty:
-                                val_h_ini = str(inicios_j.iloc[0].get(col_hora_j, '---'))
-                                inicio_jornada_gral = val_h_ini.split(" ")[1] if " " in val_h_ini else val_h_ini
-                                try:
-                                    dt_ini_j = datetime.strptime(inicio_jornada_gral, "%H:%M:%S")
-                                except: pass
-
-                            if not fines_j.empty:
-                                val_h_fin = str(fines_j.iloc[-1].get(col_hora_j, '---'))
-                                fin_jornada_gral = val_h_fin.split(" ")[1] if " " in val_h_fin else val_h_fin
-                                try:
-                                    dt_fin_j = datetime.strptime(fin_jornada_gral, "%H:%M:%S")
-                                except: pass
-
-                            if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
-                                diff_j = dt_fin_j - dt_ini_j
-                                mins_j = int(diff_j.total_seconds() // 60)
-                                h_j = mins_j // 60
-                                m_j = mins_j % 60
-                                total_horas_jornada_str = f"{h_j}h {m_j}m"
-
-                    c_info1, c_info2, c_info3 = st.columns(3)
-                    c_info1.metric("🚀 INICIO JORNADA", inicio_jornada_gral)
-                    c_info2.metric("🏁 FIN JORNADA", fin_jornada_gral)
-                    c_info3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_jornada_str)
-
-                    st.markdown("---")
-                    
-                    # --- 1. REGISTROS / FICHAJES QR ---
-                    st.markdown("#### 📱 Registros / Fichajes QR")
-                    if not df_sup_qrs.empty:
-                        st.dataframe(df_sup_qrs.iloc[::-1], use_container_width=True, hide_index=True)
-                        pdf_qr_j = generar_pdf_reporte(f"JEFE - FICHAJES QR: {sup_seleccionado_jefe}", df_sup_qrs)
-                        st.download_button("📥 DESCARGAR FICHAJES QR (PDF)", data=pdf_qr_j, file_name=f"jefe_qr_{sup_seleccionado_jefe.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_qr_jefe_{sup_seleccionado_jefe}_{idx_pj}")
-                    else:
-                        st.info("Sin registros QR para este supervisor.")
-
-                    st.markdown("---")
-
-                    # --- 2. FICHAJE DE VIGILADORES ---
-                    st.markdown("#### 📋 Fichaje de Vigiladores")
-                    if not df_nov_aud.empty:
+                    # Fichajes vigiladores
+                    df_fich_filtrado = pd.DataFrame()
+                    if not df_nov_aud.empty and len(objs_del_sup) > 0:
                         df_nov_aud.columns = [str(c).strip().upper() for c in df_nov_aud.columns]
-                        objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
-                        
-                        if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_aud.columns:
-                            df_nov_aud['OBJETIVO_CLEAN'] = df_nov_aud['OBJETIVO'].astype(str).str.strip().str.upper()
-                            col_evento_real = None
-                            for posible_col in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO']:
-                                if posible_col in df_nov_aud.columns:
-                                    col_evento_real = posible_col
-                                    break
-                            if col_evento_real is None and len(df_nov_aud.columns) > 2:
-                                col_evento_real = df_nov_aud.columns[2]
+                        df_nov_aud['OBJETIVO_CLEAN'] = df_nov_aud['OBJETIVO'].astype(str).str.strip().str.upper() if 'OBJETIVO' in df_nov_aud.columns else ""
+                        col_ev = next((p for p in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO'] if p in df_nov_aud.columns), df_nov_aud.columns[2] if len(df_nov_aud.columns) > 2 else None)
+                        if col_ev:
+                            mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+                            df_fich_filtrado = df_nov_aud[mask_f].copy()
 
-                            if col_evento_real:
-                                mask_fich = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & \
-                                            df_nov_aud[col_evento_real].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                                df_fich_filtrado = df_nov_aud[mask_fich].copy()
-                            else:
-                                df_fich_filtrado = pd.DataFrame()
-                            
-                            if not df_fich_filtrado.empty:
-                                cols_actuales = list(df_fich_filtrado.columns)
-                                df_limpia = pd.DataFrame()
-                                if len(cols_actuales) >= 8:
-                                    df_limpia["FECHA Y HORA"] = df_fich_filtrado.iloc[:, 0]
-                                    df_limpia["OBJETIVO"] = df_fich_filtrado.iloc[:, 1]
-                                    df_limpia["EVENTO"] = df_fich_filtrado.iloc[:, 2]
-                                    df_limpia["APELLIDO Y NOMBRE"] = df_fich_filtrado.iloc[:, 4]
-                                    df_limpia["LEGAJO"] = df_fich_filtrado.iloc[:, 5]
-                                    df_limpia["ESTADO"] = df_fich_filtrado.iloc[:, 6]
-                                else:
-                                    df_limpia = df_fich_filtrado.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
-
-                                st.dataframe(df_limpia.iloc[::-1], use_container_width=True, hide_index=True)
-                                pdf_pres_j = generar_pdf_reporte(f"JEFE - FICHAJE DE VIGILADORES ({sup_seleccionado_jefe})", df_limpia)
-                                st.download_button("📥 DESCARGAR FICHAJE DE VIGILADORES (PDF)", data=pdf_pres_j, file_name=f"jefe_fichajes_{sup_seleccionado_jefe.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_fichajes_jefe_{sup_seleccionado_jefe}_{idx_pj}")
-                            else:
-                                st.info("No hay fichajes de vigiladores registrados para este supervisor.")
-                        else:
-                            st.info("Este supervisor no tiene objetivos asignados.")
-                    else:
-                        st.info("No hay novedades de guardia registradas.")
-
-                    st.markdown("---")
-
-                    # --- 3. RELEVOS DE VIGILADORES ---
-                    st.markdown("#### 🔄 Relevos de vigiladores")
-                    if not df_vig_rel_aud.empty:
+                    # Relevos
+                    df_rel_filtrado = pd.DataFrame()
+                    if not df_vig_rel_aud.empty and len(objs_del_sup) > 0:
                         df_vig_rel_aud.columns = [str(c).strip().upper() for c in df_vig_rel_aud.columns]
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe]['OBJETIVO'].tolist() if not df_objetivos.empty else []
-                        
-                        if len(objs_del_sup) > 0:
-                            col_obj_v = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
-                            df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_obj_v].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
-                            
-                            if not df_rel_filtrado.empty:
-                                df_rel_limpio = pd.DataFrame()
-                                cols_rv = list(df_rel_filtrado.columns)
-                                if len(cols_rv) >= 7:
-                                    df_rel_limpio["FECHA Y HORA"] = df_rel_filtrado.iloc[:, 0].astype(str) + " " + df_rel_filtrado.iloc[:, 1].astype(str)
-                                    df_rel_limpio["OBJETIVO"] = df_rel_filtrado.iloc[:, 2]
-                                    df_rel_limpio["QUIÉN EGRESA"] = df_rel_filtrado.iloc[:, 3]
-                                    df_rel_limpio["QUIÉN INGRESA"] = df_rel_filtrado.iloc[:, 4]
-                                    df_rel_limpio["SUPERVISOR ASIGNADO"] = df_rel_filtrado.iloc[:, 5]
-                                    df_rel_limpio["ESTADO"] = df_rel_filtrado.iloc[:, 6]
-                                else:
-                                    df_rel_limpio = df_rel_filtrado
+                        col_ov = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
+                        df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_ov].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
 
-                                st.dataframe(df_rel_limpio.iloc[::-1], use_container_width=True, hide_index=True)
-                                pdf_rel_j = generar_pdf_reporte(f"JEFE - RELEVOS DE VIGILADORES ({sup_seleccionado_jefe})", df_rel_limpio)
-                                st.download_button("📥 DESCARGAR RELEVOS DE VIGILADORES (PDF)", data=pdf_rel_j, file_name=f"jefe_relevos_{sup_seleccionado_jefe.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_rel_jefe_{sup_seleccionado_jefe}_{idx_pj}")
-                            else:
-                                st.info("No hay relevos de vigiladores registrados para los objetivos de este supervisor.")
-                        else:
-                            st.info("Este supervisor no tiene objetivos asignados.")
-                    else:
-                        st.info("No hay relevos de vigiladores registrados.")
-
-                    st.markdown("---")
-
-                    # --- 4. ALERTAS ---
-                    st.markdown("#### ⚠️ Alertas")
+                    # Alertas operativas
+                    df_alt_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty:
                         df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alertas_aud.columns else df_alertas_aud.copy()
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe]['OBJETIVO'].tolist() if not df_objetivos.empty else []
-                        
-                        if not df_alt_op.empty:
-                            mask_alt = pd.Series([False]*len(df_alt_op))
-                            if 'OBJETIVO' in df_alt_op.columns:
-                                mask_alt = df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
-                            if 'CARGA' in df_alt_op.columns:
-                                mask_alt = mask_alt | df_alt_op['CARGA'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup))
-                            if 'SUPERVISOR' in df_alt_op.columns:
-                                mask_alt = mask_alt | (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
-                            df_alt_sup_filtrado = df_alt_op[mask_alt]
-                        else:
-                            df_alt_sup_filtrado = pd.DataFrame()
-                        
-                        if not df_alt_sup_filtrado.empty:
-                            st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_alt_j = generar_pdf_reporte(f"JEFE - ALERTAS OPERATIVAS ({sup_seleccionado_jefe})", df_alt_sup_filtrado)
-                            st.download_button("📥 DESCARGAR ALERTAS (PDF)", data=pdf_alt_j, file_name=f"jefe_alertas_{sup_seleccionado_jefe.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_alt_jefe_{sup_seleccionado_jefe}_{idx_pj}")
-                        else:
-                            st.info("No hay alertas operativas para este supervisor.")
-                    else:
-                        st.info("Sin alertas operativas registradas.")
+                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
+                        mask_alt = (df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
+                                   (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe if 'SUPERVISOR' in df_alt_op.columns else False)
+                        df_alt_sup_filtrado = df_alt_op[mask_alt]
 
-                    st.markdown("---")
+                    # Pánico Sup
+                    df_pan_sup_filtrado = pd.DataFrame()
+                    if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
+                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
+                        mask_s_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe) | (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
+                        df_pan_sup_filtrado = df_pan_op[mask_s_pan]
 
-                    # --- 5. PÁNICO S.O.S DE SUPERVISOR ---
-                    st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
-                    if not df_alertas_aud.empty:
-                        df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alertas_aud.columns else pd.DataFrame()
-                        
-                        if not df_pan_op.empty:
-                            mask_sup_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe) | \
-                                           (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
-                            df_pan_sup_filtrado = df_pan_op[mask_sup_pan]
-                        else:
-                            df_pan_sup_filtrado = pd.DataFrame()
-                        
-                        if not df_pan_sup_filtrado.empty:
-                            st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_j = generar_pdf_reporte(f"JEFE - PÁNICO S.O.S DE SUPERVISOR ({sup_seleccionado_jefe})", df_pan_sup_filtrado)
-                            st.download_button("📥 DESCARGAR PÁNICO S.O.S DE SUPERVISOR (PDF)", data=pdf_pan_j, file_name=f"jefe_panico_sup_{sup_seleccionado_jefe.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pan_jefe_{sup_seleccionado_jefe}_{idx_pj}")
-                        else:
-                            st.info("No hay pánicos S.O.S de supervisor registrados.")
-                    else:
-                        st.info("Sin pánicos S.O.S registrados.")
+                    # Pánico Vig
+                    df_pan_vig_filtrado = pd.DataFrame()
+                    if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
+                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
+                        mask_v_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe) | (df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]))
+                        mask_no_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
+                        df_pan_vig_filtrado = df_pan_op[mask_v_pan & mask_no_sup]
 
-                    st.markdown("---")
-
-                    # --- 6. PÁNICO S.O.S VIGILADOR ---
-                    st.markdown("#### 🚨 Pánico S.O.S Vigilador")
-                    if not df_alertas_aud.empty:
-                        df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alertas_aud.columns else pd.DataFrame()
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe]['OBJETIVO'].tolist() if not df_objetivos.empty else []
-                        
-                        if not df_pan_op.empty:
-                            mask_vig_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe) | \
-                                           (df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])) | \
-                                           (df_pan_op['CARGA'].astype(str).str.upper().str.contains("VIG|AGENTE", na=False))
-                            mask_no_es_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
-                            df_pan_vig_filtrado = df_pan_op[mask_vig_pan & mask_no_es_sup]
-                        else:
-                            df_pan_vig_filtrado = pd.DataFrame()
-                        
-                        if not df_pan_vig_filtrado.empty:
-                            st.dataframe(df_pan_vig_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_vig_j = generar_pdf_reporte(f"JEFE - PÁNICO S.O.S VIGILADOR ({sup_seleccionado_jefe})", df_pan_vig_filtrado)
-                            st.download_button("📥 DESCARGAR PÁNICO S.O.S VIGILADOR (PDF)", data=pdf_pan_vig_j, file_name=f"jefe_panico_vig_{sup_seleccionado_jefe.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pan_vig_jefe_{sup_seleccionado_jefe}_{idx_pj}")
-                        else:
-                            st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
-                    else:
-                        st.info("Sin pánicos S.O.S de vigiladores registrados.")
-
-                    st.markdown("---")
-
-                    # --- 7. CONTROL DE FLOTA ---
-                    st.markdown("#### 🚗 Control de Flota")
+                    # Flota
+                    df_flota_sup_filtro = pd.DataFrame()
                     if not df_flota_aud.empty:
                         df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
-                        col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
-                        if col_sup_f:
-                            df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()].copy()
-                            if not df_flota_sup_filtro.empty:
-                                st.dataframe(df_flota_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
-                                pdf_flota_j = generar_pdf_reporte(f"JEFE - CONTROL DE FLOTA ({sup_seleccionado_jefe})", df_flota_sup_filtro)
-                                st.download_button("📥 DESCARGAR CONTROL DE FLOTA (PDF)", data=pdf_flota_j, file_name=f"jefe_flota_{sup_seleccionado_jefe.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_flota_jefe_{sup_seleccionado_jefe}_{idx_pj}")
+                        col_sf = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
+                        if col_sf:
+                            df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sf].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()].copy()
+
+                    # --- BOTÓN ÚNICO DE DESCARGA INTEGRAL EN PDF ---
+                    st.markdown("---")
+                    
+                    def generar_pdf_integral_completo(sup_nombre, d_qr, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
+                        buffer = io.BytesIO()
+                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+                        elementos = []
+                        styles = getSampleStyleSheet()
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#0A0F1E'), spaceAfter=4, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#555555'), spaceAfter=10, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#00E5FF'), spaceBefore=8, spaceAfter=4)
+
+                        elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL UNIFICADO</b>", estilo_titulo))
+                        elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
+
+                        def agregar_tabla_pdf(titulo_sec, df_in):
+                            elementos.append(Paragraph(titulo_sec, estilo_seccion))
+                            if not df_in.empty:
+                                cols = list(df_in.columns)
+                                datos = [[str(c) for c in cols]]
+                                for _, row in df_in.iterrows():
+                                    datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
+                                t = Table(datos, repeatRows=1)
+                                t.setStyle(TableStyle([
+                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0A0F1E')),
+                                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8F9FA')),
+                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+                                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                                    ('FONTSIZE', (0, 1), (-1, -1), 7),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 3),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+                                ]))
+                                elementos.append(t)
                             else:
-                                st.info("No hay registros de flota para este supervisor.")
-                        else:
-                            st.info("Estructura de flota no válida.")
-                    else:
-                        st.info("Sin registros de flota en la base.")
+                                elementos.append(Paragraph("Sin registros en este periodo.", styles['Normal']))
+                            elementos.append(Spacer(1, 6))
+
+                        agregar_tabla_pdf("1. Fichajes QR de Supervisor", d_qr)
+                        agregar_tabla_pdf("2. Fichajes de Vigiladores", d_fich)
+                        agregar_tabla_pdf("3. Relevos de Vigiladores", d_rel)
+                        agregar_tabla_pdf("4. Alertas Operativas", d_alt)
+                        agregar_tabla_pdf("5. Pánicos S.O.S de Supervisor", d_psup)
+                        agregar_tabla_pdf("6. Pánicos S.O.S de Vigiladores", d_pvig)
+                        agregar_tabla_pdf("7. Control de Flota", d_flota)
+
+                        doc.build(elementos)
+                        buffer.seek(0)
+                        return buffer.getvalue()
+
+                    pdf_bytes_integral = generar_pdf_integral_completo(
+                        sup_seleccionado_jefe, df_sup_qrs, df_fich_filtrado, df_rel_filtrado, 
+                        df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro
+                    )
+
+                    st.download_button(
+                        label=f"📥 DESCARGAR REPORTE TÁCTICO INTEGRAL (PDF ÚNICO) - {sup_seleccionado_jefe}",
+                        data=pdf_bytes_integral,
+                        file_name=f"reporte_tactico_integral_{sup_seleccionado_jefe.replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        key=f"btn_pdf_integral_jefe_{sup_seleccionado_jefe}_{idx_pj}",
+                        use_container_width=True
+                    )
+
+                    st.markdown("---")
+
+                    with st.expander("👁️ Vista previa de los datos incluidos en el reporte"):
+                        st.markdown("##### 📱 Fichajes QR")
+                        st.dataframe(df_sup_qrs, use_container_width=True, hide_index=True)
+                        st.markdown("##### 📋 Fichaje de Vigiladores")
+                        st.dataframe(df_fich_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### 🔄 Relevos")
+                        st.dataframe(df_rel_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### ⚠️ Alertas")
+                        st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### 🚨 Pánicos Supervisor")
+                        st.dataframe(df_pan_sup_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### 🚨 Pánicos Vigilador")
+                        st.dataframe(df_pan_vig_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### 🚗 Flota")
+                        st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
 
@@ -2352,246 +2252,146 @@ elif st.session_state.rol_sel == "GERENCIA":
             
             for idx_pg, sup_seleccionado_ger in enumerate(supervisores_en_qr):
                 with pestanas_ger[idx_pg]:
-                    st.markdown(f"### 🛡️ REPORTE TÁCTICO DE SUPERVISIÓN: **{sup_seleccionado_ger}**")
+                    st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_ger}**")
                     
+                    # Recopilación de fuentes para el reporte unificado
                     df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
                     
-                    inicio_jornada_gral = "---"
-                    fin_jornada_gral = "---"
-                    total_horas_jornada_str = "---"
+                    objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                     
-                    if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
-                        df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()]
-                        if not df_sup_jor.empty:
-                            col_acc_j = 'ACCION' if 'ACCION' in df_sup_jor.columns else df_sup_jor.columns[3]
-                            col_hora_j = 'HORA' if 'HORA' in df_sup_jor.columns else df_sup_jor.columns[4]
-                            
-                            inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
-                            
-                            dt_ini_j = None
-                            dt_fin_j = None
-                            
-                            if not inicios_j.empty:
-                                val_h_ini = str(inicios_j.iloc[0].get(col_hora_j, '---'))
-                                inicio_jornada_gral = val_h_ini.split(" ")[1] if " " in val_h_ini else val_h_ini
-                                try:
-                                    dt_ini_j = datetime.strptime(inicio_jornada_gral, "%H:%M:%S")
-                                except: pass
-
-                            if not fines_j.empty:
-                                val_h_fin = str(fines_j.iloc[-1].get(col_hora_j, '---'))
-                                fin_jornada_gral = val_h_fin.split(" ")[1] if " " in val_h_fin else val_h_fin
-                                try:
-                                    dt_fin_j = datetime.strptime(fin_jornada_gral, "%H:%M:%S")
-                                except: pass
-
-                            if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
-                                diff_j = dt_fin_j - dt_ini_j
-                                mins_j = int(diff_j.total_seconds() // 60)
-                                h_j = mins_j // 60
-                                m_j = mins_j % 60
-                                total_horas_jornada_str = f"{h_j}h {m_j}m"
-
-                    c_info1, c_info2, c_info3 = st.columns(3)
-                    c_info1.metric("🚀 INICIO JORNADA", inicio_jornada_gral)
-                    c_info2.metric("🏁 FIN JORNADA", fin_jornada_gral)
-                    c_info3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_jornada_str)
-
-                    st.markdown("---")
-                    
-                    # --- 1. REGISTROS / FICHAJES QR ---
-                    st.markdown("#### 📱 Registros / Fichajes QR")
-                    if not df_sup_qrs.empty:
-                        st.dataframe(df_sup_qrs.iloc[::-1], use_container_width=True, hide_index=True)
-                        pdf_qr_g = generar_pdf_reporte(f"GERENCIA - FICHAJES QR: {sup_seleccionado_ger}", df_sup_qrs)
-                        st.download_button("📥 DESCARGAR FICHAJES QR (PDF)", data=pdf_qr_g, file_name=f"gerencia_qr_{sup_seleccionado_ger.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_qr_ger_{sup_seleccionado_ger}_{idx_pg}")
-                    else:
-                        st.info("Sin registros QR para este supervisor.")
-
-                    st.markdown("---")
-
-                    # --- 2. FICHAJE DE VIGILADORES ---
-                    st.markdown("#### 📋 Fichaje de Vigiladores")
-                    if not df_nov_aud.empty:
+                    # Fichajes vigiladores
+                    df_fich_filtrado = pd.DataFrame()
+                    if not df_nov_aud.empty and len(objs_del_sup) > 0:
                         df_nov_aud.columns = [str(c).strip().upper() for c in df_nov_aud.columns]
-                        objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
-                        
-                        if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_aud.columns:
-                            df_nov_aud['OBJETIVO_CLEAN'] = df_nov_aud['OBJETIVO'].astype(str).str.strip().str.upper()
-                            col_evento_real = None
-                            for posible_col in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO']:
-                                if posible_col in df_nov_aud.columns:
-                                    col_evento_real = posible_col
-                                    break
-                            if col_evento_real is None and len(df_nov_aud.columns) > 2:
-                                col_evento_real = df_nov_aud.columns[2]
+                        df_nov_aud['OBJETIVO_CLEAN'] = df_nov_aud['OBJETIVO'].astype(str).str.strip().str.upper() if 'OBJETIVO' in df_nov_aud.columns else ""
+                        col_ev = next((p for p in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO'] if p in df_nov_aud.columns), df_nov_aud.columns[2] if len(df_nov_aud.columns) > 2 else None)
+                        if col_ev:
+                            mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+                            df_fich_filtrado = df_nov_aud[mask_f].copy()
 
-                            if col_evento_real:
-                                mask_fich = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & \
-                                            df_nov_aud[col_evento_real].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                                df_fich_filtrado = df_nov_aud[mask_fich].copy()
-                            else:
-                                df_fich_filtrado = pd.DataFrame()
-                            
-                            if not df_fich_filtrado.empty:
-                                cols_actuales = list(df_fich_filtrado.columns)
-                                df_limpia = pd.DataFrame()
-                                if len(cols_actuales) >= 8:
-                                    df_limpia["FECHA Y HORA"] = df_fich_filtrado.iloc[:, 0]
-                                    df_limpia["OBJETIVO"] = df_fich_filtrado.iloc[:, 1]
-                                    df_limpia["EVENTO"] = df_fich_filtrado.iloc[:, 2]
-                                    df_limpia["APELLIDO Y NOMBRE"] = df_fich_filtrado.iloc[:, 4]
-                                    df_limpia["LEGAJO"] = df_fich_filtrado.iloc[:, 5]
-                                    df_limpia["ESTADO"] = df_fich_filtrado.iloc[:, 6]
-                                else:
-                                    df_limpia = df_fich_filtrado.drop(columns=['OBJETIVO_CLEAN'], errors='ignore')
-
-                                st.dataframe(df_limpia.iloc[::-1], use_container_width=True, hide_index=True)
-                                pdf_pres_g = generar_pdf_reporte(f"GERENCIA - FICHAJE DE VIGILADORES ({sup_seleccionado_ger})", df_limpia)
-                                st.download_button("📥 DESCARGAR FICHAJE DE VIGILADORES (PDF)", data=pdf_pres_g, file_name=f"gerencia_fichajes_{sup_seleccionado_ger.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_fichajes_ger_{sup_seleccionado_ger}_{idx_pg}")
-                            else:
-                                st.info("No hay fichajes de vigiladores registrados para este supervisor.")
-                        else:
-                            st.info("Este supervisor no tiene objetivos asignados.")
-                    else:
-                        st.info("No hay novedades de guardia registradas.")
-
-                    st.markdown("---")
-
-                    # --- 3. RELEVOS DE VIGILADORES ---
-                    st.markdown("#### 🔄 Relevos de vigiladores")
-                    if not df_vig_rel_aud.empty:
+                    # Relevos
+                    df_rel_filtrado = pd.DataFrame()
+                    if not df_vig_rel_aud.empty and len(objs_del_sup) > 0:
                         df_vig_rel_aud.columns = [str(c).strip().upper() for c in df_vig_rel_aud.columns]
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger]['OBJETIVO'].tolist() if not df_objetivos.empty else []
-                        
-                        if len(objs_del_sup) > 0:
-                            col_obj_v = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
-                            df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_obj_v].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
-                            
-                            if not df_rel_filtrado.empty:
-                                df_rel_limpio = pd.DataFrame()
-                                cols_rv = list(df_rel_filtrado.columns)
-                                if len(cols_rv) >= 7:
-                                    df_rel_limpio["FECHA Y HORA"] = df_rel_filtrado.iloc[:, 0].astype(str) + " " + df_rel_filtrado.iloc[:, 1].astype(str)
-                                    df_rel_limpio["OBJETIVO"] = df_rel_filtrado.iloc[:, 2]
-                                    df_rel_limpio["QUIÉN EGRESA"] = df_rel_filtrado.iloc[:, 3]
-                                    df_rel_limpio["QUIÉN INGRESA"] = df_rel_filtrado.iloc[:, 4]
-                                    df_rel_limpio["SUPERVISOR ASIGNADO"] = df_rel_filtrado.iloc[:, 5]
-                                    df_rel_limpio["ESTADO"] = df_rel_filtrado.iloc[:, 6]
-                                else:
-                                    df_rel_limpio = df_rel_filtrado
+                        col_ov = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
+                        df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_ov].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
 
-                                st.dataframe(df_rel_limpio.iloc[::-1], use_container_width=True, hide_index=True)
-                                pdf_rel_g = generar_pdf_reporte(f"GERENCIA - RELEVOS DE VIGILADORES ({sup_seleccionado_ger})", df_rel_limpio)
-                                st.download_button("📥 DESCARGAR RELEVOS DE VIGILADORES (PDF)", data=pdf_rel_g, file_name=f"gerencia_relevos_{sup_seleccionado_ger.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_rel_ger_{sup_seleccionado_ger}_{idx_pg}")
-                            else:
-                                st.info("No hay relevos de vigiladores registrados para los objetivos de este supervisor.")
-                        else:
-                            st.info("Este supervisor no tiene objetivos asignados.")
-                    else:
-                        st.info("No hay relevos de vigiladores registrados.")
-
-                    st.markdown("---")
-
-                    # --- 4. ALERTAS ---
-                    st.markdown("#### ⚠️ Alertas")
+                    # Alertas operativas
+                    df_alt_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty:
                         df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alertas_aud.columns else df_alertas_aud.copy()
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger]['OBJETIVO'].tolist() if not df_objetivos.empty else []
-                        
-                        if not df_alt_op.empty:
-                            mask_alt = pd.Series([False]*len(df_alt_op))
-                            if 'OBJETIVO' in df_alt_op.columns:
-                                mask_alt = df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
-                            if 'CARGA' in df_alt_op.columns:
-                                mask_alt = mask_alt | df_alt_op['CARGA'].apply(lambda x: any(o.upper() in str(x).upper() for o in objs_del_sup))
-                            if 'SUPERVISOR' in df_alt_op.columns:
-                                mask_alt = mask_alt | (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger)
-                            df_alt_sup_filtrado = df_alt_op[mask_alt]
-                        else:
-                            df_alt_sup_filtrado = pd.DataFrame()
-                        
-                        if not df_alt_sup_filtrado.empty:
-                            st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_alt_g = generar_pdf_reporte(f"GERENCIA - ALERTAS OPERATIVAS ({sup_seleccionado_ger})", df_alt_sup_filtrado)
-                            st.download_button("📥 DESCARGAR ALERTAS (PDF)", data=pdf_alt_g, file_name=f"gerencia_alertas_{sup_seleccionado_ger.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_alt_ger_{sup_seleccionado_ger}_{idx_pg}")
-                        else:
-                            st.info("No hay alertas operativas para este supervisor.")
-                    else:
-                        st.info("Sin alertas operativas registradas.")
+                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
+                        mask_alt = (df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
+                                   (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger if 'SUPERVISOR' in df_alt_op.columns else False)
+                        df_alt_sup_filtrado = df_alt_op[mask_alt]
 
-                    st.markdown("---")
+                    # Pánico Sup
+                    df_pan_sup_filtrado = pd.DataFrame()
+                    if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
+                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
+                        mask_s_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger) | (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_ger)
+                        df_pan_sup_filtrado = df_pan_op[mask_s_pan]
 
-                    # --- 5. PÁNICO S.O.S DE SUPERVISOR ---
-                    st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
-                    if not df_alertas_aud.empty:
-                        df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alertas_aud.columns else pd.DataFrame()
-                        
-                        if not df_pan_op.empty:
-                            mask_sup_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger) | \
-                                           (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_ger)
-                            df_pan_sup_filtrado = df_pan_op[mask_sup_pan]
-                        else:
-                            df_pan_sup_filtrado = pd.DataFrame()
-                        
-                        if not df_pan_sup_filtrado.empty:
-                            st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_g = generar_pdf_reporte(f"GERENCIA - PÁNICO S.O.S DE SUPERVISOR ({sup_seleccionado_ger})", df_pan_sup_filtrado)
-                            st.download_button("📥 DESCARGAR PÁNICO S.O.S DE SUPERVISOR (PDF)", data=pdf_pan_g, file_name=f"gerencia_panico_sup_{sup_seleccionado_ger.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pan_ger_{sup_seleccionado_ger}_{idx_pg}")
-                        else:
-                            st.info("No hay pánicos S.O.S de supervisor registrados.")
-                    else:
-                        st.info("Sin pánicos S.O.S registrados.")
+                    # Pánico Vig
+                    df_pan_vig_filtrado = pd.DataFrame()
+                    if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
+                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
+                        mask_v_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger) | (df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]))
+                        mask_no_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_ger)
+                        df_pan_vig_filtrado = df_pan_op[mask_v_pan & mask_no_sup]
 
-                    st.markdown("---")
-
-                    # --- 6. PÁNICO S.O.S VIGILADOR ---
-                    st.markdown("#### 🚨 Pánico S.O.S Vigilador")
-                    if not df_alertas_aud.empty:
-                        df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alertas_aud.columns else pd.DataFrame()
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger]['OBJETIVO'].tolist() if not df_objetivos.empty else []
-                        
-                        if not df_pan_op.empty:
-                            mask_vig_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_ger) | \
-                                           (df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])) | \
-                                           (df_pan_op['CARGA'].astype(str).str.upper().str.contains("VIG|AGENTE", na=False))
-                            mask_no_es_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_ger)
-                            df_pan_vig_filtrado = df_pan_op[mask_vig_pan & mask_no_es_sup]
-                        else:
-                            df_pan_vig_filtrado = pd.DataFrame()
-                        
-                        if not df_pan_vig_filtrado.empty:
-                            st.dataframe(df_pan_vig_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_vig_g = generar_pdf_reporte(f"GERENCIA - PÁNICO S.O.S VIGILADOR ({sup_seleccionado_ger})", df_pan_vig_filtrado)
-                            st.download_button("📥 DESCARGAR PÁNICO S.O.S VIGILADOR (PDF)", data=pdf_pan_vig_g, file_name=f"gerencia_panico_vig_{sup_seleccionado_ger.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pan_vig_ger_{sup_seleccionado_ger}_{idx_pg}")
-                        else:
-                            st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
-                    else:
-                        st.info("Sin pánicos S.O.S de vigiladores registrados.")
-
-                    st.markdown("---")
-
-                    # --- 7. CONTROL DE FLOTA ---
-                    st.markdown("#### 🚗 Control de Flota")
+                    # Flota
+                    df_flota_sup_filtro = pd.DataFrame()
                     if not df_flota_aud.empty:
                         df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
-                        col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
-                        if col_sup_f:
-                            df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()].copy()
-                            if not df_flota_sup_filtro.empty:
-                                st.dataframe(df_flota_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
-                                pdf_flota_g = generar_pdf_reporte(f"GERENCIA - CONTROL DE FLOTA ({sup_seleccionado_ger})", df_flota_sup_filtro)
-                                st.download_button("📥 DESCARGAR CONTROL DE FLOTA (PDF)", data=pdf_flota_g, file_name=f"gerencia_flota_{sup_seleccionado_ger.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_flota_ger_{sup_seleccionado_ger}_{idx_pg}")
+                        col_sf = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
+                        if col_sf:
+                            df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sf].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()].copy()
+
+                    # --- BOTÓN ÚNICO DE DESCARGA INTEGRAL EN PDF ---
+                    st.markdown("---")
+                    
+                    def generar_pdf_integral_completo(sup_nombre, d_qr, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
+                        buffer = io.BytesIO()
+                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+                        elementos = []
+                        styles = getSampleStyleSheet()
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#0A0F1E'), spaceAfter=4, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#555555'), spaceAfter=10, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#00E5FF'), spaceBefore=8, spaceAfter=4)
+
+                        elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL UNIFICADO</b>", estilo_titulo))
+                        elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
+
+                        def agregar_tabla_pdf(titulo_sec, df_in):
+                            elementos.append(Paragraph(titulo_sec, estilo_seccion))
+                            if not df_in.empty:
+                                cols = list(df_in.columns)
+                                datos = [[str(c) for c in cols]]
+                                for _, row in df_in.iterrows():
+                                    datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
+                                t = Table(datos, repeatRows=1)
+                                t.setStyle(TableStyle([
+                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0A0F1E')),
+                                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8F9FA')),
+                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+                                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                                    ('FONTSIZE', (0, 1), (-1, -1), 7),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 3),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+                                ]))
+                                elementos.append(t)
                             else:
-                                st.info("No hay registros de flota para este supervisor.")
-                        else:
-                            st.info("Estructura de flota no válida.")
-                    else:
-                        st.info("Sin registros de flota en la base.")
+                                elementos.append(Paragraph("Sin registros en este periodo.", styles['Normal']))
+                            elementos.append(Spacer(1, 6))
+
+                        agregar_tabla_pdf("1. Fichajes QR de Supervisor", d_qr)
+                        agregar_tabla_pdf("2. Fichajes de Vigiladores", d_fich)
+                        agregar_tabla_pdf("3. Relevos de Vigiladores", d_rel)
+                        agregar_tabla_pdf("4. Alertas Operativas", d_alt)
+                        agregar_tabla_pdf("5. Pánicos S.O.S de Supervisor", d_psup)
+                        agregar_tabla_pdf("6. Pánicos S.O.S de Vigiladores", d_pvig)
+                        agregar_tabla_pdf("7. Control de Flota", d_flota)
+
+                        doc.build(elementos)
+                        buffer.seek(0)
+                        return buffer.getvalue()
+
+                    pdf_bytes_integral = generar_pdf_integral_completo(
+                        sup_seleccionado_ger, df_sup_qrs, df_fich_filtrado, df_rel_filtrado, 
+                        df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro
+                    )
+
+                    st.download_button(
+                        label=f"📥 DESCARGAR REPORTE TÁCTICO INTEGRAL (PDF ÚNICO) - {sup_seleccionado_ger}",
+                        data=pdf_bytes_integral,
+                        file_name=f"reporte_tactico_integral_{sup_seleccionado_ger.replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        key=f"btn_pdf_integral_ger_{sup_seleccionado_ger}_{idx_pg}",
+                        use_container_width=True
+                    )
+
+                    st.markdown("---")
+
+                    with st.expander("👁️ Vista previa de los datos incluidos en el reporte"):
+                        st.markdown("##### 📱 Fichajes QR")
+                        st.dataframe(df_sup_qrs, use_container_width=True, hide_index=True)
+                        st.markdown("##### 📋 Fichaje de Vigiladores")
+                        st.dataframe(df_fich_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### 🔄 Relevos")
+                        st.dataframe(df_rel_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### ⚠️ Alertas")
+                        st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### 🚨 Pánicos Supervisor")
+                        st.dataframe(df_pan_sup_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### 🚨 Pánicos Vigilador")
+                        st.dataframe(df_pan_vig_filtrado, use_container_width=True, hide_index=True)
+                        st.markdown("##### 🚗 Flota")
+                        st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
 
