@@ -592,7 +592,7 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
                 
-            elif modo == "Iniciar Sesión" and rol_usuario == "SUPERVISOR" and (user_limpio.startswith("SUPERVISOR") or user_limpio in ["AYALA BRIAN", "AYALA", "GONZALEZ", "CONTROLADOR NOCTURNO"] or pass_limpio == "1234"):
+            elif modo == "Iniciar Sesión" and rol_usuario == "SUPERVISOR" and (user_limpio.startswith("SUPERVISOR") or user_limpio in ["AYALA BRIAN", "AYALA", "GONZALEZ", "CONTROLADOR NOCTURNO", "TIKI"] or pass_limpio == "1234"):
                 usuario_final = "AYALA BRIAN" if user_limpio in ["AYALA BRIAN", "AYALA"] else user_limpio
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = usuario_final
@@ -1052,7 +1052,7 @@ if st.session_state.rol_sel == "MONITOREO":
         renderizar_mensajeria_global("MONITOREO")
             
     with t_nov:
-        st.subheader("🔄 AUDITORÍA Y REGISTROS DE MONITOREO POR SUPERVISOR")
+        st.subheader("🔄 AUDITORÍA Y REGISTROS DE MONITOREO POR SUPERVISOR (DINÁMICO)")
         
         df_qr_m_base = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         df_vig_rel_m_base = leer_matriz_nube("VIGILADORES")
@@ -1225,7 +1225,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         else:
                             st.info("Sin pánicos S.O.S registrados.")
         else:
-            st.info("No hay supervisores con registros QR activos en el sistema actualmente.")
+            st.info("No hay supervisores con registros activos en el sistema todavía. A medida que realicen fichajes o actividades, aparecerán aquí automáticamente.")
 
 
 # =========================================================================
@@ -1935,7 +1935,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 st.success("✅ Petición enviada")
     
     with t_tab_auditoria:
-        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
+        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR (DINÁMICO)")
         df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
@@ -1955,7 +1955,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             col_acc_q = 'ACCION' if 'ACCION' in df_qr_aud.columns else df_qr_aud.columns[2]
             col_fec_q = 'FECHA_HORA' if 'FECHA_HORA' in df_qr_aud.columns else df_qr_aud.columns[0]
 
-            supervisores_en_qr = df_qr_aud[col_sup_q].unique() if col_sup_q in df_qr_aud.columns else []
+            supervisores_en_qr = df_qr_aud[col_sup_q].dropna().astype(str).str.strip().str.upper().unique().tolist() if col_sup_q in df_qr_aud.columns else []
 
             if len(supervisores_en_qr) > 0:
                 tabs_supervisores = st.tabs([f"👤 {sup}" for sup in supervisores_en_qr])
@@ -2160,7 +2160,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             pdf_sup_completo = generar_pdf_reporte(f"REPORTE TÁCTICO INTEGRAL - SUPERVISOR: {sup}", df_tabla_sup_indiv if not df_tabla_sup_indiv.empty else df_flota_sup_indiv)
                             st.download_button(f"📥 DESCARGAR REPORTE TÁCTICO COMPLETO (PDF) - {sup}", data=pdf_sup_completo, file_name=f"reporte_integral_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_integral_{idx_sup}_jefe")
             else:
-                st.info("No hay registros de supervisores en el sistema.")
+                st.info("No hay registros activos de supervisores en el sistema todavía.")
         else:
             st.info("Esperando registros para procesar el consolidado.")
 
@@ -2217,7 +2217,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                 st.success("✅ Petición enviada")
 
     with t_tab_auditoria:
-        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
+        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR (DINÁMICO)")
         df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
@@ -2237,7 +2237,7 @@ elif st.session_state.rol_sel == "GERENCIA":
             col_acc_q = 'ACCION' if 'ACCION' in df_qr_aud.columns else df_qr_aud.columns[2]
             col_fec_q = 'FECHA_HORA' if 'FECHA_HORA' in df_qr_aud.columns else df_qr_aud.columns[0]
 
-            supervisores_en_qr = df_qr_aud[col_sup_q].unique() if col_sup_q in df_qr_aud.columns else []
+            supervisores_en_qr = df_qr_aud[col_sup_q].dropna().astype(str).str.strip().str.upper().unique().tolist() if col_sup_q in df_qr_aud.columns else []
 
             if len(supervisores_en_qr) > 0:
                 tabs_supervisores_ger = st.tabs([f"👤 {sup}" for sup in supervisores_en_qr])
@@ -2442,7 +2442,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                             pdf_sup_completo_ger = generar_pdf_reporte(f"REPORTE GERENCIAL INTEGRAL - SUPERVISOR: {sup}", df_tabla_sup_indiv if not df_tabla_sup_indiv.empty else df_flota_sup_indiv)
                             st.download_button(f"📥 DESCARGAR REPORTE TÁCTICO COMPLETO (PDF) - {sup}", data=pdf_sup_completo_ger, file_name=f"reporte_integral_gerencial_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_integral_{idx_sup}_ger")
             else:
-                st.info("No hay registros de supervisores en el sistema.")
+                st.info("No hay registros activos de supervisores en el sistema todavía.")
         else:
             st.info("Esperando registros para procesar el consolidado.")
 
