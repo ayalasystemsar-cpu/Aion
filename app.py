@@ -795,7 +795,7 @@ if st.session_state.rol_sel == "MONITOREO":
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
     lista_objetivos_en_panico = []
-    if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns and 'TIPO' in df_emergencias.columns:
+    if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns and 'TIPO' in df_emergencias.columns:
         pendientes_sos = df_emergencias[
             (df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE') & 
             (df_emergencias['TIPO'].astype(str).str.upper() == 'PÁNICO')
