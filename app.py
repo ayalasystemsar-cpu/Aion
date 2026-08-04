@@ -1105,10 +1105,22 @@ if st.session_state.rol_sel == "MONITOREO":
                             
                             if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_m_base.columns:
                                 df_nov_m_base['OBJETIVO_CLEAN'] = df_nov_m_base['OBJETIVO'].astype(str).str.strip().str.upper()
-                                # FILTRAR ESTRICTAMENTE SOLO MARCACIONES DE FICHAJE (SIN RELEVOS)
-                                mask_fich = df_nov_m_base['OBJETIVO_CLEAN'].isin(objs_del_sup) & \
-                                            df_nov_m_base['TIPO_EVENTO'].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                                df_fichajes_sup_filtrado = df_nov_m_base[mask_fich].copy()
+                                
+                                # DETECCIÓN SEGURA DE LA COLUMNA DE TIPO DE EVENTO / ACCIÓN
+                                col_evento_real = None
+                                for posible_col in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO']:
+                                    if posible_col in df_nov_m_base.columns:
+                                        col_evento_real = posible_col
+                                        break
+                                if col_evento_real is None and len(df_nov_m_base.columns) > 2:
+                                    col_evento_real = df_nov_m_base.columns[2]
+
+                                if col_evento_real:
+                                    mask_fich = df_nov_m_base['OBJETIVO_CLEAN'].isin(objs_del_sup) & \
+                                                df_nov_m_base[col_evento_real].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+                                    df_fichajes_sup_filtrado = df_nov_m_base[mask_fich].copy()
+                                else:
+                                    df_fichajes_sup_filtrado = pd.DataFrame()
                                 
                                 if not df_fichajes_sup_filtrado.empty:
                                     cols_actuales = list(df_fichajes_sup_filtrado.columns)
@@ -1143,7 +1155,6 @@ if st.session_state.rol_sel == "MONITOREO":
                                 df_rel_sup_filtrado = df_vig_rel_m_base[df_vig_rel_m_base[col_obj_v].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
                                 
                                 if not df_rel_sup_filtrado.empty:
-                                    # Limpieza y formateo exacto para Relevos solicitado
                                     df_rel_limpio = pd.DataFrame()
                                     cols_rv = list(df_rel_sup_filtrado.columns)
                                     if len(cols_rv) >= 7:
@@ -1570,10 +1581,22 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_nov_sup_base.columns = [str(c).strip().upper() for c in df_nov_sup_base.columns]
                 if 'OBJETIVO' in df_nov_sup_base.columns:
                     df_nov_sup_base['OBJETIVO_CLEAN'] = df_nov_sup_base['OBJETIVO'].astype(str).str.strip().str.upper()
-                    # FILTRAR ESTRICTAMENTE SOLO MARCACIONES DE FICHAJE (SIN RELEVOS)
-                    mask_fich_sup = df_nov_sup_base['OBJETIVO_CLEAN'].isin(lista_objs_supervisor) & \
-                                    df_nov_sup_base['TIPO_EVENTO'].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                    df_fich_sup_filtrado = df_nov_sup_base[mask_fich_sup].copy()
+                    
+                    # DETECCIÓN SEGURA DE LA COLUMNA DE TIPO DE EVENTO / ACCIÓN
+                    col_evento_real = None
+                    for posible_col in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO']:
+                        if posible_col in df_nov_sup_base.columns:
+                            col_evento_real = posible_col
+                            break
+                    if col_evento_real is None and len(df_nov_sup_base.columns) > 2:
+                        col_evento_real = df_nov_sup_base.columns[2]
+
+                    if col_evento_real:
+                        mask_fich_sup = df_nov_sup_base['OBJETIVO_CLEAN'].isin(lista_objs_supervisor) & \
+                                        df_nov_sup_base[col_evento_real].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+                        df_fich_sup_filtrado = df_nov_sup_base[mask_fich_sup].copy()
+                    else:
+                        df_fich_sup_filtrado = pd.DataFrame()
                     
                     if not df_fich_sup_filtrado.empty:
                         cols_actuales = list(df_fich_sup_filtrado.columns)
@@ -1607,7 +1630,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_rel_sup_filtrado = df_vig_rel_sup[df_vig_rel_sup[col_obj_v].astype(str).str.strip().str.upper().isin([o.upper() for o in lista_objs_supervisor])]
                 
                 if not df_rel_sup_filtrado.empty:
-                    # Limpieza y formateo exacto para Relevos en el Supervisor
                     df_rel_limpio_sup = pd.DataFrame()
                     cols_rvs = list(df_rel_sup_filtrado.columns)
                     if len(cols_rvs) >= 7:
