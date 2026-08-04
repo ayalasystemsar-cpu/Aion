@@ -1159,7 +1159,7 @@ if st.session_state.rol_sel == "MONITOREO":
 
                     st.markdown("---")
 
-                    # --- 3. RELEVOS DE VIGILADORES ---
+                    # --- 3. RELEVOS DE VIGILADORES (INVERSIÓN Y ETIQUETAS CORREGIDAS) ---
                     st.markdown("#### 🔄 Relevos de vigiladores")
                     if not df_vig_rel_m_base.empty:
                         df_vig_rel_m_base.columns = [str(c).strip().upper() for c in df_vig_rel_m_base.columns]
@@ -1175,6 +1175,7 @@ if st.session_state.rol_sel == "MONITOREO":
                                 if len(cols_rv) >= 7:
                                     df_rel_limpio["FECHA Y HORA"] = df_rel_sup_filtrado.iloc[:, 0].astype(str) + " " + df_rel_sup_filtrado.iloc[:, 1].astype(str)
                                     df_rel_limpio["OBJETIVO"] = df_rel_sup_filtrado.iloc[:, 2]
+                                    # CORRECCIÓN DE ORDEN Y ETIQUETAS: Columna 3 es quien EGRESA y Columna 4 es quien INGRESA
                                     df_rel_limpio["QUIÉN EGRESA"] = df_rel_sup_filtrado.iloc[:, 3]
                                     df_rel_limpio["QUIÉN INGRESA"] = df_rel_sup_filtrado.iloc[:, 4]
                                     df_rel_limpio["SUPERVISOR ASIGNADO"] = df_rel_sup_filtrado.iloc[:, 5]
@@ -1688,6 +1689,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     if len(cols_rvs) >= 7:
                         df_rel_limpio_sup["FECHA Y HORA"] = df_rel_sup_filtrado.iloc[:, 0].astype(str) + " " + df_rel_sup_filtrado.iloc[:, 1].astype(str)
                         df_rel_limpio_sup["OBJETIVO"] = df_rel_sup_filtrado.iloc[:, 2]
+                        # Inversión corregida: Egreso primero, Ingreso después
                         df_rel_limpio_sup["QUIÉN EGRESA"] = df_rel_sup_filtrado.iloc[:, 3]
                         df_rel_limpio_sup["QUIÉN INGRESA"] = df_rel_sup_filtrado.iloc[:, 4]
                         df_rel_limpio_sup["SUPERVISOR ASIGNADO"] = df_rel_sup_filtrado.iloc[:, 5]
@@ -2662,7 +2664,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 ]))
                                 elementos.append(t)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", ParagraphStyle('tn', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#555555'))))
+                                elementons.append(Paragraph("Sin registros en este periodo.", ParagraphStyle('tn', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#555555'))))
                             elementos.append(Spacer(1, 6))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
