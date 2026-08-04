@@ -1258,7 +1258,6 @@ if st.session_state.rol_sel == "MONITOREO":
                             mask_vig_pan = (df_panicos_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_mono) | \
                                            (df_panicos_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])) | \
                                            (df_panicos_op['CARGA'].astype(str).str.upper().str.contains("VIG|AGENTE", na=False))
-                            # Excluir explícitamente si el usuario o supervisor es el propio supervisor principal
                             mask_no_es_sup = ~(df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_mono)
                             df_pan_vig_filtrado = df_panicos_op[mask_vig_pan & mask_no_es_sup]
                         else:
@@ -2240,6 +2239,26 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
                     else:
                         st.info("Sin pánicos S.O.S de vigiladores registrados.")
+
+                    st.markdown("---")
+
+                    # --- 7. CONTROL DE FLOTA ---
+                    st.markdown("#### 🚗 Control de Flota")
+                    if not df_flota_aud.empty:
+                        df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
+                        col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
+                        if col_sup_f:
+                            df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()].copy()
+                            if not df_flota_sup_filtro.empty:
+                                st.dataframe(df_flota_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
+                                pdf_flota_j = generar_pdf_reporte(f"JEFE - CONTROL DE FLOTA ({sup_seleccionado_jefe})", df_flota_sup_filtro)
+                                st.download_button("📥 DESCARGAR CONTROL DE FLOTA (PDF)", data=pdf_flota_j, file_name=f"jefe_flota_{sup_seleccionado_jefe.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_flota_jefe_{sup_seleccionado_jefe}_{idx_pj}")
+                            else:
+                                st.info("No hay registros de flota para este supervisor.")
+                        else:
+                            st.info("Estructura de flota no válida.")
+                    else:
+                        st.info("Sin registros de flota en la base.")
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
 
@@ -2553,6 +2572,26 @@ elif st.session_state.rol_sel == "GERENCIA":
                             st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
                     else:
                         st.info("Sin pánicos S.O.S de vigiladores registrados.")
+
+                    st.markdown("---")
+
+                    # --- 7. CONTROL DE FLOTA ---
+                    st.markdown("#### 🚗 Control de Flota")
+                    if not df_flota_aud.empty:
+                        df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
+                        col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
+                        if col_sup_f:
+                            df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()].copy()
+                            if not df_flota_sup_filtro.empty:
+                                st.dataframe(df_flota_sup_filtro.iloc[::-1], use_container_width=True, hide_index=True)
+                                pdf_flota_g = generar_pdf_reporte(f"GERENCIA - CONTROL DE FLOTA ({sup_seleccionado_ger})", df_flota_sup_filtro)
+                                st.download_button("📥 DESCARGAR CONTROL DE FLOTA (PDF)", data=pdf_flota_g, file_name=f"gerencia_flota_{sup_seleccionado_ger.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_flota_ger_{sup_seleccionado_ger}_{idx_pg}")
+                            else:
+                                st.info("No hay registros de flota para este supervisor.")
+                        else:
+                            st.info("Estructura de flota no válida.")
+                    else:
+                        st.info("Sin registros de flota en la base.")
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
 
