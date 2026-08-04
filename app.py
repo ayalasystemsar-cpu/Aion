@@ -83,7 +83,7 @@ def obtener_mapeo_solapas():
         "CONTROL DE FLOTA": "CONTROL DE FLOTA",
         "CONTROL FLOTA": "CONTROL DE FLOTA",
         "SOLICITUDES DE ACCESO": "SOLICITUDES DE ACCESO",
-        "SOLICITUDES ACCESO": "SOLICITUDES ACCESO",
+        "SOLICITUDES ACCESO": "SOLICITUDES DE ACCESO",
         "OBJETIVOS": "OBJETIVOS",
         "COMISARIAS": "COMISARIAS",
         "USUARIOS": "USUARIOS",
@@ -1950,6 +1950,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
+        df_alertas_aud = leer_matriz_nube("ALERTAS")
 
         if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
@@ -1957,6 +1958,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
             if not df_flota_aud.empty:
                 df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
+            if not df_alertas_aud.empty:
+                df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
 
             col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_aud.columns else df_qr_aud.columns[3]
             col_obj_q = 'OBJETIVO' if 'OBJETIVO' in df_qr_aud.columns else df_qr_aud.columns[1]
@@ -2072,6 +2075,26 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             st.markdown(f"**📌 TOTAL TIEMPO ACUMULADO EN OBJETIVOS:** `{str_total_acumulado}`")
                         else:
                             st.info("Sin registros de objetivos para este supervisor.")
+
+                        st.markdown("---")
+                        st.markdown("##### 🚨 PÁNICOS Y ALERTAS S.O.S (SUPERVISOR Y VIGILADORES)")
+                        df_pan_sup_indiv = pd.DataFrame()
+                        if not df_alertas_aud.empty:
+                            objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
+                            mask_pan_aud = pd.Series([False]*len(df_alertas_aud))
+                            if 'SUPERVISOR' in df_alertas_aud.columns:
+                                mask_pan_aud = mask_pan_aud | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                            if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                                mask_pan_aud = mask_pan_aud | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
+                            if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                                mask_pan_aud = mask_pan_aud | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
+                            
+                            df_pan_sup_indiv = df_alertas_aud[mask_pan_aud]
+
+                        if not df_pan_sup_indiv.empty:
+                            st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos ni alertas registrados para este supervisor u objetivos.")
 
                         st.markdown("---")
                         st.markdown("##### 🚗 CONTROL DE FLOTA DEL SUPERVISOR")
@@ -2201,6 +2224,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
+        df_alertas_aud = leer_matriz_nube("ALERTAS")
 
         if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
@@ -2208,6 +2232,8 @@ elif st.session_state.rol_sel == "GERENCIA":
                 df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
             if not df_flota_aud.empty:
                 df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
+            if not df_alertas_aud.empty:
+                df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
 
             col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_aud.columns else df_qr_aud.columns[3]
             col_obj_q = 'OBJETIVO' if 'OBJETIVO' in df_qr_aud.columns else df_qr_aud.columns[1]
@@ -2323,6 +2349,26 @@ elif st.session_state.rol_sel == "GERENCIA":
                             st.markdown(f"**📌 TOTAL TIEMPO ACUMULADO EN OBJETIVOS:** `{str_total_acumulado}`")
                         else:
                             st.info("Sin registros de objetivos para este supervisor.")
+
+                        st.markdown("---")
+                        st.markdown("##### 🚨 PÁNICOS Y ALERTAS S.O.S (SUPERVISOR Y VIGILADORES)")
+                        df_pan_sup_indiv = pd.DataFrame()
+                        if not df_alertas_aud.empty:
+                            objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
+                            mask_pan_aud = pd.Series([False]*len(df_alertas_aud))
+                            if 'SUPERVISOR' in df_alertas_aud.columns:
+                                mask_pan_aud = mask_pan_aud | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                            if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                                mask_pan_aud = mask_pan_aud | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
+                            if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                                mask_pan_aud = mask_pan_aud | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
+                            
+                            df_pan_sup_indiv = df_alertas_aud[mask_pan_aud]
+
+                        if not df_pan_sup_indiv.empty:
+                            st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos ni alertas registrados para este supervisor u objetivos.")
 
                         st.markdown("---")
                         st.markdown("##### 🚗 CONTROL DE FLOTA DEL SUPERVISOR")
