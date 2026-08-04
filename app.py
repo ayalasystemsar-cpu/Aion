@@ -292,47 +292,6 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
         st.error(f"⚠️ Error detallado en nube: {ex}")
     return False
 
-def generar_pdf_reporte(titulo_reporte, df_datos):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
-    elementos = []
-    styles = getSampleStyleSheet()
-    estilo_titulo = ParagraphStyle('TituloTactico', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
-    estilo_sub = ParagraphStyle('SubTactico', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-    
-    elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO OFICIAL</b>", estilo_titulo))
-    elementos.append(Paragraph(f"<b>{titulo_reporte}</b><br/>Fecha de Emisión: {obtener_hora_argentina()}", estilo_sub))
-    elementos.append(Spacer(1, 8))
-    
-    if not df_datos.empty:
-        columnas = list(df_datos.columns)
-        datos_tabla = [[str(c) for c in columnas]]
-        for _, row in df_datos.iterrows():
-            datos_tabla.append([str(row[c]) if pd.notna(row[c]) else "" for c in columnas])
-            
-        t = Table(datos_tabla, repeatRows=1)
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
-            ('TOPPADDING', (0, 1), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
-        ]))
-        elementos.append(t)
-    else:
-        elementos.append(Paragraph("No hay registros disponibles para este reporte.", styles['Normal']))
-        
-    doc.build(elementos)
-    buffer.seek(0)
-    return buffer.getvalue()
-
 def aplicar_identidad_alfa():
     st.markdown("""
         <style>
@@ -1522,7 +1481,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
 
 # =========================================================================
-# ROL: JEFE DE OPERACIONES Y GERENCIA (BLOQUE DE AUDITORÍA UNIFICADO)
+# FUNCIÓN COMPARTIDA DE AUDITORÍA (JEFE DE OPERACIONES / GERENCIA)
 # =========================================================================
 def renderizar_tablero_auditoria_completo():
     st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
@@ -1668,7 +1627,7 @@ def renderizar_tablero_auditoria_completo():
                 else:
                     st.info("No hay registros de escaneos QR de puestos para este supervisor.")
 
-                # --- 3. GENERADOR DE PDF ÚNICO INTEGRAL (Desde el inicio del reporte hasta el final) ---
+                # --- 3. GENERADOR DE PDF ÚNICO INTEGRAL ---
                 st.markdown("---")
                 
                 def generar_pdf_reporte_completo_supervisor(sup_nom, jor_ini, jor_fin, jor_total, df_perm):
@@ -1685,7 +1644,6 @@ def renderizar_tablero_auditoria_completo():
                     elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                     elementos.append(Paragraph(f"<b>Supervisor: {sup_nom}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
                     
-                    # Resumen Jornada General en PDF
                     elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
                     datos_jornada_resumen = [
                         ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
@@ -1708,7 +1666,6 @@ def renderizar_tablero_auditoria_completo():
                     elementos.append(t_jor)
                     elementos.append(Spacer(1, 10))
 
-                    # Detalle de Permanencia por Objetivo en PDF
                     elementos.append(Paragraph("<b>Detalle de Escaneos QR y Permanencia por Objetivo:</b>", estilo_seccion))
                     if not df_perm.empty:
                         cols = list(df_perm.columns)
@@ -1756,7 +1713,7 @@ def renderizar_tablero_auditoria_completo():
 # =========================================================================
 # ROL: JEFE DE OPERACIONES
 # =========================================================================
-elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+if st.session_state.rol_sel == "JEFE DE OPERACIONES":
     col1, col2, col3, col4 = st.columns(4)
     
     with col1.container():
