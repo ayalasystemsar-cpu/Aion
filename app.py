@@ -2048,21 +2048,16 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
                             df_fich_raw = df_nov_aud[mask_f].copy()
                             if not df_fich_raw.empty:
-                                # Normalizamos o renombramos columnas para garantizar que el Ingreso aparezca en Ingreso y no en Egreso
-                                cols_fich = list(df_fich_raw.columns)
-                                # Estructura típica de Novedades Guardia: [FECHA_HORA, OBJETIVO, TIPO_EVENTO, DATO1, DATO2, LEGAJO, ESTADO, SUPERVISOR]
-                                # Vamos a formatear un DataFrame limpio para visualización y PDF
                                 filas_fich_limpias = []
                                 for _, r in df_fich_raw.iterrows():
                                     fh_val = str(r.iloc[0])
                                     obj_val = str(r.iloc[1])
                                     ev_val = str(r.iloc[2])
-                                    dato_extra1 = str(r.iloc[3]) # por ej "---"
-                                    nombre_vig = str(r.iloc[4]) # nombre de la persona
+                                    dato_extra1 = str(r.iloc[3])
+                                    nombre_vig = str(r.iloc[4])
                                     leg_val = str(r.iloc[5])
                                     est_val = str(r.iloc[6]) if len(r) > 6 else "PROCESADO"
                                     
-                                    # Determinamos si es ingreso o egreso según el evento
                                     ingreso_col = nombre_vig if "INGRESO" in ev_val.upper() or "MARCACIÓN_INGRESO" in ev_val.upper() else "---"
                                     egreso_col = nombre_vig if "EGRESO" in ev_val.upper() or "MARCACIÓN_EGRESO" in ev_val.upper() else "---"
                                     
@@ -2169,17 +2164,18 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA (SIN ENCIMAMIENTO Y CON ANCHOS AMPLIOS) ---
+                    # --- FUNCIÓN PDF OPTIMIZADA Y CORREGIDA ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Usamos tamaño Landscape (horizontal) u orientamos con márgenes más amplios para evitar encimamientos
-                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=15, leftMargin=15, topMargin=20, bottomMargin=20)
+                        # Márgenes equilibrados para aprovechar el ancho sin amontonar
+                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=8, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#000000'), spaceBefore=6, spaceAfter=3)
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#0A0F1E'), spaceAfter=4, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#555555'), spaceAfter=12, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#00E5FF'), spaceBefore=10, spaceAfter=4)
+                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'))
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -2189,22 +2185,23 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[190, 190, 202])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[185, 185, 202])
                         t_jor.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0A0F1E')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 7.5),
-                            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9F9F9')),
-                            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
+                            ('FONTSIZE', (0, 0), (-1, 0), 8),
+                            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8F9FA')),
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
                             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 1), (-1, -1), 7.5),
-                            ('TOPPADDING', (0, 1), (-1, -1), 3),
-                            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+                            ('FONTSIZE', (0, 1), (-1, -1), 8),
+                            ('TOPPADDING', (0, 1), (-1, -1), 5),
+                            ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
                         ]))
                         elementos.append(t_jor)
-                        elementos.append(Spacer(1, 4))
+                        elementos.append(Spacer(1, 8))
 
                         def agregar_tabla_pdf(titulo_sec, df_in, tipo_tabla="normal"):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
@@ -2215,13 +2212,12 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
                                 num_cols = len(cols)
-                                ancho_total_disponible = 582.0 # Ancho total óptimo para márgenes de 15pt en hoja Letter
+                                ancho_total_disponible = 572.0 # Ancho exacto entre márgenes
                                 
-                                # Asignación de anchos de columna personalizados según el tipo de tabla para que nada se encime
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    anchos_lista = [55, 55, 55, 55, 95, 80, 85, 102]
+                                    anchos_lista = [60, 60, 55, 55, 90, 75, 80, 97]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
-                                    anchos_lista = [85, 110, 95, 80, 80, 65, 67] # Anchos generosos para Fichaje
+                                    anchos_lista = [80, 110, 90, 80, 80, 65, 67]
                                     if len(anchos_lista) < num_cols:
                                         anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
@@ -2229,23 +2225,24 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                                 t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
-                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
+                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0A0F1E')),
                                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                                    ('FONTSIZE', (0, 0), (-1, 0), 7),
+                                    ('FONTSIZE', (0, 0), (-1, 0), 7.5),
                                     ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
-                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
+                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
                                     ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                                    ('FONTSIZE', (0, 1), (-1, -1), 6),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 3),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+                                    ('FONTSIZE', (0, 1), (-1, -1), 7),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 4),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
                                 ]))
                                 elementos.append(t)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", ParagraphStyle('tn', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor('#555555'))))
-                            elementos.append(Spacer(1, 4))
+                                # CORREGIDO: Se usa elementos.append en lugar de elements.append
+                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+                            elementos.append(Spacer(1, 8))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, tipo_tabla="fichaje")
@@ -2592,16 +2589,18 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA (SIN ENCIMAMIENTO Y CON ANCHOS AMPLIOS) ---
+                    # --- FUNCIÓN PDF OPTIMIZADA Y CORREGIDA ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=15, leftMargin=15, topMargin=20, bottomMargin=20)
+                        # Márgenes equilibrados para aprovechar el ancho sin amontonar
+                        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'), spaceAfter=8, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#000000'), spaceBefore=6, spaceAfter=3)
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#0A0F1E'), spaceAfter=4, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#555555'), spaceAfter=12, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#00E5FF'), spaceBefore=10, spaceAfter=4)
+                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'))
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -2611,22 +2610,23 @@ elif st.session_state.rol_sel == "GERENCIA":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[190, 190, 202])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[185, 185, 202])
                         t_jor.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0A0F1E')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 7.5),
-                            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9F9F9')),
-                            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
+                            ('FONTSIZE', (0, 0), (-1, 0), 8),
+                            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8F9FA')),
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
                             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 1), (-1, -1), 7.5),
-                            ('TOPPADDING', (0, 1), (-1, -1), 3),
-                            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+                            ('FONTSIZE', (0, 1), (-1, -1), 8),
+                            ('TOPPADDING', (0, 1), (-1, -1), 5),
+                            ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
                         ]))
                         elementos.append(t_jor)
-                        elementos.append(Spacer(1, 4))
+                        elementos.append(Spacer(1, 8))
 
                         def agregar_tabla_pdf(titulo_sec, df_in, tipo_tabla="normal"):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
@@ -2637,12 +2637,12 @@ elif st.session_state.rol_sel == "GERENCIA":
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
                                 num_cols = len(cols)
-                                ancho_total_disponible = 582.0
+                                ancho_total_disponible = 572.0 # Ancho exacto entre márgenes
                                 
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    anchos_lista = [55, 55, 55, 55, 95, 80, 85, 102]
+                                    anchos_lista = [60, 60, 55, 55, 90, 75, 80, 97]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
-                                    anchos_lista = [85, 110, 95, 80, 80, 65, 67]
+                                    anchos_lista = [80, 110, 90, 80, 80, 65, 67]
                                     if len(anchos_lista) < num_cols:
                                         anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
@@ -2650,23 +2650,24 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                                 t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
-                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#222222')),
+                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0A0F1E')),
                                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                                    ('FONTSIZE', (0, 0), (-1, 0), 7),
+                                    ('FONTSIZE', (0, 0), (-1, 0), 7.5),
                                     ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
-                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#999999')),
+                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
                                     ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                                    ('FONTSIZE', (0, 1), (-1, -1), 6),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 3),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+                                    ('FONTSIZE', (0, 1), (-1, -1), 7),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 4),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
                                 ]))
                                 elementos.append(t)
                             else:
-                                elements.append(Paragraph("Sin registros en este periodo.", ParagraphStyle('tn', parent=styles['Normal'], fontSize=7.5, textColor=colors.HexColor('#555555'))))
-                            elementos.append(Spacer(1, 4))
+                                # CORREGIDO: Se usa elementos.append en lugar de elements.append
+                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+                            elementos.append(Spacer(1, 8))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, tipo_tabla="fichaje")
