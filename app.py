@@ -2020,10 +2020,9 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                 with pestanas_jefe[idx_pj]:
                     st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_jefe}**")
                     
-                    # --- BLOQUE RECUPERADO: GESTIÓN DE JORNADA Y TIEMPOS DE PERMANENCIA POR OBJETIVO ---
-                    st.markdown("#### ⏱️ Gestión de Jornada y Tiempos de Permanencia por Objetivo")
+                    # --- SECCIÓN: JORNADA GENERAL Y TOTAL DE HORAS TRABAJADAS ---
+                    st.markdown("#### ⏱️ Control de Jornada y Horas Trabajadas")
                     
-                    # 1. Horario de inicio y finalización de jornada general del supervisor
                     inicio_jornada_gen = "---"
                     fin_jornada_gen = "---"
                     total_horas_trabajadas = "---"
@@ -2066,7 +2065,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                     c_jor2.metric("🏁 CIERRE DE JORNADA", fin_jornada_gen)
                     c_jor3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_trabajadas)
 
-                    # 2. Detalle de QR, Ingreso, Egreso y Tiempo de Permanencia por Objetivo
+                    # --- SECCIÓN: DETALLE DE PERMANENCIA Y QR POR OBJETIVO ---
                     df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
                     
                     if not df_sup_qrs.empty:
@@ -2119,10 +2118,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             })
                             
                         df_tabla_permanencia = pd.DataFrame(lista_resumen_permanencia)
-                        st.markdown("##### 📍 Detalle de Permanencia por Objetivo (Escaneos QR)")
+                        st.markdown("##### 📍 Detalle de Escaneos QR y Permanencia por Objetivo")
                         st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
                     else:
-                        st.info("No hay registros de escaneos QR para este supervisor.")
+                        st.info("No hay registros de escaneos QR de puestos para este supervisor.")
 
                     st.markdown("---")
                     
@@ -2356,10 +2355,9 @@ elif st.session_state.rol_sel == "GERENCIA":
                 with pestanas_ger[idx_pg]:
                     st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_ger}**")
                     
-                    # --- BLOQUE RECUPERADO: GESTIÓN DE JORNADA Y TIEMPOS DE PERMANENCIA POR OBJETIVO ---
-                    st.markdown("#### ⏱️ Gestión de Jornada y Tiempos de Permanencia por Objetivo")
+                    # --- SECCIÓN: JORNADA GENERAL Y TOTAL DE HORAS TRABAJADAS ---
+                    st.markdown("#### ⏱️ Control de Jornada y Horas Trabajadas")
                     
-                    # 1. Horario de inicio y finalización de jornada general del supervisor
                     inicio_jornada_gen = "---"
                     fin_jornada_gen = "---"
                     total_horas_trabajadas = "---"
@@ -2402,7 +2400,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                     c_jor2.metric("🏁 CIERRE DE JORNADA", fin_jornada_gen)
                     c_jor3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_trabajadas)
 
-                    # 2. Detalle de QR, Ingreso, Egreso y Tiempo de Permanencia por Objetivo
+                    # --- SECCIÓN: DETALLE DE PERMANENCIA Y QR POR OBJETIVO ---
                     df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup_seleccionado_ger).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
                     
                     if not df_sup_qrs.empty:
@@ -2455,7 +2453,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                             })
                             
                         df_tabla_permanencia = pd.DataFrame(lista_resumen_permanencia)
-                        st.markdown("##### 📍 Detalle de Permanencia por Objetivo (Escaneos QR)")
+                        st.markdown("##### 📍 Detalle de Escaneos QR y Permanencia por Objetivo")
                         st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
                     else:
                         st.info("No hay registros de escaneos QR para este supervisor.")
