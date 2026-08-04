@@ -213,7 +213,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     return escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
 
 def obtener_lista_supervisores_dinamica():
-    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO"]
+    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO", "TIKI"]
     df_u = leer_matriz_nube("USUARIOS")
     if not df_u.empty:
         col_r = 'ROL' if 'ROL' in df_u.columns else 'ROLES'
@@ -1055,16 +1055,36 @@ if st.session_state.rol_sel == "MONITOREO":
         st.subheader("🔄 AUDITORÍA Y REGISTROS DE MONITOREO POR SUPERVISOR (DINÁMICO)")
         
         df_qr_m_base = leer_matriz_nube("REGISTRO QR SUPERVISORES")
+        df_jor_m_base = leer_matriz_nube("JORNADA SUPERVISORES")
+        df_flota_m_base = leer_matriz_nube("CONTROL DE FLOTA")
         df_vig_rel_m_base = leer_matriz_nube("VIGILADORES")
         df_nov_m_base = leer_matriz_nube("NOVEDADES GUARDIA")
         df_alt_m_base = leer_matriz_nube("ALERTAS")
 
-        sups_dinamicos_qr = []
+        sups_dinamicos_set = set()
+        
         if not df_qr_m_base.empty:
             df_qr_m_base.columns = [str(c).strip().upper() for c in df_qr_m_base.columns]
             col_sup_qm = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_m_base.columns else df_qr_m_base.columns[3]
             if col_sup_qm in df_qr_m_base.columns:
-                sups_dinamicos_qr = df_qr_m_base[col_sup_qm].dropna().astype(str).str.strip().str.upper().unique().tolist()
+                for s in df_qr_m_base[col_sup_qm].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": sups_dinamicos_set.add(s)
+
+        if not df_jor_m_base.empty:
+            df_jor_m_base.columns = [str(c).strip().upper() for c in df_jor_m_base.columns]
+            col_sup_jm = 'SUPERVISOR' if 'SUPERVISOR' in df_jor_m_base.columns else df_jor_m_base.columns[1]
+            if col_sup_jm in df_jor_m_base.columns:
+                for s in df_jor_m_base[col_sup_jm].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": sups_dinamicos_set.add(s)
+
+        if not df_flota_m_base.empty:
+            df_flota_m_base.columns = [str(c).strip().upper() for c in df_flota_m_base.columns]
+            col_sup_fm = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_m_base.columns else df_flota_m_base.columns[1]
+            if col_sup_fm in df_flota_m_base.columns:
+                for s in df_flota_m_base[col_sup_fm].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": sups_dinamicos_set.add(s)
+
+        sups_dinamicos_qr = sorted(list(sups_dinamicos_set))
 
         if len(sups_dinamicos_qr) > 0:
             tabs_sups_monitoreo = st.tabs([f"👤 {sup}" for sup in sups_dinamicos_qr])
@@ -1941,224 +1961,232 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
         df_alertas_aud = leer_matriz_nube("ALERTAS")
 
+        supervisores_en_qr_set = set()
         if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
-            if not df_jornada_aud.empty:
-                df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
-            if not df_flota_aud.empty:
-                df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
-            if not df_alertas_aud.empty:
-                df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-
             col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_aud.columns else df_qr_aud.columns[3]
-            col_obj_q = 'OBJETIVO' if 'OBJETIVO' in df_qr_aud.columns else df_qr_aud.columns[1]
-            col_acc_q = 'ACCION' if 'ACCION' in df_qr_aud.columns else df_qr_aud.columns[2]
-            col_fec_q = 'FECHA_HORA' if 'FECHA_HORA' in df_qr_aud.columns else df_qr_aud.columns[0]
+            if col_sup_q in df_qr_aud.columns:
+                for s in df_qr_aud[col_sup_q].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": supervisores_en_qr_set.add(s)
 
-            supervisores_en_qr = df_qr_aud[col_sup_q].dropna().astype(str).str.strip().str.upper().unique().tolist() if col_sup_q in df_qr_aud.columns else []
+        if not df_jornada_aud.empty:
+            df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
+            col_sup_j = 'SUPERVISOR' if 'SUPERVISOR' in df_jornada_aud.columns else df_jornada_aud.columns[1]
+            if col_sup_j in df_jornada_aud.columns:
+                for s in df_jornada_aud[col_sup_j].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": supervisores_en_qr_set.add(s)
 
-            if len(supervisores_en_qr) > 0:
-                tabs_supervisores = st.tabs([f"👤 {sup}" for sup in supervisores_en_qr])
+        if not df_flota_aud.empty:
+            df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
+            col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else df_flota_aud.columns[1]
+            if col_sup_f in df_flota_aud.columns:
+                for s in df_flota_aud[col_sup_f].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": supervisores_en_qr_set.add(s)
 
-                for idx_sup, sup in enumerate(supervisores_en_qr):
-                    with tabs_supervisores[idx_sup]:
-                        st.markdown(f"#### 🛡️ REPORTE TÁCTICO DE SUPERVISIÓN: **{sup}**")
-                        
-                        df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
-                        
-                        inicio_jornada_gral = "---"
-                        fin_jornada_gral = "---"
-                        total_horas_jornada_str = "---"
-                        
-                        if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
-                            df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
-                            if not df_sup_jor.empty:
-                                col_acc_j = 'ACCION' if 'ACCION' in df_sup_jor.columns else df_sup_jor.columns[3]
-                                col_hora_j = 'HORA' if 'HORA' in df_sup_jor.columns else df_sup_jor.columns[4]
-                                
-                                inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
-                                fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
-                                
-                                dt_ini_j = None
-                                dt_fin_j = None
-                                
-                                if not inicios_j.empty:
-                                    val_h_ini = str(inicios_j.iloc[0].get(col_hora_j, '---'))
-                                    inicio_jornada_gral = val_h_ini.split(" ")[1] if " " in val_h_ini else val_h_ini
-                                    try:
-                                        dt_ini_j = datetime.strptime(inicio_jornada_gral, "%H:%M:%S")
-                                    except: pass
+        supervisores_en_qr = sorted(list(supervisores_en_qr_set))
 
-                                if not fines_j.empty:
-                                    val_h_fin = str(fines_j.iloc[-1].get(col_hora_j, '---'))
-                                    fin_jornada_gral = val_h_fin.split(" ")[1] if " " in val_h_fin else val_h_fin
-                                    try:
-                                        dt_fin_j = datetime.strptime(fin_jornada_gral, "%H:%M:%S")
-                                    except: pass
+        if len(supervisores_en_qr) > 0:
+            tabs_supervisores = st.tabs([f"👤 {sup}" for sup in supervisores_en_qr])
 
-                                if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
-                                    diff_j = dt_fin_j - dt_ini_j
-                                    mins_j = int(diff_j.total_seconds() // 60)
-                                    h_j = mins_j // 60
-                                    m_j = mins_j % 60
-                                    total_horas_jornada_str = f"{h_j}h {m_j}m"
-
-                        c_info1, c_info2, c_info3 = st.columns(3)
-                        c_info1.metric("🚀 INICIO JORNADA", inicio_jornada_gral)
-                        c_info2.metric("🏁 FIN JORNADA", fin_jornada_gral)
-                        c_info3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_jornada_str)
-
-                        st.markdown("---")
-                        st.markdown("##### 📍 PERMANENCIA Y TIEMPOS EN OBJETIVOS")
-
-                        objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
-                        total_minutos_acumulados = 0
-                        detalle_objetivos = []
-
-                        for obj in objetivos_del_sup:
-                            df_obj_t = df_sup_qrs[df_sup_qrs[col_obj_q].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
-                            inicios_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'FIN']
+            for idx_sup, sup in enumerate(supervisores_en_qr):
+                with tabs_supervisores[idx_sup]:
+                    st.markdown(f"#### 🛡️ REPORTE TÁCTICO DE SUPERVISIÓN: **{sup}**")
+                    
+                    df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
+                    
+                    inicio_jornada_gral = "---"
+                    fin_jornada_gral = "---"
+                    total_horas_jornada_str = "---"
+                    
+                    if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
+                        df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                        if not df_sup_jor.empty:
+                            col_acc_j = 'ACCION' if 'ACCION' in df_sup_jor.columns else df_sup_jor.columns[3]
+                            col_hora_j = 'HORA' if 'HORA' in df_sup_jor.columns else df_sup_jor.columns[4]
                             
-                            hora_ingreso_obj = "---"
-                            hora_egreso_obj = "---"
-                            tiempo_permanencia_str = "---"
-                            minutos_obj = 0
-
-                            if not inicios_obj.empty:
-                                fh_ingreso = str(inicios_obj.iloc[-1].get(col_fec_q, ''))
-                                hora_ingreso_obj = fh_ingreso.split(" ")[1] if " " in fh_ingreso else fh_ingreso
-
-                            if not fines_obj.empty:
-                                fh_egreso = str(fines_obj.iloc[-1].get(col_fec_q, ''))
-                                hora_egreso_obj = fh_egreso.split(" ")[1] if " " in fh_egreso else fh_egreso
-
-                            if not inicios_obj.empty and not fines_obj.empty:
+                            inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
+                            fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
+                            
+                            dt_ini_j = None
+                            dt_fin_j = None
+                            
+                            if not inicios_j.empty:
+                                val_h_ini = str(inicios_j.iloc[0].get(col_hora_j, '---'))
+                                inicio_jornada_gral = val_h_ini.split(" ")[1] if " " in val_h_ini else val_h_ini
                                 try:
-                                    t_ing = datetime.strptime(hora_ingreso_obj, "%H:%M:%S")
-                                    t_egr = datetime.strptime(hora_egreso_obj, "%H:%M:%S")
-                                    if t_egr >= t_ing:
-                                        diff = t_egr - t_ing
-                                        minutos_obj = int(diff.total_seconds() // 60)
-                                        total_minutos_acumulados += minutos_obj
-                                        h_p = minutos_obj // 60
-                                        m_p = minutos_obj % 60
-                                        tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
-                                except:
-                                    tiempo_permanencia_str = "---"
+                                    dt_ini_j = datetime.strptime(inicio_jornada_gral, "%H:%M:%S")
+                                except: pass
 
-                            detalle_objetivos.append({
-                                "OBJETIVO": obj,
-                                "INGRESO": hora_ingreso_obj,
-                                "EGRESO": hora_egreso_obj,
-                                "PERMANENCIA": tiempo_permanencia_str
-                            })
+                            if not fines_j.empty:
+                                val_h_fin = str(fines_j.iloc[-1].get(col_hora_j, '---'))
+                                fin_jornada_gral = val_h_fin.split(" ")[1] if " " in val_h_fin else val_h_fin
+                                try:
+                                    dt_fin_j = datetime.strptime(fin_jornada_gral, "%H:%M:%S")
+                                except: pass
 
-                        tot_h_acum = total_minutos_acumulados // 60
-                        tot_m_acum = total_minutos_acumulados % 60
-                        str_total_acumulado = f"{tot_h_acum}h {tot_m_acum}m" if tot_h_acum > 0 else f"{tot_m_acum} min"
+                            if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
+                                diff_j = dt_fin_j - dt_ini_j
+                                mins_j = int(diff_j.total_seconds() // 60)
+                                h_j = mins_j // 60
+                                m_j = mins_j % 60
+                                total_horas_jornada_str = f"{h_j}h {m_j}m"
 
-                        df_tabla_sup_indiv = pd.DataFrame(detalle_objetivos) if detalle_objetivos else pd.DataFrame()
-                        if not df_tabla_sup_indiv.empty:
-                            st.dataframe(df_tabla_sup_indiv, use_container_width=True, hide_index=True)
-                            st.markdown(f"**📌 TOTAL TIEMPO ACUMULADO EN OBJETIVOS:** `{str_total_acumulado}`")
-                        else:
-                            st.info("Sin registros de objetivos para este supervisor.")
+                    c_info1, c_info2, c_info3 = st.columns(3)
+                    c_info1.metric("🚀 INICIO JORNADA", inicio_jornada_gral)
+                    c_info2.metric("🏁 FIN JORNADA", fin_jornada_gral)
+                    c_info3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_jornada_str)
 
-                        st.markdown("---")
-                        st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE VIGILADOR")
-                        df_pan_vig_indiv = pd.DataFrame()
-                        if not df_alertas_aud.empty and objetivos_del_sup is not None:
-                            objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
-                            mask_pan_vig = pd.Series([False]*len(df_alertas_aud))
-                            if 'TIPO' in df_alertas_aud.columns:
-                                mask_pan_vig = mask_pan_vig & (df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO")
-                            if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
-                                mask_pan_vig = mask_pan_vig | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
-                            if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
-                                mask_pan_vig = mask_pan_vig | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
-                            df_pan_vig_indiv = df_alertas_aud[mask_pan_vig]
+                    st.markdown("---")
+                    st.markdown("##### 📍 PERMANENCIA Y TIEMPOS EN OBJETIVOS")
 
-                        if not df_pan_vig_indiv.empty:
-                            st.dataframe(df_pan_vig_indiv.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_vig = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE VIGILADOR - {sup}", df_pan_vig_indiv)
-                            st.download_button(f"📥 DESCARGAR PÁNICOS DE VIGILADOR (PDF) - {sup}", data=pdf_pan_vig, file_name=f"panicos_vigilador_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_vig_{idx_sup}_jefe")
-                        else:
-                            st.info("Sin pánicos ni alertas de vigiladores registrados en los objetivos de este supervisor.")
+                    objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if not df_sup_qrs.empty and col_obj_q in df_sup_qrs.columns else []
+                    total_minutos_acumulados = 0
+                    detalle_objetivos = []
 
-                        st.markdown("---")
-                        st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE SUPERVISOR")
-                        df_pan_sup_indiv = pd.DataFrame()
-                        if not df_alertas_aud.empty:
-                            mask_pan_sup = pd.Series([False]*len(df_alertas_aud))
-                            if 'SUPERVISOR' in df_alertas_aud.columns:
-                                mask_pan_sup = mask_pan_sup | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
-                            if 'USUARIO' in df_alertas_aud.columns:
-                                mask_pan_sup = mask_pan_sup | (df_alertas_aud['USUARIO'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
-                            df_pan_sup_indiv = df_alertas_aud[mask_pan_sup]
+                    for obj in objetivos_del_sup:
+                        df_obj_t = df_sup_qrs[df_sup_qrs[col_obj_q].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
+                        inicios_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'INICIO']
+                        fines_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'FIN']
+                        
+                        hora_ingreso_obj = "---"
+                        hora_egreso_obj = "---"
+                        tiempo_permanencia_str = "---"
+                        minutos_obj = 0
 
-                        if not df_pan_sup_indiv.empty:
-                            st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_sup = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE SUPERVISOR - {sup}", df_pan_sup_indiv)
-                            st.download_button(f"📥 DESCARGAR PÁNICOS DE SUPERVISOR (PDF) - {sup}", data=pdf_pan_sup, file_name=f"panicos_supervisor_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_sup_{idx_sup}_jefe")
-                        else:
-                            st.info("Sin pánicos ni alertas registrados directamente por este supervisor.")
+                        if not inicios_obj.empty:
+                            fh_ingreso = str(inicios_obj.iloc[-1].get(col_fec_q, ''))
+                            hora_ingreso_obj = fh_ingreso.split(" ")[1] if " " in fh_ingreso else fh_ingreso
 
-                        st.markdown("---")
-                        st.markdown("##### 🚗 CONTROL DE FLOTA DEL SUPERVISOR")
-                        df_flota_sup_indiv = pd.DataFrame()
-                        if not df_flota_aud.empty:
-                            col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
-                            if col_sup_f:
-                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
+                        if not fines_obj.empty:
+                            fh_egreso = str(fines_obj.iloc[-1].get(col_fec_q, ''))
+                            hora_egreso_obj = fh_egreso.split(" ")[1] if " " in fh_egreso else fh_egreso
 
-                        if not df_flota_sup_indiv.empty:
-                            df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
-                            
-                            mapa_f = {}
-                            for c in df_flota_sup_indiv.columns:
-                                if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
-                                elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
-                                elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
-                                elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
-                                elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
-                                elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
-                                elif 'COSTO' in c: mapa_f[c] = 'COSTO x KM ($)'
-                                elif 'AUDITORIA' in c or 'ESTADO' in c: mapa_f[c] = 'ESTADO AUDITORÍA'
-                            
-                            df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapa_f)
-                            df_flota_sup_indiv = df_flota_sup_indiv.loc[:, ~df_flota_sup_indiv.columns.duplicated()]
-                            
-                            for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
-                                if col_num in df_flota_sup_indiv.columns:
-                                    df_flota_sup_indiv[col_num] = pd.to_numeric(df_flota_sup_indiv[col_num].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
-                            
-                            if 'KM TOTAL' in df_flota_sup_indiv.columns and 'MONTO CARGADO ($)' in df_flota_sup_indiv.columns:
-                                df_flota_sup_indiv['COSTO x KM ($)'] = df_flota_sup_indiv.apply(
-                                    lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
+                        if not inicios_obj.empty and not fines_obj.empty:
+                            try:
+                                t_ing = datetime.strptime(hora_ingreso_obj, "%H:%M:%S")
+                                t_egr = datetime.strptime(hora_egreso_obj, "%H:%M:%S")
+                                if t_egr >= t_ing:
+                                    diff = t_egr - t_ing
+                                    minutos_obj = int(diff.total_seconds() // 60)
+                                    total_minutos_acumulados += minutos_obj
+                                    h_p = minutos_obj // 60
+                                    m_p = minutos_obj % 60
+                                    tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
+                            except:
+                                tiempo_permanencia_str = "---"
+
+                        detalle_objetivos.append({
+                            "OBJETIVO": obj,
+                            "INGRESO": hora_ingreso_obj,
+                            "EGRESO": hora_egreso_obj,
+                            "PERMANENCIA": tiempo_permanencia_str
+                        })
+
+                    tot_h_acum = total_minutos_acumulados // 60
+                    tot_m_acum = total_minutos_acumulados % 60
+                    str_total_acumulado = f"{tot_h_acum}h {tot_m_acum}m" if tot_h_acum > 0 else f"{tot_m_acum} min"
+
+                    df_tabla_sup_indiv = pd.DataFrame(detalle_objetivos) if detalle_objetivos else pd.DataFrame()
+                    if not df_tabla_sup_indiv.empty:
+                        st.dataframe(df_tabla_sup_indiv, use_container_width=True, hide_index=True)
+                        st.markdown(f"**📌 TOTAL TIEMPO ACUMULADO EN OBJETIVOS:** `{str_total_acumulado}`")
+                    else:
+                        st.info("Sin registros QR de objetivos para este supervisor en este turno.")
+
+                    st.markdown("---")
+                    st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE VIGILADOR")
+                    df_pan_vig_indiv = pd.DataFrame()
+                    if not df_alertas_aud.empty and objetivos_del_sup is not None:
+                        objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
+                        mask_pan_vig = pd.Series([False]*len(df_alertas_aud))
+                        if 'TIPO' in df_alertas_aud.columns:
+                            mask_pan_vig = mask_pan_vig & (df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO")
+                        if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                            mask_pan_vig = mask_pan_vig | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
+                        if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                            mask_pan_vig = mask_pan_vig | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
+                        df_pan_vig_indiv = df_alertas_aud[mask_pan_vig]
+
+                    if not df_pan_vig_indiv.empty:
+                        st.dataframe(df_pan_vig_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                        pdf_pan_vig = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE VIGILADOR - {sup}", df_pan_vig_indiv)
+                        st.download_button(f"📥 DESCARGAR PÁNICOS DE VIGILADOR (PDF) - {sup}", data=pdf_pan_vig, file_name=f"panicos_vigilador_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_vig_{idx_sup}_jefe")
+                    else:
+                        st.info("Sin pánicos ni alertas de vigiladores registrados en los objetivos de este supervisor.")
+
+                    st.markdown("---")
+                    st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE SUPERVISOR")
+                    df_pan_sup_indiv = pd.DataFrame()
+                    if not df_alertas_aud.empty:
+                        mask_pan_sup = pd.Series([False]*len(df_alertas_aud))
+                        if 'SUPERVISOR' in df_alertas_aud.columns:
+                            mask_pan_sup = mask_pan_sup | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                        if 'USUARIO' in df_alertas_aud.columns:
+                            mask_pan_sup = mask_pan_sup | (df_alertas_aud['USUARIO'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                        df_pan_sup_indiv = df_alertas_aud[mask_pan_sup]
+
+                    if not df_pan_sup_indiv.empty:
+                        st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                        pdf_pan_sup = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE SUPERVISOR - {sup}", df_pan_sup_indiv)
+                        st.download_button(f"📥 DESCARGAR PÁNICOS DE SUPERVISOR (PDF) - {sup}", data=pdf_pan_sup, file_name=f"panicos_supervisor_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_sup_{idx_sup}_jefe")
+                    else:
+                        st.info("Sin pánicos ni alertas registrados directamente por este supervisor.")
+
+                    st.markdown("---")
+                    st.markdown("##### 🚗 CONTROL DE FLOTA DEL SUPERVISOR")
+                    df_flota_sup_indiv = pd.DataFrame()
+                    if not df_flota_aud.empty:
+                        col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
+                        if col_sup_f:
+                            df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
+
+                    if not df_flota_sup_indiv.empty:
+                        df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
+                        
+                        mapa_f = {}
+                        for c in df_flota_sup_indiv.columns:
+                            if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
+                            elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
+                            elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
+                            elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
+                            elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
+                            elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
+                            elif 'COSTO' in c: mapa_f[c] = 'COSTO x KM ($)'
+                            elif 'AUDITORIA' in c or 'ESTADO' in c: mapa_f[c] = 'ESTADO AUDITORÍA'
+                        
+                        df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapa_f)
+                        df_flota_sup_indiv = df_flota_sup_indiv.loc[:, ~df_flota_sup_indiv.columns.duplicated()]
+                        
+                        for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
+                            if col_num in df_flota_sup_indiv.columns:
+                                df_flota_sup_indiv[col_num] = pd.to_numeric(df_flota_sup_indiv[col_num].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
+                        
+                        if 'KM TOTAL' in df_flota_sup_indiv.columns and 'MONTO CARGADO ($)' in df_flota_sup_indiv.columns:
+                            df_flota_sup_indiv['COSTO x KM ($)'] = df_flota_sup_indiv.apply(
+                                lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
+                            )
+                            df_flota_sup_indiv['ESTADO AUDITORÍA'] = df_flota_sup_indiv['COSTO x KM ($)'].apply(
+                                lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
+                            )
+
+                        for col_fmt in ['MONTO CARGADO ($)', 'COSTO x KM ($)']:
+                            if col_fmt in df_flota_sup_indiv.columns:
+                                df_flota_sup_indiv[col_fmt] = df_flota_sup_indiv[col_fmt].apply(
+                                    lambda x: f"{float(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                                 )
-                                df_flota_sup_indiv['ESTADO AUDITORÍA'] = df_flota_sup_indiv['COSTO x KM ($)'].apply(
-                                    lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
-                                )
 
-                            for col_fmt in ['MONTO CARGADO ($)', 'COSTO x KM ($)']:
-                                if col_fmt in df_flota_sup_indiv.columns:
-                                    df_flota_sup_indiv[col_fmt] = df_flota_sup_indiv[col_fmt].apply(
-                                        lambda x: f"{float(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                                    )
+                        cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
+                        cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
+                        if cols_finales_disp:
+                            df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
 
-                            cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
-                            cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
-                            if cols_finales_disp:
-                                df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
+                        st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin registros de flota para este supervisor.")
 
-                            st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin registros de flota para este supervisor.")
-
-                        if not df_tabla_sup_indiv.empty or not df_flota_sup_indiv.empty:
-                            pdf_sup_completo = generar_pdf_reporte(f"REPORTE TÁCTICO INTEGRAL - SUPERVISOR: {sup}", df_tabla_sup_indiv if not df_tabla_sup_indiv.empty else df_flota_sup_indiv)
-                            st.download_button(f"📥 DESCARGAR REPORTE TÁCTICO COMPLETO (PDF) - {sup}", data=pdf_sup_completo, file_name=f"reporte_integral_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_integral_{idx_sup}_jefe")
+                    if not df_tabla_sup_indiv.empty or not df_flota_sup_indiv.empty:
+                        pdf_sup_completo = generar_pdf_reporte(f"REPORTE TÁCTICO INTEGRAL - SUPERVISOR: {sup}", df_tabla_sup_indiv if not df_tabla_sup_indiv.empty else df_flota_sup_indiv)
+                        st.download_button(f"📥 DESCARGAR REPORTE TÁCTICO COMPLETO (PDF) - {sup}", data=pdf_sup_completo, file_name=f"reporte_integral_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_integral_{idx_sup}_jefe")
             else:
                 st.info("No hay registros activos de supervisores en el sistema todavía.")
         else:
@@ -2223,224 +2251,232 @@ elif st.session_state.rol_sel == "GERENCIA":
         df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
         df_alertas_aud = leer_matriz_nube("ALERTAS")
 
+        supervisores_en_qr_set = set()
         if not df_qr_aud.empty:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
-            if not df_jornada_aud.empty:
-                df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
-            if not df_flota_aud.empty:
-                df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
-            if not df_alertas_aud.empty:
-                df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-
             col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_aud.columns else df_qr_aud.columns[3]
-            col_obj_q = 'OBJETIVO' if 'OBJETIVO' in df_qr_aud.columns else df_qr_aud.columns[1]
-            col_acc_q = 'ACCION' if 'ACCION' in df_qr_aud.columns else df_qr_aud.columns[2]
-            col_fec_q = 'FECHA_HORA' if 'FECHA_HORA' in df_qr_aud.columns else df_qr_aud.columns[0]
+            if col_sup_q in df_qr_aud.columns:
+                for s in df_qr_aud[col_sup_q].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": supervisores_en_qr_set.add(s)
 
-            supervisores_en_qr = df_qr_aud[col_sup_q].dropna().astype(str).str.strip().str.upper().unique().tolist() if col_sup_q in df_qr_aud.columns else []
+        if not df_jornada_aud.empty:
+            df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
+            col_sup_j = 'SUPERVISOR' if 'SUPERVISOR' in df_jornada_aud.columns else df_jornada_aud.columns[1]
+            if col_sup_j in df_jornada_aud.columns:
+                for s in df_jornada_aud[col_sup_j].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": supervisores_en_qr_set.add(s)
 
-            if len(supervisores_en_qr) > 0:
-                tabs_supervisores_ger = st.tabs([f"👤 {sup}" for sup in supervisores_en_qr])
+        if not df_flota_aud.empty:
+            df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
+            col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else df_flota_aud.columns[1]
+            if col_sup_f in df_flota_aud.columns:
+                for s in df_flota_aud[col_sup_f].dropna().astype(str).str.strip().str.upper():
+                    if s and s != "NAN": supervisores_en_qr_set.add(s)
 
-                for idx_sup, sup in enumerate(supervisores_en_qr):
-                    with tabs_supervisores_ger[idx_sup]:
-                        st.markdown(f"#### 🛡️ REPORTE TÁCTICO DE SUPERVISIÓN: **{sup}**")
-                        
-                        df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
-                        
-                        inicio_jornada_gral = "---"
-                        fin_jornada_gral = "---"
-                        total_horas_jornada_str = "---"
-                        
-                        if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
-                            df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
-                            if not df_sup_jor.empty:
-                                col_acc_j = 'ACCION' if 'ACCION' in df_sup_jor.columns else df_sup_jor.columns[3]
-                                col_hora_j = 'HORA' if 'HORA' in df_sup_jor.columns else df_sup_jor.columns[4]
-                                
-                                inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
-                                fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
-                                
-                                dt_ini_j = None
-                                dt_fin_j = None
-                                
-                                if not inicios_j.empty:
-                                    val_h_ini = str(inicios_j.iloc[0].get(col_hora_j, '---'))
-                                    inicio_jornada_gral = val_h_ini.split(" ")[1] if " " in val_h_ini else val_h_ini
-                                    try:
-                                        dt_ini_j = datetime.strptime(inicio_jornada_gral, "%H:%M:%S")
-                                    except: pass
+        supervisores_en_qr = sorted(list(supervisores_en_qr_set))
 
-                                if not fines_j.empty:
-                                    val_h_fin = str(fines_j.iloc[-1].get(col_hora_j, '---'))
-                                    fin_jornada_gral = val_h_fin.split(" ")[1] if " " in val_h_fin else val_h_fin
-                                    try:
-                                        dt_fin_j = datetime.strptime(fin_jornada_gral, "%H:%M:%S")
-                                    except: pass
+        if len(supervisores_en_qr) > 0:
+            tabs_supervisores_ger = st.tabs([f"👤 {sup}" for sup in supervisores_en_qr])
 
-                                if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
-                                    diff_j = dt_fin_j - dt_ini_j
-                                    mins_j = int(diff_j.total_seconds() // 60)
-                                    h_j = mins_j // 60
-                                    m_j = mins_j % 60
-                                    total_horas_jornada_str = f"{h_j}h {m_j}m"
-
-                        c_info1, c_info2, c_info3 = st.columns(3)
-                        c_info1.metric("🚀 INICIO JORNADA", inicio_jornada_gral)
-                        c_info2.metric("🏁 FIN JORNADA", fin_jornada_gral)
-                        c_info3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_jornada_str)
-
-                        st.markdown("---")
-                        st.markdown("##### 📍 PERMANENCIA Y TIEMPOS EN OBJETIVOS")
-
-                        objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
-                        total_minutos_acumulados = 0
-                        detalle_objetivos = []
-
-                        for obj in objetivos_del_sup:
-                            df_obj_t = df_sup_qrs[df_sup_qrs[col_obj_q].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
-                            inicios_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'FIN']
+            for idx_sup, sup in enumerate(supervisores_en_qr):
+                with tabs_supervisores_ger[idx_sup]:
+                    st.markdown(f"#### 🛡️ REPORTE TÁCTICO DE SUPERVISIÓN: **{sup}**")
+                    
+                    df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
+                    
+                    inicio_jornada_gral = "---"
+                    fin_jornada_gral = "---"
+                    total_horas_jornada_str = "---"
+                    
+                    if not df_jornada_aud.empty and 'SUPERVISOR' in df_jornada_aud.columns:
+                        df_sup_jor = df_jornada_aud[df_jornada_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+                        if not df_sup_jor.empty:
+                            col_acc_j = 'ACCION' if 'ACCION' in df_sup_jor.columns else df_sup_jor.columns[3]
+                            col_hora_j = 'HORA' if 'HORA' in df_sup_jor.columns else df_sup_jor.columns[4]
                             
-                            hora_ingreso_obj = "---"
-                            hora_egreso_obj = "---"
-                            tiempo_permanencia_str = "---"
-                            minutos_obj = 0
-
-                            if not inicios_obj.empty:
-                                fh_ingreso = str(inicios_obj.iloc[-1].get(col_fec_q, ''))
-                                hora_ingreso_obj = fh_ingreso.split(" ")[1] if " " in fh_ingreso else fh_ingreso
-
-                            if not fines_obj.empty:
-                                fh_egreso = str(fines_obj.iloc[-1].get(col_fec_q, ''))
-                                hora_egreso_obj = fh_egreso.split(" ")[1] if " " in fh_egreso else fh_egreso
-
-                            if not inicios_obj.empty and not fines_obj.empty:
+                            inicios_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'INICIO']
+                            fines_j = df_sup_jor[df_sup_jor[col_acc_j].astype(str).str.strip().str.upper() == 'FIN']
+                            
+                            dt_ini_j = None
+                            dt_fin_j = None
+                            
+                            if not inicios_j.empty:
+                                val_h_ini = str(inicios_j.iloc[0].get(col_hora_j, '---'))
+                                inicio_jornada_gral = val_h_ini.split(" ")[1] if " " in val_h_ini else val_h_ini
                                 try:
-                                    t_ing = datetime.strptime(hora_ingreso_obj, "%H:%M:%S")
-                                    t_egr = datetime.strptime(hora_egreso_obj, "%H:%M:%S")
-                                    if t_egr >= t_ing:
-                                        diff = t_egr - t_ing
-                                        minutos_obj = int(diff.total_seconds() // 60)
-                                        total_minutos_acumulados += minutos_obj
-                                        h_p = minutos_obj // 60
-                                        m_p = minutos_obj % 60
-                                        tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
-                                except:
-                                    tiempo_permanencia_str = "---"
+                                    dt_ini_j = datetime.strptime(inicio_jornada_gral, "%H:%M:%S")
+                                except: pass
 
-                            detalle_objetivos.append({
-                                "OBJETIVO": obj,
-                                "INGRESO": hora_ingreso_obj,
-                                "EGRESO": hora_egreso_obj,
-                                "PERMANENCIA": tiempo_permanencia_str
-                            })
+                            if not fines_j.empty:
+                                val_h_fin = str(fines_j.iloc[-1].get(col_hora_j, '---'))
+                                fin_jornada_gral = val_h_fin.split(" ")[1] if " " in val_h_fin else val_h_fin
+                                try:
+                                    dt_fin_j = datetime.strptime(fin_jornada_gral, "%H:%M:%S")
+                                except: pass
 
-                        tot_h_acum = total_minutos_acumulados // 60
-                        tot_m_acum = total_minutos_acumulados % 60
-                        str_total_acumulado = f"{tot_h_acum}h {tot_m_acum}m" if tot_h_acum > 0 else f"{tot_m_acum} min"
+                            if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
+                                diff_j = dt_fin_j - dt_ini_j
+                                mins_j = int(diff_j.total_seconds() // 60)
+                                h_j = mins_j // 60
+                                m_j = mins_j % 60
+                                total_horas_jornada_str = f"{h_j}h {m_j}m"
 
-                        df_tabla_sup_indiv = pd.DataFrame(detalle_objetivos) if detalle_objetivos else pd.DataFrame()
-                        if not df_tabla_sup_indiv.empty:
-                            st.dataframe(df_tabla_sup_indiv, use_container_width=True, hide_index=True)
-                            st.markdown(f"**📌 TOTAL TIEMPO ACUMULADO EN OBJETIVOS:** `{str_total_acumulado}`")
-                        else:
-                            st.info("Sin registros de objetivos para este supervisor.")
+                    c_info1, c_info2, c_info3 = st.columns(3)
+                    c_info1.metric("🚀 INICIO JORNADA", inicio_jornada_gral)
+                    c_info2.metric("🏁 FIN JORNADA", fin_jornada_gral)
+                    c_info3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_jornada_str)
 
-                        st.markdown("---")
-                        st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE VIGILADOR")
-                        df_pan_vig_indiv = pd.DataFrame()
-                        if not df_alertas_aud.empty and objetivos_del_sup is not None:
-                            objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
-                            mask_pan_vig = pd.Series([False]*len(df_alertas_aud))
-                            if 'TIPO' in df_alertas_aud.columns:
-                                mask_pan_vig = mask_pan_vig & (df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO")
-                            if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
-                                mask_pan_vig = mask_pan_vig | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
-                            if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
-                                mask_pan_vig = mask_pan_vig | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
-                            df_pan_vig_indiv = df_alertas_aud[mask_pan_vig]
+                    st.markdown("---")
+                    st.markdown("##### 📍 PERMANENCIA Y TIEMPOS EN OBJETIVOS")
 
-                        if not df_pan_vig_indiv.empty:
-                            st.dataframe(df_pan_vig_indiv.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_vig = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE VIGILADOR - {sup}", df_pan_vig_indiv)
-                            st.download_button(f"📥 DESCARGAR PÁNICOS DE VIGILADOR (PDF) - {sup}", data=pdf_pan_vig, file_name=f"panicos_vigilador_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_vig_{idx_sup}_ger")
-                        else:
-                            st.info("Sin pánicos ni alertas de vigiladores registrados en los objetivos de este supervisor.")
+                    objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if not df_sup_qrs.empty and col_obj_q in df_sup_qrs.columns else []
+                    total_minutos_acumulados = 0
+                    detalle_objetivos = []
 
-                        st.markdown("---")
-                        st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE SUPERVISOR")
-                        df_pan_sup_indiv = pd.DataFrame()
-                        if not df_alertas_aud.empty:
-                            mask_pan_sup = pd.Series([False]*len(df_alertas_aud))
-                            if 'SUPERVISOR' in df_alertas_aud.columns:
-                                mask_pan_sup = mask_pan_sup | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
-                            if 'USUARIO' in df_alertas_aud.columns:
-                                mask_pan_sup = mask_pan_sup | (df_alertas_aud['USUARIO'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
-                            df_pan_sup_indiv = df_alertas_aud[mask_pan_sup]
+                    for obj in objetivos_del_sup:
+                        df_obj_t = df_sup_qrs[df_sup_qrs[col_obj_q].astype(str).str.strip().str.upper() == str(obj).strip().upper()]
+                        inicios_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'INICIO']
+                        fines_obj = df_obj_t[df_obj_t[col_acc_q].astype(str).str.strip().str.upper() == 'FIN']
+                        
+                        hora_ingreso_obj = "---"
+                        hora_egreso_obj = "---"
+                        tiempo_permanencia_str = "---"
+                        minutos_obj = 0
 
-                        if not df_pan_sup_indiv.empty:
-                            st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
-                            pdf_pan_sup = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE SUPERVISOR - {sup}", df_pan_sup_indiv)
-                            st.download_button(f"📥 DESCARGAR PÁNICOS DE SUPERVISOR (PDF) - {sup}", data=pdf_pan_sup, file_name=f"panicos_supervisor_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_sup_{idx_sup}_ger")
-                        else:
-                            st.info("Sin pánicos ni alertas registrados directamente por este supervisor.")
+                        if not inicios_obj.empty:
+                            fh_ingreso = str(inicios_obj.iloc[-1].get(col_fec_q, ''))
+                            hora_ingreso_obj = fh_ingreso.split(" ")[1] if " " in fh_ingreso else fh_ingreso
 
-                        st.markdown("---")
-                        st.markdown("##### 🚗 CONTROL DE FLOTA DEL SUPERVISOR")
-                        df_flota_sup_indiv = pd.DataFrame()
-                        if not df_flota_aud.empty:
-                            col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
-                            if col_sup_f:
-                                df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
+                        if not fines_obj.empty:
+                            fh_egreso = str(fines_obj.iloc[-1].get(col_fec_q, ''))
+                            hora_egreso_obj = fh_egreso.split(" ")[1] if " " in fh_egreso else fh_egreso
 
-                        if not df_flota_sup_indiv.empty:
-                            df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
-                            
-                            mapa_f = {}
-                            for c in df_flota_sup_indiv.columns:
-                                if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
-                                elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
-                                elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
-                                elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
-                                elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
-                                elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
-                                elif 'COSTO' in c: mapa_f[c] = 'COSTO x KM ($)'
-                                elif 'AUDITORIA' in c or 'ESTADO' in c: mapa_f[c] = 'ESTADO AUDITORÍA'
-                            
-                            df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapa_f)
-                            df_flota_sup_indiv = df_flota_sup_indiv.loc[:, ~df_flota_sup_indiv.columns.duplicated()]
-                            
-                            for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
-                                if col_num in df_flota_sup_indiv.columns:
-                                    df_flota_sup_indiv[col_num] = pd.to_numeric(df_flota_sup_indiv[col_num].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
-                            
-                            if 'KM TOTAL' in df_flota_sup_indiv.columns and 'MONTO CARGADO ($)' in df_flota_sup_indiv.columns:
-                                df_flota_sup_indiv['COSTO x KM ($)'] = df_flota_sup_indiv.apply(
-                                    lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
+                        if not inicios_obj.empty and not fines_obj.empty:
+                            try:
+                                t_ing = datetime.strptime(hora_ingreso_obj, "%H:%M:%S")
+                                t_egr = datetime.strptime(hora_egreso_obj, "%H:%M:%S")
+                                if t_egr >= t_ing:
+                                    diff = t_egr - t_ing
+                                    minutos_obj = int(diff.total_seconds() // 60)
+                                    total_minutos_acumulados += minutos_obj
+                                    h_p = minutos_obj // 60
+                                    m_p = minutos_obj % 60
+                                    tiempo_permanencia_str = f"{h_p}h {m_p}m" if h_p > 0 else f"{m_p} min"
+                            except:
+                                tiempo_permanencia_str = "---"
+
+                        detalle_objetivos.append({
+                            "OBJETIVO": obj,
+                            "INGRESO": hora_ingreso_obj,
+                            "EGRESO": hora_egreso_obj,
+                            "PERMANENCIA": tiempo_permanencia_str
+                        })
+
+                    tot_h_acum = total_minutos_acumulados // 60
+                    tot_m_acum = total_minutos_acumulados % 60
+                    str_total_acumulado = f"{tot_h_acum}h {tot_m_acum}m" if tot_h_acum > 0 else f"{tot_m_acum} min"
+
+                    df_tabla_sup_indiv = pd.DataFrame(detalle_objetivos) if detalle_objetivos else pd.DataFrame()
+                    if not df_tabla_sup_indiv.empty:
+                        st.dataframe(df_tabla_sup_indiv, use_container_width=True, hide_index=True)
+                        st.markdown(f"**📌 TOTAL TIEMPO ACUMULADO EN OBJETIVOS:** `{str_total_acumulado}`")
+                    else:
+                        st.info("Sin registros QR de objetivos para este supervisor en este turno.")
+
+                    st.markdown("---")
+                    st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE VIGILADOR")
+                    df_pan_vig_indiv = pd.DataFrame()
+                    if not df_alertas_aud.empty and objetivos_del_sup is not None:
+                        objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
+                        mask_pan_vig = pd.Series([False]*len(df_alertas_aud))
+                        if 'TIPO' in df_alertas_aud.columns:
+                            mask_pan_vig = mask_pan_vig & (df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO")
+                        if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                            mask_pan_vig = mask_pan_vig | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
+                        if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                            mask_pan_vig = mask_pan_vig | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
+                        df_pan_vig_indiv = df_alertas_aud[mask_pan_vig]
+
+                    if not df_pan_vig_indiv.empty:
+                        st.dataframe(df_pan_vig_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                        pdf_pan_vig = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE VIGILADOR - {sup}", df_pan_vig_indiv)
+                        st.download_button(f"📥 DESCARGAR PÁNICOS DE VIGILADOR (PDF) - {sup}", data=pdf_pan_vig, file_name=f"panicos_vigilador_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_vig_{idx_sup}_ger")
+                    else:
+                        st.info("Sin pánicos ni alertas de vigiladores registrados en los objetivos de este supervisor.")
+
+                    st.markdown("---")
+                    st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE SUPERVISOR")
+                    df_pan_sup_indiv = pd.DataFrame()
+                    if not df_alertas_aud.empty:
+                        mask_pan_sup = pd.Series([False]*len(df_alertas_aud))
+                        if 'SUPERVISOR' in df_alertas_aud.columns:
+                            mask_pan_sup = mask_pan_sup | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                        if 'USUARIO' in df_alertas_aud.columns:
+                            mask_pan_sup = mask_pan_sup | (df_alertas_aud['USUARIO'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                        df_pan_sup_indiv = df_alertas_aud[mask_pan_sup]
+
+                    if not df_pan_sup_indiv.empty:
+                        st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                        pdf_pan_sup = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE SUPERVISOR - {sup}", df_pan_sup_indiv)
+                        st.download_button(f"📥 DESCARGAR PÁNICOS DE SUPERVISOR (PDF) - {sup}", data=pdf_pan_sup, file_name=f"panicos_supervisor_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_sup_{idx_sup}_ger")
+                    else:
+                        st.info("Sin pánicos ni alertas registrados directamente por este supervisor.")
+
+                    st.markdown("---")
+                    st.markdown("##### 🚗 CONTROL DE FLOTA DEL SUPERVISOR")
+                    df_flota_sup_indiv = pd.DataFrame()
+                    if not df_flota_aud.empty:
+                        col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
+                        if col_sup_f:
+                            df_flota_sup_indiv = df_flota_aud[df_flota_aud[col_sup_f].astype(str).str.strip().str.upper() == str(sup).strip().upper()].copy()
+
+                    if not df_flota_sup_indiv.empty:
+                        df_flota_sup_indiv.columns = [str(c).strip().upper() for c in df_flota_sup_indiv.columns]
+                        
+                        mapa_f = {}
+                        for c in df_flota_sup_indiv.columns:
+                            if 'PATENTE' in c or 'MOVIL' in c: mapa_f[c] = 'PATENTE'
+                            elif 'INICIAL' in c: mapa_f[c] = 'KM INICIAL'
+                            elif 'FINAL' in c: mapa_f[c] = 'KM FINAL'
+                            elif 'RECORRIDOS' in c or 'TOTAL' in c: mapa_f[c] = 'KM TOTAL'
+                            elif 'COMBUSTIBLE' in c: mapa_f[c] = 'TIPO COMBUSTIBLE'
+                            elif 'MONTO' in c or '$' in c: mapa_f[c] = 'MONTO CARGADO ($)'
+                            elif 'COSTO' in c: mapa_f[c] = 'COSTO x KM ($)'
+                            elif 'AUDITORIA' in c or 'ESTADO' in c: mapa_f[c] = 'ESTADO AUDITORÍA'
+                        
+                        df_flota_sup_indiv = df_flota_sup_indiv.rename(columns=mapa_f)
+                        df_flota_sup_indiv = df_flota_sup_indiv.loc[:, ~df_flota_sup_indiv.columns.duplicated()]
+                        
+                        for col_num in ['KM TOTAL', 'MONTO CARGADO ($)']:
+                            if col_num in df_flota_sup_indiv.columns:
+                                df_flota_sup_indiv[col_num] = pd.to_numeric(df_flota_sup_indiv[col_num].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
+                        
+                        if 'KM TOTAL' in df_flota_sup_indiv.columns and 'MONTO CARGADO ($)' in df_flota_sup_indiv.columns:
+                            df_flota_sup_indiv['COSTO x KM ($)'] = df_flota_sup_indiv.apply(
+                                lambda row: round(row['MONTO CARGADO ($)'] / row['KM TOTAL'], 2) if row['KM TOTAL'] > 0 else 0.0, axis=1
+                            )
+                            df_flota_sup_indiv['ESTADO AUDITORÍA'] = df_flota_sup_indiv['COSTO x KM ($)'].apply(
+                                lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
+                            )
+
+                        for col_fmt in ['MONTO CARGADO ($)', 'COSTO x KM ($)']:
+                            if col_fmt in df_flota_sup_indiv.columns:
+                                df_flota_sup_indiv[col_fmt] = df_flota_sup_indiv[col_fmt].apply(
+                                    lambda x: f"{float(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                                 )
-                                df_flota_sup_indiv['ESTADO AUDITORÍA'] = df_flota_sup_indiv['COSTO x KM ($)'].apply(
-                                    lambda x: "⚠️ REVISAR" if x > 300 or x == 0 else "✅ ACORDE"
-                                )
 
-                            for col_fmt in ['MONTO CARGADO ($)', 'COSTO x KM ($)']:
-                                if col_fmt in df_flota_sup_indiv.columns:
-                                    df_flota_sup_indiv[col_fmt] = df_flota_sup_indiv[col_fmt].apply(
-                                        lambda x: f"{float(x):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                                    )
+                        cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
+                        cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
+                        if cols_finales_disp:
+                            df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
 
-                            cols_deseadas = ['PATENTE', 'KM INICIAL', 'KM FINAL', 'KM TOTAL', 'TIPO COMBUSTIBLE', 'MONTO CARGADO ($)', 'COSTO x KM ($)', 'ESTADO AUDITORÍA']
-                            cols_finales_disp = [c for c in cols_deseadas if c in df_flota_sup_indiv.columns]
-                            if cols_finales_disp:
-                                df_flota_sup_indiv = df_flota_sup_indiv[cols_finales_disp]
+                        st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin registros de flota para este supervisor.")
 
-                            st.dataframe(df_flota_sup_indiv, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin registros de flota para este supervisor.")
-
-                        if not df_tabla_sup_indiv.empty or not df_flota_sup_indiv.empty:
-                            pdf_sup_completo_ger = generar_pdf_reporte(f"REPORTE GERENCIAL INTEGRAL - SUPERVISOR: {sup}", df_tabla_sup_indiv if not df_tabla_sup_indiv.empty else df_flota_sup_indiv)
-                            st.download_button(f"📥 DESCARGAR REPORTE TÁCTICO COMPLETO (PDF) - {sup}", data=pdf_sup_completo_ger, file_name=f"reporte_integral_gerencial_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_integral_{idx_sup}_ger")
+                    if not df_tabla_sup_indiv.empty or not df_flota_sup_indiv.empty:
+                        pdf_sup_completo_ger = generar_pdf_reporte(f"REPORTE GERENCIAL INTEGRAL - SUPERVISOR: {sup}", df_tabla_sup_indiv if not df_tabla_sup_indiv.empty else df_flota_sup_indiv)
+                        st.download_button(f"📥 DESCARGAR REPORTE TÁCTICO COMPLETO (PDF) - {sup}", data=pdf_sup_completo_ger, file_name=f"reporte_integral_gerencial_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_integral_{idx_sup}_ger")
             else:
                 st.info("No hay registros activos de supervisores en el sistema todavía.")
         else:
