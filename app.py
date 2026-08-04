@@ -83,7 +83,7 @@ def obtener_mapeo_solapas():
         "CONTROL DE FLOTA": "CONTROL DE FLOTA",
         "CONTROL FLOTA": "CONTROL DE FLOTA",
         "SOLICITUDES DE ACCESO": "SOLICITUDES DE ACCESO",
-        "SOLICITUDES ACCESO": "SOLICITUDES DE ACCESO",
+        "SOLICITUDES ACCESO": "SOLICITUDES ACCESO",
         "OBJETIVOS": "OBJETIVOS",
         "COMISARIAS": "COMISARIAS",
         "USUARIOS": "USUARIOS",
@@ -2009,27 +2009,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                         c_info3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_jornada_str)
 
                         st.markdown("---")
-                        st.markdown("##### 🚨 PÁNICOS S.O.S Y ALERTAS (SUPERVISOR Y VIGILADORES)")
-                        df_pan_sup_indiv = pd.DataFrame()
-                        if not df_alertas_aud.empty:
-                            objs_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
-                            objs_del_sup_lista = [o.upper() for o in objs_del_sup] if len(objs_del_sup) > 0 else []
-                            mask_pan_aud = pd.Series([False]*len(df_alertas_aud))
-                            if 'SUPERVISOR' in df_alertas_aud.columns:
-                                mask_pan_aud = mask_pan_aud | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
-                            if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
-                                mask_pan_aud = mask_pan_aud | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
-                            if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
-                                mask_pan_aud = mask_pan_aud | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
-                            
-                            df_pan_sup_indiv = df_alertas_aud[mask_pan_aud]
-
-                        if not df_pan_sup_indiv.empty:
-                            st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin pánicos ni alertas registrados para este supervisor u objetivos.")
-
-                        st.markdown("---")
                         st.markdown("##### 📍 PERMANENCIA Y TIEMPOS EN OBJETIVOS")
 
                         objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
@@ -2085,6 +2064,45 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             st.markdown(f"**📌 TOTAL TIEMPO ACUMULADO EN OBJETIVOS:** `{str_total_acumulado}`")
                         else:
                             st.info("Sin registros de objetivos para este supervisor.")
+
+                        st.markdown("---")
+                        st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE VIGILADOR")
+                        df_pan_vig_indiv = pd.DataFrame()
+                        if not df_alertas_aud.empty and objetivos_del_sup is not None:
+                            objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
+                            mask_pan_vig = pd.Series([False]*len(df_alertas_aud))
+                            if 'TIPO' in df_alertas_aud.columns:
+                                mask_pan_vig = mask_pan_vig & (df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO")
+                            if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                                mask_pan_vig = mask_pan_vig | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
+                            if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                                mask_pan_vig = mask_pan_vig | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
+                            df_pan_vig_indiv = df_alertas_aud[mask_pan_vig]
+
+                        if not df_pan_vig_indiv.empty:
+                            st.dataframe(df_pan_vig_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                            pdf_pan_vig = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE VIGILADOR - {sup}", df_pan_vig_indiv)
+                            st.download_button(f"📥 DESCARGAR PÁNICOS DE VIGILADOR (PDF) - {sup}", data=pdf_pan_vig, file_name=f"panicos_vigilador_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_vig_{idx_sup}_jefe")
+                        else:
+                            st.info("Sin pánicos ni alertas de vigiladores registrados en los objetivos de este supervisor.")
+
+                        st.markdown("---")
+                        st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE SUPERVISOR")
+                        df_pan_sup_indiv = pd.DataFrame()
+                        if not df_alertas_aud.empty:
+                            mask_pan_sup = pd.Series([False]*len(df_alertas_aud))
+                            if 'SUPERVISOR' in df_alertas_aud.columns:
+                                mask_pan_sup = mask_pan_sup | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                            if 'USUARIO' in df_alertas_aud.columns:
+                                mask_pan_sup = mask_pan_sup | (df_alertas_aud['USUARIO'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                            df_pan_sup_indiv = df_alertas_aud[mask_pan_sup]
+
+                        if not df_pan_sup_indiv.empty:
+                            st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                            pdf_pan_sup = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE SUPERVISOR - {sup}", df_pan_sup_indiv)
+                            st.download_button(f"📥 DESCARGAR PÁNICOS DE SUPERVISOR (PDF) - {sup}", data=pdf_pan_sup, file_name=f"panicos_supervisor_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_sup_{idx_sup}_jefe")
+                        else:
+                            st.info("Sin pánicos ni alertas registrados directamente por este supervisor.")
 
                         st.markdown("---")
                         st.markdown("##### 🚗 CONTROL DE FLOTA DEL SUPERVISOR")
@@ -2273,27 +2291,6 @@ elif st.session_state.rol_sel == "GERENCIA":
                         c_info3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_jornada_str)
 
                         st.markdown("---")
-                        st.markdown("##### 🚨 PÁNICOS S.O.S Y ALERTAS (SUPERVISOR Y VIGILADORES)")
-                        df_pan_sup_indiv = pd.DataFrame()
-                        if not df_alertas_aud.empty:
-                            objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
-                            objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
-                            mask_pan_aud = pd.Series([False]*len(df_alertas_aud))
-                            if 'SUPERVISOR' in df_alertas_aud.columns:
-                                mask_pan_aud = mask_pan_aud | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
-                            if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
-                                mask_pan_aud = mask_pan_aud | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
-                            if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
-                                mask_pan_aud = mask_pan_aud | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
-                            
-                            df_pan_sup_indiv = df_alertas_aud[mask_pan_aud]
-
-                        if not df_pan_sup_indiv.empty:
-                            st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin pánicos ni alertas registrados para este supervisor u objetivos.")
-
-                        st.markdown("---")
                         st.markdown("##### 📍 PERMANENCIA Y TIEMPOS EN OBJETIVOS")
 
                         objetivos_del_sup = df_sup_qrs[col_obj_q].unique() if col_obj_q in df_sup_qrs.columns else []
@@ -2349,6 +2346,45 @@ elif st.session_state.rol_sel == "GERENCIA":
                             st.markdown(f"**📌 TOTAL TIEMPO ACUMULADO EN OBJETIVOS:** `{str_total_acumulado}`")
                         else:
                             st.info("Sin registros de objetivos para este supervisor.")
+
+                        st.markdown("---")
+                        st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE VIGILADOR")
+                        df_pan_vig_indiv = pd.DataFrame()
+                        if not df_alertas_aud.empty and objetivos_del_sup is not None:
+                            objs_del_sup_lista = [o.upper() for o in objetivos_del_sup] if len(objetivos_del_sup) > 0 else []
+                            mask_pan_vig = pd.Series([False]*len(df_alertas_aud))
+                            if 'TIPO' in df_alertas_aud.columns:
+                                mask_pan_vig = mask_pan_vig & (df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO")
+                            if 'OBJETIVO' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                                mask_pan_vig = mask_pan_vig | df_alertas_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin(objs_del_sup_lista)
+                            if 'CARGA' in df_alertas_aud.columns and len(objs_del_sup_lista) > 0:
+                                mask_pan_vig = mask_pan_vig | df_alertas_aud['CARGA'].apply(lambda x: any(o in str(x).upper() for o in objs_del_sup_lista))
+                            df_pan_vig_indiv = df_alertas_aud[mask_pan_vig]
+
+                        if not df_pan_vig_indiv.empty:
+                            st.dataframe(df_pan_vig_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                            pdf_pan_vig = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE VIGILADOR - {sup}", df_pan_vig_indiv)
+                            st.download_button(f"📥 DESCARGAR PÁNICOS DE VIGILADOR (PDF) - {sup}", data=pdf_pan_vig, file_name=f"panicos_vigilador_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_vig_{idx_sup}_ger")
+                        else:
+                            st.info("Sin pánicos ni alertas de vigiladores registrados en los objetivos de este supervisor.")
+
+                        st.markdown("---")
+                        st.markdown("##### 🚨 PÁNICOS, S.O.S Y ALERTAS DE SUPERVISOR")
+                        df_pan_sup_indiv = pd.DataFrame()
+                        if not df_alertas_aud.empty:
+                            mask_pan_sup = pd.Series([False]*len(df_alertas_aud))
+                            if 'SUPERVISOR' in df_alertas_aud.columns:
+                                mask_pan_sup = mask_pan_sup | (df_alertas_aud['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                            if 'USUARIO' in df_alertas_aud.columns:
+                                mask_pan_sup = mask_pan_sup | (df_alertas_aud['USUARIO'].astype(str).str.strip().str.upper() == str(sup).strip().upper())
+                            df_pan_sup_indiv = df_alertas_aud[mask_pan_sup]
+
+                        if not df_pan_sup_indiv.empty:
+                            st.dataframe(df_pan_sup_indiv.iloc[::-1], use_container_width=True, hide_index=True)
+                            pdf_pan_sup = generar_pdf_reporte(f"PÁNICOS Y ALERTAS DE SUPERVISOR - {sup}", df_pan_sup_indiv)
+                            st.download_button(f"📥 DESCARGAR PÁNICOS DE SUPERVISOR (PDF) - {sup}", data=pdf_pan_sup, file_name=f"panicos_supervisor_{sup.replace(' ', '_')}.pdf", mime="application/pdf", key=f"dl_pdf_pan_sup_{idx_sup}_ger")
+                        else:
+                            st.info("Sin pánicos ni alertas registrados directamente por este supervisor.")
 
                         st.markdown("---")
                         st.markdown("##### 🚗 CONTROL DE FLOTA DEL SUPERVISOR")
