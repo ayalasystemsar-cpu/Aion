@@ -795,10 +795,13 @@ if st.session_state.rol_sel == "MONITOREO":
             df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
 
     lista_objetivos_en_panico = []
-    if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns:
-        pendientes = df_emergencias[df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE']
-        sos_activos = len(pendientes)
-        for _, row in pendientes.iterrows():
+    if 'ESTADO' in df_emergencias.columns and 'CARGA_UTIL' in df_emergencias.columns and 'TIPO' in df_emergencias.columns:
+        pendientes_sos = df_emergencias[
+            (df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE') & 
+            (df_emergencias['TIPO'].astype(str).str.upper() == 'PÁNICO')
+        ]
+        sos_activos = len(pendientes_sos)
+        for _, row in pendientes_sos.iterrows():
             carga = str(row['CARGA_UTIL'])
             if "OBJ:" in carga:
                 try: 
@@ -813,7 +816,6 @@ if st.session_state.rol_sel == "MONITOREO":
             df_alertas = leer_matriz_nube("ALERTAS")
             if not df_alertas.empty:
                 df_alertas.columns = [str(c).strip().upper() for c in df_alertas.columns]
-                # Filtrar solo pánicos de vigiladores
                 df_pan_vig = df_alertas[
                     (df_alertas['TIPO'].astype(str).str.upper() == "PÁNICO") & 
                     (df_alertas['ESTADO'].astype(str).str.upper() == "PENDIENTE")
@@ -964,7 +966,7 @@ if st.session_state.rol_sel == "MONITOREO":
 
         if sos_activos > 0:
             st.markdown('<div class="panel-novedad" style="border: 1px solid #FF0000;">', unsafe_allow_html=True)
-            df_pendientes_form = df_emergencias[df_emergencias['ESTADO'] == 'PENDIENTE']
+            df_pendientes_form = df_emergencias[(df_emergencias['ESTADO'] == 'PENDIENTE') & (df_emergencias['TIPO'] == 'PÁNICO')]
             with st.form(key="form_finalizar_panico", clear_on_submit=True):
                 opciones_alertas = {f"{r.get('FECHA', '')} - {r.get('USUARIO', '')}": idx for idx, r in df_pendientes_form.iterrows()}
                 alerta_seleccionada = st.selectbox("SELECCIONE EVENTO A FINALIZAR:", list(opciones_alertas.keys()))
@@ -1003,7 +1005,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 if es_panico:
                     alerta_activa = df_emergencias[
                         (df_emergencias['CARGA_UTIL'].str.contains(r['OBJETIVO'])) & 
-                        (df_emergencias['ESTADO'] == 'PENDIENTE')
+                        (df_emergencias['ESTADO'] == 'PENDIENTE') & 
+                        (df_emergencias['TIPO'] == 'PÁNICO')
                     ] if 'CARGA_UTIL' in df_emergencias.columns else pd.DataFrame()
                     if not alerta_activa.empty:
                         nombre_vigilante = alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')
@@ -1659,7 +1662,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_pan_sup = leer_matriz_nube("ALERTAS")
             if not df_pan_sup.empty and len(lista_objs_supervisor) > 0:
                 df_pan_sup.columns = [str(c).strip().upper() for c in df_pan_sup.columns]
-                # Filtrar estrictamente pánicos de vigiladores o asignados al objetivo/supervisor
                 df_pan_sup_filtro = pd.DataFrame()
                 if 'TIPO' in df_pan_sup.columns and 'CARGA_UTIL' in df_pan_sup.columns:
                     mask_tipo = df_pan_sup['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"
