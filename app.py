@@ -294,7 +294,7 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
 
 def generar_pdf_reporte(titulo_reporte, df_datos):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=10, leftMargin=10, topMargin=25, bottomMargin=25)
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=25, bottomMargin=25)
     elementos = []
     styles = getSampleStyleSheet()
     estilo_titulo = ParagraphStyle('TituloTactico', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
@@ -310,7 +310,7 @@ def generar_pdf_reporte(titulo_reporte, df_datos):
         for _, row in df_datos.iterrows():
             datos_tabla.append([str(row[c]) if pd.notna(row[c]) else "" for c in columnas])
             
-        ancho_total_disponible = 772.0
+        ancho_total_disponible = 750.0
         anchos_lista = [ancho_total_disponible / len(columnas)] * len(columnas)
 
         t = Table(datos_tabla, colWidths=anchos_lista, repeatRows=1)
@@ -2167,11 +2167,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON WORD-WRAP Y MÁRGENES DE 10PX ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON WORD-WRAP Y MÁRGENES DE 21PX (ANCHO ÚTIL 750) ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Márgenes laterales de 10px -> Ancho útil total = 772 puntos exactos
-                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=10, leftMargin=10, topMargin=25, bottomMargin=25)
+                        # Márgenes laterales de 21px -> Ancho útil total = 750 puntos exactos
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
@@ -2188,7 +2188,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[257, 257, 258])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[250, 250, 250])
                         t_jor.setStyle(TableStyle([
                             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -2211,15 +2211,15 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             if not df_in.empty:
                                 cols = list(df_in.columns)
                                 num_cols = len(cols)
-                                ancho_total_disponible = 772.0
+                                ancho_total_disponible = 750.0
                                 
-                                # --- 1. DEFINIR ANCHOS FIJOS BLINDADOS (Suma exacta = 772 px) ---
+                                # --- 1. DEFINIR ANCHOS FIJOS BLINDADOS (Suma exacta = 750 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    anchos_lista = [75, 70, 70, 60, 110, 95, 95, 197]
+                                    anchos_lista = [75, 70, 70, 60, 105, 95, 95, 180]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
-                                    anchos_lista = [50, 100, 125, 125, 70, 110, 192]
+                                    anchos_lista = [50, 95, 120, 120, 65, 110, 190]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
-                                    anchos_lista = [85, 115, 105, 90, 90, 90, 197]
+                                    anchos_lista = [80, 110, 100, 90, 90, 90, 190]
                                     if len(anchos_lista) < num_cols:
                                         anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
@@ -2613,11 +2613,11 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON WORD-WRAP Y MÁRGENES DE 10PX ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON WORD-WRAP Y MÁRGENES DE 21PX (ANCHO ÚTIL 750) ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Márgenes laterales de 10px -> Ancho útil total = 772 puntos exactos
-                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=10, leftMargin=10, topMargin=25, bottomMargin=25)
+                        # Márgenes laterales de 21px -> Ancho útil total = 750 puntos exactos
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
@@ -2634,7 +2634,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[257, 257, 258])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[250, 250, 250])
                         t_jor.setStyle(TableStyle([
                             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -2657,15 +2657,15 @@ elif st.session_state.rol_sel == "GERENCIA":
                             if not df_in.empty:
                                 cols = list(df_in.columns)
                                 num_cols = len(cols)
-                                ancho_total_disponible = 772.0
+                                ancho_total_disponible = 750.0
                                 
-                                # --- 1. DEFINIR ANCHOS FIJOS BLINDADOS (Suma exacta = 772 px) ---
+                                # --- 1. DEFINIR ANCHOS FIJOS BLINDADOS (Suma exacta = 750 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    anchos_lista = [75, 70, 70, 60, 110, 95, 95, 197]
+                                    anchos_lista = [75, 70, 70, 60, 105, 95, 95, 180]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
-                                    anchos_lista = [50, 100, 125, 125, 70, 110, 192]
+                                    anchos_lista = [50, 95, 120, 120, 65, 110, 190]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
-                                    anchos_lista = [85, 115, 105, 90, 90, 90, 197]
+                                    anchos_lista = [80, 110, 100, 90, 90, 90, 190]
                                     if len(anchos_lista) < num_cols:
                                         anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
@@ -2711,7 +2711,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 ]))
                                 elementos.append(t)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+                                elementons.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
