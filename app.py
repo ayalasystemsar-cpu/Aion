@@ -294,7 +294,7 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
 
 def generar_pdf_reporte(titulo_reporte, df_datos):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=15, leftMargin=15, topMargin=25, bottomMargin=25)
     elementos = []
     styles = getSampleStyleSheet()
     estilo_titulo = ParagraphStyle('TituloTactico', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
@@ -310,7 +310,7 @@ def generar_pdf_reporte(titulo_reporte, df_datos):
         for _, row in df_datos.iterrows():
             datos_tabla.append([str(row[c]) if pd.notna(row[c]) else "" for c in columnas])
             
-        ancho_total_disponible = 752.0
+        ancho_total_disponible = 762.0
         anchos_lista = [ancho_total_disponible / len(columnas)] * len(columnas)
 
         t = Table(datos_tabla, colWidths=anchos_lista, repeatRows=1)
@@ -2167,11 +2167,11 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON ANCHOS ESPECÍFICOS PARA RELEVOS Y FLOTA ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON MÁRGENES DE 15PX Y ANCHOS PERFECTAMENTE CALIBRADOS ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Orientación horizontal (landscape) y márgenes ajustados para aprovechar los 752 puntos de ancho
-                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
+                        # Márgenes laterales de 15px -> Ancho útil total = 762 puntos exactos
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=15, leftMargin=15, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
@@ -2188,7 +2188,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[250, 250, 252])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[254, 254, 254])
                         t_jor.setStyle(TableStyle([
                             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -2215,17 +2215,17 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
                                 num_cols = len(cols)
-                                ancho_total_disponible = 752.0
+                                ancho_total_disponible = 762.0
                                 
-                                # --- DISTRIBUCIÓN EXACTA DE ANCHOS POR TIPO DE TABLA (Suma total = 752 px) ---
+                                # --- DISTRIBUCIÓN EXACTA DE ANCHOS OPTIMIZADA (Suma total = 762 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    # 8 columnas: PATENTE, KM INICIAL, KM FINAL, KM TOTAL, TIPO COMBUSTIBLE, MONTO CARGADO, COSTO x KM, ESTADO
-                                    anchos_lista = [80, 80, 75, 75, 115, 95, 95, 137]
+                                    # [PATENTE, KM INICIAL, KM FINAL, KM TOTAL, TIPO COMBUSTIBLE, MONTO CARGADO, COSTO x KM, ESTADO] -> 82+82+75+75+115+95+95+143 = 762
+                                    anchos_lista = [82, 82, 75, 75, 115, 95, 95, 143]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
-                                    # 7 columnas: HORA, OBJETIVO, QUIEN EGRESA, QUIEN INGRESA, DNI ENTRANTE, SUPERVISOR, ESTADO/ACCION
-                                    anchos_lista = [65, 110, 130, 130, 85, 110, 122]
+                                    # [HORA, OBJETIVO, QUIEN EGRESA, QUIEN INGRESA, DNI ENTRANTE, SUPERVISOR, ESTADO/ACCION] -> 65+110+130+130+85+110+132 = 762
+                                    anchos_lista = [65, 110, 130, 130, 85, 110, 132]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
-                                    anchos_lista = [95, 130, 110, 100, 100, 100, 117]
+                                    anchos_lista = [95, 130, 110, 100, 100, 100, 127]
                                     if len(anchos_lista) < num_cols:
                                         anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
@@ -2596,11 +2596,11 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON ANCHOS ESPECÍFICOS PARA RELEVOS Y FLOTA ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON MÁRGENES DE 15PX Y ANCHOS PERFECTAMENTE CALIBRADOS ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Orientación horizontal (landscape) y márgenes ajustados para aprovechar los 752 puntos de ancho
-                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
+                        # Márgenes laterales de 15px -> Ancho útil total = 762 puntos exactos
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=15, leftMargin=15, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
@@ -2617,7 +2617,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                             ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
                             [j_ini, j_fin, j_tot]
                         ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[250, 250, 252])
+                        t_jor = Table(datos_jornada_resumen, colWidths=[254, 254, 254])
                         t_jor.setStyle(TableStyle([
                             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
                             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -2644,15 +2644,15 @@ elif st.session_state.rol_sel == "GERENCIA":
                                     datos.append([str(row[c]) if pd.notna(row[c]) else "" for c in cols])
                                 
                                 num_cols = len(cols)
-                                ancho_total_disponible = 752.0
+                                ancho_total_disponible = 762.0
                                 
-                                # --- DISTRIBUCIÓN EXACTA DE ANCHOS POR TIPO DE TABLA (Suma total = 752 px) ---
+                                # --- DISTRIBUCIÓN EXACTA DE ANCHOS OPTIMIZADA (Suma total = 762 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    anchos_lista = [80, 80, 75, 75, 115, 95, 95, 137]
+                                    anchos_lista = [82, 82, 75, 75, 115, 95, 95, 143]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
-                                    anchos_lista = [65, 110, 130, 130, 85, 110, 122]
+                                    anchos_lista = [65, 110, 130, 130, 85, 110, 132]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
-                                    anchos_lista = [95, 130, 110, 100, 100, 100, 117]
+                                    anchos_lista = [95, 130, 110, 100, 100, 100, 127]
                                     if len(anchos_lista) < num_cols:
                                         anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
@@ -2675,7 +2675,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 ]))
                                 elementos.append(t)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+                                elementons.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 8))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
