@@ -1037,8 +1037,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 if es_panico:
                     alerta_activa = df_emergencias[
                         ((df_emergencias['OBJETIVO'].astype(str).str.strip().str.upper() == obj_nombre)) & 
-                        (df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE') & 
-                        (df_emergencias['TIPO'].astype(str).str.upper() == 'PÁNICO')
+                        (df_emergencias['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE') & 
+                        (df_emergencias['TIPO'].astype(str).str.strip().str.upper() == 'PÁNICO')
                     ] if 'OBJETIVO' in df_emergencias.columns else pd.DataFrame()
                     if not alerta_activa.empty:
                         nombre_persona = alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')
@@ -2027,7 +2027,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
                     
-                    # --- VISTA PREVIA LIMPIA CON CONTEOS DE ALERTAS EXACTOS ---
+                    # --- VISTA PREVIA CON CONTEOS DE ALERTAS EXACTOS & TURNO DE VIGILADOR ---
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
                         st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()} | **Turno:** {turno_actual_sistema}")
                         
@@ -2065,7 +2065,13 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                         st.markdown("##### 🚨 Pánicos S.O.S de Vigiladores")
                         if not df_pan_vig_filtrado.empty:
-                            st.dataframe(df_pan_vig_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                            df_pan_vig_c_turno = df_pan_vig_filtrado.copy()
+                            turnos_vig_list = []
+                            for _, f_row in df_pan_vig_c_turno.iterrows():
+                                fh_val_p = str(f_row.get('FECHA', ''))
+                                turnos_vig_list.append(determinar_turno_activo(fh_val_p))
+                            df_pan_vig_c_turno['TURNO VIGILADOR'] = turnos_vig_list
+                            st.dataframe(df_pan_vig_c_turno.iloc[::-1], use_container_width=True, hide_index=True)
                         else:
                             st.info("Sin pánicos de vigiladores.")
 
@@ -2074,8 +2080,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
                         total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
 
-                        st.markdown(f"- Total alertas de supervisor: **{total_alertas_supervisor_j}**")
-                        st.markdown(f"- Total alertas de vigilador: **{total_alertas_vigilador_j}**")
+                        st.markdown(f"• Total alertas de supervisor: **{total_alertas_supervisor_j}**")
+                        st.markdown(f"• Total alertas de vigilador: **{total_alertas_vigilador_j}**")
 
                         if not df_alt_sup_filtrado.empty:
                             st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
@@ -2177,7 +2183,15 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
-                        agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
+                        
+                        df_pvig_pdf = d_pvig.copy()
+                        if not df_pvig_pdf.empty:
+                            turnos_vig_pdf_list = []
+                            for _, p_row in df_pvig_pdf.iterrows():
+                                f_val_p = str(p_row.get('FECHA', ''))
+                                turnos_vig_pdf_list.append(determinar_turno_activo(f_val_p))
+                            df_pvig_pdf['TURNO VIGILADOR'] = turnos_vig_pdf_list
+                        agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", df_pvig_pdf)
                         
                         df_alertas_pdf_final = d_alt.copy()
                         if df_alertas_pdf_final.empty and (not d_psup.empty or not d_pvig.empty):
