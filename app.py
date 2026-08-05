@@ -2012,7 +2012,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
                     
-                    # --- ORDEN VISUAL EN LA INTERFAZ EXACTO AL REQUERIDO ---
+                    # --- ORDEN VISUAL EN LA INTERFAZ CON ALERTAS OPERATIVAS ANTES DE FLOTA ---
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
                         st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
                         
@@ -2054,12 +2054,6 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin pánicos de vigiladores.")
 
-                        st.markdown("##### 🚗 Control de Flota")
-                        if not df_flota_sup_filtro.empty:
-                            st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin registros de flota.")
-
                         st.markdown("##### ⚠️ Alertas Operativas")
                         
                         total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
@@ -2078,9 +2072,15 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin alertas operativas.")
 
+                        st.markdown("##### 🚗 Control de Flota")
+                        if not df_flota_sup_filtro.empty:
+                            st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin registros de flota.")
+
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF CORREGIDA CON EL MISMO ORDEN EXACTO DE LA PANTALLA ---
+                    # --- FUNCIÓN PDF CORREGIDA CON ALERTAS OPERATIVAS ARRIBA DE CONTROL DE FLOTA ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
@@ -2165,14 +2165,14 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
 
-                        # --- ORDEN EXACTO DE LAS SECCIONES EN EL PDF ---
+                        # --- ORDEN EXACTO EN PDF: ALERTAS ARRIBA DE CONTROL DE FLOTA ---
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
-                        agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
                         agregar_tabla_pdf("Alertas Operativas:", d_alt)
+                        agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
 
                         doc.build(elementos, canvasmaker=NumberedCanvas)
                         buffer.seek(0)
