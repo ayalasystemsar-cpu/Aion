@@ -2167,7 +2167,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON MÁRGENES DE 10PX Y ANCHOS CALIBRADOS AL MILÍMETRO ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON WORD-WRAP Y MÁRGENES DE 10PX ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
                         # Márgenes laterales de 10px -> Ancho útil total = 772 puntos exactos
@@ -2210,42 +2210,13 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
                             if not df_in.empty:
                                 cols = list(df_in.columns)
-                                
-                                estilo_celda_tabla = ParagraphStyle(
-                                    'CeldaTabla',
-                                    parent=styles['Normal'],
-                                    fontName='Helvetica',
-                                    fontSize=6.5,
-                                    leading=8,
-                                    alignment=1
-                                )
-                                estilo_cabecera_tabla = ParagraphStyle(
-                                    'CabeceraTabla',
-                                    parent=styles['Normal'],
-                                    fontName='Helvetica-Bold',
-                                    fontSize=7,
-                                    leading=9,
-                                    textColor=colors.white,
-                                    alignment=1
-                                )
-
-                                datos = [[Paragraph(str(c), estilo_cabecera_tabla) for c in cols]]
-                                for _, row in df_in.iterrows():
-                                    fila_parrafos = []
-                                    for c in cols:
-                                        val = str(row[c]) if pd.notna(row[c]) else ""
-                                        fila_parrafos.append(Paragraph(val, estilo_celda_tabla))
-                                    datos.append(fila_parrafos)
-                                
                                 num_cols = len(cols)
                                 ancho_total_disponible = 772.0
                                 
-                                # --- ANCHOS EXCLUSIVOS BLINDADOS (Suma total = 772 px exactos) ---
+                                # --- 1. DEFINIR ANCHOS FIJOS BLINDADOS (Suma exacta = 772 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    # [PATENTE, KM INICIAL, KM FINAL, KM TOTAL, TIPO COMBUSTIBLE, MONTO CARGADO, COSTO x KM, ESTADO] -> 75+70+70+60+110+95+95+197 = 772
                                     anchos_lista = [75, 70, 70, 60, 110, 95, 95, 197]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
-                                    # [HORA, OBJETIVO, QUIEN EGRESA, QUIEN INGRESA, DNI ENTRANTE, SUPERVISOR, ESTADO/ACCION] -> 50+100+125+125+70+110+192 = 772
                                     anchos_lista = [50, 100, 125, 125, 70, 110, 192]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
                                     anchos_lista = [85, 115, 105, 90, 90, 90, 197]
@@ -2254,16 +2225,43 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 else:
                                     anchos_lista = [ancho_total_disponible / num_cols] * num_cols
 
+                                # --- 2. ESTILOS CON WORD-WRAP FORZADO PARA EVITAR DESBORDES ---
+                                def crear_estilo_celda(es_cabecera=False):
+                                    return ParagraphStyle(
+                                        'EstiloCeldaControlado',
+                                        parent=styles['Normal'],
+                                        fontName='Helvetica-Bold' if es_cabecera else 'Helvetica',
+                                        fontSize=7 if es_cabecera else 6,
+                                        leading=8.5 if es_cabecera else 7.5,
+                                        textColor=colors.white if es_cabecera else colors.HexColor('#333333'),
+                                        alignment=1,
+                                        wordWrap='CJK'  # Fuerza el salto de línea en palabras largas o números
+                                    )
+
+                                estilo_cab = crear_estilo_celda(es_cabecera=True)
+                                estilo_celda = crear_estilo_celda(es_cabecera=False)
+
+                                datos = []
+                                fila_encabezados = [Paragraph(str(c), estilo_cab) for c in cols]
+                                datos.append(fila_encabezados)
+
+                                for _, row in df_in.iterrows():
+                                    fila_parrafos = []
+                                    for c in cols:
+                                        val = str(row[c]) if pd.notna(row[c]) else ""
+                                        fila_parrafos.append(Paragraph(val, estilo_celda))
+                                    datos.append(fila_parrafos)
+
                                 t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
                                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 2.5),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 2.5),
-                                    ('LEFTPADDING', (0, 0), (-1, -1), 1.5),
-                                    ('RIGHTPADDING', (0, 0), (-1, -1), 1.5),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 2),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 2),
+                                    ('LEFTPADDING', (0, 0), (-1, -1), 1),
+                                    ('RIGHTPADDING', (0, 0), (-1, -1), 1),
                                 ]))
                                 elementos.append(t)
                             else:
@@ -2615,7 +2613,7 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON MÁRGENES DE 10PX Y ANCHOS CALIBRADOS AL MILÍMETRO ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON WORD-WRAP Y MÁRGENES DE 10PX ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
                         # Márgenes laterales de 10px -> Ancho útil total = 772 puntos exactos
@@ -2658,37 +2656,10 @@ elif st.session_state.rol_sel == "GERENCIA":
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
                             if not df_in.empty:
                                 cols = list(df_in.columns)
-                                
-                                estilo_celda_tabla = ParagraphStyle(
-                                    'CeldaTabla',
-                                    parent=styles['Normal'],
-                                    fontName='Helvetica',
-                                    fontSize=6.5,
-                                    leading=8,
-                                    alignment=1
-                                )
-                                estilo_cabecera_tabla = ParagraphStyle(
-                                    'CabeceraTabla',
-                                    parent=styles['Normal'],
-                                    fontName='Helvetica-Bold',
-                                    fontSize=7,
-                                    leading=9,
-                                    textColor=colors.white,
-                                    alignment=1
-                                )
-
-                                datos = [[Paragraph(str(c), estilo_cabecera_tabla) for c in cols]]
-                                for _, row in df_in.iterrows():
-                                    fila_parrafos = []
-                                    for c in cols:
-                                        val = str(row[c]) if pd.notna(row[c]) else ""
-                                        fila_parrafos.append(Paragraph(val, estilo_celda_tabla))
-                                    datos.append(fila_parrafos)
-                                
                                 num_cols = len(cols)
                                 ancho_total_disponible = 772.0
                                 
-                                # --- ANCHOS EXCLUSIVOS BLINDADOS (Suma total = 772 px exactos) ---
+                                # --- 1. DEFINIR ANCHOS FIJOS BLINDADOS (Suma exacta = 772 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
                                     anchos_lista = [75, 70, 70, 60, 110, 95, 95, 197]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
@@ -2700,16 +2671,43 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 else:
                                     anchos_lista = [ancho_total_disponible / num_cols] * num_cols
 
+                                # --- 2. ESTILOS CON WORD-WRAP FORZADO PARA EVITAR DESBORDES ---
+                                def crear_estilo_celda(es_cabecera=False):
+                                    return ParagraphStyle(
+                                        'EstiloCeldaControlado',
+                                        parent=styles['Normal'],
+                                        fontName='Helvetica-Bold' if es_cabecera else 'Helvetica',
+                                        fontSize=7 if es_cabecera else 6,
+                                        leading=8.5 if es_cabecera else 7.5,
+                                        textColor=colors.white if es_cabecera else colors.HexColor('#333333'),
+                                        alignment=1,
+                                        wordWrap='CJK'  # Fuerza el salto de línea en palabras largas o números
+                                    )
+
+                                estilo_cab = crear_estilo_celda(es_cabecera=True)
+                                estilo_celda = crear_estilo_celda(es_cabecera=False)
+
+                                datos = []
+                                fila_encabezados = [Paragraph(str(c), estilo_cab) for c in cols]
+                                datos.append(fila_encabezados)
+
+                                for _, row in df_in.iterrows():
+                                    fila_parrafos = []
+                                    for c in cols:
+                                        val = str(row[c]) if pd.notna(row[c]) else ""
+                                        fila_parrafos.append(Paragraph(val, estilo_celda))
+                                    datos.append(fila_parrafos)
+
                                 t = Table(datos, colWidths=anchos_lista, repeatRows=1)
                                 t.setStyle(TableStyle([
                                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 2.5),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 2.5),
-                                    ('LEFTPADDING', (0, 0), (-1, -1), 1.5),
-                                    ('RIGHTPADDING', (0, 0), (-1, -1), 1.5),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 2),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 2),
+                                    ('LEFTPADDING', (0, 0), (-1, -1), 1),
+                                    ('RIGHTPADDING', (0, 0), (-1, -1), 1),
                                 ]))
                                 elementos.append(t)
                             else:
