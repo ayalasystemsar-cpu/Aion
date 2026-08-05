@@ -1308,53 +1308,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
-                # Cálculo de la comisaría más cercana al objetivo actual del supervisor
-                lat_obj_s, lon_obj_s = 0.0, 0.0
-                if not df_objetivos.empty and obj_actual != "SIN OBJETIVO":
-                    filtro_os = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
-                    if not filtro_os.empty:
-                        try:
-                            lat_obj_s = float(str(filtro_os['LATITUD'].iloc[0]).replace(',', '.'))
-                            lon_obj_s = float(str(filtro_os['LONGITUD'].iloc[0]).replace(',', '.'))
-                        except:
-                            pass
-
-                com_nom_s = "COMISARÍA JURISDICCIONAL"
-                com_tel_s = "011-4000-0000"
-                dist_min_s = float('inf')
-                for _, com in df_comisarias.iterrows():
-                    try:
-                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
-                        d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
-                        if d < dist_min_s:
-                            dist_min_s = d
-                            com_nom_s = com['COMISARIA']
-                            com_tel_s = com.get('TELEFONO', '011-4000-0000')
-                    except:
-                        pass
-
                 exito = escribir_registro_nube("ALERTAS", [
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
-                    
-                # Componente HTML/JS con enlace tel: funcional y automático para la comisaría cercana
-                html_llamada_sup = f"""
-                <div style="padding: 12px; background-color: #fee2e2; border-left: 4px solid #dc2626; border-radius: 6px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
-                    <p style="color: #991b1b; font-weight: 700; margin: 0 0 8px 0; font-size: 14px;">
-                        📞 ENLACE DE EMERGENCIA ACTIVADO: {com_nom_s}
-                    </p>
-                    <a href="tel:{com_tel_s}" 
-                       style="background-color: #dc2626; color: white; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 14px;">
-                       👉 MARCAR AHORA A LA COMISARÍA ({com_tel_s})
-                    </a>
-                </div>
-                <script>
-                    window.location.href = "tel:{com_tel_s}";
-                </script>
-                """
-                st.markdown(html_llamada_sup, unsafe_allow_html=True)
 
         t_vis_qr, t_nuevo_obj, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
@@ -1725,26 +1683,16 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
-            
-            # Bloque visual y de marcación automática directa por enlace tel: y JavaScript
-            html_llamada_vig = f"""
-            <div style="background-color: #fee2e2; border-left: 4px solid #dc2626; border-radius: 6px; padding: 12px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
-                <p style="color: #991b1b; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: bold; margin: 0 0 6px 0;">
-                    🚨 ALERTA ENVIADA: {datos_pan['nombre']} DESDE {datos_pan['obj']}
-                </p>
-                <p style="color: #1f2937; font-size: 13px; margin: 0 0 10px 0;">
-                    👮 <b>COMISARÍA MÁS CERCANA:</b> {datos_pan['comisaria']} | <b>Dir:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
-                </p>
-                <a href="tel:{datos_pan['telefono']}" 
-                   style="background-color: #dc2626; color: white; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 14px;">
-                   📞 MARCAR AUTOMÁTICAMENTE A LA COMISARÍA ({datos_pan['telefono']})
-                </a>
-            </div>
-            <script>
-                window.location.href = "tel:{datos_pan['telefono']}";
-            </script>
-            """
-            st.markdown(html_llamada_vig, unsafe_allow_html=True)
+            st.markdown(f"""
+                <div style="background-color: rgba(248, 215, 218, 0.25); border: 1px solid rgba(245, 198, 203, 0.4); border-radius: 6px; padding: 12px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
+                    <div style="color: #F8D7DA; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                        🚨 ALERTA ENVIADA: VIGILADOR EN PUESTO DESDE {datos_pan['obj']}
+                    </div>
+                    <div style="color: #E0E0E0; font-size: 13px; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        👮 <b>COMISARÍA MÁS CERCANA:</b> {datos_pan['comisaria']} | <b>Dirección:</b> {datos_pan['direccion']} | <b>Teléfono:</b> <a href="tel:{datos_pan['telefono']}" style="color: #00E5FF; font-weight: bold; text-decoration: none;">{datos_pan['telefono']}</a> (~{datos_pan['distancia']} KM)
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
     else:
         st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
     
@@ -2331,7 +2279,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                 st.rerun()
 
         with t_adm_obj:
-            st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LARED")
+            st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
             if not df_obj_m.empty:
                 st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
                 pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
