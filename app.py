@@ -1238,10 +1238,8 @@ if st.session_state.rol_sel == "MONITOREO":
                         mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
                         total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
 
-                        if total_alertas_supervisor > 0 or total_alertas_vigilador > 0:
-                            st.markdown(f"RESUMEN DE ALERTAS (PÁNICOS)")
-                            st.markdown(f"- Total alertas de supervisor: **{total_alertas_supervisor}**")
-                            st.markdown(f"- Total alertas de vigilador: **{total_alertas_vigilador}**")
+                        st.markdown(f"- Total alertas de supervisor: **{total_alertas_supervisor}**")
+                        st.markdown(f"- Total alertas de vigilador: **{total_alertas_vigilador}**")
 
                         df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
                         
@@ -1258,7 +1256,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         if not df_alt_sup_filtrado.empty:
                             st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
                         else:
-                            st.info(f"No hay alertas operativas registradas para los objetivos de {sup_seleccionado_mono}.")
+                            st.info(f"No hay alertas operativas adicionales registradas para los objetivos de {sup_seleccionado_mono}.")
                     else:
                         st.info("Sin alertas operativas registradas.")
         else:
@@ -2009,7 +2007,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
                     
-                    # --- VISTA PREVIA LIMPIA (SIN CAJAS) ---
+                    # --- VISTA PREVIA LIMPIA CON CONTEOS DE ALERTAS EXACTOS ---
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
                         st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
                         
@@ -2056,14 +2054,11 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
                         total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
 
-                        if total_alertas_supervisor_j > 0 or total_alertas_vigilador_j > 0:
-                            st.markdown(f"- Total alertas de supervisor: **{total_alertas_supervisor_j}**")
-                            st.markdown(f"- Total alertas de vigilador: **{total_alertas_vigilador_j}**")
+                        st.markdown(f"- Total alertas de supervisor: **{total_alertas_supervisor_j}**")
+                        st.markdown(f"- Total alertas de vigilador: **{total_alertas_vigilador_j}**")
 
                         if not df_alt_sup_filtrado.empty:
                             st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin alertas operativas.")
 
                         st.markdown("##### 🚗 Control de Flota")
                         if not df_flota_sup_filtro.empty:
@@ -2073,7 +2068,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF CORREGIDA PARA MOSTRAR LAS ALERTAS ---
+                    # --- FUNCIÓN PDF ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
@@ -2164,7 +2159,6 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
                         
-                        # AQUÍ UNIFICAMOS LAS ALERTAS PARA QUE EL PDF MUESTRE TAMBIÉN LOS PÁNICOS SI NO HAY OTRAS ALERTAS OPERATIVAS
                         df_alertas_pdf_final = d_alt.copy()
                         if df_alertas_pdf_final.empty and (not d_psup.empty or not d_pvig.empty):
                             lista_combinada_alertas = []
@@ -2176,6 +2170,12 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                     lista_combinada_alertas.append(r.to_dict())
                             if lista_combinada_alertas:
                                 df_alertas_pdf_final = pd.DataFrame(lista_combinada_alertas)
+
+                        tot_sup_pdf = len(d_psup) if not d_psup.empty else 0
+                        tot_vig_pdf = len(d_pvig) if not d_pvig.empty else 0
+                        elementos.append(Paragraph(f"• Total alertas de supervisor: <b>{tot_sup_pdf}</b>", estilo_texto))
+                        elementos.append(Paragraph(f"• Total alertas de vigilador: <b>{tot_vig_pdf}</b>", estilo_texto))
+                        elementos.append(Spacer(1, 4))
 
                         agregar_tabla_pdf("Alertas Operativas:", df_alertas_pdf_final)
                         agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
