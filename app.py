@@ -2700,6 +2700,7 @@ elif st.session_state.rol_sel == "GERENCIA":
                                     ('LEFTPADDING', (0, 0), (-1, -1), 1),
                                     ('RIGHTPADDING', (0, 0), (-1, -1), 1),
                                 ]))
+                                elementamiento = t
                                 elementos.append(t)
                             else:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
