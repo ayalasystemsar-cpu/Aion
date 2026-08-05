@@ -17,7 +17,7 @@ from branca.element import Element
 import qrcode
 import io
 from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import streamlit.components.v1 as components
@@ -2167,19 +2167,20 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON MÁRGENES DE 21 PUNTOS Y PADDING COMPACTO ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON SALTOS DE PÁGINA INTELIGENTES Y LÍNEAS SEPARADAS ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Márgenes de 21 puntos lateral, 20 superior e inferior para ganar espacio vertical útil
-                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=20, bottomMargin=20)
+                        # Márgenes de 24 puntos y hoja horizontal
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=24)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=3)
-                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#333333'))
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, leading=16, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=11, textColor=colors.HexColor('#333333'), spaceAfter=12, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=10, leading=12, textColor=colors.HexColor('#000000'), spaceBefore=10, spaceAfter=4)
+                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
 
+                        # --- PÁGINA 1: ENCABEZADO, JORNADA Y QR / PERMANENCIA ---
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
                         
@@ -2195,14 +2196,14 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 8),
+                            ('FONTSIZE', (0, 0), (-1, 0), 8.5),
                             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
                             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                            ('TOPPADDING', (0, 0), (-1, -1), 3),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                            ('TOPPADDING', (0, 0), (-1, -1), 4),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                         ]))
                         elementos.append(t_jor)
-                        elementos.append(Spacer(1, 4))
+                        elementos.append(Spacer(1, 8))
 
                         def agregar_tabla_pdf(titulo_sec, df_in, tipo_tabla="normal"):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
@@ -2227,8 +2228,8 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                         'EstiloCeldaControlado',
                                         parent=styles['Normal'],
                                         fontName='Helvetica-Bold' if es_cabecera else 'Helvetica',
-                                        fontSize=6.5 if es_cabecera else 6,
-                                        leading=8 if es_cabecera else 7,
+                                        fontSize=7 if es_cabecera else 6.5,
+                                        leading=9 if es_cabecera else 8,
                                         textColor=colors.white if es_cabecera else colors.HexColor('#333333'),
                                         alignment=1,
                                         wordWrap='CJK'
@@ -2254,20 +2255,30 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 1.5),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 1.5),
-                                    ('LEFTPADDING', (0, 0), (-1, -1), 1),
-                                    ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 2.5),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 2.5),
+                                    ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                                    ('RIGHTPADDING', (0, 0), (-1, -1), 2),
                                 ]))
                                 elementos.append(t)
                             else:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
-                            elementos.append(Spacer(1, 4))
+                            elementos.append(Spacer(1, 8))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
+                        
+                        # --- SALTO DE PÁGINA INTELIGENTE PARA EVITAR SUPERPOSICIÓN ---
+                        elementos.append(PageBreak())
+
+                        # --- PÁGINA 2: FICHAJES, RELEVOS Y ALERTAS ---
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, tipo_tabla="fichaje")
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, tipo_tabla="relevos")
                         agregar_tabla_pdf("Alertas Operativas:", d_alt)
+
+                        # --- SALTO DE PÁGINA INTELIGENTE PARA BLOQUES CRÍTICOS Y FLOTA ---
+                        elementos.append(PageBreak())
+
+                        # --- PÁGINA 3: PÁNICOS Y FLOTA ---
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
                         agregar_tabla_pdf("Control de Flota:", d_flota, tipo_tabla="flota")
@@ -2609,17 +2620,17 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON MÁRGENES DE 21 PUNTOS Y PADDING COMPACTO ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON SALTOS DE PÁGINA INTELIGENTES Y LÍNEAS SEPARADAS ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=20, bottomMargin=20)
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=24)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=3)
-                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#333333'))
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, leading=16, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=11, textColor=colors.HexColor('#333333'), spaceAfter=12, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=10, leading=12, textColor=colors.HexColor('#000000'), spaceBefore=10, spaceAfter=4)
+                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -2636,14 +2647,14 @@ elif st.session_state.rol_sel == "GERENCIA":
                             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 8),
+                            ('FONTSIZE', (0, 0), (-1, 0), 8.5),
                             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
                             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                            ('TOPPADDING', (0, 0), (-1, -1), 3),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                            ('TOPPADDING', (0, 0), (-1, -1), 4),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                         ]))
                         elementos.append(t_jor)
-                        elementos.append(Spacer(1, 4))
+                        elementos.append(Spacer(1, 8))
 
                         def agregar_tabla_pdf(titulo_sec, df_in, tipo_tabla="normal"):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
@@ -2668,8 +2679,8 @@ elif st.session_state.rol_sel == "GERENCIA":
                                         'EstiloCeldaControlado',
                                         parent=styles['Normal'],
                                         fontName='Helvetica-Bold' if es_cabecera else 'Helvetica',
-                                        fontSize=6.5 if es_cabecera else 6,
-                                        leading=8 if es_cabecera else 7,
+                                        fontSize=7 if es_cabecera else 6.5,
+                                        leading=9 if es_cabecera else 8,
                                         textColor=colors.white if es_cabecera else colors.HexColor('#333333'),
                                         alignment=1,
                                         wordWrap='CJK'
@@ -2695,21 +2706,26 @@ elif st.session_state.rol_sel == "GERENCIA":
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 1.5),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 1.5),
-                                    ('LEFTPADDING', (0, 0), (-1, -1), 1),
-                                    ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 2.5),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 2.5),
+                                    ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                                    ('RIGHTPADDING', (0, 0), (-1, -1), 2),
                                 ]))
-                                elementamiento = t
                                 elementos.append(t)
                             else:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
-                            elementos.append(Spacer(1, 4))
+                            elementos.append(Spacer(1, 8))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
+                        
+                        elementos.append(PageBreak())
+
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, tipo_tabla="fichaje")
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, tipo_tabla="relevos")
                         agregar_tabla_pdf("Alertas Operativas:", d_alt)
+
+                        elementos.append(PageBreak())
+
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
                         agregar_tabla_pdf("Control de Flota:", d_flota, tipo_tabla="flota")
