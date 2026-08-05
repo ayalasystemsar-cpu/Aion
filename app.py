@@ -2167,18 +2167,18 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON WORD-WRAP Y MÁRGENES DE 21PX (ANCHO ÚTIL 750) ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON MÁRGENES DE 21 PUNTOS Y PADDING COMPACTO ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Márgenes laterales de 21px -> Ancho útil total = 750 puntos exactos
-                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=25, bottomMargin=25)
+                        # Márgenes de 21 puntos lateral, 20 superior e inferior para ganar espacio vertical útil
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=20, bottomMargin=20)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#333333'), spaceAfter=15, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, textColor=colors.HexColor('#000000'), spaceBefore=12, spaceAfter=4)
-                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'))
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=3)
+                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#333333'))
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -2195,16 +2195,14 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 8.5),
+                            ('FONTSIZE', (0, 0), (-1, 0), 8),
                             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
                             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 1), (-1, -1), 8),
-                            ('TOPPADDING', (0, 1), (-1, -1), 5),
-                            ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+                            ('TOPPADDING', (0, 0), (-1, -1), 3),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
                         ]))
                         elementos.append(t_jor)
-                        elementos.append(Spacer(1, 8))
+                        elementos.append(Spacer(1, 4))
 
                         def agregar_tabla_pdf(titulo_sec, df_in, tipo_tabla="normal"):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
@@ -2213,7 +2211,6 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 num_cols = len(cols)
                                 ancho_total_disponible = 750.0
                                 
-                                # --- 1. DEFINIR ANCHOS FIJOS BLINDADOS (Suma exacta = 750 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
                                     anchos_lista = [75, 70, 70, 60, 105, 95, 95, 180]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
@@ -2225,17 +2222,16 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 else:
                                     anchos_lista = [ancho_total_disponible / num_cols] * num_cols
 
-                                # --- 2. ESTILOS CON WORD-WRAP FORZADO PARA EVITAR DESBORDES ---
                                 def crear_estilo_celda(es_cabecera=False):
                                     return ParagraphStyle(
                                         'EstiloCeldaControlado',
                                         parent=styles['Normal'],
                                         fontName='Helvetica-Bold' if es_cabecera else 'Helvetica',
-                                        fontSize=7 if es_cabecera else 6,
-                                        leading=8.5 if es_cabecera else 7.5,
+                                        fontSize=6.5 if es_cabecera else 6,
+                                        leading=8 if es_cabecera else 7,
                                         textColor=colors.white if es_cabecera else colors.HexColor('#333333'),
                                         alignment=1,
-                                        wordWrap='CJK'  # Fuerza el salto de línea en palabras largas o números
+                                        wordWrap='CJK'
                                     )
 
                                 estilo_cab = crear_estilo_celda(es_cabecera=True)
@@ -2258,15 +2254,15 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 2),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 2),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 1.5),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 1.5),
                                     ('LEFTPADDING', (0, 0), (-1, -1), 1),
                                     ('RIGHTPADDING', (0, 0), (-1, -1), 1),
                                 ]))
                                 elementos.append(t)
                             else:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
-                            elementos.append(Spacer(1, 6))
+                            elementos.append(Spacer(1, 4))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, tipo_tabla="fichaje")
@@ -2613,18 +2609,17 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA CON WORD-WRAP Y MÁRGENES DE 21PX (ANCHO ÚTIL 750) ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON MÁRGENES DE 21 PUNTOS Y PADDING COMPACTO ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Márgenes laterales de 21px -> Ancho útil total = 750 puntos exactos
-                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=25, bottomMargin=25)
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=21, leftMargin=21, topMargin=20, bottomMargin=20)
                         elementos = []
                         styles = getSampleStyleSheet()
                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#000000'), spaceAfter=4, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#333333'), spaceAfter=15, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, textColor=colors.HexColor('#000000'), spaceBefore=12, spaceAfter=4)
-                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#333333'))
+                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
+                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
+                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=3)
+                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#333333'))
 
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
@@ -2641,16 +2636,14 @@ elif st.session_state.rol_sel == "GERENCIA":
                             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 8.5),
+                            ('FONTSIZE', (0, 0), (-1, 0), 8),
                             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
                             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 1), (-1, -1), 8),
-                            ('TOPPADDING', (0, 1), (-1, -1), 5),
-                            ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+                            ('TOPPADDING', (0, 0), (-1, -1), 3),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
                         ]))
                         elementos.append(t_jor)
-                        elementos.append(Spacer(1, 8))
+                        elementos.append(Spacer(1, 4))
 
                         def agregar_tabla_pdf(titulo_sec, df_in, tipo_tabla="normal"):
                             elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
@@ -2659,7 +2652,6 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 num_cols = len(cols)
                                 ancho_total_disponible = 750.0
                                 
-                                # --- 1. DEFINIR ANCHOS FIJOS BLINDADOS (Suma exacta = 750 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
                                     anchos_lista = [75, 70, 70, 60, 105, 95, 95, 180]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
@@ -2671,17 +2663,16 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 else:
                                     anchos_lista = [ancho_total_disponible / num_cols] * num_cols
 
-                                # --- 2. ESTILOS CON WORD-WRAP FORZADO PARA EVITAR DESBORDES ---
                                 def crear_estilo_celda(es_cabecera=False):
                                     return ParagraphStyle(
                                         'EstiloCeldaControlado',
                                         parent=styles['Normal'],
                                         fontName='Helvetica-Bold' if es_cabecera else 'Helvetica',
-                                        fontSize=7 if es_cabecera else 6,
-                                        leading=8.5 if es_cabecera else 7.5,
+                                        fontSize=6.5 if es_cabecera else 6,
+                                        leading=8 if es_cabecera else 7,
                                         textColor=colors.white if es_cabecera else colors.HexColor('#333333'),
                                         alignment=1,
-                                        wordWrap='CJK'  # Fuerza el salto de línea en palabras largas o números
+                                        wordWrap='CJK'
                                     )
 
                                 estilo_cab = crear_estilo_celda(es_cabecera=True)
@@ -2704,15 +2695,15 @@ elif st.session_state.rol_sel == "GERENCIA":
                                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 2),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 2),
+                                    ('TOPPADDING', (0, 1), (-1, -1), 1.5),
+                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 1.5),
                                     ('LEFTPADDING', (0, 0), (-1, -1), 1),
                                     ('RIGHTPADDING', (0, 0), (-1, -1), 1),
                                 ]))
                                 elementos.append(t)
                             else:
-                                elementons.append(Paragraph("Sin registros en este periodo.", estilo_texto))
-                            elementos.append(Spacer(1, 6))
+                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+                            elementos.append(Spacer(1, 4))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm)
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, tipo_tabla="fichaje")
