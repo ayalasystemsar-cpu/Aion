@@ -1238,13 +1238,14 @@ if st.session_state.rol_sel == "MONITOREO":
                         mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
                         total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
 
-                        st.markdown(f"""
-                            <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
-                                <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
-                                <div style="color: #FFFFFF; font-size: 13px; margin-top: 4px;">• Total alertas de supervisor: <b>{total_alertas_supervisor}</b></div>
-                                <div style="color: #FFFFFF; font-size: 13px;">• Total alertas de vigilador: <b>{total_alertas_vigilador}</b></div>
-                            </div>
-                        """, unsafe_allow_html=True)
+                        if total_alertas_supervisor > 0 or total_alertas_vigilador > 0:
+                            st.markdown(f"""
+                                <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
+                                    <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
+                                    <div style="color: #FFFFFF; font-size: 13px; margin-top: 4px;">• Total alertas de supervisor: <b>{total_alertas_supervisor}</b></div>
+                                    <div style="color: #FFFFFF; font-size: 13px;">• Total alertas de vigilador: <b>{total_alertas_vigilador}</b></div>
+                                </div>
+                            """, unsafe_allow_html=True)
 
                         df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
                         
@@ -2012,7 +2013,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
                     
-                    # --- ORDEN VISUAL EN LA INTERFAZ CON ALERTAS OPERATIVAS ANTES DE FLOTA ---
+                    # --- VISTA PREVIA CON RESUMEN CONDICIONAL (SOLO SI HAY DATOS) ---
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
                         st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
                         
@@ -2059,13 +2060,14 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
                         total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
 
-                        st.markdown(f"""
-                            <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
-                                <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
-                                <div style="color: #FFFFFF; font-size: 13px; margin-top: 4px;">• Total alertas de supervisor: <b>{total_alertas_supervisor_j}</b></div>
-                                <div style="color: #FFFFFF; font-size: 13px;">• Total alertas de vigilador: <b>{total_alertas_vigilador_j}</b></div>
-                            </div>
-                        """, unsafe_allow_html=True)
+                        if total_alertas_supervisor_j > 0 or total_alertas_vigilador_j > 0:
+                            st.markdown(f"""
+                                <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
+                                    <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
+                                    <div style="color: #FFFFFF; font-size: 13px; margin-top: 4px;">• Total alertas de supervisor: <b>{total_alertas_supervisor_j}</b></div>
+                                    <div style="color: #FFFFFF; font-size: 13px;">• Total alertas de vigilador: <b>{total_alertas_vigilador_j}</b></div>
+                                </div>
+                            """, unsafe_allow_html=True)
 
                         if not df_alt_sup_filtrado.empty:
                             st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
@@ -2080,7 +2082,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF CORREGIDA CON ALERTAS OPERATIVAS ARRIBA DE CONTROL DE FLOTA ---
+                    # --- FUNCIÓN PDF ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
@@ -2165,7 +2167,6 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
 
-                        # --- ORDEN EXACTO EN PDF: ALERTAS ARRIBA DE CONTROL DE FLOTA ---
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
