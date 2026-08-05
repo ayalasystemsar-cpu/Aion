@@ -2167,10 +2167,10 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA Y CORREGIDA (BLANCO Y NEGRO, LANDSCAPE, ANCHOS SEPARADOS) ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON ANCHOS ESPECÍFICOS PARA RELEVOS Y FLOTA ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Orientación horizontal (landscape) y márgenes ajustados para aprovechar todo el ancho
+                        # Orientación horizontal (landscape) y márgenes ajustados para aprovechar los 752 puntos de ancho
                         doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
@@ -2217,12 +2217,15 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
                                 num_cols = len(cols)
                                 ancho_total_disponible = 752.0
                                 
+                                # --- DISTRIBUCIÓN EXACTA DE ANCHOS POR TIPO DE TABLA (Suma total = 752 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    anchos_lista = [80, 80, 75, 75, 110, 95, 100, 137]
+                                    # 8 columnas: PATENTE, KM INICIAL, KM FINAL, KM TOTAL, TIPO COMBUSTIBLE, MONTO CARGADO, COSTO x KM, ESTADO
+                                    anchos_lista = [80, 80, 75, 75, 115, 95, 95, 137]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
-                                    anchos_lista = [90, 75, 100, 110, 110, 100, 167]
+                                    # 7 columnas: HORA, OBJETIVO, QUIEN EGRESA, QUIEN INGRESA, DNI ENTRANTE, SUPERVISOR, ESTADO/ACCION
+                                    anchos_lista = [65, 110, 130, 130, 85, 110, 122]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
-                                    anchos_lista = [100, 130, 110, 100, 100, 100, 112]
+                                    anchos_lista = [95, 130, 110, 100, 100, 100, 117]
                                     if len(anchos_lista) < num_cols:
                                         anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
@@ -2593,10 +2596,10 @@ elif st.session_state.rol_sel == "GERENCIA":
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF OPTIMIZADA Y CORREGIDA (BLANCO Y NEGRO, LANDSCAPE, ANCHOS SEPARADOS) ---
+                    # --- FUNCIÓN PDF OPTIMIZADA CON ANCHOS ESPECÍFICOS PARA RELEVOS Y FLOTA ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
-                        # Orientación horizontal (landscape) y márgenes ajustados para aprovechar todo el ancho
+                        # Orientación horizontal (landscape) y márgenes ajustados para aprovechar los 752 puntos de ancho
                         doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
                         elementos = []
                         styles = getSampleStyleSheet()
@@ -2643,12 +2646,13 @@ elif st.session_state.rol_sel == "GERENCIA":
                                 num_cols = len(cols)
                                 ancho_total_disponible = 752.0
                                 
+                                # --- DISTRIBUCIÓN EXACTA DE ANCHOS POR TIPO DE TABLA (Suma total = 752 px) ---
                                 if tipo_tabla == "flota" and num_cols >= 8:
-                                    anchos_lista = [80, 80, 75, 75, 110, 95, 100, 137]
+                                    anchos_lista = [80, 80, 75, 75, 115, 95, 95, 137]
                                 elif tipo_tabla == "relevos" and num_cols >= 7:
-                                    anchos_lista = [90, 75, 100, 110, 110, 100, 167]
+                                    anchos_lista = [65, 110, 130, 130, 85, 110, 122]
                                 elif tipo_tabla == "fichaje" and num_cols >= 6:
-                                    anchos_lista = [100, 130, 110, 100, 100, 100, 112]
+                                    anchos_lista = [95, 130, 110, 100, 100, 100, 117]
                                     if len(anchos_lista) < num_cols:
                                         anchos_lista = [ancho_total_disponible / num_cols] * num_cols
                                 else:
