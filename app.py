@@ -1239,13 +1239,9 @@ if st.session_state.rol_sel == "MONITOREO":
                         total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
 
                         if total_alertas_supervisor > 0 or total_alertas_vigilador > 0:
-                            st.markdown(f"""
-                                <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
-                                    <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
-                                    <div style="color: #FFFFFF; font-size: 13px; margin-top: 4px;">• Total alertas de supervisor: <b>{total_alertas_supervisor}</b></div>
-                                    <div style="color: #FFFFFF; font-size: 13px;">• Total alertas de vigilador: <b>{total_alertas_vigilador}</b></div>
-                                </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(f"**RESUMEN DE ALERTAS (PÁNICOS)**")
+                            st.markdown(f"- Total alertas de supervisor: **{total_alertas_supervisor}**")
+                            st.markdown(f"- Total alertas de vigilador: **{total_alertas_vigilador}**")
 
                         df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
                         
@@ -2013,7 +2009,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
                     
-                    # --- VISTA PREVIA CON RESUMEN CONDICIONAL (SOLO SI HAY DATOS) ---
+                    # --- VISTA PREVIA CON RESUMEN LIMPIO (TEXTO PLANO SIN CAJA) ---
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
                         st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
                         
@@ -2061,13 +2057,9 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
 
                         if total_alertas_supervisor_j > 0 or total_alertas_vigilador_j > 0:
-                            st.markdown(f"""
-                                <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
-                                    <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
-                                    <div style="color: #FFFFFF; font-size: 13px; margin-top: 4px;">• Total alertas de supervisor: <b>{total_alertas_supervisor_j}</b></div>
-                                    <div style="color: #FFFFFF; font-size: 13px;">• Total alertas de vigilador: <b>{total_alertas_vigilador_j}</b></div>
-                                </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown("**RESUMEN DE ALERTAS (PÁNICOS)**")
+                            st.markdown(f"- Total alertas de supervisor: **{total_alertas_supervisor_j}**")
+                            st.markdown(f"- Total alertas de vigilador: **{total_alertas_vigilador_j}**")
 
                         if not df_alt_sup_filtrado.empty:
                             st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
