@@ -498,30 +498,12 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
+# --- REEMPLAZO NATIVO DEL RELOJ EN VIVO USANDO FRAGMENT DE STREAMLIT ---
+@st.fragment(run_every=1)
 def renderizar_reloj_fluido():
-    reloj_html = """
-    <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 8px; width: 100%;">
-        <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">HORA LOCAL</div>
-        <div id="reloj-valor-vivo" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 18px; font-weight: bold; margin-top: 2px;">--:--:--</div>
-    </div>
-    <script>
-    function actualizarRelojDinamico() {
-        const d = new Date();
-        const opcionesHora = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-        const horaLocal = d.toLocaleTimeString('es-AR', opcionesHora);
-        const elemento = window.parent.document.getElementById('reloj-valor-vivo');
-        if (elemento && elemento.innerText !== horaLocal) {
-            elemento.innerText = horaLocal;
-        }
-    }
-    if (window.parent._relojIntervalDinamico) {
-        clearInterval(window.parent._relojIntervalDinamico);
-    }
-    window.parent._relojIntervalDinamico = setInterval(actualizarRelojDinamico, 1000);
-    actualizarRelojDinamico();
-    </script>
-    """
-    components.html(reloj_html, height=52)
+    tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    hora_actual = datetime.now(tz).strftime("%H:%M:%S")
+    st.metric(label="HORA LOCAL", value=hora_actual)
 
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
