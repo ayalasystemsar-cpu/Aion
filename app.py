@@ -114,7 +114,6 @@ def determinar_turno_activo(hora_str):
         else:
             h_parte = str(hora_str)
         dt_h = datetime.strptime(h_parte[:8], "%H:%M:%S").time()
-        # Turno Diurno: 06:00 a 18:00 | Turno Nocturno: 18:00 a 06:00
         if datetime.strptime("06:00:00", "%H:%M:%S").time() <= dt_h < datetime.strptime("18:00:00", "%H:%M:%S").time():
             return "DIURNO (06:00 - 18:00)"
         else:
@@ -501,22 +500,20 @@ def aplicar_identidad_alfa():
 
 def renderizar_reloj_fluido():
     reloj_html = """
-    <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; box-sizing: border-box;">
-        <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-            HORA LOCAL & TURNO (12 HS)
+    <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; box-sizing: border-box; height: 75px; display: flex; flex-direction: column; justify-content: center;">
+        <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2;">
+            HORA LOCAL
         </div>
-        <div id="reloj-digital" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: normal; margin-top: 4px;">--:--:--</div>
+        <div id="reloj-digital" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: normal; margin-top: 2px; line-height: 1.1;">--:--:--</div>
     </div>
     <script>
     function actualizarReloj() {
         const d = new Date();
         const opcionesHora = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
         const horaLocal = d.toLocaleTimeString('es-AR', opcionesHora);
-        const horaInt = parseInt(d.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: 'numeric', hour12: false }));
-        let turno = (horaInt >= 6 && horaInt < 18) ? "TURNO DIURNO (06:00 - 18:00)" : "TURNO NOCTURNO (18:00 - 06:00)";
         const elemento = document.getElementById('reloj-digital');
         if (elemento) {
-            elemento.innerText = horaLocal + " | " + turno;
+            elemento.innerText = horaLocal;
         }
     }
     setInterval(actualizarReloj, 1000);
@@ -808,12 +805,10 @@ else:
 
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
-turno_actual_sistema = determinar_turno_activo(datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%H:%M:%S'))
-
 st.markdown(f"""
     <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
         <span style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">⚡ ESTACIÓN TÁCTICA AION-YAROKU ⚡</span><br>
-        <span style="font-family: 'Rajdhani', sans-serif; color: #CBD5E1; font-size: 13px; letter-spacing: 0.5px;">MODO DE ACCESO AUTORIZADO: <b>{st.session_state.rol_sel}</b> ({st.session_state.user_sel}) | 🕒 <b>{turno_actual_sistema}</b></span>
+        <span style="font-family: 'Rajdhani', sans-serif; color: #CBD5E1; font-size: 13px; letter-spacing: 0.5px;">MODO DE ACCESO AUTORIZADO: <b>{st.session_state.rol_sel}</b> ({st.session_state.user_sel})</span>
     </div>
 """, unsafe_allow_html=True)
 
@@ -942,7 +937,7 @@ if st.session_state.rol_sel == "MONITOREO":
             col_filt2.markdown(f"""
                 <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 6px; padding: 8px 12px; margin-top: 5px; font-family: 'Rajdhani', sans-serif;">
                     <div style="display: flex; justify-content: space-between; font-size: 12px; color: #00E5FF; font-weight: bold; text-transform: uppercase;">
-                        <span>📊 Cobertura Turno (12h): {sup_filtro_mono}</span>
+                        <span>📊 Cobertura Turno: {sup_filtro_mono}</span>
                         <span>{visitados_sup_count} / {total_objs_sup} Objetivos ({porcentaje_progreso}%)</span>
                     </div>
                     <div style="background: #1A1C23; border-radius: 3px; height: 6px; width: 100%; margin-top: 6px; overflow: hidden;">
@@ -1138,7 +1133,7 @@ if st.session_state.rol_sel == "MONITOREO":
             
             for idx_p, sup_seleccionado_mono in enumerate(sups_dinamicos_lista):
                 with pestanas_sups[idx_p]:
-                    st.markdown(f"### 🛡️ PANEL DE CONTROL (TURNO 12 HS): {sup_seleccionado_mono}")
+                    st.markdown(f"### 🛡️ PANEL DE CONTROL: {sup_seleccionado_mono}")
                     
                     st.markdown("#### 📱 Fichajes QR")
                     if not df_qr_m_base.empty:
@@ -1264,9 +1259,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
                         total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
 
-                        st.markdown(f"• TOTAL ALERTAS DE SUPERVISOR: **{total_alertas_supervisor}**")
-                        st.markdown(f"• TOTAL ALERTAS DE VIGILADOR: **{total_alertas_vigilador}**")
-
                         df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
                         
                         if not df_alertas_op.empty:
@@ -1279,10 +1271,17 @@ if st.session_state.rol_sel == "MONITOREO":
                         else:
                             df_alt_sup_filtrado = pd.DataFrame()
                         
-                        if not df_alt_sup_filtrado.empty:
-                            st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                        # --- CONDICIONAL ESTRICTA: SI NO HAY ALERTAS, NO SE MUESTRA NADA ---
+                        if total_alertas_supervisor > 0 or total_alertas_vigilador > 0 or not df_alt_sup_filtrado.empty:
+                            if total_alertas_supervisor > 0:
+                                st.markdown(f"• TOTAL ALERTAS DE SUPERVISOR: **{total_alertas_supervisor}**")
+                            if total_alertas_vigilador > 0:
+                                st.markdown(f"• TOTAL ALERTAS DE VIGILADOR: **{total_alertas_vigilador}**")
+                            
+                            if not df_alt_sup_filtrado.empty:
+                                st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
                         else:
-                            st.info(f"No hay alertas operativas adicionales registradas para los objetivos de {sup_seleccionado_mono}.")
+                            st.info("No hay alertas operativas adicionales registradas para los objetivos de este supervisor.")
                     else:
                         st.info("Sin alertas operativas registradas.")
         else:
@@ -1305,7 +1304,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
-        st.subheader(f"⏱️ GESTIÓN DE JORNADA ({turno_actual_sistema})")
+        st.subheader(f"⏱️ GESTIÓN DE JORNADA")
         _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
@@ -1339,7 +1338,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
-            st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str}) - {turno_actual_sistema}")
+            st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
 
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
@@ -1648,7 +1647,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
     
-    st.markdown(f"### 🛡️ PROTOCOLO DE EMERGENCIA ({turno_actual_sistema})")
+    st.markdown(f"### 🛡️ PROTOCOLO DE EMERGENCIA")
     obj_detectado = st.session_state.get("obj_actual_vig", None)
 
     if obj_detectado:
@@ -1828,7 +1827,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                 st.success("✅ Petición enviada")
     
     with t_tab_auditoria:
-        st.markdown(f"### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR ({turno_actual_sistema})")
+        st.markdown(f"### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
         df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
@@ -1865,7 +1864,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
             
             for idx_pj, sup_seleccionado_jefe in enumerate(supervisores_en_qr):
                 with pestanas_jefe[idx_pj]:
-                    st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL (TURNO 12 HS): **{sup_seleccionado_jefe}**")
+                    st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_jefe}**")
                     
                     inicio_jornada_gen = "---"
                     fin_jornada_gen = "---"
@@ -2033,9 +2032,9 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
                     
-                    # --- VISTA PREVIA CON MAYÚSCULAS Y TURNO DE VIGILADOR ---
+                    # --- VISTA PREVIA CON MAYÚSCULAS Y CONDICIONAL DE ALERTAS ESTRICTA ---
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
-                        st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()} | **Turno:** {turno_actual_sistema}")
+                        st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
                         
                         st.markdown("##### ⏱️ Control de Jornada y Horas Trabajadas")
                         df_resumen_jor_prev = pd.DataFrame({
@@ -2081,16 +2080,18 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin pánicos de vigiladores.")
 
-                        st.markdown("##### ⚠️ Alertas Operativas")
-                        
                         total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
                         total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
 
-                        st.markdown(f"• TOTAL ALERTAS DE SUPERVISOR: **{total_alertas_supervisor_j}**")
-                        st.markdown(f"• TOTAL ALERTAS DE VIGILADOR: **{total_alertas_vigilador_j}**")
-
-                        if not df_alt_sup_filtrado.empty:
-                            st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+                        # MOSTRAR LA SECCIÓN DE ALERTAS OPERATIVAS SOLO SI HAY REGISTROS
+                        if total_alertas_supervisor_j > 0 or total_alertas_vigilador_j > 0 or not df_alt_sup_filtrado.empty:
+                            st.markdown("##### ⚠️ Alertas Operativas")
+                            if total_alertas_supervisor_j > 0:
+                                st.markdown(f"• TOTAL ALERTAS DE SUPERVISOR: **{total_alertas_supervisor_j}**")
+                            if total_alertas_vigilador_j > 0:
+                                st.markdown(f"• TOTAL ALERTAS DE VIGILADOR: **{total_alertas_vigilador_j}**")
+                            if not df_alt_sup_filtrado.empty:
+                                st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
 
                         st.markdown("##### 🚗 Control de Flota")
                         if not df_flota_sup_filtro.empty:
@@ -2100,7 +2101,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF (CON LAS ALERTAS EN TEXTO PLANO SIN CAJAS/COLUMNAS) ---
+                    # --- FUNCIÓN PDF ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
@@ -2119,8 +2120,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, leading=11, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
                         estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
 
-                        elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR (TURNO 12 HS)</b>", estilo_titulo))
-                        elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()} | Turno: {turno_actual_sistema}", estilo_sub))
+                        elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
+                        elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
                         
                         elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
                         datos_jornada_resumen = [
@@ -2199,14 +2200,17 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             df_pvig_pdf['TURNO VIGILADOR'] = turnos_vig_pdf_list
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", df_pvig_pdf)
                         
-                        # --- ALERTAS OPERATIVAS EN MAYÚSCULA Y SIN TABLAS/CUADROS (TEXTO PLANO) ---
-                        elementos.append(Paragraph("<b>Alertas Operativas</b>", estilo_seccion))
-                        elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
-                        elementos.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
-                        elementos.append(Spacer(1, 4))
+                        # --- ALERTAS OPERATIVAS SOLO SI HAY DATOS ---
+                        if tot_s_cnt > 0 or tot_v_cnt > 0 or not d_alt.empty:
+                            elementos.append(Paragraph("<b>Alertas Operativas</b>", estilo_seccion))
+                            if tot_s_cnt > 0:
+                                elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
+                            if tot_v_cnt > 0:
+                                elementos.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
+                            elementos.append(Spacer(1, 4))
 
-                        if not d_alt.empty:
-                            agregar_tabla_pdf("Detalle de Alertas Operativas:", d_alt)
+                            if not d_alt.empty:
+                                agregar_tabla_pdf("Detalle de Alertas Operativas:", d_alt)
 
                         agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
 
