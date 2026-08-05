@@ -1184,30 +1184,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         st.info("No hay relevos de vigiladores registrados.")
 
                     st.markdown("---")
-                    st.markdown("#### ⚠️ Alertas Operativas")
-                    if not df_alt_m_base.empty:
-                        df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                        df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
-                        objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
-                        
-                        if not df_alertas_op.empty:
-                            mask_alt = pd.Series([False]*len(df_alertas_op))
-                            if 'OBJETIVO' in df_alertas_op.columns:
-                                mask_alt = mask_alt | df_alertas_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
-                            if 'SUPERVISOR' in df_alertas_op.columns:
-                                mask_alt = mask_alt | (df_alertas_op['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
-                            df_alt_sup_filtrado = df_alertas_op[mask_alt]
-                        else:
-                            df_alt_sup_filtrado = pd.DataFrame()
-                        
-                        if not df_alt_sup_filtrado.empty:
-                            st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info(f"No hay alertas operativas registradas para los objetivos de {sup_seleccionado_mono}.")
-                    else:
-                        st.info("Sin alertas operativas registradas.")
-
-                    st.markdown("---")
                     st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
                     if not df_alt_m_base.empty:
                         df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
@@ -1246,6 +1222,51 @@ if st.session_state.rol_sel == "MONITOREO":
                             st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
                     else:
                         st.info("Sin pánicos S.O.S de vigiladores registrados.")
+
+                    st.markdown("---")
+                    st.markdown("#### ⚠️ Alertas Operativas")
+                    if not df_alt_m_base.empty:
+                        df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
+                        
+                        # Filtrar pánicos para contadores
+                        df_panicos_op_total = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                        
+                        # Contadores de pánico de supervisor y vigilador para este supervisor
+                        mask_solo_sup_cnt = (df_panicos_op_total['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()) if not df_panicos_op_total.empty else pd.Series([False])
+                        total_alertas_supervisor = len(df_panicos_op_total[mask_solo_sup_cnt]) if not df_panicos_op_total.empty else 0
+                        
+                        objs_del_sup_cnt = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
+                        mask_obj_sup_cnt = df_panicos_op_total['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup_cnt]) if not df_panicos_op_total.empty and 'OBJETIVO' in df_panicos_op_total.columns else pd.Series([False])
+                        mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
+                        total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
+
+                        # Mostrar los totales requeridos con fecha y hora si existen
+                        st.markdown(f"""
+                            <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
+                                <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
+                                <div style="color: #FFFFFF; font-size: 13px; margin-top: 4px;">• Total alertas de supervisor: <b>{total_alertas_supervisor}</b></div>
+                                <div style="color: #FFFFFF; font-size: 13px;">• Total alertas de vigilador: <b>{total_alertas_vigilador}</b></div>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
+                        
+                        if not df_alertas_op.empty:
+                            mask_alt = pd.Series([False]*len(df_alertas_op))
+                            if 'OBJETIVO' in df_alertas_op.columns:
+                                mask_alt = mask_alt | df_alertas_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                            if 'SUPERVISOR' in df_alertas_op.columns:
+                                mask_alt = mask_alt | (df_alertas_op['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                            df_alt_sup_filtrado = df_alertas_op[mask_alt]
+                        else:
+                            df_alt_sup_filtrado = pd.DataFrame()
+                        
+                        if not df_alt_sup_filtrado.empty:
+                            st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info(f"No hay alertas operativas registradas para los objetivos de {sup_seleccionado_mono}.")
+                    else:
+                        st.info("Sin alertas operativas registradas.")
         else:
             st.info("No hay supervisores con registros activos en el sistema todavía.")
 
@@ -1964,14 +1985,6 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         col_ov = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
                         df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_ov].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
 
-                    df_alt_sup_filtrado = pd.DataFrame()
-                    if not df_alertas_aud.empty:
-                        df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
-                        mask_alt = (df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
-                                   (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe if 'SUPERVISOR' in df_alt_op.columns else False)
-                        df_alt_sup_filtrado = df_alt_op[mask_alt]
-
                     df_pan_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
                         df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
@@ -1984,6 +1997,14 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         mask_v_pan = df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
                         mask_no_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
                         df_pan_vig_filtrado = df_pan_op[mask_v_pan & mask_no_sup]
+
+                    df_alt_sup_filtrado = pd.DataFrame()
+                    if not df_alertas_aud.empty:
+                        df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
+                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
+                        mask_alt = (df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
+                                   (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe if 'SUPERVISOR' in df_alt_op.columns else False)
+                        df_alt_sup_filtrado = df_alt_op[mask_alt]
 
                     df_flota_sup_filtro = pd.DataFrame()
                     if not df_flota_aud.empty:
@@ -2023,21 +2044,15 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin relevos registrados.")
 
-                        st.markdown("##### ⚠️ Alertas Operativas")
-                        if not df_alt_sup_filtrado.empty:
-                            st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin alertas operativas.")
-
                         st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
                         if not df_pan_sup_filtrado.empty:
-                            st.dataframe(df_pan_sup_filtrado, use_container_width=True, hide_index=True)
+                            st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
                         else:
                             st.info("Sin pánicos de supervisor.")
 
                         st.markdown("##### 🚨 Pánicos S.O.S de Vigiladores")
                         if not df_pan_vig_filtrado.empty:
-                            st.dataframe(df_pan_vig_filtrado, use_container_width=True, hide_index=True)
+                            st.dataframe(df_pan_vig_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
                         else:
                             st.info("Sin pánicos de vigiladores.")
 
@@ -2046,6 +2061,25 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
                         else:
                             st.info("Sin registros de flota.")
+
+                        st.markdown("##### ⚠️ Alertas Operativas")
+                        
+                        # Contadores de pánico de supervisor y vigilador para este supervisor en el jefe/gerencia
+                        total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
+                        total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
+
+                        st.markdown(f"""
+                            <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
+                                <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
+                                <div style="color: #FFFFFF; font-size: 13px; margin-top: 4px;">• Total alertas de supervisor: <b>{total_alertas_supervisor_j}</b></div>
+                                <div style="color: #FFFFFF; font-size: 13px;">• Total alertas de vigilador: <b>{total_alertas_vigilador_j}</b></div>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        if not df_alt_sup_filtrado.empty:
+                            st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin alertas operativas.")
 
                     st.markdown("---")
 
@@ -2140,18 +2174,18 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         # --- SALTO A PÁGINA 2 ---
                         elementos.append(PageBreak())
 
-                        # --- PÁGINA 2: FICHAJES, RELEVOS Y ALERTAS ---
-                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
-                        agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
-                        agregar_tabla_pdf("Alertas Operativas:", d_alt)
+                        # --- PÁGINA 2: PÁNICOS Y FLOTA (Movido arriba según el nuevo orden) ---
+                        agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
+                        agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
+                        agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
 
                         # --- SALTO A PÁGINA 3 ---
                         elementos.append(PageBreak())
 
-                        # --- PÁGINA 3: PÁNICOS Y FLOTA ---
-                        agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
-                        agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
-                        agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
+                        # --- PÁGINA 3: FICHAJES, RELEVOS Y ALERTAS (Movido abajo según el nuevo orden) ---
+                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
+                        agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
+                        agregar_tabla_pdf("Alertas Operativas:", d_alt)
 
                         doc.build(elementos, canvasmaker=NumberedCanvas)
                         buffer.seek(0)
