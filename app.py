@@ -1184,18 +1184,18 @@ if st.session_state.rol_sel == "MONITOREO":
                         st.info("No hay relevos de vigiladores registrados.")
 
                     st.markdown("---")
-                    st.markdown("#### ⚠️ Alertas")
+                    st.markdown("#### ⚠️ Alertas Operativas")
                     if not df_alt_m_base.empty:
                         df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
                         df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_mono]['OBJETIVO'].tolist() if not df_objetivos.empty else []
+                        objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                         
                         if not df_alertas_op.empty:
                             mask_alt = pd.Series([False]*len(df_alertas_op))
                             if 'OBJETIVO' in df_alertas_op.columns:
-                                mask_alt = df_alertas_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                                mask_alt = mask_alt | df_alertas_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
                             if 'SUPERVISOR' in df_alertas_op.columns:
-                                mask_alt = mask_alt | (df_alertas_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_mono)
+                                mask_alt = mask_alt | (df_alertas_op['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
                             df_alt_sup_filtrado = df_alertas_op[mask_alt]
                         else:
                             df_alt_sup_filtrado = pd.DataFrame()
@@ -1203,7 +1203,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         if not df_alt_sup_filtrado.empty:
                             st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
                         else:
-                            st.info("No hay alertas operativas para este supervisor.")
+                            st.info(f"No hay alertas operativas registradas para los objetivos de {sup_seleccionado_mono}.")
                     else:
                         st.info("Sin alertas operativas registradas.")
 
@@ -1214,9 +1214,8 @@ if st.session_state.rol_sel == "MONITOREO":
                         df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
                         
                         if not df_panicos_op.empty:
-                            mask_sup_pan = (df_panicos_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_mono) | \
-                                           (df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_mono)
-                            df_pan_sup_filtrado = df_panicos_op[mask_sup_pan]
+                            mask_solo_supervisor = (df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                            df_pan_sup_filtrado = df_panicos_op[mask_solo_supervisor]
                         else:
                             df_pan_sup_filtrado = pd.DataFrame()
                         
@@ -1232,13 +1231,12 @@ if st.session_state.rol_sel == "MONITOREO":
                     if not df_alt_m_base.empty:
                         df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
                         df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_mono]['OBJETIVO'].tolist() if not df_objetivos.empty else []
+                        objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                         
                         if not df_panicos_op.empty:
-                            mask_vig_pan = (df_panicos_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_mono) | \
-                                           (df_panicos_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]))
-                            mask_no_es_sup = ~(df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_mono)
-                            df_pan_vig_filtrado = df_panicos_op[mask_vig_pan & mask_no_es_sup]
+                            mask_obj_del_sup = df_panicos_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                            mask_no_es_supervisor = ~(df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                            df_pan_vig_filtrado = df_panicos_op[mask_obj_del_sup & mask_no_es_supervisor]
                         else:
                             df_pan_vig_filtrado = pd.DataFrame()
                         
@@ -1977,13 +1975,13 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     df_pan_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
                         df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
-                        mask_s_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe) | (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
+                        mask_s_pan = (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
                         df_pan_sup_filtrado = df_pan_op[mask_s_pan]
 
                     df_pan_vig_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
                         df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
-                        mask_v_pan = (df_pan_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe) | (df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]))
+                        mask_v_pan = df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
                         mask_no_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
                         df_pan_vig_filtrado = df_pan_op[mask_v_pan & mask_no_sup]
 
