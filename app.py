@@ -1228,10 +1228,8 @@ if st.session_state.rol_sel == "MONITOREO":
                     if not df_alt_m_base.empty:
                         df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
                         
-                        # Filtrar pánicos para contadores
                         df_panicos_op_total = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
                         
-                        # Contadores de pánico de supervisor y vigilador para este supervisor
                         mask_solo_sup_cnt = (df_panicos_op_total['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()) if not df_panicos_op_total.empty else pd.Series([False])
                         total_alertas_supervisor = len(df_panicos_op_total[mask_solo_sup_cnt]) if not df_panicos_op_total.empty else 0
                         
@@ -1240,7 +1238,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
                         total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
 
-                        # Mostrar los totales requeridos con fecha y hora si existen
                         st.markdown(f"""
                             <div style="background: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: 'Rajdhani', sans-serif;">
                                 <div style="color: #00E5FF; font-weight: bold; font-size: 14px; text-transform: uppercase;">📊 RESUMEN DE ALERTAS (PÁNICOS)</div>
@@ -2015,6 +2012,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
                     
+                    # --- ORDEN VISUAL EN LA INTERFAZ EXACTO AL REQUERIDO ---
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
                         st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
                         
@@ -2064,7 +2062,6 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                         st.markdown("##### ⚠️ Alertas Operativas")
                         
-                        # Contadores de pánico de supervisor y vigilador para este supervisor en el jefe/gerencia
                         total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
                         total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
 
@@ -2083,7 +2080,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
 
-                    # --- FUNCIÓN PDF ROBUSTA Y MULTIPÁGINA SIN SOLAPAMIENTOS ---
+                    # --- FUNCIÓN PDF CORREGIDA CON EL MISMO ORDEN EXACTO DE LA PANTALLA ---
                     def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
@@ -2102,7 +2099,6 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, leading=11, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
                         estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
 
-                        # --- PÁGINA 1: ENCABEZADO, JORNADA Y QR ---
                         elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
                         elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
                         
@@ -2169,22 +2165,13 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
 
+                        # --- ORDEN EXACTO DE LAS SECCIONES EN EL PDF ---
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
-                        
-                        # --- SALTO A PÁGINA 2 ---
-                        elementos.append(PageBreak())
-
-                        # --- PÁGINA 2: PÁNICOS Y FLOTA (Movido arriba según el nuevo orden) ---
+                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
+                        agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", d_pvig)
                         agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
-
-                        # --- SALTO A PÁGINA 3 ---
-                        elementos.append(PageBreak())
-
-                        # --- PÁGINA 3: FICHAJES, RELEVOS Y ALERTAS (Movido abajo según el nuevo orden) ---
-                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
-                        agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
                         agregar_tabla_pdf("Alertas Operativas:", d_alt)
 
                         doc.build(elementos, canvasmaker=NumberedCanvas)
