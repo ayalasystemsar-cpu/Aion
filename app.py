@@ -499,34 +499,29 @@ def aplicar_identidad_alfa():
     """, unsafe_allow_html=True)
 
 def renderizar_reloj_fluido():
-    st.metric("HORA LOCAL", "--:--:--")
     reloj_html = """
+    <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 8px; width: 100%;">
+        <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">HORA LOCAL</div>
+        <div id="reloj-valor-vivo" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 18px; font-weight: bold; margin-top: 2px;">--:--:--</div>
+    </div>
     <script>
-    function actualizarRelojNativo() {
+    function actualizarRelojDinamico() {
         const d = new Date();
         const opcionesHora = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
         const horaLocal = d.toLocaleTimeString('es-AR', opcionesHora);
-        
-        // Buscar el contenedor de la métrica de hora local en la página actual
-        const parents = window.parent.document.querySelectorAll('div[data-testid="stMetric"]');
-        parents.forEach(p => {
-            const label = p.querySelector('div[data-testid="stMetricLabel"]');
-            if (label && label.innerText.includes('HORA LOCAL')) {
-                const val = p.querySelector('div[data-testid="stMetricValue"]');
-                if (val && val.innerText !== horaLocal) {
-                    val.innerText = horaLocal;
-                }
-            }
-        });
+        const elemento = window.parent.document.getElementById('reloj-valor-vivo');
+        if (elemento && elemento.innerText !== horaLocal) {
+            elemento.innerText = horaLocal;
+        }
     }
-    if (window.parent._relojInterval) {
-        clearInterval(window.parent._relojInterval);
+    if (window.parent._relojIntervalDinamico) {
+        clearInterval(window.parent._relojIntervalDinamico);
     }
-    window.parent._relojInterval = setInterval(actualizarRelojNativo, 1000);
-    actualizarRelojNativo();
+    window.parent._relojIntervalDinamico = setInterval(actualizarRelojDinamico, 1000);
+    actualizarRelojDinamico();
     </script>
     """
-    components.html(reloj_html, height=0)
+    components.html(reloj_html, height=52)
 
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
