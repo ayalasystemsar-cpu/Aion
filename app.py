@@ -107,6 +107,21 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
+def determinar_turno_activo(hora_str):
+    try:
+        if " " in str(hora_str):
+            h_parte = hora_str.split(" ")[1]
+        else:
+            h_parte = str(hora_str)
+        dt_h = datetime.strptime(h_parte[:8], "%H:%M:%S").time()
+        # Turno Diurno: 06:00 a 18:00 | Turno Nocturno: 18:00 a 06:00
+        if datetime.strptime("06:00:00", "%H:%M:%S").time() <= dt_h < datetime.strptime("18:00:00", "%H:%M:%S").time():
+            return "DIURNO (06:00 - 18:00)"
+        else:
+            return "NOCTURNO (18:00 - 06:00)"
+    except:
+        return "DIURNO (06:00 - 18:00)"
+
 def obtener_mapeo_solapas():
     return {
         "NOVEDADES GUARDIA": "NOVEDADES GUARDIA",
@@ -488,17 +503,20 @@ def renderizar_reloj_fluido():
     reloj_html = """
     <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 12px; box-sizing: border-box;">
         <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-            HORA LOCAL
+            HORA LOCAL & TURNO (12 HS)
         </div>
         <div id="reloj-digital" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: normal; margin-top: 4px;">--:--:--</div>
     </div>
     <script>
     function actualizarReloj() {
-        const opciones = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-        const horaLocal = new Date().toLocaleTimeString('es-AR', opciones);
+        const d = new Date();
+        const opcionesHora = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+        const horaLocal = d.toLocaleTimeString('es-AR', opcionesHora);
+        const horaInt = parseInt(d.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: 'numeric', hour12: false }));
+        let turno = (horaInt >= 6 && horaInt < 18) ? "TURNO DIURNO (06:00 - 18:00)" : "TURNO NOCTURNO (18:00 - 06:00)";
         const elemento = document.getElementById('reloj-digital');
         if (elemento) {
-            elemento.innerText = horaLocal;
+            elemento.innerText = horaLocal + " | " + turno;
         }
     }
     setInterval(actualizarReloj, 1000);
@@ -790,10 +808,12 @@ else:
 
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
+turno_actual_sistema = determinar_turno_activo(datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%H:%M:%S'))
+
 st.markdown(f"""
     <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
         <span style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">⚡ ESTACIÓN TÁCTICA AION-YAROKU ⚡</span><br>
-        <span style="font-family: 'Rajdhani', sans-serif; color: #CBD5E1; font-size: 13px; letter-spacing: 0.5px;">MODO DE ACCESO AUTORIZADO: <b>{st.session_state.rol_sel}</b> ({st.session_state.user_sel})</span>
+        <span style="font-family: 'Rajdhani', sans-serif; color: #CBD5E1; font-size: 13px; letter-spacing: 0.5px;">MODO DE ACCESO AUTORIZADO: <b>{st.session_state.rol_sel}</b> ({st.session_state.user_sel}) | 🕒 <b>{turno_actual_sistema}</b></span>
     </div>
 """, unsafe_allow_html=True)
 
@@ -922,7 +942,7 @@ if st.session_state.rol_sel == "MONITOREO":
             col_filt2.markdown(f"""
                 <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 6px; padding: 8px 12px; margin-top: 5px; font-family: 'Rajdhani', sans-serif;">
                     <div style="display: flex; justify-content: space-between; font-size: 12px; color: #00E5FF; font-weight: bold; text-transform: uppercase;">
-                        <span>📊 Cobertura Turno: {sup_filtro_mono}</span>
+                        <span>📊 Cobertura Turno (12h): {sup_filtro_mono}</span>
                         <span>{visitados_sup_count} / {total_objs_sup} Objetivos ({porcentaje_progreso}%)</span>
                     </div>
                     <div style="background: #1A1C23; border-radius: 3px; height: 6px; width: 100%; margin-top: 6px; overflow: hidden;">
@@ -1118,7 +1138,7 @@ if st.session_state.rol_sel == "MONITOREO":
             
             for idx_p, sup_seleccionado_mono in enumerate(sups_dinamicos_lista):
                 with pestanas_sups[idx_p]:
-                    st.markdown(f"### 🛡️ PANEL DE CONTROL: {sup_seleccionado_mono}")
+                    st.markdown(f"### 🛡️ PANEL DE CONTROL (TURNO 12 HS): {sup_seleccionado_mono}")
                     
                     st.markdown("#### 📱 Fichajes QR")
                     if not df_qr_m_base.empty:
@@ -1279,7 +1299,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
-        st.subheader("⏱️ GESTIÓN DE JORNADA")
+        st.subheader(f"⏱️ GESTIÓN DE JORNADA ({turno_actual_sistema})")
         _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
         with col_j1:
             if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
@@ -1313,7 +1333,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
-            st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
+            st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str}) - {turno_actual_sistema}")
 
             if not df_objetivos_filtrados.empty:
                 lista_tabla_objs = []
@@ -1622,7 +1642,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
     
-    st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
+    st.markdown(f"### 🛡️ PROTOCOLO DE EMERGENCIA ({turno_actual_sistema})")
     obj_detectado = st.session_state.get("obj_actual_vig", None)
 
     if obj_detectado:
@@ -1802,7 +1822,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                 st.success("✅ Petición enviada")
     
     with t_tab_auditoria:
-        st.markdown("### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
+        st.markdown(f"### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR ({turno_actual_sistema})")
         df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
         df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
@@ -1839,7 +1859,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
             
             for idx_pj, sup_seleccionado_jefe in enumerate(supervisores_en_qr):
                 with pestanas_jefe[idx_pj]:
-                    st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_jefe}**")
+                    st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL (TURNO 12 HS): **{sup_seleccionado_jefe}**")
                     
                     inicio_jornada_gen = "---"
                     fin_jornada_gen = "---"
@@ -2009,7 +2029,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     
                     # --- VISTA PREVIA LIMPIA CON CONTEOS DE ALERTAS EXACTOS ---
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
-                        st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
+                        st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()} | **Turno:** {turno_actual_sistema}")
                         
                         st.markdown("##### ⏱️ Control de Jornada y Horas Trabajadas")
                         df_resumen_jor_prev = pd.DataFrame({
@@ -2087,8 +2107,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, leading=11, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
                         estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
 
-                        elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
-                        elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
+                        elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR (TURNO 12 HS)</b>", estilo_titulo))
+                        elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()} | Turno: {turno_actual_sistema}", estilo_sub))
                         
                         elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
                         datos_jornada_resumen = [
