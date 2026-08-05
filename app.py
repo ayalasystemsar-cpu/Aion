@@ -477,9 +477,9 @@ def aplicar_identidad_alfa():
         }
         .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
         
-        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 8px !important; height: 75px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; justify-content: center !important; }
-        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 !important; }
-        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; margin: 0 !important; }
+        div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 8px !important; }
+        div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
+        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; }
         
         div[data-testid="stDataFrame"] {
             width: 100% !important;
@@ -499,28 +499,34 @@ def aplicar_identidad_alfa():
     """, unsafe_allow_html=True)
 
 def renderizar_reloj_fluido():
+    st.metric("HORA LOCAL", "--:--:--")
     reloj_html = """
-    <div style="background-color: rgba(10, 11, 15, 0.6); border: 1px solid #1A1C23; border-radius: 6px; padding: 8px; box-sizing: border-box; height: 75px; display: flex; flex-direction: column; justify-content: center;">
-        <div style="color: #00E5FF; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; margin: 0;">
-            HORA LOCAL
-        </div>
-        <div id="reloj-digital" style="color: #FFFFFF; font-family: 'Orbitron', sans-serif; font-size: 18px; font-weight: normal; margin-top: 2px; line-height: 1.1;">--:--:--</div>
-    </div>
     <script>
-    function actualizarReloj() {
+    function actualizarRelojNativo() {
         const d = new Date();
         const opcionesHora = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
         const horaLocal = d.toLocaleTimeString('es-AR', opcionesHora);
-        const elemento = document.getElementById('reloj-digital');
-        if (elemento) {
-            elemento.innerText = horaLocal;
-        }
+        
+        // Buscar el contenedor de la métrica de hora local en la página actual
+        const parents = window.parent.document.querySelectorAll('div[data-testid="stMetric"]');
+        parents.forEach(p => {
+            const label = p.querySelector('div[data-testid="stMetricLabel"]');
+            if (label && label.innerText.includes('HORA LOCAL')) {
+                const val = p.querySelector('div[data-testid="stMetricValue"]');
+                if (val && val.innerText !== horaLocal) {
+                    val.innerText = horaLocal;
+                }
+            }
+        });
     }
-    setInterval(actualizarReloj, 1000);
-    actualizarReloj();
+    if (window.parent._relojInterval) {
+        clearInterval(window.parent._relojInterval);
+    }
+    window.parent._relojInterval = setInterval(actualizarRelojNativo, 1000);
+    actualizarRelojNativo();
     </script>
     """
-    components.html(reloj_html, height=75)
+    components.html(reloj_html, height=0)
 
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
@@ -2201,7 +2207,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             if tot_s_cnt > 0:
                                 elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
                             if tot_v_cnt > 0:
-                                elementons.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
+                                elementos.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
                             elementos.append(Spacer(1, 4))
 
                             if not d_alt.empty:
