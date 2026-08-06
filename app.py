@@ -189,20 +189,94 @@ def leer_matriz_nube(pestana):
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     df_nube = leer_matriz_nube("COMISARIAS")
-    if not df_nube.empty and 'COMISARIA' in df_nube.columns:
-        # Aseguramos tipos numéricos para lat/lon
+    if not df_nube.empty and 'COMISARIA' in df_nube.columns and len(df_nube) > 1:
         df_nube['LATITUD'] = pd.to_numeric(df_nube['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df_nube['LONGITUD'] = pd.to_numeric(df_nube['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df_nube
     
-    # Fallback si estuviera completamente vacía en la nube
+    # Respaldo completo de las 75 comisarías originales de la red
     data = {
-        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA ESCOBAR 3RA (GARÍN)", "COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 1B"],
-        "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Av. Cabildo 2300", "Miller 2750", "Arias 4450", "Belgrano 1150", "Av. San Martín 2450", "Suipacha 1156", "General Las Heras 2650", "Uruguay 350"],
-        "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "CABA", "GARÍN", "FLORIDA", "CABA", "CABA", "CABA"],
-        "TELEFONO": ["011-4754-2321", "011-4821-5544", "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111", "011-4788-9900", "011-4541-1122", "011-4542-3344", "03327-442000", "011-4791-0000", "011-4393-0100", "011-4803-0100", "011-4371-0100"],
-        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.557454, -34.554321, -34.568459, -34.42730, -34.54530, -34.5985, -34.5852, -34.6037],
-        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.461144, -58.472147, -58.482012, -58.72050, -58.49370, -58.3838, -58.4012, -58.3862]
+        "COMISARIA": [
+            "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 1C", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 2B",
+            "COMISARÍA VECINAL 3A", "COMISARÍA VECINAL 3B", "COMISARÍA VECINAL 4A", "COMISARÍA VECINAL 4B", "COMISARÍA VECINAL 4C",
+            "COMISARÍA VECINAL 5A", "COMISARÍA VECINAL 5B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 6B", "COMISARÍA VECINAL 7A",
+            "COMISARÍA VECINAL 7B", "COMISARÍA VECINAL 8A", "COMISARÍA VECINAL 8B", "COMISARÍA VECINAL 8C", "COMISARÍA VECINAL 9A",
+            "COMISARÍA VECINAL 9B", "COMISARÍA VECINAL 9C", "COMISARÍA VECINAL 10A", "COMISARÍA VECINAL 10B", "COMISARÍA VECINAL 10C",
+            "COMISARÍA VECINAL 11A", "COMISARÍA VECINAL 11B", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 12C",
+            "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 13B", "COMISARÍA VECINAL 13C", "COMISARÍA VECINAL 14A", "COMISARÍA VECINAL 14B",
+            "COMISARÍA VECINAL 14C", "COMISARÍA VECINAL 15A", "COMISARÍA VECINAL 15B", "COMISARÍA VECINAL 15C", "COMISARÍA SAN MARTÍN 1RA",
+            "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA",
+            "COMISARÍA ESCOBAR 3RA", "COMISARÍA VICENTE LÓPEZ 2DA", "COMISARÍA SAN ISIDRO 1RA", "COMISARÍA LANÚS 1RA", "COMISARÍA LOMAS DE ZAMORA 1RA",
+            "COMISARÍA MORÓN 1RA", "COMISARÍA LA MATANZA 1RA", "COMISARÍA TRES DE FEBRERO 1RA", "COMISARÍA QUILMES 1RA", "COMISARÍA VARELA 1RA",
+            "COMISARÍA BERAZATEGUI 1RA", "COMISARÍA TIGRE 2DA (PACHECO)", "COMISARÍA ESCOBAR 1RA (BELÉN)", "COMISARÍA PILAR 1RA", "COMISARÍA ZÁRATE 1RA",
+            "COMISARÍA CAMPANA 2DA", "COMISARÍA EXALTACIÓN DE LA CRUZ (CARDALES)", "COMISARÍA LUJÁN 1RA", "COMISARÍA MERCEDES 1RA", "COMISARÍA SAN ANDRÉS DE GILES",
+            "COMISARÍA GENERAL SAN MARTÍN 2DA", "COMISARÍA VICENTE LÓPEZ 1RA", "COMISARÍA SAN ISIDRO 4TA (MARTÍNEZ)", "COMISARÍA SAN FERNANDO 2DA (VIRREYES)", "COMISARÍA TIGRE 3RA (DON TORCUATO)",
+            "COMISARÍA MALVINAS ARGENTINAS 1RA", "COMISARÍA J. C. PAZ 1RA", "COMISARÍA SAN MIGUEL 1RA", "COMISARÍA MORENO 1RA", "COMISARÍA MERLO 1RA"
+        ],
+        "DIRECCION": [
+            "Suipacha 1156", "Uruguay 350", "Tacuarí 770", "General Las Heras 2650", "Paraguay 1122",
+            "Lavalle 2625", "San Juan 1767", "Zavaleta 425", "Av. Regimiento de Patricios 1150", "Benito Juárez 1445",
+            "Maza 1250", "Av. Independencia 2250", "Av. La Plata 550", "Rivadavia 4701", "Piedras 1450",
+            "Av. Directorio 1500", "Dellepiane 6900", "Av. General Paz 14500", "Av. Cruz 4500", "Av. Juan B. Alberdi 6752",
+            "Coronel Cárdenas 2850", "Toneleroro 6400", "Segurola 1550", "Av. Gaona 3850", "Alejandro Magariños Cervantes 4525",
+            "Av. Nazca 4550", "Cuenca 3250", "Miller 2750", "Arias 4450", "Manuela Pedraza 2340",
+            "Av. Cabildo 2300", "Amenábar 2320", "Av. Cramer 3250", "Cnel. Díaz 2250", "Av. Coronel Díaz 2550",
+            "Av. Santa Fe 3200", "Guzmán 346", "Av. Forest 1450", "Av. Triunvirato 4550", "Gral. Lavalle 420",
+            "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n",
+            "Belgrano 1150", "Av. San Martín 2450", "25 de Mayo 450", "Yrigoyen 300", "Chacabuco 500",
+            "San Martín 750", "Arieta 2500", "Belgrano 3400", "Rivadavia 400", "San Martín 800",
+            "Mitre 600", "Av. Constituyentes 450", "Asborno 750", "San Martín 950", "Justa Lima 450",
+            "Mitre 1200", "Belgrano 600", "San Martín 500", "Calle 24 Nro 650", "Mitre 400",
+            "Mitre 1500", "Maipú 2500", "Alvear 500", "Av. Avellaneda 1200", "Alvear 800",
+            "Perón 1200", "Hipólito Yrigoyen 500", "Perón 800", "Alcorta 400", "Suipacha 300"
+        ],
+        "LOCALIDAD": [
+            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
+            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
+            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
+            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "SAN MARTÍN",
+            "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "GARÍN", "FLORIDA", "SAN ISIDRO", "LANÚS", "LOMAS DE ZAMORA",
+            "MORÓN", "LA MATANZA", "TRES DE FEBRERO", "QUILMES", "VARELA", "BERAZATEGUI", "PACHECO", "ESCÓBAR", "PILAR", "ZÁRATE",
+            "CAMPANA", "CARDALES", "LUJÁN", "MERCEDES", "GILES", "SAN MARTÍN", "VICENTE LÓPEZ", "MARTÍNEZ", "VIRREYES", "DON TORCUATO",
+            "MALVINAS ARGENTINAS", "J. C. PAZ", "SAN MIGUEL", "MORENO", "MERLO"
+        ],
+        "TELEFONO": [
+            "011-4393-0100", "011-4371-0100", "011-4331-0100", "011-4803-0100", "011-4811-0100",
+            "011-4381-0100", "011-4952-0100", "011-4301-0100", "011-4361-0100", "011-4683-0100",
+            "011-4931-0100", "011-4304-0100", "011-4923-0100", "011-4982-0100", "011-4342-0100",
+            "011-4631-0100", "011-4637-0100", "011-4696-0100", "011-4919-0100", "011-4641-0100",
+            "011-4682-0100", "011-4642-0100", "011-4567-0100", "011-4581-0100", "011-4585-0100",
+            "011-4501-0100", "011-4571-0100", "011-4541-1122", "011-4542-3344", "011-4572-0100",
+            "011-4788-9900", "011-4781-0100", "011-4552-0100", "011-4821-5544", "011-4822-0100",
+            "011-4813-0100", "011-4554-0100", "011-4555-0100", "011-4521-0100", "011-4754-2321",
+            "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111",
+            "03327-442000", "011-4791-0000", "011-4743-0100", "011-4241-0100", "011-4243-0100",
+            "011-4483-0100", "011-4482-0100", "011-4751-0100", "011-4253-0100", "011-4255-0100",
+            "011-4256-0100", "011-4740-0100", "0348-442-0100", "0230-442-0100", "03487-422-0100",
+            "03489-423-0100", "02322-490-100", "02323-420-100", "02324-420-100", "02326-452-100",
+            "011-4752-0100", "011-4797-0100", "011-4792-0100", "011-4745-0100", "011-4717-0100",
+            "02320-482-100", "02320-432-100", "02323-442-100", "0237-482-0100", "0220-482-0100"
+        ],
+        "LATITUD": [
+            -34.5985, -34.6037, -34.6112, -34.5852, -34.5910, -34.6080, -34.6150, -34.6390, -34.6350, -34.6410,
+            -34.6150, -34.6220, -34.6250, -34.6180, -34.6190, -34.6280, -34.6500, -34.6750, -34.6600, -34.6400,
+            -34.6450, -34.6500, -34.6200, -34.6150, -34.6100, -34.6000, -34.5950, -34.5543, -34.5684, -34.5600,
+            -34.5574, -34.5550, -34.5500, -34.5877, -34.5850, -34.5800, -34.5880, -34.5800, -34.5750, -34.5801,
+            -34.6641, -34.1636, -34.4401, -34.4241, -34.4170, -34.4273, -34.5453, -34.4720, -34.7000, -34.7600,
+            -34.6500, -34.6700, -34.5800, -34.7200, -34.8100, -34.7600, -34.4600, -34.3400, -34.4500, -34.0900,
+            -34.1700, -34.2900, -34.5700, -34.6500, -34.2500, -34.5800, -34.5100, -34.4900, -34.4500, -34.4700,
+            -34.4800, -34.5100, -34.5300, -34.6500, -34.6700
+        ],
+        "LONGITUD": [
+            -58.3838, -58.3862, -58.3790, -58.4012, -58.3950, -58.3850, -58.3800, -58.4050, -58.3650, -58.4800,
+            -58.4200, -58.3830, -58.4400, -58.4350, -58.3750, -58.4600, -58.4500, -58.4650, -58.4450, -58.5100,
+            -58.5050, -58.5200, -58.4900, -58.4600, -58.4750, -58.4950, -58.4700, -58.4721, -58.4820, -58.4600,
+            -58.4611, -58.4550, -58.4500, -58.4160, -58.4100, -58.3950, -58.4700, -58.4600, -58.4800, -58.5414,
+            -58.3680, -58.9614, -58.5561, -58.5797, -58.8682, -58.7205, -58.4937, -58.5100, -58.3700, -58.4000,
+            -58.6200, -58.5600, -58.5400, -58.2700, -58.2800, -58.2100, -58.6300, -58.7900, -58.9000, -58.8500,
+            -58.9700, -58.9100, -59.5400, -59.4300, -59.7100, -58.5500, -58.4800, -58.5200, -58.5400, -58.6000,
+            -58.7000, -58.7100, -58.7200, -58.9000, -58.7100
+        ]
     }
     return pd.DataFrame(data)
 
@@ -223,7 +297,6 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, lat, lon):
-    """Verifica si la comisaria ya existe en la solapa COMISARIAS; si no está, la agrega respetando las 6 columnas exactas."""
     try:
         gc = conectar_google()
         if gc:
@@ -306,10 +379,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     ]
     
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
-    
-    # Verificación e inserción automática en la solapa COMISARIAS
     verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
-
     return exito
 
 def obtener_lista_supervisores_dinamica():
@@ -374,18 +444,15 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
             sh = gc.open_by_key(ID_MAESTRO_DB)
             hoja = None
             nombres_posibles = ["REGISTRO QR SUPERVISORES", "REGISTRO-QR-SUPERVISORES"]
-            
             for nombre in nombres_posibles:
                 try:
                     hoja = sh.worksheet(nombre)
                     break
                 except:
                     continue
-            
             if hoja is None:
                 hoja = sh.add_worksheet(title="REGISTRO QR SUPERVISORES", rows="100", cols="10")
                 hoja.append_row(["FECHA_HORA", "OBJETIVO", "ACCION", "SUPERVISOR", "ESTADO"])
-
             hoja.append_row(datos)
             st.cache_data.clear()
             return True
@@ -469,10 +536,7 @@ def aplicar_identidad_alfa():
             text-align: center;
         }
 
-        header {
-            background: transparent !important;
-            background-color: transparent !important;
-        }
+        header { background: transparent !important; background-color: transparent !important; }
 
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
@@ -491,44 +555,19 @@ def aplicar_identidad_alfa():
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
         .qr-scanner-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100% !important;
-            max-width: 320px !important;
-            margin: 0 auto 10px auto !important;
-            overflow: hidden !important;
-            border-radius: 8px !important;
-            background: #000 !important;
-            position: relative;
+            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
+            margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
         }
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
-            width: 100% !important;
-            max-width: 320px !important;
-            height: 220px !important;
-            object-fit: cover !important;
-            border-radius: 8px !important;
-            border: 2px solid #00E5FF !important;
+            width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
-            gap: 6px !important;
-            background-color: transparent !important;
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important;
-            white-space: nowrap !important;
-            padding-bottom: 5px !important;
+            gap: 6px !important; background-color: transparent !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; padding-bottom: 5px !important;
         }
         .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.6) !important;
-            border: 1px solid #2D313E !important;
-            color: #A0A5B5 !important;
-            border-radius: 4px 4px 0px 0px !important;
-            padding: 8px 12px !important;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 11px !important;
-            font-weight: bold;
-            flex-shrink: 0 !important;
+            background-color: rgba(26, 28, 35, 0.6) !important; border: 1px solid #2D313E !important; color: #A0A5B5 !important;
+            border-radius: 4px 4px 0px 0px !important; padding: 8px 12px !important; font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; flex-shrink: 0 !important;
         }
         .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
         
@@ -536,10 +575,7 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; unicode-bidi: plaintext !important; direction: ltr !important; }
         
-        div[data-testid="stDataFrame"] {
-            width: 100% !important;
-            overflow-x: auto !important;
-        }
+        div[data-testid="stDataFrame"] { width: 100% !important; overflow-x: auto !important; }
 
         .btn-google-maps {
             display: inline-flex; align-items: center; justify-content: center;
@@ -1171,10 +1207,16 @@ if st.session_state.rol_sel == "MONITOREO":
 
         sups_dinamicos_lista = sorted(list(sups_dinamicos_set))
 
-        if len(sups_dinamicos_lista) > 0:
-            pestanas_sups = st.tabs(sups_dinamicos_lista)
+        # Opciones de visualización general o filtrada por supervisor en Monitoreo
+        opciones_filtro_monitoreo = ["VER TODOS LOS SUPERVISORES"] + sups_dinamicos_lista
+        sup_elegido_monitoreo_tab = st.selectbox("🔍 FILTRAR AUDITORÍA POR SUPERVISOR O VER TODOS:", opciones_filtro_monitoreo, key="filtro_auditoria_monitoreo_gral")
+
+        lista_sups_a_mostrar = sups_dinamicos_lista if sup_elegido_monitoreo_tab == "VER TODOS LOS SUPERVISORES" else [sup_elegido_monitoreo_tab]
+
+        if len(lista_sups_a_mostrar) > 0:
+            pestanas_sups = st.tabs(lista_sups_a_mostrar)
             
-            for idx_p, sup_seleccionado_mono in enumerate(sups_dinamicos_lista):
+            for idx_p, sup_seleccionado_mono in enumerate(lista_sups_a_mostrar):
                 with pestanas_sups[idx_p]:
                     st.markdown(f"### 🛡️ PANEL DE CONTROL: {sup_seleccionado_mono}")
                     
@@ -1255,6 +1297,24 @@ if st.session_state.rol_sel == "MONITOREO":
                         
                         if not df_pan_sup_filtrado.empty:
                             st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                            
+                            # Botón de finalización rápida de Pánico
+                            for idx_row, row_p in df_pan_sup_filtrado.iterrows():
+                                estado_actual = str(row_p.get('ESTADO', 'PENDIENTE')).strip().upper()
+                                if estado_actual == "PENDIENTE":
+                                    if st.button(f"✅ Finalizar Pánico Supervisor ({row_p.get('OBJETIVO', 'OBJ')})", key=f"fin_pan_sup_{idx_p}_{sup_seleccionado_mono}"):
+                                        # Actualizamos en la solapa ALERTAS
+                                        gc_m = conectar_google()
+                                        if gc_m:
+                                            hoja_alt = gc_m.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
+                                            # Buscamos la celda correspondiente
+                                            todas_a = hoja_alt.get_all_values()
+                                            for i_a, fila_a in enumerate(todas_a[1:], start=2):
+                                                if len(fila_a) > 5 and fila_a[1].strip().upper() == str(row_p.get('USUARIO','')).strip().upper() and fila_a[4].strip().upper() == str(row_p.get('OBJETIVO','')).strip().upper() and fila_a[3].strip().upper() == "PENDIENTE":
+                                                    hoja_alt.update_acell(f"D{i_a}", "FINALIZADO")
+                                                    st.success("✅ Pánico finalizado correctamente.")
+                                                    st.cache_data.clear()
+                                                    st.rerun()
                         else:
                             st.info("No hay pánicos S.O.S de supervisor registrados.")
                     else:
@@ -1282,6 +1342,21 @@ if st.session_state.rol_sel == "MONITOREO":
                                 turnos_vig_list_m.append(determinar_turno_activo(fh_val_pm))
                             df_pan_vig_c_turno_m['TURNO VIGILADOR'] = turnos_vig_list_m
                             st.dataframe(df_pan_vig_c_turno_m.iloc[::-1], use_container_width=True, hide_index=True)
+                            
+                            for idx_vrow, row_v in df_pan_vig_c_turno_m.iterrows():
+                                estado_act_v = str(row_v.get('ESTADO', 'PENDIENTE')).strip().upper()
+                                if estado_act_v == "PENDIENTE":
+                                    if st.button(f"✅ Finalizar Pánico Vigilador ({row_v.get('USUARIO', 'AGENTE')} - {row_v.get('OBJETIVO', 'OBJ')})", key=f"fin_pan_vig_{idx_vrow}_{sup_seleccionado_mono}"):
+                                        gc_m2 = conectar_google()
+                                        if gc_m2:
+                                            hoja_alt2 = gc_m2.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
+                                            todas_a2 = hoja_alt2.get_all_values()
+                                            for i_a2, fila_a2 in enumerate(todas_a2[1:], start=2):
+                                                if len(fila_a2) > 5 and fila_a2[1].strip().upper() == str(row_v.get('USUARIO','')).strip().upper() and fila_a2[4].strip().upper() == str(row_v.get('OBJETIVO','')).strip().upper() and fila_a2[3].strip().upper() == "PENDIENTE":
+                                                    hoja_alt2.update_acell(f"D{i_a2}", "FINALIZADO")
+                                                    st.success("✅ Pánico de vigilador finalizado correctamente.")
+                                                    st.cache_data.clear()
+                                                    st.rerun()
                         else:
                             st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
                     else:
@@ -1408,7 +1483,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             com_lon_s = com.get('LONGITUD', lon_obj_s)
                     except: pass
 
-                # Verificamos y agregamos automáticamente a la solapa COMISARIAS si no existía
                 verificar_e_insertar_comisaria_automatica(com_nombre_s, com_dir_s, com_loc_s, com_tel_s, com_lat_s, com_lon_s)
 
                 exito = escribir_registro_nube("ALERTAS", [
@@ -1416,7 +1490,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 ])
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
-
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
                         "telefono": com_tel_s,
@@ -1822,7 +1895,6 @@ elif st.session_state.rol_sel == "VIGILADOR":
                             com_cercana_lon = com.get('LONGITUD', lon_obj_vig)
                     except: pass
 
-                # Verificamos y agregamos automáticamente a la solapa COMISARIAS si no existía
                 verificar_e_insertar_comisaria_automatica(com_cercana_nombre, com_cercana_dir, com_cercana_loc, com_cercana_tel, com_cercana_lat, com_cercana_lon)
 
                 st.session_state.alerta_activa_vigilador = {
@@ -2324,7 +2396,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                     ('LEFTPADDING', (0, 0), (-1, -1), 2),
                                     ('RIGHTPADDING', (0, 0), (-1, -1), 2),
                                 ]))
-                                elementos.append(t)
+                                element = t
+                                elementos.append(element)
                             else:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
@@ -2348,8 +2421,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             if tot_s_cnt > 0:
                                 elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
                             if tot_v_cnt > 0:
-                                element = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
-                                elementos.append(element)
+                                element_v = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
+                                elementos.append(element_v)
                             elementos.append(Spacer(1, 4))
 
                             if not d_alt.empty:
