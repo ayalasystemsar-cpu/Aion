@@ -264,7 +264,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
     
-    # Persistencia automática adicional en solapa COMISARIAS del maestro si corresponde
+    # Persistencia automática en solapa COMISARIAS respetando las 6 columnas exactas
     try:
         gc = conectar_google()
         if gc:
@@ -2410,8 +2410,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         with t_adm_mantenimiento:
             st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
-            if not df_obj_m.png if 'pdf_respaldo_objs' in locals() else False:
-                pass
             if not df_obj_m.empty:
                 pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
                 st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
