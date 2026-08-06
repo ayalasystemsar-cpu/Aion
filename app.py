@@ -768,8 +768,13 @@ def verificar_e_insertar_comisaria_automatica(
 def registrar_objetivo_con_comisaria_automatica(
     nombre_obj, direccion, localidad, supervisor, lat, lon, responsables
 ):
-  nombre_obj_upper = str(nombre_obj).strip().upper()
-  localidad_obj_upper = str(localidad).strip().upper()
+  nombre_obj_upper = (
+      str(nombre_obj).strip().upper().replace('"', "").replace(",", "")
+  )
+  direccion_upper = str(direccion).strip().upper().replace('"', "")
+  localidad_upper = str(localidad).strip().upper().replace('"', "")
+  supervisor_upper = str(supervisor).strip().upper().replace('"', "")
+  responsables_upper = str(responsables).strip().upper().replace('"', "")
 
   distancia_minima = float("inf")
   com_n, com_d, com_l, com_t = (
@@ -788,7 +793,7 @@ def registrar_objetivo_con_comisaria_automatica(
     if not df_comis.empty and "LOCALIDAD" in df_comis.columns:
       df_comis_filtrada = df_comis[
           df_comis["LOCALIDAD"].astype(str).str.strip().str.upper()
-          == localidad_obj_upper
+          == localidad_upper
       ]
       if df_comis_filtrada.empty:
         df_comis_filtrada = df_comis
@@ -822,14 +827,16 @@ def registrar_objetivo_con_comisaria_automatica(
       f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
   )
 
+  # Respetando estrictamente las columnas del maestro:
+  # [OBJETIVO, DIRECCION, LOCALIDAD, SUPERVISOR, LATITUD, LONGITUD, RESPONSABLES, COMISARIA]
   datos_nuevo_obj = [
       nombre_obj_upper,
-      str(direccion).strip().upper(),
-      str(localidad).strip().upper(),
-      str(supervisor).strip().upper(),
-      str(lat),
-      str(lon),
-      str(responsables).strip().upper(),
+      direccion_upper,
+      localidad_upper,
+      supervisor_upper,
+      str(lat).strip(),
+      str(lon).strip(),
+      responsables_upper,
       comisaria_formateada,
   ]
 
