@@ -1349,15 +1349,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if 'alerta_activa_supervisor' in st.session_state:
             datos_s = st.session_state.alerta_activa_supervisor
             st.markdown(f"""
-                <div style="background: rgba(35, 25, 25, 0.45); border: 1px solid rgba(100, 50, 50, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
-                    <div style="font-family: 'Orbitron', sans-serif; color: #D47A7A; font-size: 13px; font-weight: 500; letter-spacing: 1px;">
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
+                    <div style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 13px; font-weight: 500; letter-spacing: 1px;">
                         🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL
                     </div>
-                    <div style="color: #C0C5D0; font-size: 13px; margin-top: 6px;">
+                    <div style="color: #CBD5E1; font-size: 13px; margin-top: 6px;">
                         <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px;">
-                        <a href="tel:{datos_s['telefono']}" style="background-color: #26332A; color: #A3D9BE; padding: 10px 22px; border-radius: 6px; border: 1px solid #3B5443; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
                             📞 LLAMAR DIRECTAMENTE AHORA ({datos_s['telefono']})
                         </a>
                     </div>
@@ -1738,16 +1738,16 @@ elif st.session_state.rol_sel == "VIGILADOR":
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
             st.markdown(f"""
-                <div style="background: rgba(35, 25, 25, 0.45); border: 1px solid rgba(100, 50, 50, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif;">
-                    <div style="color: #D47A7A; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif;">
+                    <div style="color: #94A3B8; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px;">
                         🚨 ALERTA ENVIADA: DESDE {datos_pan['obj']}
                     </div>
-                    <div style="color: #C0C5D0; font-size: 13px; margin-top: 8px; text-align: center;">
+                    <div style="color: #CBD5E1; font-size: 13px; margin-top: 8px; text-align: center;">
                         👮 <b>COMISARÍA:</b> {datos_pan['comisaria']}<br>
                         <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px; text-align: center;">
-                        <a href="tel:{datos_pan['telefono']}" style="background-color: #332626; color: #D9A3A3; padding: 12px 24px; border-radius: 6px; border: 1px solid #543B3B; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
                             📞 LLAMAR A LA COMISARÍA ({datos_pan['telefono']})
                         </a>
                     </div>
@@ -2244,7 +2244,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             if tot_s_cnt > 0:
                                 elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
                             if tot_v_cnt > 0:
-                                elementos.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
+                                element = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
+                                elementos.append(element)
                             elementos.append(Spacer(1, 4))
 
                             if not d_alt.empty:
