@@ -895,10 +895,6 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 
 # =========================================================================
-# CONTROL DE ROLES Y VISTAS TÁCTICAS
-# =========================================================================
-
-# =========================================================================
 # ROL: MONITOREO
 # =========================================================================
 if st.session_state.rol_sel == "MONITOREO":
@@ -973,6 +969,7 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS Y PÁNICOS ACTIVOS")
         
+        # --- PANEL DE CONTROL RÁPIDO DE PÁNICOS ACTIVOS EN RADAR ---
         df_alertas_radar = leer_matriz_nube("ALERTAS")
         if not df_alertas_radar.empty:
             df_alertas_radar.columns = [str(c).strip().upper() for c in df_alertas_radar.columns]
@@ -1419,6 +1416,99 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
+        st.subheader(f"⏱️ GESTIÓN DE JORNADA")
+        _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
+        with col_j1:
+            if st.button("🚀 INICIO DE JORNADA", use_container_width=True):
+                registrar_jornada_general(st.session_state.user_sel, obj_actual, "INICIO")
+                st.success("Jornada iniciada")
+        with col_j2:
+            if st.button("🏁 CIERRE DE JORNADA", use_container_width=True):
+                registrar_jornada_general(st.session_state.user_sel, obj_actual, "FIN")
+                st.success("Jornada cerrada")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
+        if obj_actual != "SIN OBJETIVO":
+            st.markdown(f"""
+                <div style="background: rgba(25, 35, 30, 0.45); border: 1px solid rgba(60, 90, 75, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-family: 'Rajdhani', sans-serif; text-align: center;">
+                    <span style="color: #92B9A4; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">📍 OBJETO DETECTADO PARA PÁNICO: <b>{obj_actual}</b></span>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ Selecciona tu objetivo en 'Visita QR' para activar el pánico correctamente.")
+
+        col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
+        with col_p2:
+            if st.button("S.O.S\nPÁNICO", type="primary"):
+                lat_obj_s, lon_obj_s = 0.0, 0.0
+                localidad_obj_s = ""
+                if not df_objetivos.empty:
+                    filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
+                    if not filtro_sup_obj.empty:
+                        lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
+                        lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+                        localidad_obj_s = str(filtro_sup_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
+
+                com_nombre_s = "COMISARÍA JURISDICCIONAL"
+                com_dir_s = "---"
+                com_loc_s = "---"
+                com_tel_s = "011-4000-0000"
+                com_lat_s, com_lon_s = lat_obj_s, lon_obj_s
+                dist_s = float('inf')
+
+                df_comis_filtro_s = df_comisarias
+                if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
+                    df_sub_s = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_s]
+                    if not df_sub_s.empty:
+                        df_comis_filtro_s = df_sub_s
+
+                for _, com in df_comis_filtro_s.iterrows():
+                    try:
+                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
+                        d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
+                        if d < dist_s:
+                            dist_s = d
+                            com_nombre_s = com['COMISARIA']
+                            com_dir_s = com['DIRECCION']
+                            com_loc_s = com['LOCALIDAD']
+                            com_tel_s = com.get('TELEFONO', '011-4000-0000')
+                            com_lat_s = com.get('LATITUD', lat_obj_s)
+                            com_lon_s = com.get('LONGITUD', lon_obj_s)
+                    except: pass
+
+                verificar_e_insertar_comisaria_automatica(com_nombre_s, com_dir_s, com_loc_s, com_tel_s, com_lat_s, com_lon_s)
+
+                exito = escribir_registro_nube("ALERTAS", [
+                    obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
+                ])
+                if exito:
+                    st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
+                    st.session_state.alerta_activa_supervisor = {
+                        "comisaria": com_nombre_s,
+                        "telefono": com_tel_s,
+                        "distancia": f"{dist_s:.2f}"
+                    }
+
+        if 'alerta_activa_supervisor' in st.session_state:
+            datos_s = st.session_state.alerta_activa_supervisor
+            st.markdown(f"""
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
+                    <div style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 13px; font-weight: 500; letter-spacing: 1px;">
+                        🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL REAL
+                    </div>
+                    <div style="color: #CBD5E1; font-size: 13px; margin-top: 6px;">
+                        <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
+                            📞 LLAMAR DIRECTAMENTE AHORA (<b style="unicode-bidi: bidi-override; direction: ltr; display: inline-block;">{datos_s['telefono']}</b>)
+                        </a>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
         t_vis_qr, t_nuevo_obj, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
@@ -1587,6 +1677,51 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         📍 ABRIR NAVEGACIÓN GPS A {obj_select}
                         </a>
                     ''', unsafe_allow_html=True)
+                
+                st.markdown("---")
+                st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
+                with st.form(key="form_acta_flota", clear_on_submit=True):
+                    c_a, c_b = st.columns(2)
+                    v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
+                    
+                    v_km_ini_str = c_a.text_input("KM INICIAL:", value="0")
+                    v_km_fin_str = c_b.text_input("KM FINAL:", value="0")
+                    
+                    v_combustible = c_a.selectbox("TIPO DE COMBUSTIBLE:", ["NAFTA SÚPER", "NAFTA PREMIUM", "GASOIL", "OTRO"])
+                    v_monto_str = c_b.text_input("MONTO CARGADO ($):", value="0,00")
+                    v_vig = st.text_input("SUPERVISOR RESPONSABLE:", value=st.session_state.user_sel).upper()
+                    
+                    if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
+                        def parsear_numero(val_str):
+                            if not val_str:
+                                return 0.0
+                            s = str(val_str).strip().replace('$', '').replace(' ', '')
+                            s = s.replace('.', '').replace(',', '.')
+                            try:
+                                return float(s)
+                            except:
+                                return 0.0
+
+                        v_km_ini = parsear_numero(v_km_ini_str)
+                        v_km_fin = parsear_numero(v_km_fin_str)
+                        v_monto = parsear_numero(v_monto_str)
+                        
+                        km_recorridos = max(0.0, v_km_fin - v_km_ini)
+                        costo_km = round(v_monto / km_recorridos, 2) if km_recorridos > 0 else 0.0
+                        estado_auditoria = "⚠️ REVISAR" if costo_km > 300 or costo_km == 0 else "✅ ACORDE"
+
+                        fecha_reg = obtener_hora_argentina()
+                        
+                        km_rec_fmt = f"{km_recorridos:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        monto_fmt = f"{v_monto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        km_ini_fmt = f"{v_km_ini:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        km_fin_fmt = f"{v_km_fin:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        costo_km_fmt = f"{costo_km:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+                        escribir_registro_nube("CONTROL DE FLOTA", [
+                            fecha_reg, v_vig, v_patente, km_ini_fmt, km_fin_fmt, km_rec_fmt, v_combustible, monto_fmt, costo_km_fmt, estado_auditoria
+                        ])
+                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_rec_fmt} km | Gasto: ${monto_fmt}")
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
 
@@ -1597,27 +1732,25 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             with tab_alta_sup:
                 with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
                     col_no1, col_no2 = st.columns(2)
-                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="").upper().strip()
-                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="").upper().strip()
+                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="CARLOS PELLEGRINI").upper().strip()
+                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="1163").upper().strip()
                     
                     col_loc1, col_loc2 = st.columns(2)
-                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="").upper().strip()
-                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="")
+                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="CABA").upper().strip()
+                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="-34.5985")
                     
                     col_lon1, col_lon2 = st.columns(2)
-                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="")
+                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="-58.3838")
+                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="CENTRO").upper().strip()
                     
-                    # CAMPO DE SUPERVISOR VACÍO PARA QUE PUEDA INGRESARSE MANUALMENTE
-                    supervisor_asignado_input = col_lon1.text_input("SUPERVISOR ASIGNADO:", value="").upper().strip()
-                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="").upper().strip()
-                    
+                    supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
                         if nuevo_nombre_obj and nueva_lat and nueva_lon:
                             exito_alta = registrar_objetivo_con_comisaria_automatica(
-                                nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_input, nueva_lat, nueva_lon, nuevos_responsables
+                                nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' cargado con su comisaría correspondiente y registrado en la máster con éxito!")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
                             else:
                                 st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
                         else:
@@ -1853,7 +1986,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
 # =========================================================================
 # ROL: JEFE DE OPERACIONES / GERENCIA
 # =========================================================================
-elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
+if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1.container():
