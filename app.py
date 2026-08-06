@@ -426,9 +426,9 @@ def aplicar_identidad_alfa():
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
         
         .stButton > button[kind="primary"] { 
-            background: radial-gradient(circle, rgba(200, 30, 30, 0.85) 0%, rgba(90, 10, 10, 0.95) 100%) !important;
+            background: radial-gradient(circle, #FF0000 0%, #8B0000 100%) !important;
             color: white !important; border-radius: 50% !important; width: 110px !important; height: 110px !important; 
-            border: 2px solid rgba(255, 100, 100, 0.4) !important; box-shadow: 0 0 25px rgba(220, 50, 50, 0.35) !important; 
+            border: 3px solid #333 !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.6) !important; 
             font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold;
             display: block; margin: 0 auto;
         }
@@ -1302,8 +1302,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.markdown("### 🛡️ PROTOCOLO DE EMERGENCIA")
         if obj_actual != "SIN OBJETIVO":
             st.markdown(f"""
-                <div style="background: rgba(80, 120, 90, 0.15); border: 1px solid rgba(120, 180, 140, 0.35); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-family: 'Rajdhani', sans-serif; text-align: center;">
-                    <span style="color: #A8E6CF; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📍 OBJETO DETECTADO PARA PÁNICO: <b>{obj_actual}</b></span>
+                <div style="background: rgba(25, 35, 30, 0.45); border: 1px solid rgba(60, 90, 75, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-family: 'Rajdhani', sans-serif; text-align: center;">
+                    <span style="color: #92B9A4; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">📍 OBJETO DETECTADO PARA PÁNICO: <b>{obj_actual}</b></span>
                 </div>
             """, unsafe_allow_html=True)
         else:
@@ -1349,15 +1349,15 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if 'alerta_activa_supervisor' in st.session_state:
             datos_s = st.session_state.alerta_activa_supervisor
             st.markdown(f"""
-                <div style="background: rgba(180, 50, 50, 0.12); border: 1px solid rgba(220, 80, 80, 0.35); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
-                    <div style="font-family: 'Orbitron', sans-serif; color: #FF6B6B; font-size: 13px; font-weight: bold; letter-spacing: 1px;">
+                <div style="background: rgba(35, 25, 25, 0.45); border: 1px solid rgba(100, 50, 50, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
+                    <div style="font-family: 'Orbitron', sans-serif; color: #D47A7A; font-size: 13px; font-weight: 500; letter-spacing: 1px;">
                         🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL
                     </div>
-                    <div style="color: #E0E0E0; font-size: 13px; margin-top: 6px;">
+                    <div style="color: #C0C5D0; font-size: 13px; margin-top: 6px;">
                         <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px;">
-                        <a href="tel:{datos_s['telefono']}" style="background: linear-gradient(135deg, rgba(70, 150, 90, 0.85) 0%, rgba(40, 100, 60, 0.95) 100%); color: white; padding: 10px 22px; border-radius: 6px; font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 12px; text-decoration: none; display: inline-block; box-shadow: 0 4px 15px rgba(50,150,80,0.3); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <a href="tel:{datos_s['telefono']}" style="background-color: #26332A; color: #A3D9BE; padding: 10px 22px; border-radius: 6px; border: 1px solid #3B5443; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
                             📞 LLAMAR DIRECTAMENTE AHORA ({datos_s['telefono']})
                         </a>
                     </div>
@@ -1684,8 +1684,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
     if obj_detectado:
         st.markdown(f"""
-            <div style="background: rgba(80, 120, 90, 0.15); border: 1px solid rgba(120, 180, 140, 0.35); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-family: 'Rajdhani', sans-serif; text-align: center;">
-                <span style="color: #A8E6CF; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📍 OBJETO DETECTADO PARA PÁNICO: <b>{obj_detectado}</b></span>
+            <div style="background: rgba(25, 35, 30, 0.45); border: 1px solid rgba(60, 90, 75, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-family: 'Rajdhani', sans-serif; text-align: center;">
+                <span style="color: #92B9A4; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">📍 OBJETO DETECTADO PARA PÁNICO: <b>{obj_detectado}</b></span>
             </div>
         """, unsafe_allow_html=True)
         col_pv1, col_pv2, col_pv3 = st.columns([1, 1, 1])
@@ -1738,16 +1738,16 @@ elif st.session_state.rol_sel == "VIGILADOR":
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
             st.markdown(f"""
-                <div style="background: rgba(180, 50, 50, 0.12); border: 1px solid rgba(220, 80, 80, 0.35); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif;">
-                    <div style="color: #FF6B6B; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <div style="background: rgba(35, 25, 25, 0.45); border: 1px solid rgba(100, 50, 50, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif;">
+                    <div style="color: #D47A7A; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px;">
                         🚨 ALERTA ENVIADA: DESDE {datos_pan['obj']}
                     </div>
-                    <div style="color: #E0E0E0; font-size: 13px; margin-top: 8px; text-align: center;">
+                    <div style="color: #C0C5D0; font-size: 13px; margin-top: 8px; text-align: center;">
                         👮 <b>COMISARÍA:</b> {datos_pan['comisaria']}<br>
                         <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px; text-align: center;">
-                        <a href="tel:{datos_pan['telefono']}" style="background: linear-gradient(135deg, rgba(180, 50, 50, 0.85) 0%, rgba(120, 20, 20, 0.95) 100%); color: white; padding: 12px 24px; border-radius: 6px; font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 13px; text-decoration: none; display: inline-block; box-shadow: 0 4px 15px rgba(180,50,50,0.4); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <a href="tel:{datos_pan['telefono']}" style="background-color: #332626; color: #D9A3A3; padding: 12px 24px; border-radius: 6px; border: 1px solid #543B3B; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
                             📞 LLAMAR A LA COMISARÍA ({datos_pan['telefono']})
                         </a>
                     </div>
