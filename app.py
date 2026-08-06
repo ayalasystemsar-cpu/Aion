@@ -189,12 +189,12 @@ def leer_matriz_nube(pestana):
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
-        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA ESCOBAR 3RA (GARÍN)", "COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)"],
-        "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Av. Cabildo 2300", "Miller 2750", "Arias 4450", "Belgrano 1150", "Av. San Martín 2450"],
-        "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "CABA", "GARÍN", "FLORIDA"],
-        "TELEFONO": ["011-4754-2321", "011-4821-5544", "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111", "011-4788-9900", "011-4541-1122", "011-4542-3344", "03327-442000", "011-4791-0000"],
-        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.557454, -34.554321, -34.568459, -34.42730, -34.54530],
-        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.461144, -58.472147, -58.482012, -58.72050, -58.49370]
+        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA ESCOBAR 3RA (GARÍN)", "COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 1B"],
+        "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Av. Cabildo 2300", "Miller 2750", "Arias 4450", "Belgrano 1150", "Av. San Martín 2450", "Suipacha 1156", "General Las Heras 2650", "Uruguay 350"],
+        "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "CABA", "GARÍN", "FLORIDA", "CABA", "CABA", "CABA"],
+        "TELEFONO": ["011-4754-2321", "011-4821-5544", "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111", "011-4788-9900", "011-4541-1122", "011-4542-3344", "03327-442000", "011-4791-0000", "011-4393-0100", "011-4803-0100", "011-4371-0100"],
+        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.557454, -34.554321, -34.568459, -34.42730, -34.54530, -34.5985, -34.5852, -34.6037],
+        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.461144, -58.472147, -58.482012, -58.72050, -58.49370, -58.3838, -58.4012, -58.3862]
     }
     return pd.DataFrame(data)
 
@@ -216,47 +216,39 @@ def cargar_objetivos():
 
 def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
     nombre_obj_upper = str(nombre_obj).strip().upper()
+    localidad_obj_upper = str(localidad).strip().upper()
     
-    # Mapeo exacto de jurisdicciones reales oficiales para presentación institucional
-    jurisdicciones_oficiales = {
-        "BARRIO EL CAMPO": ("COMISARÍA CAMPANA 1RA", "Rivadavia 750", "CAMPANA", "03489-422111", -34.163693, -58.961418, 0.0),
-        "BARRIO LA DAMASIA": ("COMISARÍA SAN FERNANDO 1RA", "Constitución 720", "SAN FERNANDO", "011-4744-0192", -34.440154, -58.556134, 0.0),
-        "BARRIO LA LAGUNA": ("COMISARÍA TIGRE 1RA", "Cazón 1250", "TIGRE", "011-4512-9900", -34.424196, -58.579789, 0.0),
-        "B. P. LOS PILARES-BUNKER": ("COMISARÍA PILAR 6TA (VILLA ROSA)", "Ruta 25 s/n", "PILAR", "0230-449-0111", -34.417041, -58.868209, 0.0),
-        "CONSORCIO JARAMILLO 2010": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "CABA", "011-4788-9900", -34.557454, -58.461144, 0.0),
-        "CONSORCIO MARTINEZ": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "CABA", "011-4788-9900", -34.557454, -58.461144, 0.0),
-        "PALOPOLI FLORIDA": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "Av. San Martín 2450", "FLORIDA", "011-4791-0000", -34.54530, -58.49370, 0.0),
-        "OTIS": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "Av. San Martín 2450", "FLORIDA", "011-4791-0000", -34.54530, -58.49370, 0.0),
-        "JARDINES DEL LIBERTADOR": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "CABA", "011-4788-9900", -34.557454, -58.461144, 0.0),
-        "CASA GARIN": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "GARÍN", "03327-442000", -34.42730, -58.72050, 0.0),
-        "LOGARTE 1": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "GARÍN", "03327-442000", -34.42730, -58.72050, 0.0),
-        "LOGARTE 2": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "GARÍN", "03327-442000", -34.42730, -58.72050, 0.0)
-    }
+    distancia_minima = float('inf')
+    com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
     
-    if nombre_obj_upper in jurisdicciones_oficiales:
-        com_n, com_d, com_l, com_t, com_lat, com_lon, distancia_minima = jurisdicciones_oficiales[nombre_obj_upper]
-    else:
-        distancia_minima = float('inf')
-        com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
-        df_comis = cargar_datos_comisarias()
-        try:
-            lat_f = float(str(lat).replace(',', '.'))
-            lon_f = float(str(lon).replace(',', '.'))
-            for _, com in df_comis.iterrows():
-                lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
-                dlon = lon2 - lon1
-                dlat = lat2 - lat1
-                a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                c = 2 * math.asin(math.sqrt(a))
-                km = 6371 * c
-                if km < distancia_minima:
-                    distancia_minima = km
-                    com_n = com['COMISARIA']
-                    com_d = com['DIRECCION']
-                    com_l = com['LOCALIDAD']
-                    com_t = com.get('TELEFONO', '011-4000-0000')
-        except:
-            pass
+    df_comis = cargar_datos_comisarias()
+    try:
+        lat_f = float(str(lat).replace(',', '.'))
+        lon_f = float(str(lon).replace(',', '.'))
+        
+        # Filtrar estrictamente por localidad/partido si coincide para garantizar precisión geográfica
+        if not df_comis.empty and 'LOCALIDAD' in df_comis.columns:
+            df_comis_filtrada = df_comis[df_comis['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_upper]
+            if df_comis_filtrada.empty:
+                df_comis_filtrada = df_comis
+        else:
+            df_comis_filtrada = df_comis
+
+        for _, com in df_comis_filtrada.iterrows():
+            lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.asin(math.sqrt(a))
+            km = 6371 * c
+            if km < distancia_minima:
+                distancia_minima = km
+                com_n = com['COMISARIA']
+                com_d = com['DIRECCION']
+                com_l = com['LOCALIDAD']
+                com_t = com.get('TELEFONO', '011-4000-0000')
+    except:
+        pass
 
     comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
 
@@ -274,7 +266,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     return escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
 
 def obtener_lista_supervisores_dinamica():
-    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO", "TIKI"]
+    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO", "TIKI", "GONZALEZ"]
     df_u = leer_matriz_nube("USUARIOS")
     if not df_u.empty:
         col_r = 'ROL' if 'ROL' in df_u.columns else 'ROLES'
@@ -514,7 +506,6 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-# --- REEMPLAZO NATIVO DEL RELOJ EN VIVO USANDO FRAGMENT DE STREAMLIT ---
 @st.fragment(run_every=1)
 def renderizar_reloj_fluido():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
@@ -738,7 +729,6 @@ df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
 
-# --- LÓGICA DE BARRA LATERAL DIFERENCIADA Y SELECTOR DE VISTAS ADMIN ---
 if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_autenticado", False):
     with st.sidebar:
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
@@ -975,8 +965,15 @@ if st.session_state.rol_sel == "MONITOREO":
             datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
             lat_obj = datos_obj['LATITUD']
             lon_obj = datos_obj['LONGITUD']
+            localidad_obj_val = str(datos_obj.get('LOCALIDAD', '')).strip().upper()
             
-            for _, com in df_comisarias.iterrows():
+            df_comis_filtro_mono = df_comisarias
+            if localidad_obj_val and 'LOCALIDAD' in df_comisarias.columns:
+                df_sub_c = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_val]
+                if not df_sub_c.empty:
+                    df_comis_filtro_mono = df_sub_c
+
+            for _, com in df_comis_filtro_mono.iterrows():
                 lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
                 dlon = lon2 - lon1
                 dlat = lat2 - lat1
@@ -1334,46 +1331,34 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
 
-                    # --- CÁLCULO DE LA COMISARÍA JURISDICCIONAL REAL PARA LLAMADA DIRECTA ---
-                    jurisdicciones_oficiales_s = {
-                        "BARRIO EL CAMPO": ("COMISARÍA CAMPANA 1RA", "03489-422111"),
-                        "BARRIO LA DAMASIA": ("COMISARÍA SAN FERNANDO 1RA", "011-4744-0192"),
-                        "BARRIO LA LAGUNA": ("COMISARÍA TIGRE 1RA", "011-4512-9900"),
-                        "B. P. LOS PILARES-BUNKER": ("COMISARÍA PILAR 6TA (VILLA ROSA)", "0230-449-0111"),
-                        "CONSORCIO JARAMILLO 2010": ("COMISARÍA VECINAL 13A", "011-4788-9900"),
-                        "CONSORCIO MARTINEZ": ("COMISARÍA VECINAL 13A", "011-4788-9900"),
-                        "PALOPOLI FLORIDA": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "011-4791-0000"),
-                        "OTIS": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "011-4791-0000"),
-                        "JARDINES DEL LIBERTADOR": ("COMISARÍA VECINAL 13A", "011-4788-9900"),
-                        "CASA GARIN": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "03327-442000"),
-                        "LOGARTE 1": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "03327-442000"),
-                        "LOGARTE 2": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "03327-442000")
-                    }
+                    lat_obj_s, lon_obj_s = 0.0, 0.0
+                    localidad_obj_s = ""
+                    if not df_objetivos.empty:
+                        filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
+                        if not filtro_sup_obj.empty:
+                            lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
+                            lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+                            localidad_obj_s = str(filtro_sup_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
 
-                    if obj_actual.strip().upper() in jurisdicciones_oficiales_s:
-                        com_nombre_s, com_tel_s = jurisdicciones_oficiales_s[obj_actual.strip().upper()]
-                        dist_s = 0.0
-                    else:
-                        lat_obj_s, lon_obj_s = 0.0, 0.0
-                        if not df_objetivos.empty:
-                            filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
-                            if not filtro_sup_obj.empty:
-                                lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
-                                lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+                    com_nombre_s = "COMISARÍA JURISDICCIONAL"
+                    com_tel_s = "011-4000-0000"
+                    dist_s = float('inf')
 
-                        com_nombre_s = "COMISARÍA JURISDICCIONAL"
-                        com_tel_s = "011-4000-0000"
-                        dist_s = float('inf')
+                    df_comis_filtro_s = df_comisarias
+                    if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
+                        df_sub_s = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_s]
+                        if not df_sub_s.empty:
+                            df_comis_filtro_s = df_sub_s
 
-                        for _, com in df_comisarias.iterrows():
-                            try:
-                                lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
-                                d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
-                                if d < dist_s:
-                                    dist_s = d
-                                    com_nombre_s = com['COMISARIA']
-                                    com_tel_s = com.get('TELEFONO', '011-4000-0000')
-                            except: pass
+                    for _, com in df_comis_filtro_s.iterrows():
+                        try:
+                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
+                            d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
+                            if d < dist_s:
+                                dist_s = d
+                                com_nombre_s = com['COMISARIA']
+                                com_tel_s = com.get('TELEFONO', '011-4000-0000')
+                        except: pass
 
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
@@ -1659,8 +1644,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_r = st.selectbox("DESTINO:", opciones_r, key="sup_ruta_gmaps_target")
                 datos_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_r].iloc[0]
                 lat, lon = datos_r['LATITUD'], datos_r['LONGITUD']
+                loc_r = str(datos_r.get('LOCALIDAD', '')).strip().upper()
+                
                 dist_min, com_name, com_lat, com_lon = float('inf'), "Ninguna", 0.0, 0.0
-                for _, com in df_comisarias.iterrows():
+                df_comis_filtro_r = df_comisarias
+                if loc_r and 'LOCALIDAD' in df_comisarias.columns:
+                    df_sub_r = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == loc_r]
+                    if not df_sub_r.empty:
+                        df_comis_filtro_r = df_sub_r
+
+                for _, com in df_comis_filtro_r.iterrows():
                     d = 6371 * 2 * math.asin(math.sqrt(math.sin((math.radians(com['LATITUD'])-math.radians(lat))/2)**2 + math.cos(math.radians(lat))*math.cos(math.radians(com['LATITUD']))*math.sin((math.radians(com['LONGITUD'])-math.radians(lon))/2)**2))
                     if d < dist_min: dist_min, com_name, com_lat, com_lon = d, com['COMISARIA'], com['LATITUD'], com['LONGITUD']
                 st.info(f"👮 **Comisaría Encontrada:** {com_name} ({dist_min:.2f} Km)")
@@ -1729,51 +1722,40 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 nombre_real = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
                 sup_asignado = "MONITOREO"
                 lat_obj_vig, lon_obj_vig = 0.0, 0.0
+                localidad_obj_v = ""
                 if not df_objetivos.empty:
                     filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                     if not filtro.empty:
                         sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
                         lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
                         lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
+                        localidad_obj_v = str(filtro.iloc[0].get('LOCALIDAD', '')).strip().upper()
                 
-                jurisdicciones_oficiales_v = {
-                    "BARRIO EL CAMPO": ("COMISARÍA CAMPANA 1RA", "Rivadavia 750", "03489-422111"),
-                    "BARRIO LA DAMASIA": ("COMISARÍA SAN FERNANDO 1RA", "Constitución 720", "011-4744-0192"),
-                    "BARRIO LA LAGUNA": ("COMISARÍA TIGRE 1RA", "Cazón 1250", "011-4512-9900"),
-                    "B. P. LOS PILARES-BUNKER": ("COMISARÍA PILAR 6TA (VILLA ROSA)", "Ruta 25 s/n", "0230-449-0111"),
-                    "CONSORCIO JARAMILLO 2010": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "011-4788-9900"),
-                    "CONSORCIO MARTINEZ": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "011-4788-9900"),
-                    "PALOPOLI FLORIDA": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "Av. San Martín 2450", "011-4791-0000"),
-                    "OTIS": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "Av. San Martín 2450", "011-4791-0000"),
-                    "JARDINES DEL LIBERTADOR": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "011-4788-9900"),
-                    "CASA GARIN": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "03327-442000"),
-                    "LOGARTE 1": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "03327-442000"),
-                    "LOGARTE 2": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "03327-442000")
-                }
+                com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
+                com_cercana_dir = "---"
+                com_cercana_tel = "011-4000-0000"
+                dist_min_com = float('inf')
+                
+                df_comis_filtro_v = df_comisarias
+                if localidad_obj_v and 'LOCALIDAD' in df_comisarias.columns:
+                    df_sub_v = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_v]
+                    if not df_sub_v.empty:
+                        df_comis_filtro_v = df_sub_v
 
-                if obj_detectado.strip().upper() in jurisdicciones_oficiales_v:
-                    com_cercana_nombre, com_cercana_dir, com_cercana_tel = jurisdicciones_oficiales_v[obj_detectado.strip().upper()]
-                    dist_min_com = 0.0
-                else:
-                    com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
-                    com_cercana_dir = "---"
-                    com_cercana_tel = "---"
-                    dist_min_com = float('inf')
-                    
-                    for _, com in df_comisarias.iterrows():
-                        try:
-                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
-                            dlon = lon2 - lon1
-                            dlat = lat2 - lat1
-                            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                            c = 2 * math.asin(math.sqrt(a))
-                            km = 6371 * c
-                            if km < dist_min_com:
-                                dist_min_com = km
-                                com_cercana_nombre = com['COMISARIA']
-                                com_cercana_dir = com['DIRECCION']
-                                com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
-                        except: pass
+                for _, com in df_comis_filtro_v.iterrows():
+                    try:
+                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
+                        dlon = lon2 - lon1
+                        dlat = lat2 - lat1
+                        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                        c = 2 * math.asin(math.sqrt(a))
+                        km = 6371 * c
+                        if km < dist_min_com:
+                            dist_min_com = km
+                            com_cercana_nombre = com['COMISARIA']
+                            com_cercana_dir = com['DIRECCION']
+                            com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
+                    except: pass
 
                 st.session_state.alerta_activa_vigilador = {
                     "nombre": nombre_real,
@@ -1867,7 +1849,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
 
 # =========================================================================
-# ROL: JEFE DE OPERACIONES / GERENCIA (TABLERO COMPARTIDO DE AUDITORÍA)
+# ROL: JEFE DE OPERACIONES / GERENCIA
 # =========================================================================
 if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     col1, col2, col3, col4 = st.columns(4)
