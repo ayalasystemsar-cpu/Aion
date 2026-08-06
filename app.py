@@ -188,6 +188,14 @@ def leer_matriz_nube(pestana):
 
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
+    df_nube = leer_matriz_nube("COMISARIAS")
+    if not df_nube.empty and 'COMISARIA' in df_nube.columns:
+        # Aseguramos tipos numéricos para lat/lon
+        df_nube['LATITUD'] = pd.to_numeric(df_nube['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        df_nube['LONGITUD'] = pd.to_numeric(df_nube['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        return df_nube
+    
+    # Fallback si estuviera completamente vacía en la nube
     data = {
         "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA ESCOBAR 3RA (GARÍN)", "COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 1B"],
         "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Av. Cabildo 2300", "Miller 2750", "Arias 4450", "Belgrano 1150", "Av. San Martín 2450", "Suipacha 1156", "General Las Heras 2650", "Uruguay 350"],
@@ -214,12 +222,45 @@ def cargar_objetivos():
         return df 
     return pd.DataFrame()
 
+def verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, lat, lon):
+    """Verifica si la comisaria ya existe en la solapa COMISARIAS; si no está, la agrega respetando las 6 columnas exactas."""
+    try:
+        gc = conectar_google()
+        if gc:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
+            try:
+                hoja_comis = sh.worksheet("COMISARIAS")
+            except:
+                hoja_comis = sh.add_worksheet(title="COMISARIAS", rows="100", cols="10")
+                hoja_comis.append_row(["COMISARIA", "DIRECCION", "LOCALIDAD", "TELEFONO", "LATITUD", "LONGITUD"])
+
+            registros_existentes = hoja_comis.get_all_values()
+            encontrada = False
+            for fila_c in registros_existentes[1:]:
+                if len(fila_c) > 0 and str(fila_c[0]).strip().upper() == str(com_n).strip().upper():
+                    encontrada = True
+                    break
+            
+            if not encontrada and str(com_n).strip() != "" and str(com_n).strip() != "---":
+                hoja_comis.append_row([
+                    str(com_n).strip().upper(), 
+                    str(com_d).strip().upper(), 
+                    str(com_l).strip().upper(), 
+                    str(com_t).strip(), 
+                    str(lat), 
+                    str(lon)
+                ])
+                st.cache_data.clear()
+    except Exception as e:
+        print(f"Error gestionando solapa comisarías: {e}")
+
 def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
     nombre_obj_upper = str(nombre_obj).strip().upper()
     localidad_obj_upper = str(localidad).strip().upper()
     
     distancia_minima = float('inf')
     com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
+    com_lat_calc, com_lon_calc = lat, lon
     
     df_comis = cargar_datos_comisarias()
     try:
@@ -246,6 +287,8 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
                 com_d = com['DIRECCION']
                 com_l = com['LOCALIDAD']
                 com_t = com.get('TELEFONO', '011-4000-0000')
+                com_lat_calc = com.get('LATITUD', lat)
+                com_lon_calc = com.get('LONGITUD', lon)
     except Exception as e:
         print(f"Error calculando comisaría cercana: {e}")
 
@@ -264,27 +307,8 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
     
-    # Persistencia automática en solapa COMISARIAS respetando las 6 columnas exactas
-    try:
-        gc = conectar_google()
-        if gc:
-            sh = gc.open_by_key(ID_MAESTRO_DB)
-            try:
-                hoja_comis = sh.worksheet("COMISARIAS")
-            except:
-                hoja_comis = sh.add_worksheet(title="COMISARIAS", rows="100", cols="10")
-                hoja_comis.append_row(["COMISARIA", "DIRECCION", "LOCALIDAD", "TELEFONO", "LATITUD", "LONGITUD"])
-
-            registros_existentes = hoja_comis.get_all_values()
-            encontrada = False
-            for fila_c in registros_existentes[1:]:
-                if len(fila_c) > 0 and str(fila_c[0]).strip().upper() == com_n.upper():
-                    encontrada = True
-                    break
-            if not encontrada:
-                hoja_comis.append_row([com_n, com_d, com_l, com_t, str(lat), str(lon)])
-    except Exception as e:
-        print(f"Error guardando en solapa comisarías: {e}")
+    # Verificación e inserción automática en la solapa COMISARIAS
+    verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
 
     return exito
 
@@ -1348,40 +1372,50 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
+                lat_obj_s, lon_obj_s = 0.0, 0.0
+                localidad_obj_s = ""
+                if not df_objetivos.empty:
+                    filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
+                    if not filtro_sup_obj.empty:
+                        lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
+                        lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+                        localidad_obj_s = str(filtro_sup_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
+
+                com_nombre_s = "COMISARÍA JURISDICCIONAL"
+                com_dir_s = "---"
+                com_loc_s = "---"
+                com_tel_s = "011-4000-0000"
+                com_lat_s, com_lon_s = lat_obj_s, lon_obj_s
+                dist_s = float('inf')
+
+                df_comis_filtro_s = df_comisarias
+                if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
+                    df_sub_s = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_s]
+                    if not df_sub_s.empty:
+                        df_comis_filtro_s = df_sub_s
+
+                for _, com in df_comis_filtro_s.iterrows():
+                    try:
+                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
+                        d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
+                        if d < dist_s:
+                            dist_s = d
+                            com_nombre_s = com['COMISARIA']
+                            com_dir_s = com['DIRECCION']
+                            com_loc_s = com['LOCALIDAD']
+                            com_tel_s = com.get('TELEFONO', '011-4000-0000')
+                            com_lat_s = com.get('LATITUD', lat_obj_s)
+                            com_lon_s = com.get('LONGITUD', lon_obj_s)
+                    except: pass
+
+                # Verificamos y agregamos automáticamente a la solapa COMISARIAS si no existía
+                verificar_e_insertar_comisaria_automatica(com_nombre_s, com_dir_s, com_loc_s, com_tel_s, com_lat_s, com_lon_s)
+
                 exito = escribir_registro_nube("ALERTAS", [
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
-
-                    lat_obj_s, lon_obj_s = 0.0, 0.0
-                    localidad_obj_s = ""
-                    if not df_objetivos.empty:
-                        filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
-                        if not filtro_sup_obj.empty:
-                            lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
-                            lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
-                            localidad_obj_s = str(filtro_sup_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
-
-                    com_nombre_s = "COMISARÍA JURISDICCIONAL"
-                    com_tel_s = "011-4000-0000"
-                    dist_s = float('inf')
-
-                    df_comis_filtro_s = df_comisarias
-                    if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
-                        df_sub_s = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_s]
-                        if not df_sub_s.empty:
-                            df_comis_filtro_s = df_sub_s
-
-                    for _, com in df_comis_filtro_s.iterrows():
-                        try:
-                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
-                            d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
-                            if d < dist_s:
-                                dist_s = d
-                                com_nombre_s = com['COMISARIA']
-                                com_tel_s = com.get('TELEFONO', '011-4000-0000')
-                        except: pass
 
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
@@ -1759,7 +1793,9 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 
                 com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
                 com_cercana_dir = "---"
+                com_cercana_loc = "---"
                 com_cercana_tel = "011-4000-0000"
+                com_cercana_lat, com_cercana_lon = lat_obj_vig, lon_obj_vig
                 dist_min_com = float('inf')
                 
                 df_comis_filtro_v = df_comisarias
@@ -1780,8 +1816,14 @@ elif st.session_state.rol_sel == "VIGILADOR":
                             dist_min_com = km
                             com_cercana_nombre = com['COMISARIA']
                             com_cercana_dir = com['DIRECCION']
+                            com_cercana_loc = com['LOCALIDAD']
                             com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
+                            com_cercana_lat = com.get('LATITUD', lat_obj_vig)
+                            com_cercana_lon = com.get('LONGITUD', lon_obj_vig)
                     except: pass
+
+                # Verificamos y agregamos automáticamente a la solapa COMISARIAS si no existía
+                verificar_e_insertar_comisaria_automatica(com_cercana_nombre, com_cercana_dir, com_cercana_loc, com_cercana_tel, com_cercana_lat, com_cercana_lon)
 
                 st.session_state.alerta_activa_vigilador = {
                     "nombre": nombre_real,
