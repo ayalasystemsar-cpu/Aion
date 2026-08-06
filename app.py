@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -1326,22 +1325,6 @@ if st.session_state.rol_sel == "MONITOREO":
                         
                         if not df_pan_sup_filtrado.empty:
                             st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            
-                            for idx_row, row_p in df_pan_sup_filtrado.iterrows():
-                                estado_actual = str(row_p.get('ESTADO', 'PENDIENTE')).strip().upper()
-                                if estado_actual == "PENDIENTE":
-                                    key_btn_psup = f"fin_pan_sup_idx_{idx_row}_{sup_seleccionado_mono}_{row_p.get('OBJETIVO', 'OBJ')}".replace(" ", "_")
-                                    if st.button(f"✅ Finalizar Pánico Supervisor ({row_p.get('OBJETIVO', 'OBJ')})", key=key_btn_psup):
-                                        gc_m = conectar_google()
-                                        if gc_m:
-                                            hoja_alt = gc_m.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
-                                            todas_a = hoja_alt.get_all_values()
-                                            for i_a, fila_a in enumerate(todas_a[1:], start=2):
-                                                if len(fila_a) > 5 and fila_a[1].strip().upper() == str(row_p.get('USUARIO','')).strip().upper() and fila_a[4].strip().upper() == str(row_p.get('OBJETIVO','')).strip().upper() and fila_a[3].strip().upper() == "PENDIENTE":
-                                                    hoja_alt.update_acell(f"D{i_a}", "FINALIZADO")
-                                                    st.success("✅ Pánico finalizado correctamente.")
-                                                    st.cache_data.clear()
-                                                    st.rerun()
                         else:
                             st.info("No hay pánicos S.O.S de supervisor registrados.")
                     else:
@@ -1369,22 +1352,6 @@ if st.session_state.rol_sel == "MONITOREO":
                                 turnos_vig_list_m.append(determinar_turno_activo(fh_val_pm))
                             df_pan_vig_c_turno_m['TURNO VIGILADOR'] = turnos_vig_list_m
                             st.dataframe(df_pan_vig_c_turno_m.iloc[::-1], use_container_width=True, hide_index=True)
-                            
-                            for idx_vrow, row_v in df_pan_vig_c_turno_m.iterrows():
-                                estado_act_v = str(row_v.get('ESTADO', 'PENDIENTE')).strip().upper()
-                                if estado_act_v == "PENDIENTE":
-                                    key_btn_pvig = f"fin_pan_vig_idx_{idx_vrow}_{sup_seleccionado_mono}_{row_v.get('USUARIO', 'USR')}_{row_v.get('OBJETIVO', 'OBJ')}".replace(" ", "_")
-                                    if st.button(f"✅ Finalizar Pánico Vigilador ({row_v.get('USUARIO', 'AGENTE')} - {row_v.get('OBJETIVO', 'OBJ')})", key=key_btn_pvig):
-                                        gc_m2 = conectar_google()
-                                        if gc_m2:
-                                            hoja_alt2 = gc_m2.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
-                                            todas_a2 = hoja_alt2.get_all_values()
-                                            for i_a2, fila_a2 in enumerate(todas_a2[1:], start=2):
-                                                if len(fila_a2) > 5 and fila_a2[1].strip().upper() == str(row_v.get('USUARIO','')).strip().upper() and fila_a2[4].strip().upper() == str(row_v.get('OBJETIVO','')).strip().upper() and fila_a2[3].strip().upper() == "PENDIENTE":
-                                                    hoja_alt2.update_acell(f"D{i_a2}", "FINALIZADO")
-                                                    st.success("✅ Pánico de vigilador finalizado correctamente.")
-                                                    st.cache_data.clear()
-                                                    st.rerun()
                         else:
                             st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
                     else:
