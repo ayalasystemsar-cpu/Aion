@@ -219,6 +219,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     comisaria_encontrada = "COMISARÍA JURISDICCIONAL"
     direccion_comisaria = "---"
     localidad_comisaria = "---"
+    telefono_comisaria = "011-4000-0000"
     
     df_comis = cargar_datos_comisarias()
     
@@ -239,10 +240,11 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
                 comisaria_encontrada = com['COMISARIA']
                 direccion_comisaria = com['DIRECCION']
                 localidad_comisaria = com['LOCALIDAD']
+                telefono_comisaria = com.get('TELEFONO', '011-4000-0000')
     except:
         pass
 
-    comisaria_formateada = f"{comisaria_encontrada} - {direccion_comisaria}, {localidad_comisaria} (~{distancia_minima:.2f} KM)"
+    comisaria_formateada = f"{comisaria_encontrada} - {direccion_comisaria}, {localidad_comisaria} (Tel: {telefono_comisaria}) (~{distancia_minima:.2f} KM)"
 
     datos_nuevo_obj = [
         str(nombre_obj).strip().upper(), 
