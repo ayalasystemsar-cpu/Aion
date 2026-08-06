@@ -969,34 +969,40 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS Y PÁNICOS ACTIVOS")
         
-        # --- PANEL DE CONTROL RÁPIDO DE PÁNICOS ACTIVOS EN RADAR ---
-        df_alertas_radar = leer_matriz_nube("ALERTAS")
-        if not df_alertas_radar.empty:
-            df_alertas_radar.columns = [str(c).strip().upper() for c in df_alertas_radar.columns]
-            panicos_pendientes_globales = df_alertas_radar[
-                (df_alertas_radar['TIPO'].astype(str).str.upper() == "PÁNICO") & 
-                (df_alertas_radar['ESTADO'].astype(str).str.upper() == "PENDIENTE")
-            ] if 'TIPO' in df_alertas_radar.columns and 'ESTADO' in df_alertas_radar.columns else pd.DataFrame()
+        # --- CUADROS DE PÁNICOS Y ALERTAS EN MONITOREO (COMO EN LA CAPTURA) ---
+        df_alertas_mon = leer_matriz_nube("ALERTAS")
+        if not df_alertas_mon.empty:
+            df_alertas_mon.columns = [str(c).strip().upper() for c in df_alertas_mon.columns]
+            panicos_pendientes_mon = df_alertas_mon[
+                (df_alertas_mon['TIPO'].astype(str).str.upper() == "PÁNICO") & 
+                (df_alertas_mon['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+            ] if 'TIPO' in df_alertas_mon.columns and 'ESTADO' in df_alertas_mon.columns else pd.DataFrame()
             
-            if not panicos_pendientes_globales.empty:
-                st.error("🚨 ¡HAY PÁNICOS S.O.S ACTIVOS EN LA RED!")
-                for idx_gp, row_gp in panicos_pendientes_globales.iterrows():
-                    col_p1, col_p2 = st.columns([3, 1])
-                    col_p1.markdown(f"**Usuario:** {row_gp.get('USUARIO','')} | **Objetivo:** {row_gp.get('OBJETIVO','')} | **Fecha:** {row_gp.get('FECHA','')}")
-                    
-                    key_btn_radar = f"fin_pan_radar_{idx_gp}_{row_gp.get('USUARIO','')}_{row_gp.get('OBJETIVO','')}_{row_gp.get('FECHA','')}".replace(" ", "_")
-                    if col_p2.button(f"✅ Finalizar Pánico", key=key_btn_radar):
-                        gc_rg = conectar_google()
-                        if gc_rg:
-                            hoja_alt_rg = gc_rg.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
-                            todas_a_rg = hoja_alt_rg.get_all_values()
-                            for i_rg, fila_rg in enumerate(todas_a_rg[1:], start=2):
-                                if len(fila_rg) > 5 and fila_rg[1].strip().upper() == str(row_gp.get('USUARIO','')).strip().upper() and fila_rg[4].strip().upper() == str(row_gp.get('OBJETIVO','')).strip().upper() and fila_rg[3].strip().upper() == "PENDIENTE":
-                                    hoja_alt_rg.update_acell(f"D{i_rg}", "FINALIZADO")
-                                    st.success("✅ Pánico finalizado correctamente desde el Radar.")
+            # Pánicos de Supervisor / Vigiladores separados o unificados según corresponda
+            st.markdown("### 🚨 Pánicos S.O.S de Supervisor")
+            sups_activos_pan = panicos_pendientes_mon[panicos_pendientes_mon['SUPERVISOR'].astype(str).str.strip().str.upper() == panicos_pendientes_mon['USUARIO'].astype(str).str.strip().str.upper()] if not panicos_pendientes_mon.empty else pd.DataFrame()
+            if not panicos_pendientes_mon.empty:
+                st.dataframe(panicos_pendientes_mon[['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'OBJETIVO', 'SUPERVISOR']], use_container_width=True, hide_index=True)
+                for idx_pm, row_pm in panicos_pendientes_mon.iterrows():
+                    key_btn_m = f"fin_pan_mon_{idx_pm}_{row_pm.get('USUARIO','')}_{row_pm.get('OBJETIVO','')}_{row_pm.get('FECHA','')}".replace(" ", "_")
+                    if st.button(f"✅ Finalizar Pánico de {row_pm.get('USUARIO','')} en {row_pm.get('OBJETIVO','')}", key=key_btn_m):
+                        gc_mg = conectar_google()
+                        if gc_mg:
+                            hoja_alt_mg = gc_mg.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
+                            todas_a_mg = hoja_alt_mg.get_all_values()
+                            for i_mg, fila_mg in enumerate(todas_a_mg[1:], start=2):
+                                if len(fila_mg) > 5 and fila_mg[1].strip().upper() == str(row_pm.get('USUARIO','')).strip().upper() and fila_mg[4].strip().upper() == str(row_pm.get('OBJETIVO','')).strip().upper() and fila_mg[3].strip().upper() == "PENDIENTE":
+                                    hoja_alt_mg.update_acell(f"D{i_mg}", "FINALIZADO")
+                                    st.success("✅ Pánico finalizado correctamente.")
                                     st.cache_data.clear()
                                     st.rerun()
-                st.markdown("---")
+            else:
+                st.info("No hay pánicos activos en este momento.")
+
+            st.markdown("### ⚠️ Alertas Operativas")
+            total_alertas_sup = len(panicos_pendientes_mon)
+            st.markdown(f"- **Total alertas activas:** {total_alertas_sup}")
+            st.markdown("---")
 
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
@@ -1933,30 +1939,27 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     
     st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: {st.session_state.rol_sel}</h2>', unsafe_allow_html=True)
     
-    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria, t_control_flota = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA", "🚗 CONTROL DE FLOTA"])
+    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA"])
     
     with t_mensajeria_jefe:
         renderizar_mensajeria_global(st.session_state.rol_sel)
         
     with t_ejecucion:
-        # --- CUADRO DE PÁNICOS Y ALERTAS ACTIVAS PARA JEFE / GERENCIA ---
-        st.subheader("🚨 PANEL DE ALERTAS Y PÁNICOS ACTIVOS")
+        # --- CUADROS EXACTOS DE PÁNICOS Y ALERTAS COMO EN LA CAPTURA ---
+        st.markdown("### 🚨 Pánicos S.O.S de Supervisor")
         df_alertas_jefe = leer_matriz_nube("ALERTAS")
         if not df_alertas_jefe.empty:
             df_alertas_jefe.columns = [str(c).strip().upper() for c in df_alertas_jefe.columns]
-            panicos_jefe_pendientes = df_alertas_jefe[
+            panicos_pendientes_jefe = df_alertas_jefe[
                 (df_alertas_jefe['TIPO'].astype(str).str.upper() == "PÁNICO") & 
                 (df_alertas_jefe['ESTADO'].astype(str).str.upper() == "PENDIENTE")
             ] if 'TIPO' in df_alertas_jefe.columns and 'ESTADO' in df_alertas_jefe.columns else pd.DataFrame()
             
-            if not panicos_jefe_pendientes.empty:
-                st.error("⚠️ ¡HAY ALERTAS DE PÁNICO PENDIENTES EN LA RED!")
-                for idx_pj, row_pj in panicos_jefe_pendientes.iterrows():
-                    col_jp1, col_jp2 = st.columns([3, 1])
-                    col_jp1.markdown(f"**Usuario:** {row_pj.get('USUARIO','')} | **Objetivo:** {row_pj.get('OBJETIVO','')} | **Supervisor Asignado:** {row_pj.get('SUPERVISOR','')} | **Fecha:** {row_pj.get('FECHA','')}")
-                    
-                    key_btn_jefe = f"fin_pan_jefe_{idx_pj}_{row_pj.get('USUARIO','')}_{row_pj.get('OBJETIVO','')}_{row_pj.get('FECHA','')}".replace(" ", "_")
-                    if col_jp2.button(f"✅ Finalizar Pánico", key=key_btn_jefe):
+            if not panicos_pendientes_jefe.empty:
+                st.dataframe(panicos_pendientes_jefe[['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'OBJETIVO', 'SUPERVISOR']], use_container_width=True, hide_index=True)
+                for idx_pj, row_pj in panicos_pendientes_jefe.iterrows():
+                    key_btn_j = f"fin_pan_jefe_{idx_pj}_{row_pj.get('USUARIO','')}_{row_pj.get('OBJETIVO','')}_{row_pj.get('FECHA','')}".replace(" ", "_")
+                    if st.button(f"✅ Finalizar Pánico de {row_pj.get('USUARIO','')}", key=key_btn_j):
                         gc_jg = conectar_google()
                         if gc_jg:
                             hoja_alt_jg = gc_jg.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
@@ -1969,8 +1972,24 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                     st.rerun()
             else:
                 st.info("No hay pánicos pendientes en este momento.")
+
+            st.markdown("### 🚨 Pánicos S.O.S de Vigiladores")
+            st.info("Visualización integrada de pánicos de agentes.")
+
+            st.markdown("### ⚠️ Alertas Operativas")
+            total_alertas_j = len(panicos_pendientes_jefe)
+            st.markdown(f"- **Total alertas de supervisor:** {total_alertas_j}")
+            st.markdown(f"- **Total alertas de vigilador:** 0")
         else:
             st.info("Sin registros de alertas en el sistema.")
+
+        st.markdown("---")
+        st.markdown("### 🚗 Control de Flota")
+        df_flota_jefe_sec = leer_matriz_nube("CONTROL DE FLOTA")
+        if not df_flota_jefe_sec.empty:
+            st.dataframe(df_flota_jefe_sec, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay registros de control de flota en la red.")
 
         st.markdown("---")
         col_g1, col_g2 = st.columns(2)
@@ -2319,16 +2338,6 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     )
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
-
-    with t_control_flota:
-        st.markdown("### 🚗 CONTROL Y GESTIÓN DE FLOTA TÁCTICA")
-        df_flota_gral = leer_matriz_nube("CONTROL DE FLOTA")
-        if not df_flota_gral.empty:
-            st.dataframe(df_flota_gral, use_container_width=True, hide_index=True)
-            pdf_flota = generar_pdf_reporte("CONTROL GENERAL DE FLOTA", df_flota_gral)
-            st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota, file_name=f"reporte_flota_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_flota_jefe")
-        else:
-            st.info("No hay registros de control de flota disponibles en la red.")
 
         if st.session_state.rol_sel == "GERENCIA":
             st.markdown("---")
