@@ -161,7 +161,6 @@ def escribir_registro_nube(pestana, datos_fila):
             except:
                 hoja = sh.add_worksheet(title=nombre_hoja_real, rows="200", cols="20")
             
-            # Verificar si la hoja está vacía para colocar encabezados básicos si corresponde
             if len(hoja.get_all_values()) == 0:
                 if pestana.upper() == "OBJETIVOS":
                     hoja.append_row(["OBJETIVO", "DIRECCION", "LOCALIDAD", "SUPERVISOR", "LATITUD", "LONGITUD", "RESPONSABLES", "COMISARIA"])
@@ -175,7 +174,7 @@ def escribir_registro_nube(pestana, datos_fila):
             st.error("⚠️ No se pudo establecer conexión con Google Sheets.")
             return False
     except Exception as e:
-        st.error(f"⚠️ Error técnico en nube ({pestana}): {e}")
+        st.error(f"❌ ERROR TÉCNICO GOOGLE SHEETS ({pestana}): {e}")
         return False
 
 @st.cache_data(ttl=30)
@@ -340,59 +339,64 @@ def verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, lat, l
         print(f"Error gestionando solapa comisarías: {e}")
 
 def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
-    nombre_obj_upper = str(nombre_obj).strip().upper()
-    localidad_obj_upper = str(localidad).strip().upper()
-     
-    distancia_minima = float('inf')
-    com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
-    com_lat_calc, com_lon_calc = lat, lon
-     
-    df_comis = cargar_datos_comisarias()
     try:
-        lat_f = float(str(lat).replace(',', '.'))
-        lon_f = float(str(lon).replace(',', '.'))
+        nombre_obj_upper = str(nombre_obj).strip().upper()
+        localidad_obj_upper = str(localidad).strip().upper()
          
-        if not df_comis.empty and 'LOCALIDAD' in df_comis.columns:
-            df_comis_filtrada = df_comis[df_comis['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_upper]
-            if df_comis_filtrada.empty:
+        distancia_minima = float('inf')
+        com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
+        com_lat_calc, com_lon_calc = lat, lon
+         
+        df_comis = cargar_datos_comisarias()
+        try:
+            lat_f = float(str(lat).replace(',', '.'))
+            lon_f = float(str(lon).replace(',', '.'))
+             
+            if not df_comis.empty and 'LOCALIDAD' in df_comis.columns:
+                df_comis_filtrada = df_comis[df_comis['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_upper]
+                if df_comis_filtrada.empty:
+                    df_comis_filtrada = df_comis
+            else:
                 df_comis_filtrada = df_comis
-        else:
-            df_comis_filtrada = df_comis
 
-        for _, com in df_comis_filtrada.iterrows():
-            lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
-            dlon = lon2 - lon1
-            dlat = lat2 - lat1
-            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-            c = 2 * math.asin(math.sqrt(a))
-            km = 6371 * c
-            if km < distancia_minima:
-                distancia_minima = km
-                com_n = com['COMISARIA']
-                com_d = com['DIRECCION']
-                com_l = com['LOCALIDAD']
-                com_t = com.get('TELEFONO', '011-4000-0000')
-                com_lat_calc = com.get('LATITUD', lat)
-                com_lon_calc = com.get('LONGITUD', lon)
-    except Exception as e:
-        print(f"Error calculando comisaría cercana: {e}")
+            for _, com in df_comis_filtrada.iterrows():
+                lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
+                dlon = lon2 - lon1
+                dlat = lat2 - lat1
+                a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                c = 2 * math.asin(math.sqrt(a))
+                km = 6371 * c
+                if km < distancia_minima:
+                    distancia_minima = km
+                    com_n = com['COMISARIA']
+                    com_d = com['DIRECCION']
+                    com_l = com['LOCALIDAD']
+                    com_t = com.get('TELEFONO', '011-4000-0000')
+                    com_lat_calc = com.get('LATITUD', lat)
+                    com_lon_calc = com.get('LONGITUD', lon)
+        except Exception as e:
+            print(f"Error calculando comisaría cercana: {e}")
 
-    comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
+        comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
 
-    datos_nuevo_obj = [
-        nombre_obj_upper, 
-        str(direccion).strip().upper(), 
-        str(localidad).strip().upper(), 
-        str(supervisor).strip().upper(), 
-        str(lat), 
-        str(lon), 
-        str(responsables).strip().upper(),
-        comisaria_formateada
-    ]
-     
-    exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
-    verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
-    return exito
+        datos_nuevo_obj = [
+            nombre_obj_upper, 
+            str(direccion).strip().upper(), 
+            str(localidad).strip().upper(), 
+            str(supervisor).strip().upper(), 
+            str(lat), 
+            str(lon), 
+            str(responsables).strip().upper(),
+            comisaria_formateada
+        ]
+         
+        exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+        if exito:
+            verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
+        return exito
+    except Exception as ex:
+        st.error(f"❌ Error crítico en registro de objetivo: {ex}")
+        return False
 
 def obtener_lista_supervisores_dinamica():
     base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO", "TIKI", "GONZALEZ"]
