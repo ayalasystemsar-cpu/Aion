@@ -386,7 +386,7 @@ def aplicar_identidad_alfa():
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; }
+        .stApp { background: radial-gradient(circle at top, #0A0F1E 0%, #030305 100%) !important; color: #E0E0E0; font-family: 'Rajdhani', sans-serif; unicode-bidi: plaintext !important; }
         
         .block-container {
             padding-left: 1rem !important;
@@ -421,7 +421,7 @@ def aplicar_identidad_alfa():
 
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
-        .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; }
+        .stApp input { background-color: #252833 !important; color: #FFFFFF !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; unicode-bidi: plaintext !important; direction: ltr !important; text-align: left !important; }
         .stApp label p { color: #A0A5B5 !important; font-family: 'Orbitron', sans-serif !important; font-size: 11px !important; font-weight: bold !important; letter-spacing: 0.5px; text-transform: uppercase; }
         .radar-box { border: 1px solid #00e5ff; border-radius: 8px; padding: 5px; background: #000000; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
         
@@ -479,7 +479,7 @@ def aplicar_identidad_alfa():
         
         div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 8px !important; }
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
-        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; }
+        div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; unicode-bidi: plaintext !important; direction: ltr !important; }
         
         div[data-testid="stDataFrame"] {
             width: 100% !important;
@@ -1349,7 +1349,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if 'alerta_activa_supervisor' in st.session_state:
             datos_s = st.session_state.alerta_activa_supervisor
             st.markdown(f"""
-                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif; unicode-bidi: plaintext !important;">
                     <div style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 13px; font-weight: 500; letter-spacing: 1px;">
                         🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL
                     </div>
@@ -1357,7 +1357,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px;">
-                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; unicode-bidi: plaintext !important; direction: ltr !important; text-align: center;">
                             📞 LLAMAR DIRECTAMENTE AHORA ({datos_s['telefono']})
                         </a>
                     </div>
@@ -1738,7 +1738,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
             st.markdown(f"""
-                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif;">
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif; unicode-bidi: plaintext !important;">
                     <div style="color: #94A3B8; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px;">
                         🚨 ALERTA ENVIADA: DESDE {datos_pan['obj']}
                     </div>
@@ -1747,7 +1747,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px; text-align: center;">
-                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; unicode-bidi: plaintext !important; direction: ltr !important; text-align: center;">
                             📞 LLAMAR A LA COMISARÍA ({datos_pan['telefono']})
                         </a>
                     </div>
