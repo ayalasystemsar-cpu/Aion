@@ -1778,16 +1778,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             with tab_alta_sup:
                 with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
                     col_no1, col_no2 = st.columns(2)
-                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="CARLOS PELLEGRINI").upper().strip()
-                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="1163").upper().strip()
+                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="").upper().strip()
+                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="").upper().strip()
                      
                     col_loc1, col_loc2 = st.columns(2)
-                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="CABA").upper().strip()
-                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="-34.5985")
+                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="").upper().strip()
+                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="")
                      
                     col_lon1, col_lon2 = st.columns(2)
-                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="-58.3838")
-                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="CENTRO").upper().strip()
+                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="")
+                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="").upper().strip()
                      
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
