@@ -246,8 +246,8 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
                 com_d = com['DIRECCION']
                 com_l = com['LOCALIDAD']
                 com_t = com.get('TELEFONO', '011-4000-0000')
-    except:
-        pass
+    except Exception as e:
+        print(f"Error calculando comisaría cercana: {e}")
 
     comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
 
@@ -269,8 +269,12 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         gc = conectar_google()
         if gc:
             sh = gc.open_by_key(ID_MAESTRO_DB)
-            hoja_comis = sh.worksheet("COMISARIAS")
-            # Registramos también en la matriz maestra de comisarías si no existe previamente
+            try:
+                hoja_comis = sh.worksheet("COMISARIAS")
+            except:
+                hoja_comis = sh.add_worksheet(title="COMISARIAS", rows="100", cols="10")
+                hoja_comis.append_row(["COMISARIA", "DIRECCION", "LOCALIDAD", "TELEFONO", "LATITUD", "LONGITUD"])
+
             registros_existentes = hoja_comis.get_all_values()
             encontrada = False
             for fila_c in registros_existentes[1:]:
@@ -279,8 +283,8 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
                     break
             if not encontrada:
                 hoja_comis.append_row([com_n, com_d, com_l, com_t, str(lat), str(lon)])
-    except:
-        pass
+    except Exception as e:
+        print(f"Error guardando en solapa comisarías: {e}")
 
     return exito
 
@@ -1624,18 +1628,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             tab_alta_sup, tab_baja_sup = st.tabs(["🚀 DAR DE ALTA", "🗑️ SOLICITAR BAJA"])
             
             with tab_alta_sup:
-                with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=True):
+                with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
                     col_no1, col_no2 = st.columns(2)
-                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:").upper().strip()
-                    nueva_direccion = col_no2.text_input("DIRECCIÓN:").upper().strip()
+                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="CARLOS PELLEGRINI").upper().strip()
+                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="1163").upper().strip()
                     
                     col_loc1, col_loc2 = st.columns(2)
-                    nueva_localidad = col_loc1.text_input("LOCALIDAD:").upper().strip()
-                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.662580):")
+                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="CABA").upper().strip()
+                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="-34.5985")
                     
                     col_lon1, col_lon2 = st.columns(2)
-                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.367150):")
-                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:").upper().strip()
+                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="-58.3838")
+                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="CENTRO").upper().strip()
                     
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
@@ -1644,8 +1648,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado con éxito y comisaría vinculada en la master!")
-                                st.rerun()
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
+                            else:
+                                st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
+                        else:
+                            st.warning("⚠️ Complete los campos obligatorios (Nombre, Latitud y Longitud).")
 
             with tab_baja_sup:
                 if not df_objetivos_filtrados.empty:
@@ -2403,6 +2410,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         with t_adm_mantenimiento:
             st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
+            if not df_obj_m.png if 'pdf_respaldo_objs' in locals() else False:
+                pass
             if not df_obj_m.empty:
                 pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
                 st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
