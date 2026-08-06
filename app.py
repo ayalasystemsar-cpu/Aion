@@ -1933,12 +1933,46 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     
     st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: {st.session_state.rol_sel}</h2>', unsafe_allow_html=True)
     
-    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA"])
+    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria, t_control_flota = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA", "🚗 CONTROL DE FLOTA"])
     
     with t_mensajeria_jefe:
         renderizar_mensajeria_global(st.session_state.rol_sel)
         
     with t_ejecucion:
+        # --- CUADRO DE PÁNICOS Y ALERTAS ACTIVAS PARA JEFE / GERENCIA ---
+        st.subheader("🚨 PANEL DE ALERTAS Y PÁNICOS ACTIVOS")
+        df_alertas_jefe = leer_matriz_nube("ALERTAS")
+        if not df_alertas_jefe.empty:
+            df_alertas_jefe.columns = [str(c).strip().upper() for c in df_alertas_jefe.columns]
+            panicos_jefe_pendientes = df_alertas_jefe[
+                (df_alertas_jefe['TIPO'].astype(str).str.upper() == "PÁNICO") & 
+                (df_alertas_jefe['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+            ] if 'TIPO' in df_alertas_jefe.columns and 'ESTADO' in df_alertas_jefe.columns else pd.DataFrame()
+            
+            if not panicos_jefe_pendientes.empty:
+                st.error("⚠️ ¡HAY ALERTAS DE PÁNICO PENDIENTES EN LA RED!")
+                for idx_pj, row_pj in panicos_jefe_pendientes.iterrows():
+                    col_jp1, col_jp2 = st.columns([3, 1])
+                    col_jp1.markdown(f"**Usuario:** {row_pj.get('USUARIO','')} | **Objetivo:** {row_pj.get('OBJETIVO','')} | **Supervisor Asignado:** {row_pj.get('SUPERVISOR','')} | **Fecha:** {row_pj.get('FECHA','')}")
+                    
+                    key_btn_jefe = f"fin_pan_jefe_{idx_pj}_{row_pj.get('USUARIO','')}_{row_pj.get('OBJETIVO','')}_{row_pj.get('FECHA','')}".replace(" ", "_")
+                    if col_jp2.button(f"✅ Finalizar Pánico", key=key_btn_jefe):
+                        gc_jg = conectar_google()
+                        if gc_jg:
+                            hoja_alt_jg = gc_jg.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
+                            todas_a_jg = hoja_alt_jg.get_all_values()
+                            for i_jg, fila_jg in enumerate(todas_a_jg[1:], start=2):
+                                if len(fila_jg) > 5 and fila_jg[1].strip().upper() == str(row_pj.get('USUARIO','')).strip().upper() and fila_jg[4].strip().upper() == str(row_pj.get('OBJETIVO','')).strip().upper() and fila_jg[3].strip().upper() == "PENDIENTE":
+                                    hoja_alt_jg.update_acell(f"D{i_jg}", "FINALIZADO")
+                                    st.success("✅ Pánico finalizado correctamente.")
+                                    st.cache_data.clear()
+                                    st.rerun()
+            else:
+                st.info("No hay pánicos pendientes en este momento.")
+        else:
+            st.info("Sin registros de alertas en el sistema.")
+
+        st.markdown("---")
         col_g1, col_g2 = st.columns(2)
         with col_g1:
             st.subheader("ALTA DE RECURSO / OBJETIVO")
@@ -2285,6 +2319,16 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     )
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
+
+    with t_control_flota:
+        st.markdown("### 🚗 CONTROL Y GESTIÓN DE FLOTA TÁCTICA")
+        df_flota_gral = leer_matriz_nube("CONTROL DE FLOTA")
+        if not df_flota_gral.empty:
+            st.dataframe(df_flota_gral, use_container_width=True, hide_index=True)
+            pdf_flota = generar_pdf_reporte("CONTROL GENERAL DE FLOTA", df_flota_gral)
+            st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota, file_name=f"reporte_flota_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_flota_jefe")
+        else:
+            st.info("No hay registros de control de flota disponibles en la red.")
 
         if st.session_state.rol_sel == "GERENCIA":
             st.markdown("---")
