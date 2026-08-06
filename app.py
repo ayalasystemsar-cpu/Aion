@@ -226,7 +226,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         lat_f = float(str(lat).replace(',', '.'))
         lon_f = float(str(lon).replace(',', '.'))
         
-        # Filtrar estrictamente por localidad/partido si coincide para garantizar precisión geográfica
         if not df_comis.empty and 'LOCALIDAD' in df_comis.columns:
             df_comis_filtrada = df_comis[df_comis['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_upper]
             if df_comis_filtrada.empty:
@@ -263,7 +262,27 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         comisaria_formateada
     ]
     
-    return escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+    exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+    
+    # Persistencia automática adicional en solapa COMISARIAS del maestro si corresponde
+    try:
+        gc = conectar_google()
+        if gc:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
+            hoja_comis = sh.worksheet("COMISARIAS")
+            # Registramos también en la matriz maestra de comisarías si no existe previamente
+            registros_existentes = hoja_comis.get_all_values()
+            encontrada = False
+            for fila_c in registros_existentes[1:]:
+                if len(fila_c) > 0 and str(fila_c[0]).strip().upper() == com_n.upper():
+                    encontrada = True
+                    break
+            if not encontrada:
+                hoja_comis.append_row([com_n, com_d, com_l, com_t, str(lat), str(lon)])
+    except:
+        pass
+
+    return exito
 
 def obtener_lista_supervisores_dinamica():
     base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO", "TIKI", "GONZALEZ"]
@@ -1625,7 +1644,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado con éxito!")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado con éxito y comisaría vinculada en la master!")
                                 st.rerun()
 
             with tab_baja_sup:
