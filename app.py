@@ -98,7 +98,8 @@ def conectar_google():
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         return gspread.authorize(creds)
-    except: 
+    except Exception as e:
+        print(f"Error conectando a Google: {e}")
         return None
 
 def obtener_hora_argentina():
@@ -154,12 +155,26 @@ def escribir_registro_nube(pestana, datos_fila):
         gc = conectar_google()
         if gc:
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
+            sh = gc.open_by_key(ID_MAESTRO_DB)
+            try:
+                hoja = sh.worksheet(nombre_hoja_real)
+            except:
+                hoja = sh.add_worksheet(title=nombre_hoja_real, rows="200", cols="20")
+            
+            # Verificar si la hoja está vacía para colocar encabezados básicos si corresponde
+            if len(hoja.get_all_values()) == 0:
+                if pestana.upper() == "OBJETIVOS":
+                    hoja.append_row(["OBJETIVO", "DIRECCION", "LOCALIDAD", "SUPERVISOR", "LATITUD", "LONGITUD", "RESPONSABLES", "COMISARIA"])
+                elif pestana.upper() == "ALERTAS":
+                    hoja.append_row(["FECHA", "USUARIO", "TIPO", "ESTADO", "OBJETIVO", "SUPERVISOR"])
+
             hoja.append_row(datos_fila)
             st.cache_data.clear() 
             return True
+        else:
+            st.error("⚠️ No se pudo establecer conexión con Google Sheets.")
+            return False
     except Exception as e:
-        print(f"Error de nube en {pestana}: {e}")
         st.error(f"⚠️ Error técnico en nube ({pestana}): {e}")
         return False
 
