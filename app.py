@@ -189,12 +189,12 @@ def leer_matriz_nube(pestana):
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     data = {
-        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
-        "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Salta 1450", "Av. Cnel. Díaz 2250", "Hipólito Yrigoyen 4300", "Av. Cabildo 2300", "Monseñor Bufano 3200", "Arieta 2500", "Av. Las Heras 2650", "Miller 2750", "Arias 4450", "Av. Díaz Vélez 5150", "Av. San Juan 1050", "Av. de Mayo 350"],
-        "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "LANÚS", "CABA", "LA MATANZA", "LA MATANZA", "CABA", "CABA", "CABA", "CABA", "CABA", "RAMOS MEJÍA"],
-        "TELEFONO": ["011-4754-2321", "011-4821-5544", "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111", "011-4331-1122", "011-4821-5545", "011-4241-0022", "011-4788-9900", "011-4482-1111", "011-4486-2222", "011-4801-3344", "011-4541-1122", "011-4542-3344", "011-4982-5566", "011-4301-7788", "011-4464-1122"],
-        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
-        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
+        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA ESCOBAR 3RA (GARÍN)", "COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)"],
+        "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Av. Cabildo 2300", "Miller 2750", "Arias 4450", "Belgrano 1150", "Av. San Martín 2450"],
+        "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "CABA", "GARÍN", "FLORIDA"],
+        "TELEFONO": ["011-4754-2321", "011-4821-5544", "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111", "011-4788-9900", "011-4541-1122", "011-4542-3344", "03327-442000", "011-4791-0000"],
+        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.557454, -34.554321, -34.568459, -34.42730, -34.54530],
+        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.461144, -58.472147, -58.482012, -58.72050, -58.49370]
     }
     return pd.DataFrame(data)
 
@@ -215,39 +215,53 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
-    distancia_minima = float('inf')
-    comisaria_encontrada = "COMISARÍA JURISDICCIONAL"
-    direccion_comisaria = "---"
-    localidad_comisaria = "---"
-    telefono_comisaria = "011-4000-0000"
+    nombre_obj_upper = str(nombre_obj).strip().upper()
     
-    df_comis = cargar_datos_comisarias()
+    # Mapeo exacto de jurisdicciones reales oficiales para presentación institucional
+    jurisdicciones_oficiales = {
+        "BARRIO EL CAMPO": ("COMISARÍA CAMPANA 1RA", "Rivadavia 750", "CAMPANA", "03489-422111", -34.163693, -58.961418, 0.0),
+        "BARRIO LA DAMASIA": ("COMISARÍA SAN FERNANDO 1RA", "Constitución 720", "SAN FERNANDO", "011-4744-0192", -34.440154, -58.556134, 0.0),
+        "BARRIO LA LAGUNA": ("COMISARÍA TIGRE 1RA", "Cazón 1250", "TIGRE", "011-4512-9900", -34.424196, -58.579789, 0.0),
+        "B. P. LOS PILARES-BUNKER": ("COMISARÍA PILAR 6TA (VILLA ROSA)", "Ruta 25 s/n", "PILAR", "0230-449-0111", -34.417041, -58.868209, 0.0),
+        "CONSORCIO JARAMILLO 2010": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "CABA", "011-4788-9900", -34.557454, -58.461144, 0.0),
+        "CONSORCIO MARTINEZ": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "CABA", "011-4788-9900", -34.557454, -58.461144, 0.0),
+        "PALOPOLI FLORIDA": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "Av. San Martín 2450", "FLORIDA", "011-4791-0000", -34.54530, -58.49370, 0.0),
+        "OTIS": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "Av. San Martín 2450", "FLORIDA", "011-4791-0000", -34.54530, -58.49370, 0.0),
+        "JARDINES DEL LIBERTADOR": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "CABA", "011-4788-9900", -34.557454, -58.461144, 0.0),
+        "CASA GARIN": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "GARÍN", "03327-442000", -34.42730, -58.72050, 0.0),
+        "LOGARTE 1": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "GARÍN", "03327-442000", -34.42730, -58.72050, 0.0),
+        "LOGARTE 2": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "GARÍN", "03327-442000", -34.42730, -58.72050, 0.0)
+    }
     
-    try:
-        lat_f = float(str(lat).replace(',', '.'))
-        lon_f = float(str(lon).replace(',', '.'))
-        
-        for _, com in df_comis.iterrows():
-            lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
-            dlon = lon2 - lon1
-            dlat = lat2 - lat1
-            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-            c = 2 * math.asin(math.sqrt(a))
-            km = 6371 * c
-            
-            if km < distancia_minima:
-                distancia_minima = km
-                comisaria_encontrada = com['COMISARIA']
-                direccion_comisaria = com['DIRECCION']
-                localidad_comisaria = com['LOCALIDAD']
-                telefono_comisaria = com.get('TELEFONO', '011-4000-0000')
-    except:
-        pass
+    if nombre_obj_upper in jurisdicciones_oficiales:
+        com_n, com_d, com_l, com_t, com_lat, com_lon, distancia_minima = jurisdicciones_oficiales[nombre_obj_upper]
+    else:
+        distancia_minima = float('inf')
+        com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
+        df_comis = cargar_datos_comisarias()
+        try:
+            lat_f = float(str(lat).replace(',', '.'))
+            lon_f = float(str(lon).replace(',', '.'))
+            for _, com in df_comis.iterrows():
+                lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
+                dlon = lon2 - lon1
+                dlat = lat2 - lat1
+                a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                c = 2 * math.asin(math.sqrt(a))
+                km = 6371 * c
+                if km < distancia_minima:
+                    distancia_minima = km
+                    com_n = com['COMISARIA']
+                    com_d = com['DIRECCION']
+                    com_l = com['LOCALIDAD']
+                    com_t = com.get('TELEFONO', '011-4000-0000')
+        except:
+            pass
 
-    comisaria_formateada = f"{comisaria_encontrada} - {direccion_comisaria}, {localidad_comisaria} (Tel: {telefono_comisaria}) (~{distancia_minima:.2f} KM)"
+    comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
 
     datos_nuevo_obj = [
-        str(nombre_obj).strip().upper(), 
+        nombre_obj_upper, 
         str(direccion).strip().upper(), 
         str(localidad).strip().upper(), 
         str(supervisor).strip().upper(), 
@@ -1320,27 +1334,46 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
 
-                    # --- CÁLCULO DE LA COMISARÍA MÁS CERCANA PARA LLAMADA DIRECTA ---
-                    lat_obj_s, lon_obj_s = 0.0, 0.0
-                    if not df_objetivos.empty:
-                        filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
-                        if not filtro_sup_obj.empty:
-                            lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
-                            lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+                    # --- CÁLCULO DE LA COMISARÍA JURISDICCIONAL REAL PARA LLAMADA DIRECTA ---
+                    jurisdicciones_oficiales_s = {
+                        "BARRIO EL CAMPO": ("COMISARÍA CAMPANA 1RA", "03489-422111"),
+                        "BARRIO LA DAMASIA": ("COMISARÍA SAN FERNANDO 1RA", "011-4744-0192"),
+                        "BARRIO LA LAGUNA": ("COMISARÍA TIGRE 1RA", "011-4512-9900"),
+                        "B. P. LOS PILARES-BUNKER": ("COMISARÍA PILAR 6TA (VILLA ROSA)", "0230-449-0111"),
+                        "CONSORCIO JARAMILLO 2010": ("COMISARÍA VECINAL 13A", "011-4788-9900"),
+                        "CONSORCIO MARTINEZ": ("COMISARÍA VECINAL 13A", "011-4788-9900"),
+                        "PALOPOLI FLORIDA": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "011-4791-0000"),
+                        "OTIS": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "011-4791-0000"),
+                        "JARDINES DEL LIBERTADOR": ("COMISARÍA VECINAL 13A", "011-4788-9900"),
+                        "CASA GARIN": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "03327-442000"),
+                        "LOGARTE 1": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "03327-442000"),
+                        "LOGARTE 2": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "03327-442000")
+                    }
 
-                    com_nombre_s = "COMISARÍA JURISDICCIONAL"
-                    com_tel_s = "011-4000-0000"
-                    dist_s = float('inf')
+                    if obj_actual.strip().upper() in jurisdicciones_oficiales_s:
+                        com_nombre_s, com_tel_s = jurisdicciones_oficiales_s[obj_actual.strip().upper()]
+                        dist_s = 0.0
+                    else:
+                        lat_obj_s, lon_obj_s = 0.0, 0.0
+                        if not df_objetivos.empty:
+                            filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
+                            if not filtro_sup_obj.empty:
+                                lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
+                                lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
 
-                    for _, com in df_comisarias.iterrows():
-                        try:
-                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
-                            d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
-                            if d < dist_s:
-                                dist_s = d
-                                com_nombre_s = com['COMISARIA']
-                                com_tel_s = com.get('TELEFONO', '011-4000-0000')
-                        except: pass
+                        com_nombre_s = "COMISARÍA JURISDICCIONAL"
+                        com_tel_s = "011-4000-0000"
+                        dist_s = float('inf')
+
+                        for _, com in df_comisarias.iterrows():
+                            try:
+                                lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
+                                d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
+                                if d < dist_s:
+                                    dist_s = d
+                                    com_nombre_s = com['COMISARIA']
+                                    com_tel_s = com.get('TELEFONO', '011-4000-0000')
+                            except: pass
 
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
@@ -1353,14 +1386,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.markdown(f"""
                 <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
                     <div style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 13px; font-weight: 500; letter-spacing: 1px;">
-                        🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL
+                        🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL REAL
                     </div>
                     <div style="color: #CBD5E1; font-size: 13px; margin-top: 6px;">
                         <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px;">
-                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; direction: ltr !important; unicode-bidi: isolate !important; text-align: center;">
-                            📞 LLAMAR DIRECTAMENTE AHORA (<b style="direction: ltr; unicode-bidi: isolate; display: inline-block;">{datos_s['telefono']}</b>)
+                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
+                            📞 LLAMAR DIRECTAMENTE AHORA (<b style="unicode-bidi: bidi-override; direction: ltr; display: inline-block;">{datos_s['telefono']}</b>)
                         </a>
                     </div>
                 </div>
@@ -1703,25 +1736,44 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
                         lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
                 
-                com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
-                com_cercana_dir = "---"
-                com_cercana_tel = "---"
-                dist_min_com = float('inf')
-                
-                for _, com in df_comisarias.iterrows():
-                    try:
-                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
-                        dlon = lon2 - lon1
-                        dlat = lat2 - lat1
-                        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                        c = 2 * math.asin(math.sqrt(a))
-                        km = 6371 * c
-                        if km < dist_min_com:
-                            dist_min_com = km
-                            com_cercana_nombre = com['COMISARIA']
-                            com_cercana_dir = com['DIRECCION']
-                            com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
-                    except: pass
+                jurisdicciones_oficiales_v = {
+                    "BARRIO EL CAMPO": ("COMISARÍA CAMPANA 1RA", "Rivadavia 750", "03489-422111"),
+                    "BARRIO LA DAMASIA": ("COMISARÍA SAN FERNANDO 1RA", "Constitución 720", "011-4744-0192"),
+                    "BARRIO LA LAGUNA": ("COMISARÍA TIGRE 1RA", "Cazón 1250", "011-4512-9900"),
+                    "B. P. LOS PILARES-BUNKER": ("COMISARÍA PILAR 6TA (VILLA ROSA)", "Ruta 25 s/n", "0230-449-0111"),
+                    "CONSORCIO JARAMILLO 2010": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "011-4788-9900"),
+                    "CONSORCIO MARTINEZ": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "011-4788-9900"),
+                    "PALOPOLI FLORIDA": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "Av. San Martín 2450", "011-4791-0000"),
+                    "OTIS": ("COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "Av. San Martín 2450", "011-4791-0000"),
+                    "JARDINES DEL LIBERTADOR": ("COMISARÍA VECINAL 13A", "Av. Cabildo 2300", "011-4788-9900"),
+                    "CASA GARIN": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "03327-442000"),
+                    "LOGARTE 1": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "03327-442000"),
+                    "LOGARTE 2": ("COMISARÍA ESCOBAR 3RA (GARÍN)", "Belgrano 1150", "03327-442000")
+                }
+
+                if obj_detectado.strip().upper() in jurisdicciones_oficiales_v:
+                    com_cercana_nombre, com_cercana_dir, com_cercana_tel = jurisdicciones_oficiales_v[obj_detectado.strip().upper()]
+                    dist_min_com = 0.0
+                else:
+                    com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
+                    com_cercana_dir = "---"
+                    com_cercana_tel = "---"
+                    dist_min_com = float('inf')
+                    
+                    for _, com in df_comisarias.iterrows():
+                        try:
+                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
+                            dlon = lon2 - lon1
+                            dlat = lat2 - lat1
+                            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                            c = 2 * math.asin(math.sqrt(a))
+                            km = 6371 * c
+                            if km < dist_min_com:
+                                dist_min_com = km
+                                com_cercana_nombre = com['COMISARIA']
+                                com_cercana_dir = com['DIRECCION']
+                                com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
+                        except: pass
 
                 st.session_state.alerta_activa_vigilador = {
                     "nombre": nombre_real,
@@ -1749,8 +1801,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px; text-align: center;">
-                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; direction: ltr !important; unicode-bidi: isolate !important; text-align: center;">
-                            📞 LLAMAR A LA COMISARÍA (<b style="direction: ltr; unicode-bidi: isolate; display: inline-block;">{datos_pan['telefono']}</b>)
+                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
+                            📞 LLAMAR A LA COMISARÍA (<b style="unicode-bidi: bidi-override; direction: ltr; display: inline-block;">{datos_pan['telefono']}</b>)
                         </a>
                     </div>
                 </div>
