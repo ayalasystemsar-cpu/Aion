@@ -194,7 +194,6 @@ def cargar_datos_comisarias():
         df_nube['LONGITUD'] = pd.to_numeric(df_nube['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df_nube
     
-    # Respaldo completo de las 75 comisarías originales de la red
     data = {
         "COMISARIA": [
             "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 1C", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 2B",
@@ -1207,7 +1206,6 @@ if st.session_state.rol_sel == "MONITOREO":
 
         sups_dinamicos_lista = sorted(list(sups_dinamicos_set))
 
-        # Opciones de visualización general o filtrada por supervisor en Monitoreo
         opciones_filtro_monitoreo = ["VER TODOS LOS SUPERVISORES"] + sups_dinamicos_lista
         sup_elegido_monitoreo_tab = st.selectbox("🔍 FILTRAR AUDITORÍA POR SUPERVISOR O VER TODOS:", opciones_filtro_monitoreo, key="filtro_auditoria_monitoreo_gral")
 
@@ -1298,16 +1296,15 @@ if st.session_state.rol_sel == "MONITOREO":
                         if not df_pan_sup_filtrado.empty:
                             st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
                             
-                            # Botón de finalización rápida de Pánico
                             for idx_row, row_p in df_pan_sup_filtrado.iterrows():
                                 estado_actual = str(row_p.get('ESTADO', 'PENDIENTE')).strip().upper()
                                 if estado_actual == "PENDIENTE":
-                                    if st.button(f"✅ Finalizar Pánico Supervisor ({row_p.get('OBJETIVO', 'OBJ')})", key=f"fin_pan_sup_{idx_p}_{sup_seleccionado_mono}"):
-                                        # Actualizamos en la solapa ALERTAS
+                                    # Clave única garantizada con índice y nombre limpio
+                                    key_btn_psup = f"fin_pan_sup_idx_{idx_row}_{sup_seleccionado_mono}_{row_p.get('OBJETIVO', 'OBJ')}".replace(" ", "_")
+                                    if st.button(f"✅ Finalizar Pánico Supervisor ({row_p.get('OBJETIVO', 'OBJ')})", key=key_btn_psup):
                                         gc_m = conectar_google()
                                         if gc_m:
                                             hoja_alt = gc_m.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
-                                            # Buscamos la celda correspondiente
                                             todas_a = hoja_alt.get_all_values()
                                             for i_a, fila_a in enumerate(todas_a[1:], start=2):
                                                 if len(fila_a) > 5 and fila_a[1].strip().upper() == str(row_p.get('USUARIO','')).strip().upper() and fila_a[4].strip().upper() == str(row_p.get('OBJETIVO','')).strip().upper() and fila_a[3].strip().upper() == "PENDIENTE":
@@ -1346,7 +1343,9 @@ if st.session_state.rol_sel == "MONITOREO":
                             for idx_vrow, row_v in df_pan_vig_c_turno_m.iterrows():
                                 estado_act_v = str(row_v.get('ESTADO', 'PENDIENTE')).strip().upper()
                                 if estado_act_v == "PENDIENTE":
-                                    if st.button(f"✅ Finalizar Pánico Vigilador ({row_v.get('USUARIO', 'AGENTE')} - {row_v.get('OBJETIVO', 'OBJ')})", key=f"fin_pan_vig_{idx_vrow}_{sup_seleccionado_mono}"):
+                                    # Clave única garantizada con índice y usuario/objetivo
+                                    key_btn_pvig = f"fin_pan_vig_idx_{idx_vrow}_{sup_seleccionado_mono}_{row_v.get('USUARIO', 'USR')}_{row_v.get('OBJETIVO', 'OBJ')}".replace(" ", "_")
+                                    if st.button(f"✅ Finalizar Pánico Vigilador ({row_v.get('USUARIO', 'AGENTE')} - {row_v.get('OBJETIVO', 'OBJ')})", key=key_btn_pvig):
                                         gc_m2 = conectar_google()
                                         if gc_m2:
                                             hoja_alt2 = gc_m2.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
