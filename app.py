@@ -968,6 +968,36 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS Y PÁNICOS ACTIVOS")
+        
+        # --- PANEL DE CONTROL RÁPIDO DE PÁNICOS ACTIVOS EN RADAR ---
+        df_alertas_radar = leer_matriz_nube("ALERTAS")
+        if not df_alertas_radar.empty:
+            df_alertas_radar.columns = [str(c).strip().upper() for c in df_alertas_radar.columns]
+            panicos_pendientes_globales = df_alertas_radar[
+                (df_alertas_radar['TIPO'].astype(str).str.upper() == "PÁNICO") & 
+                (df_alertas_radar['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+            ] if 'TIPO' in df_alertas_radar.columns and 'ESTADO' in df_alertas_radar.columns else pd.DataFrame()
+            
+            if not panicos_pendientes_globales.empty:
+                st.error("🚨 ¡HAY PÁNICOS S.O.S ACTIVOS EN LA RED!")
+                for idx_gp, row_gp in panicos_pendientes_globales.iterrows():
+                    col_p1, col_p2 = st.columns([3, 1])
+                    col_p1.markdown(f"**Usuario:** {row_gp.get('USUARIO','')} | **Objetivo:** {row_gp.get('OBJETIVO','')} | **Fecha:** {row_gp.get('FECHA','')}")
+                    
+                    key_btn_radar = f"fin_pan_radar_{idx_gp}_{row_gp.get('USUARIO','')}_{row_gp.get('OBJETIVO','')}_{row_gp.get('FECHA','')}".replace(" ", "_")
+                    if col_p2.button(f"✅ Finalizar Pánico", key=key_btn_radar):
+                        gc_rg = conectar_google()
+                        if gc_rg:
+                            hoja_alt_rg = gc_rg.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
+                            todas_a_rg = hoja_alt_rg.get_all_values()
+                            for i_rg, fila_rg in enumerate(todas_a_rg[1:], start=2):
+                                if len(fila_rg) > 5 and fila_rg[1].strip().upper() == str(row_gp.get('USUARIO','')).strip().upper() and fila_rg[4].strip().upper() == str(row_gp.get('OBJETIVO','')).strip().upper() and fila_rg[3].strip().upper() == "PENDIENTE":
+                                    hoja_alt_rg.update_acell(f"D{i_rg}", "FINALIZADO")
+                                    st.success("✅ Pánico finalizado correctamente desde el Radar.")
+                                    st.cache_data.clear()
+                                    st.rerun()
+                st.markdown("---")
+
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -1299,7 +1329,6 @@ if st.session_state.rol_sel == "MONITOREO":
                             for idx_row, row_p in df_pan_sup_filtrado.iterrows():
                                 estado_actual = str(row_p.get('ESTADO', 'PENDIENTE')).strip().upper()
                                 if estado_actual == "PENDIENTE":
-                                    # Clave única garantizada con índice y nombre limpio
                                     key_btn_psup = f"fin_pan_sup_idx_{idx_row}_{sup_seleccionado_mono}_{row_p.get('OBJETIVO', 'OBJ')}".replace(" ", "_")
                                     if st.button(f"✅ Finalizar Pánico Supervisor ({row_p.get('OBJETIVO', 'OBJ')})", key=key_btn_psup):
                                         gc_m = conectar_google()
@@ -1343,7 +1372,6 @@ if st.session_state.rol_sel == "MONITOREO":
                             for idx_vrow, row_v in df_pan_vig_c_turno_m.iterrows():
                                 estado_act_v = str(row_v.get('ESTADO', 'PENDIENTE')).strip().upper()
                                 if estado_act_v == "PENDIENTE":
-                                    # Clave única garantizada con índice y usuario/objetivo
                                     key_btn_pvig = f"fin_pan_vig_idx_{idx_vrow}_{sup_seleccionado_mono}_{row_v.get('USUARIO', 'USR')}_{row_v.get('OBJETIVO', 'OBJ')}".replace(" ", "_")
                                     if st.button(f"✅ Finalizar Pánico Vigilador ({row_v.get('USUARIO', 'AGENTE')} - {row_v.get('OBJETIVO', 'OBJ')})", key=key_btn_pvig):
                                         gc_m2 = conectar_google()
