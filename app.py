@@ -1314,6 +1314,52 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
 
+                    # --- CÁLCULO DE LA COMISARÍA MÁS CERCANA PARA LLAMADA DIRECTA ---
+                    lat_obj_s, lon_obj_s = 0.0, 0.0
+                    if not df_objetivos.empty:
+                        filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
+                        if not filtro_sup_obj.empty:
+                            lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
+                            lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+
+                    com_nombre_s = "COMISARÍA JURISDICCIONAL"
+                    com_tel_s = "011-4000-0000"
+                    dist_s = float('inf')
+
+                    for _, com in df_comisarias.iterrows():
+                        try:
+                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
+                            d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
+                            if d < dist_s:
+                                dist_s = d
+                                com_nombre_s = com['COMISARIA']
+                                com_tel_s = com.get('TELEFONO', '011-4000-0000')
+                        except: pass
+
+                    st.session_state.alerta_activa_supervisor = {
+                        "comisaria": com_nombre_s,
+                        "telefono": com_tel_s,
+                        "distancia": f"{dist_s:.2f}"
+                    }
+
+        if 'alerta_activa_supervisor' in st.session_state:
+            datos_s = st.session_state.alerta_activa_supervisor
+            st.markdown(f"""
+                <div style="background: rgba(255, 0, 0, 0.08); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
+                    <div style="font-family: 'Orbitron', sans-serif; color: #FF4B4B; font-size: 13px; font-weight: bold; letter-spacing: 1px;">
+                        🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL
+                    </div>
+                    <div style="color: #E0E0E0; font-size: 13px; margin-top: 6px;">
+                        <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <a href="tel:{datos_s['telefono']}" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; padding: 10px 22px; border-radius: 6px; font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 12px; text-decoration: none; display: inline-block; box-shadow: 0 4px 15px rgba(40,167,69,0.4); text-transform: uppercase; letter-spacing: 0.5px;">
+                            📞 LLAMAR DIRECTAMENTE AHORA ({datos_s['telefono']})
+                        </a>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
         t_vis_qr, t_nuevo_obj, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
@@ -1684,12 +1730,18 @@ elif st.session_state.rol_sel == "VIGILADOR":
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
             st.markdown(f"""
-                <div style="background-color: rgba(248, 215, 218, 0.25); border: 1px solid rgba(245, 198, 203, 0.4); border-radius: 6px; padding: 12px; margin-top: 10px; font-family: 'Rajdhani', sans-serif;">
-                    <div style="color: #F8D7DA; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
-                        🚨 ALERTA ENVIADA: VIGILADOR EN PUESTO DESDE {datos_pan['obj']}
+                <div style="background: rgba(255, 0, 0, 0.08); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif;">
+                    <div style="color: #FF4B4B; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        🚨 ALERTA ENVIADA: DESDE {datos_pan['obj']}
                     </div>
-                    <div style="color: #E0E0E0; font-size: 13px; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        👮 <b>COMISARÍA MÁS CERCANA:</b> {datos_pan['comisaria']} | <b>Dirección:</b> {datos_pan['direccion']} | <b>Teléfono:</b> <a href="tel:{datos_pan['telefono']}" style="color: #00E5FF; font-weight: bold; text-decoration: none;">{datos_pan['telefono']}</a> (~{datos_pan['distancia']} KM)
+                    <div style="color: #E0E0E0; font-size: 13px; margin-top: 8px; text-align: center;">
+                        👮 <b>COMISARÍA:</b> {datos_pan['comisaria']}<br>
+                        <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
+                    </div>
+                    <div style="margin-top: 12px; text-align: center;">
+                        <a href="tel:{datos_pan['telefono']}" style="background: linear-gradient(135deg, #ff4b4b 0%, #cc0000 100%); color: white; padding: 12px 24px; border-radius: 6px; font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 13px; text-decoration: none; display: inline-block; box-shadow: 0 4px 15px rgba(255,75,75,0.5); text-transform: uppercase; letter-spacing: 0.5px;">
+                            📞 LLAMAR A LA COMISARÍA ({datos_pan['telefono']})
+                        </a>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
@@ -2184,7 +2236,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             if tot_s_cnt > 0:
                                 elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
                             if tot_v_cnt > 0:
-                                elementos.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
+                                elementon.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
                             elementos.append(Spacer(1, 4))
 
                             if not d_alt.empty:
