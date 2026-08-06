@@ -1359,8 +1359,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px;">
-                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; direction: ltr !important; unicode-bidi: bidi-override !important; text-align: center;">
-                            📞 LLAMAR DIRECTAMENTE AHORA ({datos_s['telefono']})
+                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; direction: ltr !important; unicode-bidi: isolate !important; text-align: center;">
+                            📞 LLAMAR DIRECTAMENTE AHORA (<b style="direction: ltr; unicode-bidi: isolate; display: inline-block;">{datos_s['telefono']}</b>)
                         </a>
                     </div>
                 </div>
@@ -1749,8 +1749,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px; text-align: center;">
-                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; direction: ltr !important; unicode-bidi: bidi-override !important; text-align: center;">
-                            📞 LLAMAR A LA COMISARÍA ({datos_pan['telefono']})
+                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; direction: ltr !important; unicode-bidi: isolate !important; text-align: center;">
+                            📞 LLAMAR A LA COMISARÍA (<b style="direction: ltr; unicode-bidi: isolate; display: inline-block;">{datos_pan['telefono']}</b>)
                         </a>
                     </div>
                 </div>
