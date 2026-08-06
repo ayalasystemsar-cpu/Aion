@@ -188,94 +188,13 @@ def leer_matriz_nube(pestana):
 
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
-    df_nube = leer_matriz_nube("COMISARIAS")
-    if not df_nube.empty and 'COMISARIA' in df_nube.columns and len(df_nube) > 1:
-        df_nube['LATITUD'] = pd.to_numeric(df_nube['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        df_nube['LONGITUD'] = pd.to_numeric(df_nube['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        return df_nube
-    
     data = {
-        "COMISARIA": [
-            "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 1C", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 2B",
-            "COMISARÍA VECINAL 3A", "COMISARÍA VECINAL 3B", "COMISARÍA VECINAL 4A", "COMISARÍA VECINAL 4B", "COMISARÍA VECINAL 4C",
-            "COMISARÍA VECINAL 5A", "COMISARÍA VECINAL 5B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 6B", "COMISARÍA VECINAL 7A",
-            "COMISARÍA VECINAL 7B", "COMISARÍA VECINAL 8A", "COMISARÍA VECINAL 8B", "COMISARÍA VECINAL 8C", "COMISARÍA VECINAL 9A",
-            "COMISARÍA VECINAL 9B", "COMISARÍA VECINAL 9C", "COMISARÍA VECINAL 10A", "COMISARÍA VECINAL 10B", "COMISARÍA VECINAL 10C",
-            "COMISARÍA VECINAL 11A", "COMISARÍA VECINAL 11B", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 12C",
-            "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 13B", "COMISARÍA VECINAL 13C", "COMISARÍA VECINAL 14A", "COMISARÍA VECINAL 14B",
-            "COMISARÍA VECINAL 14C", "COMISARÍA VECINAL 15A", "COMISARÍA VECINAL 15B", "COMISARÍA VECINAL 15C", "COMISARÍA SAN MARTÍN 1RA",
-            "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA",
-            "COMISARÍA ESCOBAR 3RA", "COMISARÍA VICENTE LÓPEZ 2DA", "COMISARÍA SAN ISIDRO 1RA", "COMISARÍA LANÚS 1RA", "COMISARÍA LOMAS DE ZAMORA 1RA",
-            "COMISARÍA MORÓN 1RA", "COMISARÍA LA MATANZA 1RA", "COMISARÍA TRES DE FEBRERO 1RA", "COMISARÍA QUILMES 1RA", "COMISARÍA VARELA 1RA",
-            "COMISARÍA BERAZATEGUI 1RA", "COMISARÍA TIGRE 2DA (PACHECO)", "COMISARÍA ESCOBAR 1RA (BELÉN)", "COMISARÍA PILAR 1RA", "COMISARÍA ZÁRATE 1RA",
-            "COMISARÍA CAMPANA 2DA", "COMISARÍA EXALTACIÓN DE LA CRUZ (CARDALES)", "COMISARÍA LUJÁN 1RA", "COMISARÍA MERCEDES 1RA", "COMISARÍA SAN ANDRÉS DE GILES",
-            "COMISARÍA GENERAL SAN MARTÍN 2DA", "COMISARÍA VICENTE LÓPEZ 1RA", "COMISARÍA SAN ISIDRO 4TA (MARTÍNEZ)", "COMISARÍA SAN FERNANDO 2DA (VIRREYES)", "COMISARÍA TIGRE 3RA (DON TORCUATO)",
-            "COMISARÍA MALVINAS ARGENTINAS 1RA", "COMISARÍA J. C. PAZ 1RA", "COMISARÍA SAN MIGUEL 1RA", "COMISARÍA MORENO 1RA", "COMISARÍA MERLO 1RA"
-        ],
-        "DIRECCION": [
-            "Suipacha 1156", "Uruguay 350", "Tacuarí 770", "General Las Heras 2650", "Paraguay 1122",
-            "Lavalle 2625", "San Juan 1767", "Zavaleta 425", "Av. Regimiento de Patricios 1150", "Benito Juárez 1445",
-            "Maza 1250", "Av. Independencia 2250", "Av. La Plata 550", "Rivadavia 4701", "Piedras 1450",
-            "Av. Directorio 1500", "Dellepiane 6900", "Av. General Paz 14500", "Av. Cruz 4500", "Av. Juan B. Alberdi 6752",
-            "Coronel Cárdenas 2850", "Toneleroro 6400", "Segurola 1550", "Av. Gaona 3850", "Alejandro Magariños Cervantes 4525",
-            "Av. Nazca 4550", "Cuenca 3250", "Miller 2750", "Arias 4450", "Manuela Pedraza 2340",
-            "Av. Cabildo 2300", "Amenábar 2320", "Av. Cramer 3250", "Cnel. Díaz 2250", "Av. Coronel Díaz 2550",
-            "Av. Santa Fe 3200", "Guzmán 346", "Av. Forest 1450", "Av. Triunvirato 4550", "Gral. Lavalle 420",
-            "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n",
-            "Belgrano 1150", "Av. San Martín 2450", "25 de Mayo 450", "Yrigoyen 300", "Chacabuco 500",
-            "San Martín 750", "Arieta 2500", "Belgrano 3400", "Rivadavia 400", "San Martín 800",
-            "Mitre 600", "Av. Constituyentes 450", "Asborno 750", "San Martín 950", "Justa Lima 450",
-            "Mitre 1200", "Belgrano 600", "San Martín 500", "Calle 24 Nro 650", "Mitre 400",
-            "Mitre 1500", "Maipú 2500", "Alvear 500", "Av. Avellaneda 1200", "Alvear 800",
-            "Perón 1200", "Hipólito Yrigoyen 500", "Perón 800", "Alcorta 400", "Suipacha 300"
-        ],
-        "LOCALIDAD": [
-            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
-            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
-            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
-            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "SAN MARTÍN",
-            "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "GARÍN", "FLORIDA", "SAN ISIDRO", "LANÚS", "LOMAS DE ZAMORA",
-            "MORÓN", "LA MATANZA", "TRES DE FEBRERO", "QUILMES", "VARELA", "BERAZATEGUI", "PACHECO", "ESCÓBAR", "PILAR", "ZÁRATE",
-            "CAMPANA", "CARDALES", "LUJÁN", "MERCEDES", "GILES", "SAN MARTÍN", "VICENTE LÓPEZ", "MARTÍNEZ", "VIRREYES", "DON TORCUATO",
-            "MALVINAS ARGENTINAS", "J. C. PAZ", "SAN MIGUEL", "MORENO", "MERLO"
-        ],
-        "TELEFONO": [
-            "011-4393-0100", "011-4371-0100", "011-4331-0100", "011-4803-0100", "011-4811-0100",
-            "011-4381-0100", "011-4952-0100", "011-4301-0100", "011-4361-0100", "011-4683-0100",
-            "011-4931-0100", "011-4304-0100", "011-4923-0100", "011-4982-0100", "011-4342-0100",
-            "011-4631-0100", "011-4637-0100", "011-4696-0100", "011-4919-0100", "011-4641-0100",
-            "011-4682-0100", "011-4642-0100", "011-4567-0100", "011-4581-0100", "011-4585-0100",
-            "011-4501-0100", "011-4571-0100", "011-4541-1122", "011-4542-3344", "011-4572-0100",
-            "011-4788-9900", "011-4781-0100", "011-4552-0100", "011-4821-5544", "011-4822-0100",
-            "011-4813-0100", "011-4554-0100", "011-4555-0100", "011-4521-0100", "011-4754-2321",
-            "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111",
-            "03327-442000", "011-4791-0000", "011-4743-0100", "011-4241-0100", "011-4243-0100",
-            "011-4483-0100", "011-4482-0100", "011-4751-0100", "011-4253-0100", "011-4255-0100",
-            "011-4256-0100", "011-4740-0100", "0348-442-0100", "0230-442-0100", "03487-422-0100",
-            "03489-423-0100", "02322-490-100", "02323-420-100", "02324-420-100", "02326-452-100",
-            "011-4752-0100", "011-4797-0100", "011-4792-0100", "011-4745-0100", "011-4717-0100",
-            "02320-482-100", "02320-432-100", "02323-442-100", "0237-482-0100", "0220-482-0100"
-        ],
-        "LATITUD": [
-            -34.5985, -34.6037, -34.6112, -34.5852, -34.5910, -34.6080, -34.6150, -34.6390, -34.6350, -34.6410,
-            -34.6150, -34.6220, -34.6250, -34.6180, -34.6190, -34.6280, -34.6500, -34.6750, -34.6600, -34.6400,
-            -34.6450, -34.6500, -34.6200, -34.6150, -34.6100, -34.6000, -34.5950, -34.5543, -34.5684, -34.5600,
-            -34.5574, -34.5550, -34.5500, -34.5877, -34.5850, -34.5800, -34.5880, -34.5800, -34.5750, -34.5801,
-            -34.6641, -34.1636, -34.4401, -34.4241, -34.4170, -34.4273, -34.5453, -34.4720, -34.7000, -34.7600,
-            -34.6500, -34.6700, -34.5800, -34.7200, -34.8100, -34.7600, -34.4600, -34.3400, -34.4500, -34.0900,
-            -34.1700, -34.2900, -34.5700, -34.6500, -34.2500, -34.5800, -34.5100, -34.4900, -34.4500, -34.4700,
-            -34.4800, -34.5100, -34.5300, -34.6500, -34.6700
-        ],
-        "LONGITUD": [
-            -58.3838, -58.3862, -58.3790, -58.4012, -58.3950, -58.3850, -58.3800, -58.4050, -58.3650, -58.4800,
-            -58.4200, -58.3830, -58.4400, -58.4350, -58.3750, -58.4600, -58.4500, -58.4650, -58.4450, -58.5100,
-            -58.5050, -58.5200, -58.4900, -58.4600, -58.4750, -58.4950, -58.4700, -58.4721, -58.4820, -58.4600,
-            -58.4611, -58.4550, -58.4500, -58.4160, -58.4100, -58.3950, -58.4700, -58.4600, -58.4800, -58.5414,
-            -58.3680, -58.9614, -58.5561, -58.5797, -58.8682, -58.7205, -58.4937, -58.5100, -58.3700, -58.4000,
-            -58.6200, -58.5600, -58.5400, -58.2700, -58.2800, -58.2100, -58.6300, -58.7900, -58.9000, -58.8500,
-            -58.9700, -58.9100, -59.5400, -59.4300, -59.7100, -58.5500, -58.4800, -58.5200, -58.5400, -58.6000,
-            -58.7000, -58.7100, -58.7200, -58.9000, -58.7100
-        ]
+        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA ESCOBAR 3RA (GARÍN)", "COMISARÍA VICENTE LÓPEZ 2DA (FLORIDA)", "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 1B"],
+        "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Av. Cabildo 2300", "Miller 2750", "Arias 4450", "Belgrano 1150", "Av. San Martín 2450", "Suipacha 1156", "General Las Heras 2650", "Uruguay 350"],
+        "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "CABA", "GARÍN", "FLORIDA", "CABA", "CABA", "CABA"],
+        "TELEFONO": ["011-4754-2321", "011-4821-5544", "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111", "011-4788-9900", "011-4541-1122", "011-4542-3344", "03327-442000", "011-4791-0000", "011-4393-0100", "011-4803-0100", "011-4371-0100"],
+        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.557454, -34.554321, -34.568459, -34.42730, -34.54530, -34.5985, -34.5852, -34.6037],
+        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.461144, -58.472147, -58.482012, -58.72050, -58.49370, -58.3838, -58.4012, -58.3862]
     }
     return pd.DataFrame(data)
 
@@ -295,44 +214,12 @@ def cargar_objetivos():
         return df 
     return pd.DataFrame()
 
-def verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, lat, lon):
-    try:
-        gc = conectar_google()
-        if gc:
-            sh = gc.open_by_key(ID_MAESTRO_DB)
-            try:
-                hoja_comis = sh.worksheet("COMISARIAS")
-            except:
-                hoja_comis = sh.add_worksheet(title="COMISARIAS", rows="100", cols="10")
-                hoja_comis.append_row(["COMISARIA", "DIRECCION", "LOCALIDAD", "TELEFONO", "LATITUD", "LONGITUD"])
-
-            registros_existentes = hoja_comis.get_all_values()
-            encontrada = False
-            for fila_c in registros_existentes[1:]:
-                if len(fila_c) > 0 and str(fila_c[0]).strip().upper() == str(com_n).strip().upper():
-                    encontrada = True
-                    break
-            
-            if not encontrada and str(com_n).strip() != "" and str(com_n).strip() != "---":
-                hoja_comis.append_row([
-                    str(com_n).strip().upper(), 
-                    str(com_d).strip().upper(), 
-                    str(com_l).strip().upper(), 
-                    str(com_t).strip(), 
-                    str(lat), 
-                    str(lon)
-                ])
-                st.cache_data.clear()
-    except Exception as e:
-        print(f"Error gestionando solapa comisarías: {e}")
-
 def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
     nombre_obj_upper = str(nombre_obj).strip().upper()
     localidad_obj_upper = str(localidad).strip().upper()
     
     distancia_minima = float('inf')
     com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
-    com_lat_calc, com_lon_calc = lat, lon
     
     df_comis = cargar_datos_comisarias()
     try:
@@ -359,8 +246,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
                 com_d = com['DIRECCION']
                 com_l = com['LOCALIDAD']
                 com_t = com.get('TELEFONO', '011-4000-0000')
-                com_lat_calc = com.get('LATITUD', lat)
-                com_lon_calc = com.get('LONGITUD', lon)
     except Exception as e:
         print(f"Error calculando comisaría cercana: {e}")
 
@@ -378,7 +263,29 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     ]
     
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
-    verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
+    
+    # Persistencia automática adicional en solapa COMISARIAS del maestro si corresponde
+    try:
+        gc = conectar_google()
+        if gc:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
+            try:
+                hoja_comis = sh.worksheet("COMISARIAS")
+            except:
+                hoja_comis = sh.add_worksheet(title="COMISARIAS", rows="100", cols="10")
+                hoja_comis.append_row(["COMISARIA", "DIRECCION", "LOCALIDAD", "TELEFONO", "LATITUD", "LONGITUD"])
+
+            registros_existentes = hoja_comis.get_all_values()
+            encontrada = False
+            for fila_c in registros_existentes[1:]:
+                if len(fila_c) > 0 and str(fila_c[0]).strip().upper() == com_n.upper():
+                    encontrada = True
+                    break
+            if not encontrada:
+                hoja_comis.append_row([com_n, com_d, com_l, com_t, str(lat), str(lon)])
+    except Exception as e:
+        print(f"Error guardando en solapa comisarías: {e}")
+
     return exito
 
 def obtener_lista_supervisores_dinamica():
@@ -443,15 +350,18 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
             sh = gc.open_by_key(ID_MAESTRO_DB)
             hoja = None
             nombres_posibles = ["REGISTRO QR SUPERVISORES", "REGISTRO-QR-SUPERVISORES"]
+            
             for nombre in nombres_posibles:
                 try:
                     hoja = sh.worksheet(nombre)
                     break
                 except:
                     continue
+            
             if hoja is None:
                 hoja = sh.add_worksheet(title="REGISTRO QR SUPERVISORES", rows="100", cols="10")
                 hoja.append_row(["FECHA_HORA", "OBJETIVO", "ACCION", "SUPERVISOR", "ESTADO"])
+
             hoja.append_row(datos)
             st.cache_data.clear()
             return True
@@ -535,7 +445,10 @@ def aplicar_identidad_alfa():
             text-align: center;
         }
 
-        header { background: transparent !important; background-color: transparent !important; }
+        header {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
 
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
@@ -554,19 +467,44 @@ def aplicar_identidad_alfa():
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
         .qr-scanner-container {
-            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
-            margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100% !important;
+            max-width: 320px !important;
+            margin: 0 auto 10px auto !important;
+            overflow: hidden !important;
+            border-radius: 8px !important;
+            background: #000 !important;
+            position: relative;
         }
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
-            width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
+            width: 100% !important;
+            max-width: 320px !important;
+            height: 220px !important;
+            object-fit: cover !important;
+            border-radius: 8px !important;
+            border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
-            gap: 6px !important; background-color: transparent !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; padding-bottom: 5px !important;
+            gap: 6px !important;
+            background-color: transparent !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            white-space: nowrap !important;
+            padding-bottom: 5px !important;
         }
         .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.6) !important; border: 1px solid #2D313E !important; color: #A0A5B5 !important;
-            border-radius: 4px 4px 0px 0px !important; padding: 8px 12px !important; font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; flex-shrink: 0 !important;
+            background-color: rgba(26, 28, 35, 0.6) !important;
+            border: 1px solid #2D313E !important;
+            color: #A0A5B5 !important;
+            border-radius: 4px 4px 0px 0px !important;
+            padding: 8px 12px !important;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px !important;
+            font-weight: bold;
+            flex-shrink: 0 !important;
         }
         .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
         
@@ -574,7 +512,10 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; unicode-bidi: plaintext !important; direction: ltr !important; }
         
-        div[data-testid="stDataFrame"] { width: 100% !important; overflow-x: auto !important; }
+        div[data-testid="stDataFrame"] {
+            width: 100% !important;
+            overflow-x: auto !important;
+        }
 
         .btn-google-maps {
             display: inline-flex; align-items: center; justify-content: center;
@@ -968,36 +909,6 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS Y PÁNICOS ACTIVOS")
-        
-        # --- PANEL DE CONTROL RÁPIDO DE PÁNICOS ACTIVOS EN RADAR ---
-        df_alertas_radar = leer_matriz_nube("ALERTAS")
-        if not df_alertas_radar.empty:
-            df_alertas_radar.columns = [str(c).strip().upper() for c in df_alertas_radar.columns]
-            panicos_pendientes_globales = df_alertas_radar[
-                (df_alertas_radar['TIPO'].astype(str).str.upper() == "PÁNICO") & 
-                (df_alertas_radar['ESTADO'].astype(str).str.upper() == "PENDIENTE")
-            ] if 'TIPO' in df_alertas_radar.columns and 'ESTADO' in df_alertas_radar.columns else pd.DataFrame()
-            
-            if not panicos_pendientes_globales.empty:
-                st.error("🚨 ¡HAY PÁNICOS S.O.S ACTIVOS EN LA RED!")
-                for idx_gp, row_gp in panicos_pendientes_globales.iterrows():
-                    col_p1, col_p2 = st.columns([3, 1])
-                    col_p1.markdown(f"**Usuario:** {row_gp.get('USUARIO','')} | **Objetivo:** {row_gp.get('OBJETIVO','')} | **Fecha:** {row_gp.get('FECHA','')}")
-                    
-                    key_btn_radar = f"fin_pan_radar_{idx_gp}_{row_gp.get('USUARIO','')}_{row_gp.get('OBJETIVO','')}_{row_gp.get('FECHA','')}".replace(" ", "_")
-                    if col_p2.button(f"✅ Finalizar Pánico", key=key_btn_radar):
-                        gc_rg = conectar_google()
-                        if gc_rg:
-                            hoja_alt_rg = gc_rg.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
-                            todas_a_rg = hoja_alt_rg.get_all_values()
-                            for i_rg, fila_rg in enumerate(todas_a_rg[1:], start=2):
-                                if len(fila_rg) > 5 and fila_rg[1].strip().upper() == str(row_gp.get('USUARIO','')).strip().upper() and fila_rg[4].strip().upper() == str(row_gp.get('OBJETIVO','')).strip().upper() and fila_rg[3].strip().upper() == "PENDIENTE":
-                                    hoja_alt_rg.update_acell(f"D{i_rg}", "FINALIZADO")
-                                    st.success("✅ Pánico finalizado correctamente desde el Radar.")
-                                    st.cache_data.clear()
-                                    st.rerun()
-                st.markdown("---")
-
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -1236,15 +1147,10 @@ if st.session_state.rol_sel == "MONITOREO":
 
         sups_dinamicos_lista = sorted(list(sups_dinamicos_set))
 
-        opciones_filtro_monitoreo = ["VER TODOS LOS SUPERVISORES"] + sups_dinamicos_lista
-        sup_elegido_monitoreo_tab = st.selectbox("🔍 FILTRAR AUDITORÍA POR SUPERVISOR O VER TODOS:", opciones_filtro_monitoreo, key="filtro_auditoria_monitoreo_gral")
-
-        lista_sups_a_mostrar = sups_dinamicos_lista if sup_elegido_monitoreo_tab == "VER TODOS LOS SUPERVISORES" else [sup_elegido_monitoreo_tab]
-
-        if len(lista_sups_a_mostrar) > 0:
-            pestanas_sups = st.tabs(lista_sups_a_mostrar)
+        if len(sups_dinamicos_lista) > 0:
+            pestanas_sups = st.tabs(sups_dinamicos_lista)
             
-            for idx_p, sup_seleccionado_mono in enumerate(lista_sups_a_mostrar):
+            for idx_p, sup_seleccionado_mono in enumerate(sups_dinamicos_lista):
                 with pestanas_sups[idx_p]:
                     st.markdown(f"### 🛡️ PANEL DE CONTROL: {sup_seleccionado_mono}")
                     
@@ -1311,6 +1217,91 @@ if st.session_state.rol_sel == "MONITOREO":
                     else:
                         st.info("No hay relevos de vigiladores registrados.")
 
+                    st.markdown("---")
+                    st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
+                    if not df_alt_m_base.empty:
+                        df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
+                        df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                        
+                        if not df_panicos_op.empty:
+                            mask_solo_supervisor = (df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                            df_pan_sup_filtrado = df_panicos_op[mask_solo_supervisor]
+                        else:
+                            df_pan_sup_filtrado = pd.DataFrame()
+                        
+                        if not df_pan_sup_filtrado.empty:
+                            st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("No hay pánicos S.O.S de supervisor registrados.")
+                    else:
+                        st.info("Sin pánicos S.O.S registrados.")
+
+                    st.markdown("---")
+                    st.markdown("#### 🚨 Pánico S.O.S Vigilador")
+                    if not df_alt_m_base.empty:
+                        df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
+                        df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                        objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
+                        
+                        if not df_panicos_op.empty:
+                            mask_obj_del_sup = df_panicos_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                            mask_no_es_supervisor = ~(df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                            df_pan_vig_filtrado = df_panicos_op[mask_obj_del_sup & mask_no_es_supervisor]
+                        else:
+                            df_pan_vig_filtrado = pd.DataFrame()
+                        
+                        if not df_pan_vig_filtrado.empty:
+                            df_pan_vig_c_turno_m = df_pan_vig_filtrado.copy()
+                            turnos_vig_list_m = []
+                            for _, f_row_m in df_pan_vig_c_turno_m.iterrows():
+                                fh_val_pm = str(f_row_m.get('FECHA', ''))
+                                turnos_vig_list_m.append(determinar_turno_activo(fh_val_pm))
+                            df_pan_vig_c_turno_m['TURNO VIGILADOR'] = turnos_vig_list_m
+                            st.dataframe(df_pan_vig_c_turno_m.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
+                    else:
+                        st.info("Sin pánicos S.O.S de vigiladores registrados.")
+
+                    st.markdown("---")
+                    st.markdown("#### ⚠️ Alertas Operativas")
+                    if not df_alt_m_base.empty:
+                        df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
+                        
+                        df_panicos_op_total = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                        
+                        mask_solo_sup_cnt = (df_panicos_op_total['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()) if not df_panicos_op_total.empty else pd.Series([False])
+                        total_alertas_supervisor = len(df_panicos_op_total[mask_solo_sup_cnt]) if not df_panicos_op_total.empty else 0
+                        
+                        objs_del_sup_cnt = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
+                        mask_obj_sup_cnt = df_panicos_op_total['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup_cnt]) if not df_panicos_op_total.empty and 'OBJETIVO' in df_panicos_op_total.columns else pd.Series([False])
+                        mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
+                        total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
+
+                        df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
+                        
+                        if not df_alertas_op.empty:
+                            mask_alt = pd.Series([False]*len(df_alertas_op))
+                            if 'OBJETIVO' in df_alertas_op.columns:
+                                mask_alt = mask_alt | df_alertas_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                            if 'SUPERVISOR' in df_alertas_op.columns:
+                                mask_alt = mask_alt | (df_alertas_op['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                            df_alt_sup_filtrado = df_alertas_op[mask_alt]
+                        else:
+                            df_alt_sup_filtrado = pd.DataFrame()
+                        
+                        if total_alertas_supervisor > 0 or total_alertas_vigilador > 0 or not df_alt_sup_filtrado.empty:
+                            if total_alertas_supervisor > 0:
+                                st.markdown(f"• TOTAL ALERTAS DE SUPERVISOR: **{total_alertas_supervisor}**")
+                            if total_alertas_vigilador > 0:
+                                st.markdown(f"• TOTAL ALERTAS DE VIGILADOR: **{total_alertas_vigilador}**")
+                            
+                            if not df_alt_sup_filtrado.empty:
+                                st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("No hay alertas operativas adicionales registradas para los objetivos de este supervisor.")
+                    else:
+                        st.info("Sin alertas operativas registradas.")
         else:
             st.info("No hay supervisores con registros activos en el sistema todavía.")
 
@@ -1357,49 +1348,41 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
-                lat_obj_s, lon_obj_s = 0.0, 0.0
-                localidad_obj_s = ""
-                if not df_objetivos.empty:
-                    filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
-                    if not filtro_sup_obj.empty:
-                        lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
-                        lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
-                        localidad_obj_s = str(filtro_sup_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
-
-                com_nombre_s = "COMISARÍA JURISDICCIONAL"
-                com_dir_s = "---"
-                com_loc_s = "---"
-                com_tel_s = "011-4000-0000"
-                com_lat_s, com_lon_s = lat_obj_s, lon_obj_s
-                dist_s = float('inf')
-
-                df_comis_filtro_s = df_comisarias
-                if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_s = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_s]
-                    if not df_sub_s.empty:
-                        df_comis_filtro_s = df_sub_s
-
-                for _, com in df_comis_filtro_s.iterrows():
-                    try:
-                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
-                        d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
-                        if d < dist_s:
-                            dist_s = d
-                            com_nombre_s = com['COMISARIA']
-                            com_dir_s = com['DIRECCION']
-                            com_loc_s = com['LOCALIDAD']
-                            com_tel_s = com.get('TELEFONO', '011-4000-0000')
-                            com_lat_s = com.get('LATITUD', lat_obj_s)
-                            com_lon_s = com.get('LONGITUD', lon_obj_s)
-                    except: pass
-
-                verificar_e_insertar_comisaria_automatica(com_nombre_s, com_dir_s, com_loc_s, com_tel_s, com_lat_s, com_lon_s)
-
                 exito = escribir_registro_nube("ALERTAS", [
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
+
+                    lat_obj_s, lon_obj_s = 0.0, 0.0
+                    localidad_obj_s = ""
+                    if not df_objetivos.empty:
+                        filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
+                        if not filtro_sup_obj.empty:
+                            lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
+                            lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+                            localidad_obj_s = str(filtro_sup_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
+
+                    com_nombre_s = "COMISARÍA JURISDICCIONAL"
+                    com_tel_s = "011-4000-0000"
+                    dist_s = float('inf')
+
+                    df_comis_filtro_s = df_comisarias
+                    if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
+                        df_sub_s = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_s]
+                        if not df_sub_s.empty:
+                            df_comis_filtro_s = df_sub_s
+
+                    for _, com in df_comis_filtro_s.iterrows():
+                        try:
+                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
+                            d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
+                            if d < dist_s:
+                                dist_s = d
+                                com_nombre_s = com['COMISARIA']
+                                com_tel_s = com.get('TELEFONO', '011-4000-0000')
+                        except: pass
+
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
                         "telefono": com_tel_s,
@@ -1776,9 +1759,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 
                 com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
                 com_cercana_dir = "---"
-                com_cercana_loc = "---"
                 com_cercana_tel = "011-4000-0000"
-                com_cercana_lat, com_cercana_lon = lat_obj_vig, lon_obj_vig
                 dist_min_com = float('inf')
                 
                 df_comis_filtro_v = df_comisarias
@@ -1799,13 +1780,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
                             dist_min_com = km
                             com_cercana_nombre = com['COMISARIA']
                             com_cercana_dir = com['DIRECCION']
-                            com_cercana_loc = com['LOCALIDAD']
                             com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
-                            com_cercana_lat = com.get('LATITUD', lat_obj_vig)
-                            com_cercana_lon = com.get('LONGITUD', lon_obj_vig)
                     except: pass
-
-                verificar_e_insertar_comisaria_automatica(com_cercana_nombre, com_cercana_dir, com_cercana_loc, com_cercana_tel, com_cercana_lat, com_cercana_lon)
 
                 st.session_state.alerta_activa_vigilador = {
                     "nombre": nombre_real,
@@ -1933,46 +1909,12 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     
     st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: {st.session_state.rol_sel}</h2>', unsafe_allow_html=True)
     
-    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria, t_control_flota = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA", "🚗 CONTROL DE FLOTA"])
+    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA"])
     
     with t_mensajeria_jefe:
         renderizar_mensajeria_global(st.session_state.rol_sel)
         
     with t_ejecucion:
-        # --- CUADRO DE PÁNICOS Y ALERTAS ACTIVAS PARA JEFE / GERENCIA ---
-        st.subheader("🚨 PANEL DE ALERTAS Y PÁNICOS ACTIVOS")
-        df_alertas_jefe = leer_matriz_nube("ALERTAS")
-        if not df_alertas_jefe.empty:
-            df_alertas_jefe.columns = [str(c).strip().upper() for c in df_alertas_jefe.columns]
-            panicos_jefe_pendientes = df_alertas_jefe[
-                (df_alertas_jefe['TIPO'].astype(str).str.upper() == "PÁNICO") & 
-                (df_alertas_jefe['ESTADO'].astype(str).str.upper() == "PENDIENTE")
-            ] if 'TIPO' in df_alertas_jefe.columns and 'ESTADO' in df_alertas_jefe.columns else pd.DataFrame()
-            
-            if not panicos_jefe_pendientes.empty:
-                st.error("⚠️ ¡HAY ALERTAS DE PÁNICO PENDIENTES EN LA RED!")
-                for idx_pj, row_pj in panicos_jefe_pendientes.iterrows():
-                    col_jp1, col_jp2 = st.columns([3, 1])
-                    col_jp1.markdown(f"**Usuario:** {row_pj.get('USUARIO','')} | **Objetivo:** {row_pj.get('OBJETIVO','')} | **Supervisor Asignado:** {row_pj.get('SUPERVISOR','')} | **Fecha:** {row_pj.get('FECHA','')}")
-                    
-                    key_btn_jefe = f"fin_pan_jefe_{idx_pj}_{row_pj.get('USUARIO','')}_{row_pj.get('OBJETIVO','')}_{row_pj.get('FECHA','')}".replace(" ", "_")
-                    if col_jp2.button(f"✅ Finalizar Pánico", key=key_btn_jefe):
-                        gc_jg = conectar_google()
-                        if gc_jg:
-                            hoja_alt_jg = gc_jg.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
-                            todas_a_jg = hoja_alt_jg.get_all_values()
-                            for i_jg, fila_jg in enumerate(todas_a_jg[1:], start=2):
-                                if len(fila_jg) > 5 and fila_jg[1].strip().upper() == str(row_pj.get('USUARIO','')).strip().upper() and fila_jg[4].strip().upper() == str(row_pj.get('OBJETIVO','')).strip().upper() and fila_jg[3].strip().upper() == "PENDIENTE":
-                                    hoja_alt_jg.update_acell(f"D{i_jg}", "FINALIZADO")
-                                    st.success("✅ Pánico finalizado correctamente.")
-                                    st.cache_data.clear()
-                                    st.rerun()
-            else:
-                st.info("No hay pánicos pendientes en este momento.")
-        else:
-            st.info("Sin registros de alertas en el sistema.")
-
-        st.markdown("---")
         col_g1, col_g2 = st.columns(2)
         with col_g1:
             st.subheader("ALTA DE RECURSO / OBJETIVO")
@@ -2164,6 +2106,27 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         col_ov = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
                         df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_ov].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
 
+                    df_pan_sup_filtrado = pd.DataFrame()
+                    if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
+                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
+                        mask_s_pan = (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
+                        df_pan_sup_filtrado = df_pan_op[mask_s_pan]
+
+                    df_pan_vig_filtrado = pd.DataFrame()
+                    if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
+                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
+                        mask_v_pan = df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                        mask_no_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
+                        df_pan_vig_filtrado = df_pan_op[mask_v_pan & mask_no_sup]
+
+                    df_alt_sup_filtrado = pd.DataFrame()
+                    if not df_alertas_aud.empty:
+                        df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
+                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
+                        mask_alt = (df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
+                                   (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe if 'SUPERVISOR' in df_alt_op.columns else False)
+                        df_alt_sup_filtrado = df_alt_op[mask_alt]
+
                     df_flota_sup_filtro = pd.DataFrame()
                     if not df_flota_aud.empty:
                         df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
@@ -2202,6 +2165,36 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin relevos registrados.")
 
+                        st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
+                        if not df_pan_sup_filtrado.empty:
+                            st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de supervisor.")
+
+                        st.markdown("##### 🚨 Pánicos S.O.S de Vigiladores")
+                        if not df_pan_vig_filtrado.empty:
+                            df_pan_vig_c_turno = df_pan_vig_filtrado.copy()
+                            turnos_vig_list = []
+                            for _, f_row in df_pan_vig_c_turno.iterrows():
+                                fh_val_p = str(f_row.get('FECHA', ''))
+                                turnos_vig_list.append(determinar_turno_activo(fh_val_p))
+                            df_pan_vig_c_turno['TURNO VIGILADOR'] = turnos_vig_list
+                            st.dataframe(df_pan_vig_c_turno.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin pánicos de vigiladores.")
+
+                        total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
+                        total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
+
+                        if total_alertas_supervisor_j > 0 or total_alertas_vigilador_j > 0 or not df_alt_sup_filtrado.empty:
+                            st.markdown("##### ⚠️ Alertas Operativas")
+                            if total_alertas_supervisor_j > 0:
+                                st.markdown(f"• TOTAL ALERTAS DE SUPERVISOR: **{total_alertas_supervisor_j}**")
+                            if total_alertas_vigilador_j > 0:
+                                st.markdown(f"• TOTAL ALERTAS DE VIGILADOR: **{total_alertas_vigilador_j}**")
+                            if not df_alt_sup_filtrado.empty:
+                                st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
+
                         st.markdown("##### 🚗 Control de Flota")
                         if not df_flota_sup_filtro.empty:
                             st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
@@ -2210,7 +2203,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
 
-                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_flota):
+                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
                             buffer, 
@@ -2289,8 +2282,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                     ('LEFTPADDING', (0, 0), (-1, -1), 2),
                                     ('RIGHTPADDING', (0, 0), (-1, -1), 2),
                                 ]))
-                                element = t
-                                elementos.append(element)
+                                elementos.append(t)
                             else:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
@@ -2298,6 +2290,29 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
+                        agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
+                        
+                        df_pvig_pdf = d_pvig.copy()
+                        if not df_pvig_pdf.empty:
+                            turnos_vig_pdf_list = []
+                            for _, p_row in df_pvig_pdf.iterrows():
+                                f_val_p = str(p_row.get('FECHA', ''))
+                                turnos_vig_pdf_list.append(determinar_turno_activo(f_val_p))
+                            df_pvig_pdf['TURNO VIGILADOR'] = turnos_vig_pdf_list
+                        agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", df_pvig_pdf)
+                        
+                        if tot_s_cnt > 0 or tot_v_cnt > 0 or not d_alt.empty:
+                            elementos.append(Paragraph("<b>Alertas Operativas</b>", estilo_seccion))
+                            if tot_s_cnt > 0:
+                                elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
+                            if tot_v_cnt > 0:
+                                element = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
+                                elementos.append(element)
+                            elementos.append(Spacer(1, 4))
+
+                            if not d_alt.empty:
+                                agregar_tabla_pdf("Detalle de Alertas Operativas:", d_alt)
+
                         agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
 
                         doc.build(elementos, canvasmaker=NumberedCanvas)
@@ -2306,7 +2321,9 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     pdf_bytes_integral = generar_pdf_integral_completo(
                         sup_seleccionado_jefe, inicio_jornada_gen, fin_jornada_gen, total_horas_trabajadas,
-                        df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, df_flota_sup_filtro
+                        df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, 
+                        df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro,
+                        total_alertas_supervisor_j, total_alertas_vigilador_j
                     )
 
                     st.download_button(
@@ -2319,16 +2336,6 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     )
         else:
             st.info("No hay registros activos de supervisores en el sistema todavía.")
-
-    with t_control_flota:
-        st.markdown("### 🚗 CONTROL Y GESTIÓN DE FLOTA TÁCTICA")
-        df_flota_gral = leer_matriz_nube("CONTROL DE FLOTA")
-        if not df_flota_gral.empty:
-            st.dataframe(df_flota_gral, use_container_width=True, hide_index=True)
-            pdf_flota = generar_pdf_reporte("CONTROL GENERAL DE FLOTA", df_flota_gral)
-            st.download_button("📥 DESCARGAR REPORTE DE FLOTA (PDF)", data=pdf_flota, file_name=f"reporte_flota_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_flota_jefe")
-        else:
-            st.info("No hay registros de control de flota disponibles en la red.")
 
         if st.session_state.rol_sel == "GERENCIA":
             st.markdown("---")
@@ -2403,6 +2410,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         with t_adm_mantenimiento:
             st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
+            if not df_obj_m.png if 'pdf_respaldo_objs' in locals() else False:
+                pass
             if not df_obj_m.empty:
                 pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
                 st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
