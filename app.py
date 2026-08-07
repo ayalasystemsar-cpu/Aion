@@ -102,20 +102,6 @@ def obtener_hora_argentina():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-def determinar_turno_activo(hora_str):
-    try:
-        if " " in str(hora_str):
-            h_parte = hora_str.split(" ")[1]
-        else:
-            h_parte = str(hora_str)
-        dt_h = datetime.strptime(h_parte[:8], "%H:%M:%S").time()
-        if datetime.strptime("06:00:00", "%H:%M:%S").time() <= dt_h < datetime.strptime("18:00:00", "%H:%M:%S").time():
-            return "DIURNO (06:00 - 18:00)"
-        else:
-            return "NOCTURNO (18:00 - 06:00)"
-    except:
-        return "DIURNO (06:00 - 18:00)"
-
 def obtener_mapeo_solapas():
     return {
         "NOVEDADES GUARDIA": "NOVEDADES GUARDIA",
@@ -390,24 +376,6 @@ def obtener_lista_supervisores_dinamica():
                     base.append(s_limpio)
     return base
 
-@st.cache_resource
-def obtener_grafo_zona(lat, lon):
-    try:
-        return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
-    except:
-        return None
-
-def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
-    try:
-        url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson"
-        response = requests.get(url, timeout=5).json()
-        if response.get("code") == "Ok":
-            coordenadas = response["routes"][0]["geometry"]["coordinates"]
-            return [[point[1], point[0]] for point in coordenadas]
-    except:
-        pass
-    return [[lat1, lon1], [lat2, lon2]]
-
 def registrar_jornada_general(supervisor, objetivo, accion):
     try:
         tz = pytz.timezone("America/Argentina/Buenos_Aires")
@@ -583,12 +551,6 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-@st.fragment(run_every=1)
-def renderizar_reloj_fluido():
-    tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    hora_actual = datetime.now(tz).strftime("%H:%M:%S")
-    st.metric(label="HORA LOCAL", value=hora_actual)
-
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
@@ -639,46 +601,6 @@ def renderizar_mensajeria_global(rol_contexto):
                         st.session_state.asunto_respuesta = asunto
                         sincronizar_url_sesion()
                         st.rerun()
-
-def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
-    fecha = obtener_hora_argentina()
-    mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
-    destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
-    for dest in destinatarios:
-        if dest and dest != "MONITOREO" and dest != "N/A":
-            escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
-
-def limpiar_matriz_nube(nombre_hoja):
-    try:
-        gc = conectar_google()
-        if gc:
-            nombre_hoja_real = obtener_mapeo_solapas().get(nombre_hoja.upper().strip(), nombre_hoja)
-            worksheet = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
-            worksheet.delete_rows(2, worksheet.row_count)
-            st.cache_data.clear()
-            return True
-    except: return False
-
-def ejecutar_cierre_táctico():
-    matrices = ["JORNADA SUPERVISORES", "REGISTRO QR SUPERVISORES", "ALERTAS", "NOVEDADES GUARDIA", "CONTROL DE FLOTA"]
-    fecha_hoy = obtener_hora_argentina()
-    mes_actual = fecha_hoy.split("-")[1] 
-    try:
-        gc = conectar_google()
-        for mat in matrices:
-            df = leer_matriz_nube(mat)
-            if not df.empty:
-                nombre_historico = f"{mat}_{mes_actual}"
-                try:
-                    hoja_hist = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_historico)
-                except:
-                    hoja_hist = gc.open_by_key(ID_MAESTRO_DB).add_worksheet(title=nombre_historico, rows="100", cols="20")
-                hoja_hist.clear()
-                hoja_hist.update([df.columns.values.tolist()] + df.values.tolist())
-                limpiar_matriz_nube(mat)
-        st.cache_data.clear()
-        return True
-    except: return False
 
 def mostrar_landing():
     aplicar_identidad_alfa()
@@ -1299,3 +1221,154 @@ if st.session_state.rol_sel == "SUPERVISOR":
                 st.info("Sin registros QR en el sistema.")
     else:
         st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
+
+# =========================================================================
+# ROL: MONITOREO
+# =========================================================================
+elif st.session_state.rol_sel == "MONITOREO":
+    t_mon_1, t_mon_2, t_mon_3, t_mon_4 = st.tabs(["📡 ALERTAS Y PÁNICOS", "📋 NOVEDADES GUARDIA", "💬 MENSAJERÍA", "🛡️ AUDITORÍA SUPERVISORES"])
+    
+    with t_mon_1:
+        st.markdown("### 🚨 ALERTAS Y PÁNICOS EN TIEMPO REAL")
+        df_alertas = leer_matriz_nube("ALERTAS")
+        if not df_alertas.empty:
+            st.dataframe(df_alertas.iloc[::-1], use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay alertas activas en este momento.")
+
+    with t_mon_2:
+        st.markdown("### 📋 NOVEDADES DE GUARDIA")
+        df_nov = leer_matriz_nube("NOVEDADES GUARDIA")
+        if not df_nov.empty:
+            st.dataframe(df_nov.iloc[::-1], use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay novedades registradas.")
+
+    with t_mon_3:
+        renderizar_mensajeria_global("MONITOREO")
+
+    with t_mon_4:
+        st.markdown("### 🛡️ AUDITORÍA DE SUPERVISORES")
+        df_qr_sup = leer_matriz_nube("REGISTRO QR SUPERVISORES")
+        if not df_qr_sup.empty:
+            st.dataframe(df_qr_sup.iloc[::-1], use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay registros de supervisores todavía.")
+
+# =========================================================================
+# ROL: VIGILADOR
+# =========================================================================
+elif st.session_state.rol_sel == "VIGILADOR":
+    t_vig_1, t_vig_2 = st.tabs(["👮 FICHAJE Y NOVEDADES", "💬 MENSAJERÍA"])
+    
+    with t_vig_1:
+        st.markdown("### 👮 TERMINAL OPERATIVO VIGILADORES")
+        obj_vig = st.selectbox("SELECCIONE SU OBJETIVO:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["SIN OBJETIVO"])
+        nov_vig = st.text_area("REGISTRAR NOVEDAD DE PUESTO:")
+        if st.button("ENVIAR NOVEDAD DE PUESTO") and nov_vig.strip():
+            escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_vig, "NOVEDAD VIGILADOR", nov_vig.strip().upper(), st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+            st.success("✅ Novedad de puesto registrada correctamente.")
+
+    with t_vig_2:
+        renderizar_mensajeria_global("VIGILADOR")
+
+# =========================================================================
+# ROL: JEFE DE OPERACIONES
+# =========================================================================
+elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    t_jefe_1, t_jefe_2, t_jefe_3, t_jefe_4 = st.tabs(["📋 REPORTE TÁCTICO", "🚗 CONTROL DE FLOTA", "💬 MENSAJERÍA", "🚀 OBJETIVOS"])
+    
+    with t_jefe_1:
+        st.markdown("### 📋 REPORTE TÁCTICO GENERAL")
+        df_nov_jefe = leer_matriz_nube("NOVEDADES GUARDIA")
+        if not df_nov_jefe.empty:
+            st.dataframe(df_nov_jefe.iloc[::-1], use_container_width=True, hide_index=True)
+            pdf_data = generar_pdf_reporte("REPORTE TÁCTICO DE OPERACIONES", df_nov_jefe)
+            st.download_button("📥 DESCARGAR REPORTE TÁCTICO EN PDF", data=pdf_data, file_name="Reporte_Tactico.pdf", mime="application/pdf")
+        else:
+            st.info("No hay datos para generar el reporte táctico.")
+
+    with t_jefe_2:
+        st.markdown("### 🚗 CONTROL DE FLOTA Y VEHÍCULOS")
+        df_flota = leer_matriz_nube("CONTROL DE FLOTA")
+        if not df_flota.empty:
+            st.dataframe(df_flota.iloc[::-1], use_container_width=True, hide_index=True)
+            pdf_flota = generar_pdf_reporte("REPORTE DE CONTROL DE FLOTA", df_flota)
+            st.download_button("📥 DESCARGAR REPORTE DE FLOTA EN PDF", data=pdf_flota, file_name="Reporte_Flota.pdf", mime="application/pdf")
+        else:
+            st.info("No hay registros de flota.")
+
+    with t_jefe_3:
+        renderizar_mensajeria_global("JEFE_OPERACIONES")
+
+    with t_jefe_4:
+        st.markdown("### 🚀 GESTIÓN DE OBJETIVOS")
+        if not df_objetivos.empty:
+            st.dataframe(df_objetivos, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay objetivos cargados.")
+
+# =========================================================================
+# ROL: GERENCIA
+# =========================================================================
+elif st.session_state.rol_sel == "GERENCIA":
+    t_ger_1, t_ger_2, t_ger_3 = st.tabs(["🏢 AUDITORÍA GENERAL", "💬 MENSAJERÍA", "📋 REPORTES EJECUTIVOS"])
+    
+    with t_ger_1:
+        st.markdown("### 🏢 AUDITORÍA GENERAL DEL SISTEMA")
+        df_jornada = leer_matriz_nube("JORNADA SUPERVISORES")
+        if not df_jornada.empty:
+            st.dataframe(df_jornada.iloc[::-1], use_container_width=True, hide_index=True)
+        else:
+            st.info("Sin registros de jornada.")
+
+    with t_ger_2:
+        renderizar_mensajeria_global("GERENCIA")
+
+    with t_ger_3:
+        st.markdown("### 📋 GENERACIÓN DE REPORTES EJECUTIVOS")
+        df_alertas_ger = leer_matriz_nube("ALERTAS")
+        if not df_alertas_ger.empty:
+            pdf_ger = generar_pdf_reporte("REPORTE EJECUTIVO DE ALERTAS Y EMERGENCIAS", df_alertas_ger)
+            st.download_button("📥 DESCARGAR REPORTE EJECUTIVO EN PDF", data=pdf_ger, file_name="Reporte_Gerencia.pdf", mime="application/pdf")
+        else:
+            st.info("No hay alertas para exportar.")
+
+# =========================================================================
+# ROL: ADMINISTRADOR
+# =========================================================================
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    t_adm_1, t_adm_2, t_adm_3 = st.tabs(["⚙️ GESTIÓN DE USUARIOS", "🚀 OBJETIVOS", "💬 MENSAJERÍA"])
+    
+    with t_adm_1:
+        st.markdown("### ⚙️ APROBACIÓN Y GESTIÓN DE USUARIOS")
+        df_usu = leer_matriz_nube("USUARIOS")
+        if not df_usu.empty:
+            st.dataframe(df_usu, use_container_width=True, hide_index=True)
+            with st.form("form_aprobar_usuario"):
+                usuario_a_aprobar = st.text_input("NOMBRE DE USUARIO A APROBAR:").strip().upper()
+                nuevo_estado = st.selectbox("ESTADO:", ["APROBADO", "RECHAZADO", "PENDIENTE"])
+                if st.form_submit_button("ACTUALIZAR ESTADO DE USUARIO"):
+                    idx_encontrado = None
+                    for idx, row in df_usu.iterrows():
+                        if str(row.get('USUARIO', '')).strip().upper() == usuario_a_aprobar:
+                            idx_encontrado = idx + 2 # +2 por cabecera y base 1 de sheets
+                            break
+                    if idx_encontrado:
+                        actualizar_celda("USUARIOS", idx_encontrado, "D", nuevo_estado)
+                        st.success(f"✅ Usuario {usuario_a_aprobar} actualizado a {nuevo_estado}.")
+                        st.rerun()
+                    else:
+                        st.error("❌ Usuario no encontrado.")
+        else:
+            st.info("No hay usuarios registrados en espera.")
+
+    with t_adm_2:
+        st.markdown("### 🚀 OBJETIVOS EN EL NÚCLEO")
+        if not df_objetivos.empty:
+            st.dataframe(df_objetivos, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay objetivos cargados.")
+
+    with t_adm_3:
+        renderizar_mensajeria_global("ADMINISTRADOR")
