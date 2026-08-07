@@ -23,6 +23,7 @@ from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 import streamlit.components.v1 as components
 from streamlit_qrcode_scanner import qrcode_scanner
+import os
 
 
 # --- 0. RUTINA DE AUTOREPARACIÓN DE BASES MAESTRAS ---
@@ -412,8 +413,22 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         comisaria_formateada
     ]
     
+    # 1. Guardado y persistencia local inmediata en el CSV maestro
+    try:
+        obj_path = 'AION_YAROKU_MASTER_OBJETIVOS.csv'
+        if os.path.exists(obj_path):
+            df_local = pd.read_csv(obj_path)
+            nueva_fila_df = pd.DataFrame([datos_nuevo_obj], columns=df_local.columns[:len(datos_nuevo_obj)])
+            df_local = pd.concat([df_local, nueva_fila_df], ignore_index=True)
+            df_local.to_csv(obj_path, index=False)
+    except Exception as ex_local:
+        print(f"Aviso guardado local: {ex_local}")
+
+    # 2. Sincronización automática a la nube de Google Sheets
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
     verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
+    
+    st.cache_data.clear()
     return exito
 
 def obtener_lista_supervisores_dinamica():
