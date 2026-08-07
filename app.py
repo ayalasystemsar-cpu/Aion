@@ -1256,7 +1256,7 @@ elif st.session_state.rol_sel == "MONITOREO":
             st.info("No hay registros de supervisores todavía.")
 
 # =========================================================================
-# ROL: VIGILADOR
+# ROL: VIGILADOR (RESTAURADO CON SU BOTÓN ANTIPÁNICO ORIGINAL)
 # =========================================================================
 elif st.session_state.rol_sel == "VIGILADOR":
     t_vig_1, t_vig_2 = st.tabs(["👮 FICHAJE Y NOVEDADES", "💬 MENSAJERÍA"])
@@ -1264,6 +1264,80 @@ elif st.session_state.rol_sel == "VIGILADOR":
     with t_vig_1:
         st.markdown("### 👮 TERMINAL OPERATIVO VIGILADORES")
         obj_vig = st.selectbox("SELECCIONE SU OBJETIVO:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["SIN OBJETIVO"])
+        
+        st.markdown("---")
+        st.markdown("### 🚨 BOTÓN ANTIPÁNICO DE PUESTO")
+        col_vp1, col_vp2, col_vp3 = st.columns([1, 1, 1])
+        with col_vp2:
+            if st.button("S.O.S\nPÁNICO VIGILADOR", type="primary", key="btn_panico_vigilador"):
+                lat_obj_v, lon_obj_v = 0.0, 0.0
+                localidad_obj_v = ""
+                if not df_objetivos.empty:
+                    filtro_vig_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_vig]
+                    if not filtro_vig_obj.empty:
+                        lat_obj_v = float(str(filtro_vig_obj['LATITUD'].iloc[0]).replace(',', '.'))
+                        lon_obj_v = float(str(filtro_vig_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+                        localidad_obj_v = str(filtro_vig_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
+
+                com_nombre_v = "COMISARÍA JURISDICCIONAL"
+                com_dir_v = "---"
+                com_loc_v = "---"
+                com_tel_v = "011-4000-0000"
+                com_lat_v, com_lon_v = lat_obj_v, lon_obj_v
+                dist_v = float('inf')
+
+                df_comis_filtro_v = df_comisarias
+                if localidad_obj_v and 'LOCALIDAD' in df_comisarias.columns:
+                    df_sub_v = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_v]
+                    if not df_sub_v.empty:
+                        df_comis_filtro_v = df_sub_v
+
+                for _, com in df_comis_filtro_v.iterrows():
+                    try:
+                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_v, lat_obj_v, com['LONGITUD'], com['LATITUD']])
+                        d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
+                        if d < dist_v:
+                            dist_v = d
+                            com_nombre_v = com['COMISARIA']
+                            com_dir_v = com['DIRECCION']
+                            com_loc_v = com['LOCALIDAD']
+                            com_tel_v = com.get('TELEFONO', '011-4000-0000')
+                            com_lat_v = com.get('LATITUD', lat_obj_v)
+                            com_lon_v = com.get('LONGITUD', lon_obj_v)
+                    except: pass
+
+                verificar_e_insertar_comisaria_automatica(com_nombre_v, com_dir_v, com_loc_v, com_tel_v, com_lat_v, com_lon_v)
+
+                exito_v = escribir_registro_nube("ALERTAS", [
+                    obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO VIGILADOR", "PENDIENTE", obj_vig, st.session_state.user_sel
+                ])
+                if exito_v:
+                    st.error(f"🚨 ALERTA DE PÁNICO ENVIADA DESDE EL OBJETIVO: {obj_vig}")
+                    st.session_state.alerta_activa_vigilador = {
+                        "comisaria": com_nombre_v,
+                        "telefono": com_tel_v,
+                        "distancia": f"{dist_v:.2f}"
+                    }
+
+        if 'alerta_activa_vigilador' in st.session_state:
+            datos_v = st.session_state.alerta_activa_vigilador
+            st.markdown(f"""
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
+                    <div style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 13px; font-weight: 500; letter-spacing: 1px;">
+                        🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL REAL
+                    </div>
+                    <div style="color: #CBD5E1; font-size: 13px; margin-top: 6px;">
+                        <b>{datos_v['comisaria']}</b> (~{datos_v['distancia']} KM)
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <a href="tel:{datos_v['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
+                            📞 LLAMAR DIRECTAMENTE AHORA (<b style="unicode-bidi: bidi-override; direction: ltr; display: inline-block;">{datos_v['telefono']}</b>)
+                        </a>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
         nov_vig = st.text_area("REGISTRAR NOVEDAD DE PUESTO:")
         if st.button("ENVIAR NOVEDAD DE PUESTO") and nov_vig.strip():
             escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_vig, "NOVEDAD VIGILADOR", nov_vig.strip().upper(), st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
