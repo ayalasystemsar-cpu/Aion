@@ -215,6 +215,10 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
+    # Verificación de seguridad para evitar celdas vacías que bloqueen la subida
+    if not str(nombre_obj).strip() or not str(lat).strip() or not str(lon).strip():
+        return False
+
     alerta_inicial = "ACTIVO / SIN NOVEDAD"
 
     datos_nuevo_obj = [
@@ -222,8 +226,8 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         str(direccion).strip().upper(), 
         str(localidad).strip().upper(), 
         str(supervisor).strip().upper(), 
-        str(lat).strip(), 
-        str(lon).strip(), 
+        str(lat).strip().replace(',', '.'), 
+        str(lon).strip().replace(',', '.'), 
         str(responsables).strip().upper(),
         alerta_inicial
     ]
