@@ -194,7 +194,6 @@ def escribir_registro_nube(pestana, datos_fila):
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
             sh = gc.open_by_key(ID_MAESTRO_DB)
             
-            # Verificación de seguridad para la solapa ALERTAS
             if nombre_hoja_real.upper() == "ALERTAS":
                 try:
                     hoja = sh.worksheet("ALERTAS")
@@ -413,7 +412,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
 
     comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
 
-    # Mapeo exacto de columnas: Col A a Col H (OBJETIVO, DIRECCION, LOCALIDAD, SUPERVISOR, LATITUD, LONGITUD, RESPONSABLES, ALERTA)
     datos_nuevo_obj = [
         nombre_obj_upper, 
         str(direccion).strip().upper(), 
@@ -425,7 +423,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         comisaria_formateada
     ]
     
-    # 1. Guardado y persistencia local inmediata en el CSV maestro
     try:
         obj_path = 'AION_YAROKU_MASTER_OBJETIVOS.csv'
         if os.path.exists(obj_path):
@@ -436,7 +433,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     except Exception as ex_local:
         print(f"Aviso guardado local: {ex_local}")
 
-    # 2. Sincronización automática a la nube de Google Sheets (Solapa OBJETIVOS)
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
     verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
     
@@ -1793,8 +1789,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             with tab_alta_sup:
                 with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
                     col_no1, col_no2 = st.columns(2)
-                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="CARLOS PELLEGRINI").upper().strip()
-                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="1163").upper().strip()
+                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="").upper().strip()
+                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="").upper().strip()
                     
                     col_loc1, col_loc2 = st.columns(2)
                     nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="CABA").upper().strip()
@@ -1811,7 +1807,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red y en la master de objetivos!")
+                                st.rerun()
                             else:
                                 st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
                         else:
