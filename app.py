@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -188,13 +189,94 @@ def leer_matriz_nube(pestana):
 
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
+    df_nube = leer_matriz_nube("COMISARIAS")
+    if not df_nube.empty and 'COMISARIA' in df_nube.columns and len(df_nube) > 1:
+        df_nube['LATITUD'] = pd.to_numeric(df_nube['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        df_nube['LONGITUD'] = pd.to_numeric(df_nube['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
+        return df_nube
+    
     data = {
-        "COMISARIA": ["COMISARÍA SAN MARTÍN 1RA", "COMISARÍA VECINAL 14C", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA (VILLA ROSA)", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 14A", "COMISARÍA LANÚS 2DA", "COMISARÍA VECINAL 13A", "COMISARÍA LA MATANZA 2DA", "COMISARÍA LA MATANZA 3RA", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 1D", "COMISARÍA RAMOS MEJÍA 2DA"],
-        "DIRECCION": ["Gral. Lavalle 420", "Av. Coronel Díaz 2250", "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n", "Salta 1450", "Av. Cnel. Díaz 2250", "Hipólito Yrigoyen 4300", "Av. Cabildo 2300", "Monseñor Bufano 3200", "Arieta 2500", "Av. Las Heras 2650", "Miller 2750", "Arias 4450", "Av. Díaz Vélez 5150", "Av. San Juan 1050", "Av. de Mayo 350"],
-        "LOCALIDAD": ["SAN MARTÍN", "CABA", "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "CABA", "CABA", "LANÚS", "CABA", "LA MATANZA", "LA MATANZA", "CABA", "CABA", "CABA", "CABA", "CABA", "RAMOS MEJÍA"],
-        "TELEFONO": ["011-4754-2321", "011-4821-5544", "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111", "011-4331-1122", "011-4821-5545", "011-4241-0022", "011-4788-9900", "011-4482-1111", "011-4486-2222", "011-4801-3344", "011-4541-1122", "011-4542-3344", "011-4982-5566", "011-4301-7788", "011-4464-1122"],
-        "LATITUD": [-34.580139, -34.587773, -34.664119, -34.163693, -34.440154, -34.424196, -34.417041, -34.617133, -34.587773, -34.708819, -34.557454, -34.700147, -34.717182, -34.589886, -34.554321, -34.568459, -34.613045, -34.603847, -34.646589],
-        "LONGITUD": [-58.541410, -58.416056, -58.368073, -58.961418, -58.556134, -58.579789, -58.868209, -58.378734, -58.416056, -58.385311, -58.461144, -58.575608, -58.608301, -58.401918, -58.472147, -58.482012, -58.437198, -58.381577, -58.564571]
+        "COMISARIA": [
+            "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 1C", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 2B",
+            "COMISARÍA VECINAL 3A", "COMISARÍA VECINAL 3B", "COMISARÍA VECINAL 4A", "COMISARÍA VECINAL 4B", "COMISARÍA VECINAL 4C",
+            "COMISARÍA VECINAL 5A", "COMISARÍA VECINAL 5B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 6B", "COMISARÍA VECINAL 7A",
+            "COMISARÍA VECINAL 7B", "COMISARÍA VECINAL 8A", "COMISARÍA VECINAL 8B", "COMISARÍA VECINAL 8C", "COMISARÍA VECINAL 9A",
+            "COMISARÍA VECINAL 9B", "COMISARÍA VECINAL 9C", "COMISARÍA VECINAL 10A", "COMISARÍA VECINAL 10B", "COMISARÍA VECINAL 10C",
+            "COMISARÍA VECINAL 11A", "COMISARÍA VECINAL 11B", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 12C",
+            "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 13B", "COMISARÍA VECINAL 13C", "COMISARÍA VECINAL 14A", "COMISARÍA VECINAL 14B",
+            "COMISARÍA VECINAL 14C", "COMISARÍA VECINAL 15A", "COMISARÍA VECINAL 15B", "COMISARÍA VECINAL 15C", "COMISARÍA SAN MARTÍN 1RA",
+            "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA",
+            "COMISARÍA ESCOBAR 3RA", "COMISARÍA VICENTE LÓPEZ 2DA", "COMISARÍA SAN ISIDRO 1RA", "COMISARÍA LANÚS 1RA", "COMISARÍA LOMAS DE ZAMORA 1RA",
+            "COMISARÍA MORÓN 1RA", "COMISARÍA LA MATANZA 1RA", "COMISARÍA TRES DE FEBRERO 1RA", "COMISARÍA QUILMES 1RA", "COMISARÍA VARELA 1RA",
+            "COMISARÍA BERAZATEGUI 1RA", "COMISARÍA TIGRE 2DA (PACHECO)", "COMISARÍA ESCOBAR 1RA (BELÉN)", "COMISARÍA PILAR 1RA", "COMISARÍA ZÁRATE 1RA",
+            "COMISARÍA CAMPANA 2DA", "COMISARÍA EXALTACIÓN DE LA CRUZ (CARDALES)", "COMISARÍA LUJÁN 1RA", "COMISARÍA MERCEDES 1RA", "COMISARÍA SAN ANDRÉS DE GILES",
+            "COMISARÍA GENERAL SAN MARTÍN 2DA", "COMISARÍA VICENTE LÓPEZ 1RA", "COMISARÍA SAN ISIDRO 4TA (MARTÍNEZ)", "COMISARÍA SAN FERNANDO 2DA (VIRREYES)", "COMISARÍA TIGRE 3RA (DON TORCUATO)",
+            "COMISARÍA MALVINAS ARGENTINAS 1RA", "COMISARÍA J. C. PAZ 1RA", "COMISARÍA SAN MIGUEL 1RA", "COMISARÍA MORENO 1RA", "COMISARÍA MERLO 1RA"
+        ],
+        "DIRECCION": [
+            "Suipacha 1156", "Uruguay 350", "Tacuarí 770", "General Las Heras 2650", "Paraguay 1122",
+            "Lavalle 2625", "San Juan 1767", "Zavaleta 425", "Av. Regimiento de Patricios 1150", "Benito Juárez 1445",
+            "Maza 1250", "Av. Independencia 2250", "Av. La Plata 550", "Rivadavia 4701", "Piedras 1450",
+            "Av. Directorio 1500", "Dellepiane 6900", "Av. General Paz 14500", "Av. Cruz 4500", "Av. Juan B. Alberdi 6752",
+            "Coronel Cárdenas 2850", "Toneleroro 6400", "Segurola 1550", "Av. Gaona 3850", "Alejandro Magariños Cervantes 4525",
+            "Av. Nazca 4550", "Cuenca 3250", "Miller 2750", "Arias 4450", "Manuela Pedraza 2340",
+            "Av. Cabildo 2300", "Amenábar 2320", "Av. Cramer 3250", "Cnel. Díaz 2250", "Av. Coronel Díaz 2550",
+            "Av. Santa Fe 3200", "Guzmán 346", "Av. Forest 1450", "Av. Triunvirato 4550", "Gral. Lavalle 420",
+            "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n",
+            "Belgrano 1150", "Av. San Martín 2450", "25 de Mayo 450", "Yrigoyen 300", "Chacabuco 500",
+            "San Martín 750", "Arieta 2500", "Belgrano 3400", "Rivadavia 400", "San Martín 800",
+            "Mitre 600", "Av. Constituyentes 450", "Asborno 750", "San Martín 950", "Justa Lima 450",
+            "Mitre 1200", "Belgrano 600", "San Martín 500", "Calle 24 Nro 650", "Mitre 400",
+            "Mitre 1500", "Maipú 2500", "Alvear 500", "Av. Avellaneda 1200", "Alvear 800",
+            "Perón 1200", "Hipólito Yrigoyen 500", "Perón 800", "Alcorta 400", "Suipacha 300"
+        ],
+        "LOCALIDAD": [
+            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
+            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
+            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
+            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "SAN MARTÍN",
+            "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "GARÍN", "FLORIDA", "SAN ISIDRO", "LANÚS", "LOMAS DE ZAMORA",
+            "MORÓN", "LA MATANZA", "TRES DE FEBRERO", "QUILMES", "VARELA", "BERAZATEGUI", "PACHECO", "ESCÓBAR", "PILAR", "ZÁRATE",
+            "CAMPANA", "CARDALES", "LUJÁN", "MERCEDES", "GILES", "SAN MARTÍN", "VICENTE LÓPEZ", "MARTÍNEZ", "VIRREYES", "DON TORCUATO",
+            "MALVINAS ARGENTINAS", "J. C. PAZ", "SAN MIGUEL", "MORENO", "MERLO"
+        ],
+        "TELEFONO": [
+            "011-4393-0100", "011-4371-0100", "011-4331-0100", "011-4803-0100", "011-4811-0100",
+            "011-4381-0100", "011-4952-0100", "011-4301-0100", "011-4361-0100", "011-4683-0100",
+            "011-4931-0100", "011-4304-0100", "011-4923-0100", "011-4982-0100", "011-4342-0100",
+            "011-4631-0100", "011-4637-0100", "011-4696-0100", "011-4919-0100", "011-4641-0100",
+            "011-4682-0100", "011-4642-0100", "011-4567-0100", "011-4581-0100", "011-4585-0100",
+            "011-4501-0100", "011-4571-0100", "011-4541-1122", "011-4542-3344", "011-4572-0100",
+            "011-4788-9900", "011-4781-0100", "011-4552-0100", "011-4821-5544", "011-4822-0100",
+            "011-4813-0100", "011-4554-0100", "011-4555-0100", "011-4521-0100", "011-4754-2321",
+            "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111",
+            "03327-442000", "011-4791-0000", "011-4743-0100", "011-4241-0100", "011-4243-0100",
+            "011-4483-0100", "011-4482-0100", "011-4751-0100", "011-4253-0100", "011-4255-0100",
+            "011-4256-0100", "011-4740-0100", "0348-442-0100", "0230-442-0100", "03487-422-0100",
+            "03489-423-0100", "02322-490-100", "02323-420-100", "02324-420-100", "02326-452-100",
+            "011-4752-0100", "011-4797-0100", "011-4792-0100", "011-4745-0100", "011-4717-0100",
+            "02320-482-100", "02320-432-100", "02323-442-100", "0237-482-0100", "0220-482-0100"
+        ],
+        "LATITUD": [
+            -34.5985, -34.6037, -34.6112, -34.5852, -34.5910, -34.6080, -34.6150, -34.6390, -34.6350, -34.6410,
+            -34.6150, -34.6220, -34.6250, -34.6180, -34.6190, -34.6280, -34.6500, -34.6750, -34.6600, -34.6400,
+            -34.6450, -34.6500, -34.6200, -34.6150, -34.6100, -34.6000, -34.5950, -34.5543, -34.5684, -34.5600,
+            -34.5574, -34.5550, -34.5500, -34.5877, -34.5850, -34.5800, -34.5880, -34.5800, -34.5750, -34.5801,
+            -34.6641, -34.1636, -34.4401, -34.4241, -34.4170, -34.4273, -34.5453, -34.4720, -34.7000, -34.7600,
+            -34.6500, -34.6700, -34.5800, -34.7200, -34.8100, -34.7600, -34.4600, -34.3400, -34.4500, -34.0900,
+            -34.1700, -34.2900, -34.5700, -34.6500, -34.2500, -34.5800, -34.5100, -34.4900, -34.4500, -34.4700,
+            -34.4800, -34.5100, -34.5300, -34.6500, -34.6700
+        ],
+        "LONGITUD": [
+            -58.3838, -58.3862, -58.3790, -58.4012, -58.3950, -58.3850, -58.3800, -58.4050, -58.3650, -58.4800,
+            -58.4200, -58.3830, -58.4400, -58.4350, -58.3750, -58.4600, -58.4500, -58.4650, -58.4450, -58.5100,
+            -58.5050, -58.5200, -58.4900, -58.4600, -58.4750, -58.4950, -58.4700, -58.4721, -58.4820, -58.4600,
+            -58.4611, -58.4550, -58.4500, -58.4160, -58.4100, -58.3950, -58.4700, -58.4600, -58.4800, -58.5414,
+            -58.3680, -58.9614, -58.5561, -58.5797, -58.8682, -58.7205, -58.4937, -58.5100, -58.3700, -58.4000,
+            -58.6200, -58.5600, -58.5400, -58.2700, -58.2800, -58.2100, -58.6300, -58.7900, -58.9000, -58.8500,
+            -58.9700, -58.9100, -59.5400, -59.4300, -59.7100, -58.5500, -58.4800, -58.5200, -58.5400, -58.6000,
+            -58.7000, -58.7100, -58.7200, -58.9000, -58.7100
+        ]
     }
     return pd.DataFrame(data)
 
@@ -214,28 +296,94 @@ def cargar_objetivos():
         return df 
     return pd.DataFrame()
 
-def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
-    # Verificación de seguridad para evitar celdas vacías que bloqueen la subida
-    if not str(nombre_obj).strip() or not str(lat).strip() or not str(lon).strip():
-        return False
+def verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, lat, lon):
+    try:
+        gc = conectar_google()
+        if gc:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
+            try:
+                hoja_comis = sh.worksheet("COMISARIAS")
+            except:
+                hoja_comis = sh.add_worksheet(title="COMISARIAS", rows="100", cols="10")
+                hoja_comis.append_row(["COMISARIA", "DIRECCION", "LOCALIDAD", "TELEFONO", "LATITUD", "LONGITUD"])
 
-    alerta_inicial = "ACTIVO / SIN NOVEDAD"
+            registros_existentes = hoja_comis.get_all_values()
+            encontrada = False
+            for fila_c in registros_existentes[1:]:
+                if len(fila_c) > 0 and str(fila_c[0]).strip().upper() == str(com_n).strip().upper():
+                    encontrada = True
+                    break
+            
+            if not encontrada and str(com_n).strip() != "" and str(com_n).strip() != "---":
+                hoja_comis.append_row([
+                    str(com_n).strip().upper(), 
+                    str(com_d).strip().upper(), 
+                    str(com_l).strip().upper(), 
+                    str(com_t).strip(), 
+                    str(lat), 
+                    str(lon)
+                ])
+                st.cache_data.clear()
+    except Exception as e:
+        print(f"Error gestionando solapa comisarías: {e}")
+
+def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
+    nombre_obj_upper = str(nombre_obj).strip().upper()
+    localidad_obj_upper = str(localidad).strip().upper()
+    
+    distancia_minima = float('inf')
+    com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
+    com_lat_calc, com_lon_calc = lat, lon
+    
+    df_comis = cargar_datos_comisarias()
+    try:
+        lat_f = float(str(lat).replace(',', '.'))
+        lon_f = float(str(lon).replace(',', '.'))
+        
+        if not df_comis.empty and 'LOCALIDAD' in df_comis.columns:
+            df_comis_filtrada = df_comis[df_comis['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_upper]
+            if df_comis_filtrada.empty:
+                df_comis_filtrada = df_comis
+        else:
+            df_comis_filtrada = df_comis
+
+        for _, com in df_comis_filtrada.iterrows():
+            lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.asin(math.sqrt(a))
+            km = 6371 * c
+            if km < distancia_minima:
+                distancia_minima = km
+                com_n = com['COMISARIA']
+                com_d = com['DIRECCION']
+                com_l = com['LOCALIDAD']
+                com_t = com.get('TELEFONO', '011-4000-0000')
+                com_lat_calc = com.get('LATITUD', lat)
+                com_lon_calc = com.get('LONGITUD', lon)
+    except Exception as e:
+        print(f"Error calculando comisaría cercana: {e}")
+
+    comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
 
     datos_nuevo_obj = [
-        str(nombre_obj).strip().upper(), 
+        nombre_obj_upper, 
         str(direccion).strip().upper(), 
         str(localidad).strip().upper(), 
         str(supervisor).strip().upper(), 
-        str(lat).strip().replace(',', '.'), 
-        str(lon).strip().replace(',', '.'), 
+        str(lat), 
+        str(lon), 
         str(responsables).strip().upper(),
-        alerta_inicial
+        comisaria_formateada
     ]
     
-    return escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+    exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+    verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
+    return exito
 
 def obtener_lista_supervisores_dinamica():
-    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO", "TIKI"]
+    base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO", "TIKI", "GONZALEZ"]
     df_u = leer_matriz_nube("USUARIOS")
     if not df_u.empty:
         col_r = 'ROL' if 'ROL' in df_u.columns else 'ROLES'
@@ -296,18 +444,15 @@ def registrar_qr_supervisor(supervisor, objetivo, accion):
             sh = gc.open_by_key(ID_MAESTRO_DB)
             hoja = None
             nombres_posibles = ["REGISTRO QR SUPERVISORES", "REGISTRO-QR-SUPERVISORES"]
-            
             for nombre in nombres_posibles:
                 try:
                     hoja = sh.worksheet(nombre)
                     break
                 except:
                     continue
-            
             if hoja is None:
                 hoja = sh.add_worksheet(title="REGISTRO QR SUPERVISORES", rows="100", cols="10")
                 hoja.append_row(["FECHA_HORA", "OBJETIVO", "ACCION", "SUPERVISOR", "ESTADO"])
-
             hoja.append_row(datos)
             st.cache_data.clear()
             return True
@@ -391,10 +536,7 @@ def aplicar_identidad_alfa():
             text-align: center;
         }
 
-        header {
-            background: transparent !important;
-            background-color: transparent !important;
-        }
+        header { background: transparent !important; background-color: transparent !important; }
 
         .stApp div[data-testid="stExpander"] { background-color: #1A1C23 !important; border: 1px solid #2D313E !important; border-radius: 8px !important; }
         .stApp div[data-testid="stExpander"] summary p { color: #E0E0E0 !important; font-size: 14px !important; font-weight: 600 !important; text-transform: uppercase; }
@@ -413,44 +555,19 @@ def aplicar_identidad_alfa():
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
         .qr-scanner-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100% !important;
-            max-width: 320px !important;
-            margin: 0 auto 10px auto !important;
-            overflow: hidden !important;
-            border-radius: 8px !important;
-            background: #000 !important;
-            position: relative;
+            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
+            margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
         }
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
-            width: 100% !important;
-            max-width: 320px !important;
-            height: 220px !important;
-            object-fit: cover !important;
-            border-radius: 8px !important;
-            border: 2px solid #00E5FF !important;
+            width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
-            gap: 6px !important;
-            background-color: transparent !important;
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important;
-            white-space: nowrap !important;
-            padding-bottom: 5px !important;
+            gap: 6px !important; background-color: transparent !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; padding-bottom: 5px !important;
         }
         .stTabs [data-baseweb="tab"] {
-            background-color: rgba(26, 28, 35, 0.6) !important;
-            border: 1px solid #2D313E !important;
-            color: #A0A5B5 !important;
-            border-radius: 4px 4px 0px 0px !important;
-            padding: 8px 12px !important;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 11px !important;
-            font-weight: bold;
-            flex-shrink: 0 !important;
+            background-color: rgba(26, 28, 35, 0.6) !important; border: 1px solid #2D313E !important; color: #A0A5B5 !important;
+            border-radius: 4px 4px 0px 0px !important; padding: 8px 12px !important; font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; flex-shrink: 0 !important;
         }
         .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
         
@@ -458,10 +575,7 @@ def aplicar_identidad_alfa():
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
         div[data-testid="stMetricValue"] div { color: #FFFFFF !important; font-family: 'Orbitron', sans-serif !important; font-size: 18px !important; unicode-bidi: plaintext !important; direction: ltr !important; }
         
-        div[data-testid="stDataFrame"] {
-            width: 100% !important;
-            overflow-x: auto !important;
-        }
+        div[data-testid="stDataFrame"] { width: 100% !important; overflow-x: auto !important; }
 
         .btn-google-maps {
             display: inline-flex; align-items: center; justify-content: center;
@@ -475,7 +589,6 @@ def aplicar_identidad_alfa():
         </style>
     """, unsafe_allow_html=True)
 
-# --- REEMPLAZO NATIVO DEL RELOJ EN VIVO USANDO FRAGMENT DE STREAMLIT ---
 @st.fragment(run_every=1)
 def renderizar_reloj_fluido():
     tz = pytz.timezone("America/Argentina/Buenos_Aires")
@@ -699,7 +812,6 @@ df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
 
-# --- LÓGICA DE BARRA LATERAL DIFERENCIADA Y SELECTOR DE VISTAS ADMIN ---
 if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_autenticado", False):
     with st.sidebar:
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
@@ -857,6 +969,36 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS Y PÁNICOS ACTIVOS")
+        
+        # --- PANEL DE CONTROL RÁPIDO DE PÁNICOS ACTIVOS EN RADAR ---
+        df_alertas_radar = leer_matriz_nube("ALERTAS")
+        if not df_alertas_radar.empty:
+            df_alertas_radar.columns = [str(c).strip().upper() for c in df_alertas_radar.columns]
+            panicos_pendientes_globales = df_alertas_radar[
+                (df_alertas_radar['TIPO'].astype(str).str.upper() == "PÁNICO") & 
+                (df_alertas_radar['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+            ] if 'TIPO' in df_alertas_radar.columns and 'ESTADO' in df_alertas_radar.columns else pd.DataFrame()
+            
+            if not panicos_pendientes_globales.empty:
+                st.error("🚨 ¡HAY PÁNICOS S.O.S ACTIVOS EN LA RED!")
+                for idx_gp, row_gp in panicos_pendientes_globales.iterrows():
+                    col_p1, col_p2 = st.columns([3, 1])
+                    col_p1.markdown(f"**Usuario:** {row_gp.get('USUARIO','')} | **Objetivo:** {row_gp.get('OBJETIVO','')} | **Fecha:** {row_gp.get('FECHA','')}")
+                    
+                    key_btn_radar = f"fin_pan_radar_{idx_gp}_{row_gp.get('USUARIO','')}_{row_gp.get('OBJETIVO','')}_{row_gp.get('FECHA','')}".replace(" ", "_")
+                    if col_p2.button(f"✅ Finalizar Pánico", key=key_btn_radar):
+                        gc_rg = conectar_google()
+                        if gc_rg:
+                            hoja_alt_rg = gc_rg.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS")
+                            todas_a_rg = hoja_alt_rg.get_all_values()
+                            for i_rg, fila_rg in enumerate(todas_a_rg[1:], start=2):
+                                if len(fila_rg) > 5 and fila_rg[1].strip().upper() == str(row_gp.get('USUARIO','')).strip().upper() and fila_rg[4].strip().upper() == str(row_gp.get('OBJETIVO','')).strip().upper() and fila_rg[3].strip().upper() == "PENDIENTE":
+                                    hoja_alt_rg.update_acell(f"D{i_rg}", "FINALIZADO")
+                                    st.success("✅ Pánico finalizado correctamente desde el Radar.")
+                                    st.cache_data.clear()
+                                    st.rerun()
+                st.markdown("---")
+
         if st.button("🔄 ACTUALIZAR RADAR DE CONTROL", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -936,8 +1078,15 @@ if st.session_state.rol_sel == "MONITOREO":
             datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
             lat_obj = datos_obj['LATITUD']
             lon_obj = datos_obj['LONGITUD']
+            localidad_obj_val = str(datos_obj.get('LOCALIDAD', '')).strip().upper()
             
-            for _, com in df_comisarias.iterrows():
+            df_comis_filtro_mono = df_comisarias
+            if localidad_obj_val and 'LOCALIDAD' in df_comisarias.columns:
+                df_sub_c = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_val]
+                if not df_sub_c.empty:
+                    df_comis_filtro_mono = df_sub_c
+
+            for _, com in df_comis_filtro_mono.iterrows():
                 lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
                 dlon = lon2 - lon1
                 dlat = lat2 - lat1
@@ -1088,10 +1237,15 @@ if st.session_state.rol_sel == "MONITOREO":
 
         sups_dinamicos_lista = sorted(list(sups_dinamicos_set))
 
-        if len(sups_dinamicos_lista) > 0:
-            pestanas_sups = st.tabs(sups_dinamicos_lista)
+        opciones_filtro_monitoreo = ["VER TODOS LOS SUPERVISORES"] + sups_dinamicos_lista
+        sup_elegido_monitoreo_tab = st.selectbox("🔍 FILTRAR AUDITORÍA POR SUPERVISOR O VER TODOS:", opciones_filtro_monitoreo, key="filtro_auditoria_monitoreo_gral")
+
+        lista_sups_a_mostrar = sups_dinamicos_lista if sup_elegido_monitoreo_tab == "VER TODOS LOS SUPERVISORES" else [sup_elegido_monitoreo_tab]
+
+        if len(lista_sups_a_mostrar) > 0:
+            pestanas_sups = st.tabs(lista_sups_a_mostrar)
             
-            for idx_p, sup_seleccionado_mono in enumerate(sups_dinamicos_lista):
+            for idx_p, sup_seleccionado_mono in enumerate(lista_sups_a_mostrar):
                 with pestanas_sups[idx_p]:
                     st.markdown(f"### 🛡️ PANEL DE CONTROL: {sup_seleccionado_mono}")
                     
@@ -1289,34 +1443,49 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
+                lat_obj_s, lon_obj_s = 0.0, 0.0
+                localidad_obj_s = ""
+                if not df_objetivos.empty:
+                    filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
+                    if not filtro_sup_obj.empty:
+                        lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
+                        lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
+                        localidad_obj_s = str(filtro_sup_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
+
+                com_nombre_s = "COMISARÍA JURISDICCIONAL"
+                com_dir_s = "---"
+                com_loc_s = "---"
+                com_tel_s = "011-4000-0000"
+                com_lat_s, com_lon_s = lat_obj_s, lon_obj_s
+                dist_s = float('inf')
+
+                df_comis_filtro_s = df_comisarias
+                if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
+                    df_sub_s = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_s]
+                    if not df_sub_s.empty:
+                        df_comis_filtro_s = df_sub_s
+
+                for _, com in df_comis_filtro_s.iterrows():
+                    try:
+                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
+                        d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
+                        if d < dist_s:
+                            dist_s = d
+                            com_nombre_s = com['COMISARIA']
+                            com_dir_s = com['DIRECCION']
+                            com_loc_s = com['LOCALIDAD']
+                            com_tel_s = com.get('TELEFONO', '011-4000-0000')
+                            com_lat_s = com.get('LATITUD', lat_obj_s)
+                            com_lon_s = com.get('LONGITUD', lon_obj_s)
+                    except: pass
+
+                verificar_e_insertar_comisaria_automatica(com_nombre_s, com_dir_s, com_loc_s, com_tel_s, com_lat_s, com_lon_s)
+
                 exito = escribir_registro_nube("ALERTAS", [
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
                 if exito:
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
-
-                    # --- CÁLCULO DE LA COMISARÍA MÁS CERCANA PARA LLAMADA DIRECTA ---
-                    lat_obj_s, lon_obj_s = 0.0, 0.0
-                    if not df_objetivos.empty:
-                        filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
-                        if not filtro_sup_obj.empty:
-                            lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
-                            lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
-
-                    com_nombre_s = "COMISARÍA JURISDICCIONAL"
-                    com_tel_s = "011-4000-0000"
-                    dist_s = float('inf')
-
-                    for _, com in df_comisarias.iterrows():
-                        try:
-                            lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
-                            d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
-                            if d < dist_s:
-                                dist_s = d
-                                com_nombre_s = com['COMISARIA']
-                                com_tel_s = com.get('TELEFONO', '011-4000-0000')
-                        except: pass
-
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
                         "telefono": com_tel_s,
@@ -1326,16 +1495,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         if 'alerta_activa_supervisor' in st.session_state:
             datos_s = st.session_state.alerta_activa_supervisor
             st.markdown(f"""
-                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif; unicode-bidi: plaintext !important;">
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; text-align: center; font-family: 'Rajdhani', sans-serif;">
                     <div style="font-family: 'Orbitron', sans-serif; color: #94A3B8; font-size: 13px; font-weight: 500; letter-spacing: 1px;">
-                        🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL
+                        🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL REAL
                     </div>
                     <div style="color: #CBD5E1; font-size: 13px; margin-top: 6px;">
                         <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px;">
-                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; unicode-bidi: plaintext !important; direction: ltr !important; text-align: center;">
-                            📞 LLAMAR DIRECTAMENTE AHORA ({datos_s['telefono']})
+                        <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
+                            📞 LLAMAR DIRECTAMENTE AHORA (<b style="unicode-bidi: bidi-override; direction: ltr; display: inline-block;">{datos_s['telefono']}</b>)
                         </a>
                     </div>
                 </div>
@@ -1562,18 +1731,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             tab_alta_sup, tab_baja_sup = st.tabs(["🚀 DAR DE ALTA", "🗑️ SOLICITAR BAJA"])
             
             with tab_alta_sup:
-                with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=True):
+                with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
                     col_no1, col_no2 = st.columns(2)
-                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:").upper().strip()
-                    nueva_direccion = col_no2.text_input("DIRECCIÓN:").upper().strip()
+                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="CARLOS PELLEGRINI").upper().strip()
+                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="1163").upper().strip()
                     
                     col_loc1, col_loc2 = st.columns(2)
-                    nueva_localidad = col_loc1.text_input("LOCALIDAD:").upper().strip()
-                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.662580):")
+                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="CABA").upper().strip()
+                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="-34.5985")
                     
                     col_lon1, col_lon2 = st.columns(2)
-                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.367150):")
-                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:").upper().strip()
+                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="-58.3838")
+                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="CENTRO").upper().strip()
                     
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
@@ -1582,8 +1751,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' creado con éxito!")
-                                st.rerun()
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
+                            else:
+                                st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
+                        else:
+                            st.warning("⚠️ Complete los campos obligatorios (Nombre, Latitud y Longitud).")
 
             with tab_baja_sup:
                 if not df_objetivos_filtrados.empty:
@@ -1601,8 +1773,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_r = st.selectbox("DESTINO:", opciones_r, key="sup_ruta_gmaps_target")
                 datos_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_r].iloc[0]
                 lat, lon = datos_r['LATITUD'], datos_r['LONGITUD']
+                loc_r = str(datos_r.get('LOCALIDAD', '')).strip().upper()
+                
                 dist_min, com_name, com_lat, com_lon = float('inf'), "Ninguna", 0.0, 0.0
-                for _, com in df_comisarias.iterrows():
+                df_comis_filtro_r = df_comisarias
+                if loc_r and 'LOCALIDAD' in df_comisarias.columns:
+                    df_sub_r = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == loc_r]
+                    if not df_sub_r.empty:
+                        df_comis_filtro_r = df_sub_r
+
+                for _, com in df_comis_filtro_r.iterrows():
                     d = 6371 * 2 * math.asin(math.sqrt(math.sin((math.radians(com['LATITUD'])-math.radians(lat))/2)**2 + math.cos(math.radians(lat))*math.cos(math.radians(com['LATITUD']))*math.sin((math.radians(com['LONGITUD'])-math.radians(lon))/2)**2))
                     if d < dist_min: dist_min, com_name, com_lat, com_lon = d, com['COMISARIA'], com['LATITUD'], com['LONGITUD']
                 st.info(f"👮 **Comisaría Encontrada:** {com_name} ({dist_min:.2f} Km)")
@@ -1671,19 +1851,29 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 nombre_real = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
                 sup_asignado = "MONITOREO"
                 lat_obj_vig, lon_obj_vig = 0.0, 0.0
+                localidad_obj_v = ""
                 if not df_objetivos.empty:
                     filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                     if not filtro.empty:
                         sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
                         lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
                         lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
+                        localidad_obj_v = str(filtro.iloc[0].get('LOCALIDAD', '')).strip().upper()
                 
                 com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
                 com_cercana_dir = "---"
-                com_cercana_tel = "---"
+                com_cercana_loc = "---"
+                com_cercana_tel = "011-4000-0000"
+                com_cercana_lat, com_cercana_lon = lat_obj_vig, lon_obj_vig
                 dist_min_com = float('inf')
                 
-                for _, com in df_comisarias.iterrows():
+                df_comis_filtro_v = df_comisarias
+                if localidad_obj_v and 'LOCALIDAD' in df_comisarias.columns:
+                    df_sub_v = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_v]
+                    if not df_sub_v.empty:
+                        df_comis_filtro_v = df_sub_v
+
+                for _, com in df_comis_filtro_v.iterrows():
                     try:
                         lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
                         dlon = lon2 - lon1
@@ -1695,8 +1885,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
                             dist_min_com = km
                             com_cercana_nombre = com['COMISARIA']
                             com_cercana_dir = com['DIRECCION']
+                            com_cercana_loc = com['LOCALIDAD']
                             com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
+                            com_cercana_lat = com.get('LATITUD', lat_obj_vig)
+                            com_cercana_lon = com.get('LONGITUD', lon_obj_vig)
                     except: pass
+
+                verificar_e_insertar_comisaria_automatica(com_cercana_nombre, com_cercana_dir, com_cercana_loc, com_cercana_tel, com_cercana_lat, com_cercana_lon)
 
                 st.session_state.alerta_activa_vigilador = {
                     "nombre": nombre_real,
@@ -1715,7 +1910,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
             st.markdown(f"""
-                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif; unicode-bidi: plaintext !important;">
+                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif;">
                     <div style="color: #94A3B8; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px;">
                         🚨 ALERTA ENVIADA: DESDE {datos_pan['obj']}
                     </div>
@@ -1724,8 +1919,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
                         <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
                     </div>
                     <div style="margin-top: 12px; text-align: center;">
-                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; unicode-bidi: plaintext !important; direction: ltr !important; text-align: center;">
-                            📞 LLAMAR A LA COMISARÍA ({datos_pan['telefono']})
+                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
+                            📞 LLAMAR A LA COMISARÍA (<b style="unicode-bidi: bidi-override; direction: ltr; display: inline-block;">{datos_pan['telefono']}</b>)
                         </a>
                     </div>
                 </div>
@@ -1790,7 +1985,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
 
 # =========================================================================
-# ROL: JEFE DE OPERACIONES / GERENCIA (TABLERO COMPARTIDO DE AUDITORÍA)
+# ROL: JEFE DE OPERACIONES / GERENCIA
 # =========================================================================
 if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     col1, col2, col3, col4 = st.columns(4)
@@ -2197,7 +2392,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                     ('LEFTPADDING', (0, 0), (-1, -1), 2),
                                     ('RIGHTPADDING', (0, 0), (-1, -1), 2),
                                 ]))
-                                elementos.append(t)
+                                element = t
+                                elementos.append(element)
                             else:
                                 elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
@@ -2221,8 +2417,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             if tot_s_cnt > 0:
                                 elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
                             if tot_v_cnt > 0:
-                                element = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
-                                elementos.append(element)
+                                element_v = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
+                                elementos.append(element_v)
                             elementos.append(Spacer(1, 4))
 
                             if not d_alt.empty:
