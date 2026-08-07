@@ -189,6 +189,9 @@ def leer_matriz_nube(pestana):
             datos_cuerpo = todas_filas[1:]
             df = pd.DataFrame(datos_cuerpo, columns=encabezados)
             df.columns = [str(c).strip().upper() for c in df.columns]
+            
+            # SOLUCIÓN CRÍTICA: Eliminar columnas duplicadas para evitar errores en st.dataframe
+            df = df.loc[:, ~df.columns.duplicated()]
             return df
         except Exception as e: 
             print(f"Error leyendo {pestana}: {e}")
@@ -203,7 +206,6 @@ def cargar_datos_comisarias():
         df_nube['LONGITUD'] = pd.to_numeric(df_nube['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df_nube
     
-    # Fallback local seguro si falla la nube
     data = {
         "COMISARIA": ["COMISARÍA VECINAL 1A", "COMISARÍA AVELLANEDA 1RA", "COMISARÍA PILAR 6TA"],
         "DIRECCION": ["Suipacha 1156", "Gral. Lavalle 150", "Ruta 25 s/n"],
@@ -219,6 +221,7 @@ def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty and 'OBJETIVO' in df.columns:
         df.columns = df.columns.str.strip().str.upper()
+        df = df.loc[:, ~df.columns.duplicated()] # Limpieza extra de columnas duplicadas
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         if 'SUPERVISOR' in df.columns:
             df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
@@ -226,12 +229,12 @@ def cargar_objetivos():
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         return df 
     
-    # Fallback local por si la solapa de objetivos de Google Sheets viene vacía
     obj_path = 'AION_YAROKU_MASTER_OBJETIVOS.csv'
     if os.path.exists(obj_path):
         try:
             df_loc = pd.read_csv(obj_path)
             df_loc.columns = df_loc.columns.str.strip().str.upper()
+            df_loc = df_loc.loc[:, ~df_loc.columns.duplicated()]
             return df_loc
         except:
             pass
