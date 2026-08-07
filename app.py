@@ -215,46 +215,17 @@ def cargar_objetivos():
     return pd.DataFrame()
 
 def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
-    distancia_minima = float('inf')
-    comisaria_encontrada = "COMISARÍA JURISDICCIONAL"
-    direccion_comisaria = "---"
-    localidad_comisaria = "---"
-    telefono_comisaria = "011-4000-0000"
-    
-    df_comis = cargar_datos_comisarias()
-    
-    try:
-        lat_f = float(str(lat).replace(',', '.'))
-        lon_f = float(str(lon).replace(',', '.'))
-        
-        for _, com in df_comis.iterrows():
-            lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
-            dlon = lon2 - lon1
-            dlat = lat2 - lat1
-            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-            c = 2 * math.asin(math.sqrt(a))
-            km = 6371 * c
-            
-            if km < distancia_minima:
-                distancia_minima = km
-                comisaria_encontrada = com['COMISARIA']
-                direccion_comisaria = com['DIRECCION']
-                localidad_comisaria = com['LOCALIDAD']
-                telefono_comisaria = com.get('TELEFONO', '011-4000-0000')
-    except:
-        pass
-
-    comisaria_formateada = f"{comisaria_encontrada} - {direccion_comisaria}, {localidad_comisaria} (Tel: {telefono_comisaria}) (~{distancia_minima:.2f} KM)"
+    alerta_inicial = "ACTIVO / SIN NOVEDAD"
 
     datos_nuevo_obj = [
         str(nombre_obj).strip().upper(), 
         str(direccion).strip().upper(), 
         str(localidad).strip().upper(), 
         str(supervisor).strip().upper(), 
-        str(lat), 
-        str(lon), 
+        str(lat).strip(), 
+        str(lon).strip(), 
         str(responsables).strip().upper(),
-        comisaria_formateada
+        alerta_inicial
     ]
     
     return escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
