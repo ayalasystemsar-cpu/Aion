@@ -189,33 +189,37 @@ def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
         if gc:
-            nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
             sh = gc.open_by_key(ID_MAESTRO_DB)
+            nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
             
-            if nombre_hoja_real.upper() == "ALERTAS":
-                try:
-                    hoja = sh.worksheet("ALERTAS")
-                except:
+            try:
+                hoja = sh.worksheet(nombre_hoja_real)
+            except Exception:
+                if nombre_hoja_real.upper() == "ALERTAS":
                     hoja = sh.add_worksheet(title="ALERTAS", rows="100", cols="10")
                     hoja.append_row(["FECHA", "USUARIO", "TIPO", "ESTADO", "OBJETIVO", "SUPERVISOR"])
-            else:
-                hoja = sh.worksheet(nombre_hoja_real)
+                elif nombre_hoja_real.upper() == "OBJETIVOS":
+                    hoja = sh.add_worksheet(title="OBJETIVOS", rows="100", cols="10")
+                    hoja.append_row(["OBJETIVO", "DIRECCION", "LOCALIDAD", "SUPERVISOR", "LATITUD", "LONGITUD", "RESPONSABLES", "COMISARIA JURISDICCIONAL"])
+                else:
+                    hoja = sh.add_worksheet(title=nombre_hoja_real, rows="100", cols="10")
                 
             hoja.append_row(datos_fila)
             st.cache_data.clear() 
             return True
     except Exception as e:
         print(f"Error de nube en {pestana}: {e}")
-        st.error(f"⚠️ Error técnico en nube ({pestana}): {e}")
+        st.error(f"⚠️ Error crítico en nube ({pestana}): {e}")
         return False
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=5)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
         try:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
+            hoja = sh.worksheet(nombre_hoja_real)
             todas_filas = hoja.get_all_values()
             if not todas_filas or len(todas_filas) == 0:
                 return pd.DataFrame()
