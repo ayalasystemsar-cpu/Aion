@@ -192,7 +192,18 @@ def escribir_registro_nube(pestana, datos_fila):
         gc = conectar_google()
         if gc:
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
+            sh = gc.open_by_key(ID_MAESTRO_DB)
+            
+            # Verificación de seguridad para la solapa ALERTAS
+            if nombre_hoja_real.upper() == "ALERTAS":
+                try:
+                    hoja = sh.worksheet("ALERTAS")
+                except:
+                    hoja = sh.add_worksheet(title="ALERTAS", rows="100", cols="10")
+                    hoja.append_row(["FECHA", "USUARIO", "TIPO", "ESTADO", "OBJETIVO", "SUPERVISOR"])
+            else:
+                hoja = sh.worksheet(nombre_hoja_real)
+                
             hoja.append_row(datos_fila)
             st.cache_data.clear() 
             return True
@@ -402,6 +413,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
 
     comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
 
+    # Mapeo exacto de columnas: Col A a Col H (OBJETIVO, DIRECCION, LOCALIDAD, SUPERVISOR, LATITUD, LONGITUD, RESPONSABLES, ALERTA)
     datos_nuevo_obj = [
         nombre_obj_upper, 
         str(direccion).strip().upper(), 
@@ -424,7 +436,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     except Exception as ex_local:
         print(f"Aviso guardado local: {ex_local}")
 
-    # 2. Sincronización automática a la nube de Google Sheets
+    # 2. Sincronización automática a la nube de Google Sheets (Solapa OBJETIVOS)
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
     verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
     
