@@ -25,6 +25,41 @@ import streamlit.components.v1 as components
 from streamlit_qrcode_scanner import qrcode_scanner
 
 
+# --- 0. RUTINA DE AUTOREPARACIÓN DE BASES MAESTRAS ---
+def reparar_bases_maestras_automaticamente():
+    try:
+        obj_path = 'AION_YAROKU_MASTER_OBJETIVOS.csv'
+        if os.path.exists(obj_path):
+            obj = pd.read_csv(obj_path)
+            if len(obj) > 47:
+                obj_limpio = obj.iloc[:47].copy()
+                obj_limpio.to_csv(obj_path, index=False)
+            
+        com_path = 'AION_YAROKU_MASTER_COMISARIAS.csv'
+        if os.path.exists(com_path):
+            com = pd.read_csv(com_path)
+            if len(com) < 10:
+                comisarias_data = {
+                    'COMISARIA': [
+                        'COMISARÍA VECINAL 1A', 'COMISARÍA VECINAL 1D', 'COMISARÍA AVELLANEDA 1RA', 
+                        'COMISARÍA SAN FERNANDO 1RA', 'COMISARÍA CAMPANA 2DA', 'COMISARÍA PILAR 6TA'
+                    ],
+                    'DIRECCION': [
+                        'SUIPACHA 1156', 'AV. SAN JUAN 1050', 'GRAL. LAVALLE 150', 
+                        'CONSTITUCIÓN 720', 'MITRE 1200', 'RUTA 25 S/N'
+                    ],
+                    'LOCALIDAD': ['CABA', 'CABA', 'AVELLANEDA', 'SAN FERNANDO', 'CAMPANA', 'PILAR'],
+                    'TELEFONO': ['011-4393-0100', '011-4308-0100', '011-4201-1122', '011-4744-0192', '03489-423-0100', '0230-449-0111'],
+                    'LATITUD': [-34.5985, -34.6200, -34.6625, -34.4532, -34.1700, -34.4500],
+                    'LONGITUD': [-58.3838, -58.3800, -58.3671, -58.5634, -58.9700, -58.9000]
+                }
+                pd.DataFrame(comisarias_data).to_csv(com_path, index=False)
+    except Exception as e:
+        print(f"Nota de autoreparación: {e}")
+
+reparar_bases_maestras_automaticamente()
+
+
 # --- 1. CLASE PARA NUMERACIÓN DE PÁGINAS EN PDF ---
 class NumberedCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
@@ -969,7 +1004,6 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS Y PÁNICOS ACTIVOS")
         
-        # --- PANEL DE CONTROL RÁPIDO DE PÁNICOS ACTIVOS EN RADAR ---
         df_alertas_radar = leer_matriz_nube("ALERTAS")
         if not df_alertas_radar.empty:
             df_alertas_radar.columns = [str(c).strip().upper() for c in df_alertas_radar.columns]
