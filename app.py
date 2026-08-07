@@ -1223,13 +1223,15 @@ if st.session_state.rol_sel == "SUPERVISOR":
         st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
 
 # =========================================================================
-# ROL: MONITOREO
+# ROL: MONITOREO (ESTILO ORIGINAL RESTAURADO)
 # =========================================================================
 elif st.session_state.rol_sel == "MONITOREO":
+    st.markdown("### 🛰️ CENTRAL DE INTELIGENCIA OPERATIVA")
+    
     t_mon_1, t_mon_2, t_mon_3, t_mon_4 = st.tabs(["📡 ALERTAS Y PÁNICOS", "📋 NOVEDADES GUARDIA", "💬 MENSAJERÍA", "🛡️ AUDITORÍA SUPERVISORES"])
     
     with t_mon_1:
-        st.markdown("### 🚨 ALERTAS Y PÁNICOS EN TIEMPO REAL")
+        st.markdown("#### 🚨 MONITOREO DE ALERTAS Y PÁNICOS EN TIEMPO REAL")
         df_alertas = leer_matriz_nube("ALERTAS")
         if not df_alertas.empty:
             st.dataframe(df_alertas.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1237,7 +1239,7 @@ elif st.session_state.rol_sel == "MONITOREO":
             st.info("No hay alertas activas en este momento.")
 
     with t_mon_2:
-        st.markdown("### 📋 NOVEDADES DE GUARDIA")
+        st.markdown("#### 📋 REGISTRO GENERAL DE NOVEDADES")
         df_nov = leer_matriz_nube("NOVEDADES GUARDIA")
         if not df_nov.empty:
             st.dataframe(df_nov.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1248,7 +1250,7 @@ elif st.session_state.rol_sel == "MONITOREO":
         renderizar_mensajeria_global("MONITOREO")
 
     with t_mon_4:
-        st.markdown("### 🛡️ AUDITORÍA DE SUPERVISORES")
+        st.markdown("#### 🛡️ CONTROL Y AUDITORÍA DE SUPERVISORES")
         df_qr_sup = leer_matriz_nube("REGISTRO QR SUPERVISORES")
         if not df_qr_sup.empty:
             st.dataframe(df_qr_sup.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1256,7 +1258,7 @@ elif st.session_state.rol_sel == "MONITOREO":
             st.info("No hay registros de supervisores todavía.")
 
 # =========================================================================
-# ROL: VIGILADOR (RESTAURADO CON SU BOTÓN ANTIPÁNICO ORIGINAL)
+# ROL: VIGILADOR (RESTABLECIDO CON SU BOTÓN ANTIPÁNICO)
 # =========================================================================
 elif st.session_state.rol_sel == "VIGILADOR":
     t_vig_1, t_vig_2 = st.tabs(["👮 FICHAJE Y NOVEDADES", "💬 MENSAJERÍA"])
@@ -1347,13 +1349,15 @@ elif st.session_state.rol_sel == "VIGILADOR":
         renderizar_mensajeria_global("VIGILADOR")
 
 # =========================================================================
-# ROL: JEFE DE OPERACIONES
+# ROL: JEFE DE OPERACIONES (ESTILO ORIGINAL RESTAURADO)
 # =========================================================================
 elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
+    st.markdown("### 📋 COMANDO DE OPERACIONES TÁCTICAS")
+    
     t_jefe_1, t_jefe_2, t_jefe_3, t_jefe_4 = st.tabs(["📋 REPORTE TÁCTICO", "🚗 CONTROL DE FLOTA", "💬 MENSAJERÍA", "🚀 OBJETIVOS"])
     
     with t_jefe_1:
-        st.markdown("### 📋 REPORTE TÁCTICO GENERAL")
+        st.markdown("#### 📋 REPORTE TÁCTICO GENERAL")
         df_nov_jefe = leer_matriz_nube("NOVEDADES GUARDIA")
         if not df_nov_jefe.empty:
             st.dataframe(df_nov_jefe.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1363,7 +1367,7 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
             st.info("No hay datos para generar el reporte táctico.")
 
     with t_jefe_2:
-        st.markdown("### 🚗 CONTROL DE FLOTA Y VEHÍCULOS")
+        st.markdown("#### 🚗 CONTROL DE FLOTA Y VEHÍCULOS")
         df_flota = leer_matriz_nube("CONTROL DE FLOTA")
         if not df_flota.empty:
             st.dataframe(df_flota.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1376,20 +1380,22 @@ elif st.session_state.rol_sel == "JEFE DE OPERACIONES":
         renderizar_mensajeria_global("JEFE_OPERACIONES")
 
     with t_jefe_4:
-        st.markdown("### 🚀 GESTIÓN DE OBJETIVOS")
+        st.markdown("#### 🚀 GESTIÓN Y LISTADO DE OBJETIVOS")
         if not df_objetivos.empty:
             st.dataframe(df_objetivos, use_container_width=True, hide_index=True)
         else:
             st.info("No hay objetivos cargados.")
 
 # =========================================================================
-# ROL: GERENCIA
+# ROL: GERENCIA (ESTILO ORIGINAL RESTAURADO)
 # =========================================================================
 elif st.session_state.rol_sel == "GERENCIA":
+    st.markdown("### 🏢 DIRECCIÓN Y FISCALIZACIÓN GENERAL")
+    
     t_ger_1, t_ger_2, t_ger_3 = st.tabs(["🏢 AUDITORÍA GENERAL", "💬 MENSAJERÍA", "📋 REPORTES EJECUTIVOS"])
     
     with t_ger_1:
-        st.markdown("### 🏢 AUDITORÍA GENERAL DEL SISTEMA")
+        st.markdown("#### 🏢 AUDITORÍA GENERAL DEL SISTEMA")
         df_jornada = leer_matriz_nube("JORNADA SUPERVISORES")
         if not df_jornada.empty:
             st.dataframe(df_jornada.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1400,7 +1406,7 @@ elif st.session_state.rol_sel == "GERENCIA":
         renderizar_mensajeria_global("GERENCIA")
 
     with t_ger_3:
-        st.markdown("### 📋 GENERACIÓN DE REPORTES EJECUTIVOS")
+        st.markdown("#### 📋 GENERACIÓN DE REPORTES EJECUTIVOS")
         df_alertas_ger = leer_matriz_nube("ALERTAS")
         if not df_alertas_ger.empty:
             pdf_ger = generar_pdf_reporte("REPORTE EJECUTIVO DE ALERTAS Y EMERGENCIAS", df_alertas_ger)
