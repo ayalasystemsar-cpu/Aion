@@ -366,6 +366,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
 
     comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
 
+    # Se ajusta exactamente a las 8 columnas requeridas por tu máster en OBJETIVOS
     datos_nuevo_obj = [
         nombre_obj_upper, 
         str(direccion).strip().upper(), 
@@ -1480,6 +1481,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 verificar_e_insertar_comisaria_automatica(com_nombre_s, com_dir_s, com_loc_s, com_tel_s, com_lat_s, com_lon_s)
 
+                # Coincide exactamente con las 6 columnas de la solapa ALERTAS
                 exito = escribir_registro_nube("ALERTAS", [
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
