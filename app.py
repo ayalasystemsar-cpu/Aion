@@ -550,13 +550,13 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* --- ESTILOS OPTIMIZADOS PARA EL ESCÁNER QR --- */
+        /* --- ESTILOS OPTIMIZADOS Y CORREGIDOS PARA EL ESCÁNER QR --- */
         .qr-scanner-container {
             display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
-            margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
+            margin: 0 auto 10px auto !important; border-radius: 8px !important; background: #000 !important; position: relative !important;
         }
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
-            width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
+            width: 100% !important; max-width: 320px !important; height: 240px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important; margin: 0 auto !important; position: relative !important; top: 0 !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -1532,7 +1532,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     </div>
                 """, unsafe_allow_html=True)
 
-                # --- CONTENEDOR OPTIMIZADO PARA QUE NO QUEDE TAN ABAJO ---
+                # --- CONTENEDOR OPTIMIZADO Y CORREGIDO ---
                 st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
