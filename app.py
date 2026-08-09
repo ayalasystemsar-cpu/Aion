@@ -364,7 +364,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     except Exception as e:
         print(f"Error calculando comisaría cercana: {e}")
 
-    # Lista limpia de columnas exactas para la solapa OBJETIVOS (sin mezclar la comisaría adentro)
     datos_nuevo_obj = [
         nombre_obj_upper, 
         str(direccion).strip().upper(), 
@@ -376,8 +375,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     ]
     
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
-    
-    # La comisaria correspondiente se inserta automáticamente en su propia solapa COMISARIAS
     verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
     return exito
 
@@ -553,6 +550,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
+        /* --- ESTILOS OPTIMIZADOS PARA EL ESCÁNER QR --- */
         .qr-scanner-container {
             display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
             margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
@@ -929,7 +927,7 @@ if st.session_state.rol_sel == "MONITOREO":
         sos_activos = 0
     
     with col1.container():
-        @st.fragment(run_every=10)
+        @st.fragment(run_every=1)
         def contar_panicos_monitoreo():
             df_alertas = leer_matriz_nube("ALERTAS")
             if not df_alertas.empty:
@@ -1514,9 +1512,62 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
-            st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
 
+            st.markdown("### 📱 CENTRO TÁCTICO & ESCANEO INMEDIATO DE QR")
             if not df_objetivos_filtrados.empty:
+                obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
+                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
+                
+                st.markdown("---")
+                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
+                st.info("Alinee el código QR dentro del visor superior.")
+                
+                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+
+                st.markdown("""
+                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
+                        <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
+                        <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # --- CONTENEDOR OPTIMIZADO PARA QUE NO QUEDE TAN ABAJO ---
+                st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
+                codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                if st.session_state.ultimo_mensaje_qr:
+                    st.success(st.session_state.ultimo_mensaje_qr)
+
+                if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
+                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
+                    
+                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
+                        st.session_state.ultimo_qr_procesado = clave_registro_actual
+                        try:
+                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                            if exito_registro:
+                                try:
+                                    escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                                except:
+                                    pass
+                                
+                                if accion_str == "INICIO":
+                                    st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                                else:
+                                    st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                                
+                                sincronizar_url_sesion()
+                                st.rerun()
+                            else:
+                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                        except Exception as e:
+                            st.warning(f"⚠️ Nota de sistema: {e}")
+
+                st.markdown("---")
+                st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
+
                 lista_tabla_objs = []
                 df_jornadas_act = leer_matriz_nube("REGISTRO QR SUPERVISORES")
                 
@@ -1593,60 +1644,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 df_tabla_estado = pd.DataFrame(lista_tabla_objs)
                 st.dataframe(df_tabla_estado, use_container_width=True, hide_index=True)
-            else:
-                st.info("Sin objetivos asignados actualmente.")
-
-            st.markdown("---")
-            st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
-            if not df_objetivos_filtrados.empty:
-                obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
-                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
-                
-                st.markdown("---")
-                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Alinee el código QR dentro del visor.")
-                
-                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
-                accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-
-                st.markdown("""
-                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
-                        <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
-                        <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
-                    </div>
-                """, unsafe_allow_html=True)
-
-                st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
-                codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
-                st.markdown('</div>', unsafe_allow_html=True)
-
-                if st.session_state.ultimo_mensaje_qr:
-                    st.success(st.session_state.ultimo_mensaje_qr)
-
-                if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
-                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
-                    
-                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
-                        st.session_state.ultimo_qr_procesado = clave_registro_actual
-                        try:
-                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                            if exito_registro:
-                                try:
-                                    escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                                except:
-                                    pass
-                                
-                                if accion_str == "INICIO":
-                                    st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                else:
-                                    st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                
-                                sincronizar_url_sesion()
-                                st.rerun()
-                            else:
-                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                        except Exception as e:
-                            st.warning(f"⚠️ Nota de sistema: {e}")
 
                 st.markdown("---")
                 
