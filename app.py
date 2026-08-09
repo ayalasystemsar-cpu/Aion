@@ -364,9 +364,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     except Exception as e:
         print(f"Error calculando comisaría cercana: {e}")
 
-    comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
-
-    # Se ajusta exactamente a las 8 columnas requeridas por tu máster en OBJETIVOS
+    # Lista limpia de columnas exactas para la solapa OBJETIVOS (sin mezclar la comisaría adentro)
     datos_nuevo_obj = [
         nombre_obj_upper, 
         str(direccion).strip().upper(), 
@@ -374,11 +372,12 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         str(supervisor).strip().upper(), 
         str(lat), 
         str(lon), 
-        str(responsables).strip().upper(),
-        comisaria_formateada
+        str(responsables).strip().upper()
     ]
     
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
+    
+    # La comisaria correspondiente se inserta automáticamente en su propia solapa COMISARIAS
     verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
     return exito
 
@@ -970,7 +969,6 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS Y PÁNICOS ACTIVOS")
         
-        # --- PANEL DE CONTROL RÁPIDO DE PÁNICOS ACTIVOS EN RADAR ---
         df_alertas_radar = leer_matriz_nube("ALERTAS")
         if not df_alertas_radar.empty:
             df_alertas_radar.columns = [str(c).strip().upper() for c in df_alertas_radar.columns]
@@ -1481,7 +1479,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 verificar_e_insertar_comisaria_automatica(com_nombre_s, com_dir_s, com_loc_s, com_tel_s, com_lat_s, com_lon_s)
 
-                # Coincide exactamente con las 6 columnas de la solapa ALERTAS
                 exito = escribir_registro_nube("ALERTAS", [
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
@@ -1752,7 +1749,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' cargado con éxito y comisaría asignada automáticamente en su solapa!")
                             else:
                                 st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
                         else:
