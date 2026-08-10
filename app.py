@@ -553,16 +553,16 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* CORRECCIÓN CONTENEDOR ESCÁNER QR PARA WEB Y MÓVIL */
+        /* CORRECCIÓN DE POSICIÓN Y TAMAÑO DEL ESCÁNER QR EN WEB Y MÓVIL (MÁS ARRIBA Y SIN RECORTES) */
         .qr-scanner-container {
             display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 100% !important;
-            margin: 0 auto 10px auto !important; background: #000 !important; position: relative; border-radius: 8px; border: 2px solid #00E5FF; padding: 5px;
+            margin: -5px auto 15px auto !important; background: #000 !important; position: relative; border-radius: 8px; border: 2px solid #00E5FF; padding: 5px;
         }
         .qr-scanner-container iframe {
-            width: 100% !important; max-width: 100% !important; height: 320px !important; border: none !important; border-radius: 6px !important;
+            width: 100% !important; max-width: 100% !important; height: 340px !important; border: none !important; border-radius: 6px !important;
         }
         .qr-scanner-container video {
-            width: 100% !important; height: auto !important; max-height: 320px !important; object-fit: cover !important; border-radius: 6px !important;
+            width: 100% !important; height: auto !important; max-height: 340px !important; object-fit: cover !important; border-radius: 6px !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -1524,7 +1524,55 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
-                # --- 1. CUADRO DE ESTADO Y DATOS CLAVE ARRIBA ---
+                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+
+                # --- 1. ESCÁNER QR ARRIBA (ELEVADO Y VISIBLE) ---
+                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
+                st.info("Alinee el código QR dentro del visor.")
+
+                st.markdown("""
+                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
+                        <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
+                        <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
+                codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                if st.session_state.ultimo_mensaje_qr:
+                    st.success(st.session_state.ultimo_mensaje_qr)
+
+                if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
+                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
+                    
+                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
+                        st.session_state.ultimo_qr_procesado = clave_registro_actual
+                        try:
+                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                            if exito_registro:
+                                try:
+                                    escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                                except:
+                                    pass
+                                
+                                if accion_str == "INICIO":
+                                    st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                                else:
+                                    st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                                
+                                sincronizar_url_sesion()
+                                st.rerun()
+                            else:
+                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                        except Exception as e:
+                            st.warning(f"⚠️ Nota de sistema: {e}")
+
+                st.markdown("---")
+
+                # --- 2. CUADRO DE ESTADO Y DATOS CLAVE EN EL MEDIO ---
                 st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
 
                 lista_tabla_objs = []
@@ -1603,54 +1651,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 df_tabla_estado = pd.DataFrame(lista_tabla_objs)
                 st.dataframe(df_tabla_estado, use_container_width=True, hide_index=True)
-
-                st.markdown("---")
-
-                # --- 2. ESCÁNER QR EN EL MEDIO ---
-                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Alinee el código QR dentro del visor.")
-                
-                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
-                accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-
-                st.markdown("""
-                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
-                        <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
-                        <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
-                    </div>
-                """, unsafe_allow_html=True)
-
-                st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
-                codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
-                st.markdown('</div>', unsafe_allow_html=True)
-
-                if st.session_state.ultimo_mensaje_qr:
-                    st.success(st.session_state.ultimo_mensaje_qr)
-
-                if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
-                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
-                    
-                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
-                        st.session_state.ultimo_qr_procesado = clave_registro_actual
-                        try:
-                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                            if exito_registro:
-                                try:
-                                    escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                                except:
-                                    pass
-                                
-                                if accion_str == "INICIO":
-                                    st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                else:
-                                    st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                
-                                sincronizar_url_sesion()
-                                st.rerun()
-                            else:
-                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                        except Exception as e:
-                            st.warning(f"⚠️ Nota de sistema: {e}")
 
                 st.markdown("---")
 
@@ -2400,7 +2400,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 element = t
                                 elementos.append(element)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+                                element = Paragraph("Sin registros en este periodo.", estilo_texto)
+                                elementos.append(element)
                             elementos.append(Spacer(1, 6))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
