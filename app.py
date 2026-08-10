@@ -364,6 +364,8 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     except Exception as e:
         print(f"Error calculando comisaría cercana: {e}")
 
+    comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
+
     datos_nuevo_obj = [
         nombre_obj_upper, 
         str(direccion).strip().upper(), 
@@ -371,7 +373,8 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         str(supervisor).strip().upper(), 
         str(lat), 
         str(lon), 
-        str(responsables).strip().upper()
+        str(responsables).strip().upper(),
+        comisaria_formateada
     ]
     
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
@@ -550,13 +553,12 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* --- ESTILOS OPTIMIZADOS Y CORREGIDOS PARA EL ESCÁNER QR --- */
         .qr-scanner-container {
             display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
-            margin: 0 auto 10px auto !important; border-radius: 8px !important; background: #000 !important; position: relative !important;
+            margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
         }
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
-            width: 100% !important; max-width: 320px !important; height: 240px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important; margin: 0 auto !important; position: relative !important; top: 0 !important;
+            width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -927,7 +929,7 @@ if st.session_state.rol_sel == "MONITOREO":
         sos_activos = 0
     
     with col1.container():
-        @st.fragment(run_every=1)
+        @st.fragment(run_every=10)
         def contar_panicos_monitoreo():
             df_alertas = leer_matriz_nube("ALERTAS")
             if not df_alertas.empty:
@@ -1512,15 +1514,16 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
-
-            st.markdown("### 📱 CENTRO TÁCTICO & ESCANEO INMEDIATO DE QR")
+            
+            st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
+                # --- ESCÁNER UBICADO INMEDIATAMENTE ARRIBA (ACCESIBLE SIN DESPLAZARSE) ---
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Alinee el código QR dentro del visor superior.")
+                st.info("Alinee el código QR dentro del visor.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
@@ -1532,7 +1535,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     </div>
                 """, unsafe_allow_html=True)
 
-                # --- CONTENEDOR OPTIMIZADO Y CORREGIDO ---
                 st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -1566,6 +1568,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             st.warning(f"⚠️ Nota de sistema: {e}")
 
                 st.markdown("---")
+                
+                # --- TABLA DE ESTADO Y MÉTRICAS UBICADAS DEBAJO DEL ESCÁNER ---
                 st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
 
                 lista_tabla_objs = []
@@ -1746,7 +1750,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' cargado con éxito y comisaría asignada automáticamente en su solapa!")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
                             else:
                                 st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
                         else:
