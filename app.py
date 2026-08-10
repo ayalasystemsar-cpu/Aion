@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -364,8 +365,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     except Exception as e:
         print(f"Error calculando comisaría cercana: {e}")
 
-    comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
-
     datos_nuevo_obj = [
         nombre_obj_upper, 
         str(direccion).strip().upper(), 
@@ -373,8 +372,7 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
         str(supervisor).strip().upper(), 
         str(lat), 
         str(lon), 
-        str(responsables).strip().upper(),
-        comisaria_formateada
+        str(responsables).strip().upper()
     ]
     
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
@@ -553,16 +551,13 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* CORRECCIÓN: ESCÁNER PROPORCIONADO CUADRADO Y ELEVADO PARA EVITAR ESTIRAMIENTO */
+        /* --- ESTILOS OPTIMIZADOS Y CORREGIDOS PARA EL ESCÁNER QR --- */
         .qr-scanner-container {
-            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 480px !important;
-            margin: -10px auto 15px auto !important; background: #000 !important; position: relative; border-radius: 8px; border: 2px solid #00E5FF; padding: 5px;
+            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
+            margin: 0 auto 10px auto !important; border-radius: 8px !important; background: #000 !important; position: relative !important;
         }
-        .qr-scanner-container iframe {
-            width: 100% !important; max-width: 100% !important; height: 320px !important; border: none !important; border-radius: 6px !important;
-        }
-        .qr-scanner-container video {
-            width: 100% !important; height: 320px !important; max-height: 320px !important; object-fit: cover !important; border-radius: 6px !important;
+        .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
+            width: 100% !important; max-width: 320px !important; height: 240px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important; margin: 0 auto !important; position: relative !important; top: 0 !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -933,7 +928,7 @@ if st.session_state.rol_sel == "MONITOREO":
         sos_activos = 0
     
     with col1.container():
-        @st.fragment(run_every=10)
+        @st.fragment(run_every=1)
         def contar_panicos_monitoreo():
             df_alertas = leer_matriz_nube("ALERTAS")
             if not df_alertas.empty:
@@ -1518,18 +1513,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         
         with t_vis_qr:
             fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
-            
-            st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
+
+            st.markdown("### 📱 CENTRO TÁCTICO & ESCANEO INMEDIATO DE QR")
             if not df_objetivos_filtrados.empty:
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
+                st.markdown("---")
+                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
+                st.info("Alinee el código QR dentro del visor superior.")
+                
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-
-                # --- 1. ESCÁNER QR ARRIBA (CUADRADO Y ELEVADO) ---
-                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Alinee el código QR dentro del visor.")
 
                 st.markdown("""
                     <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
@@ -1538,6 +1533,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     </div>
                 """, unsafe_allow_html=True)
 
+                # --- CONTENEDOR OPTIMIZADO Y CORREGIDO ---
                 st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                 codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -1571,8 +1567,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             st.warning(f"⚠️ Nota de sistema: {e}")
 
                 st.markdown("---")
-
-                # --- 2. CUADRO DE ESTADO Y DATOS CLAVE EN EL MEDIO ---
                 st.markdown(f"### 📊 ESTADO DE MIS OBJETIVOS ASIGNADOS ({fecha_hoy_str})")
 
                 lista_tabla_objs = []
@@ -1653,9 +1647,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.dataframe(df_tabla_estado, use_container_width=True, hide_index=True)
 
                 st.markdown("---")
-
-                # --- 3. CÓDIGO QR OFICIAL ABAJO DE TODO ---
-                st.markdown("### 📌 CÓDIGO QR OFICIAL DEL OBJETIVO")
+                
                 col_qr1, col_qr2 = st.columns([1, 2])
                 with col_qr1:
                     qr_data_string = f"AION-YAROKU-OBJ:{obj_select}|ID:{datos_sel.get('ID', '0')}"
@@ -1684,7 +1676,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     ''', unsafe_allow_html=True)
                 
                 st.markdown("---")
-
                 st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
                 with st.form(key="form_acta_flota", clear_on_submit=True):
                     c_a, c_b = st.columns(2)
@@ -1756,7 +1747,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' cargado con éxito y comisaría asignada automáticamente en su solapa!")
                             else:
                                 st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
                         else:
@@ -2400,8 +2391,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 element = t
                                 elementos.append(element)
                             else:
-                                element = Paragraph("Sin registros en este periodo.", estilo_texto)
-                                elementos.append(element)
+                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
