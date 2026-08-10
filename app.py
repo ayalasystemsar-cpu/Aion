@@ -553,16 +553,16 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
-        /* CORRECCIÓN DE POSICIÓN Y TAMAÑO DEL ESCÁNER QR EN WEB Y MÓVIL (MÁS ARRIBA Y SIN RECORTES) */
+        /* CORRECCIÓN: ESCÁNER PROPORCIONADO CUADRADO Y ELEVADO PARA EVITAR ESTIRAMIENTO */
         .qr-scanner-container {
-            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 100% !important;
-            margin: -5px auto 15px auto !important; background: #000 !important; position: relative; border-radius: 8px; border: 2px solid #00E5FF; padding: 5px;
+            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 480px !important;
+            margin: -10px auto 15px auto !important; background: #000 !important; position: relative; border-radius: 8px; border: 2px solid #00E5FF; padding: 5px;
         }
         .qr-scanner-container iframe {
-            width: 100% !important; max-width: 100% !important; height: 340px !important; border: none !important; border-radius: 6px !important;
+            width: 100% !important; max-width: 100% !important; height: 320px !important; border: none !important; border-radius: 6px !important;
         }
         .qr-scanner-container video {
-            width: 100% !important; height: auto !important; max-height: 340px !important; object-fit: cover !important; border-radius: 6px !important;
+            width: 100% !important; height: 320px !important; max-height: 320px !important; object-fit: cover !important; border-radius: 6px !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -1527,7 +1527,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                # --- 1. ESCÁNER QR ARRIBA (ELEVADO Y VISIBLE) ---
+                # --- 1. ESCÁNER QR ARRIBA (CUADRADO Y ELEVADO) ---
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
 
