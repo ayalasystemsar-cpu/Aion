@@ -558,7 +558,7 @@ def aplicar_identidad_alfa():
             margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
         }
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
-            width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
+            width: 100% !important; max-width: 320px !important; height: 180px !important; object-fit: contain !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -1520,7 +1520,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
-                # --- ESCÁNER UBICADO INMEDIATAMENTE ARRIBA (ACCESIBLE SIN DESPLAZARSE) ---
+                # --- ESCÁNER UBICADO INMEDIATAMENTE ARRIBA (ACCESIBLE SIN DESPLAZARSE Y CON ALTURA AJUSTADA) ---
                 st.markdown("---")
                 st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
                 st.info("Alinee el código QR dentro del visor.")
