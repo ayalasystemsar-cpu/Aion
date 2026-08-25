@@ -1540,7 +1540,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         df_j_obj = df_jornadas_act[
                             (df_jornadas_act[col_sup].astype(str).str.strip().str.upper() == sup_activo_normalizado) & 
                             (df_jornadas_act[col_obj].astype(str).str.strip().str.upper() == obj_item.strip().upper()) &
-                            (df_jornadas_act[col_fec_hora].astype(str).str.contains(fecha_hoy_str))
+                            (df_jornadas_act[col_fec_hora].astype(str).contains(fecha_hoy_str))
                         ]
                         
                         if not df_j_obj.empty:
@@ -1603,33 +1603,58 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
                 st.markdown("---")
-                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN DE PRESENCIA)")
-                st.info("Alinee el código QR dentro del visor. El sistema validará que se encuentre en el objetivo seleccionado.")
-                
-                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
-                accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+                st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
+                st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS que te encuentras en el objetivo.")
 
-                # Validación de presencia física
-                confirmacion_presencia = st.checkbox(f"📍 Confirmo que me encuentro físicamente en el puesto: {obj_select}", value=False)
+                # Validación automática de GPS del navegador
+                ubicacion_gps = get_geolocation()
+                en_rango_gps = False
+                distancia_actual_m = 0.0
 
-                st.markdown("""
-                    <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
-                        <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
-                        <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
-                    </div>
-                """, unsafe_allow_html=True)
+                if ubicacion_gps and 'coords' in ubicacion_gps:
+                    lat_actual = float(ubicacion_gps['coords']['latitude'])
+                    lon_actual = float(ubicacion_gps['coords']['longitude'])
+                    
+                    lat_obj_val = float(datos_sel['LATITUD'])
+                    lon_obj_val = float(datos_sel['LONGITUD'])
 
-                st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
-                codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
-                st.markdown('</div>', unsafe_allow_html=True)
+                    # Cálculo de distancia en metros (Haversine)
+                    lon1, lat1, lon2, lat2 = map(math.radians, [lon_actual, lat_actual, lon_obj_val, lat_obj_val])
+                    dlon = lon2 - lon1
+                    dlat = lat2 - lat1
+                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                    c = 2 * math.asin(math.sqrt(a))
+                    distancia_actual_m = 6371000 * c  # en metros
 
-                if st.session_state.ultimo_mensaje_qr:
-                    st.success(st.session_state.ultimo_mensaje_qr)
-
-                if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
-                    if not confirmacion_presencia:
-                        st.warning("⚠️ Debe marcar la casilla de confirmación de presencia física en el objetivo para procesar el escaneo QR.")
+                    # Margen de tolerancia de 150 metros
+                    if distancia_actual_m <= 150:
+                        en_rango_gps = True
                     else:
+                        en_rango_gps = False
+                else:
+                    st.warning("⚠️ Obteniendo señal GPS del dispositivo... Asegúrese de permitir el acceso a su ubicación en el navegador.")
+
+                if en_rango_gps:
+                    st.success(f"✅ ¡PRESENCIA GPS VERIFICADA! Estás a ~{distancia_actual_m:.1f} metros del objetivo.")
+                    
+                    tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                    accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+
+                    st.markdown("""
+                        <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
+                            <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
+                            <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
+                    codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                    if st.session_state.ultimo_mensaje_qr:
+                        st.success(st.session_state.ultimo_mensaje_qr)
+
+                    if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
                         clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
                         
                         if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
@@ -1653,6 +1678,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                     st.error("❌ Error al registrar en la nube. Intente nuevamente.")
                             except Exception as e:
                                 st.warning(f"⚠️ Nota de sistema: {e}")
+                else:
+                    if ubicacion_gps and 'coords' in ubicacion_gps:
+                        st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 150 metros para habilitar el escáner QR.")
+                    else:
+                        st.info("ℹ️ Esperando señal GPS para validar presencia física en el objetivo...")
 
                 st.markdown("---")
                 
@@ -1737,7 +1767,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             with tab_alta_sup:
                 with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
                     col_no1, col_no2 = st.columns(2)
-                    # Campos vacíos por defecto
                     nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="").upper().strip()
                     nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="").upper().strip()
                     
