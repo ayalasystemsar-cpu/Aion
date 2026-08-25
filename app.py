@@ -969,7 +969,6 @@ if st.session_state.rol_sel == "MONITOREO":
     with t_radar:
         st.subheader("📡 RADAR GLOBAL DE OBJETIVOS Y PÁNICOS ACTIVOS")
         
-        # --- PANEL DE CONTROL RÁPIDO DE PÁNICOS ACTIVOS EN RADAR ---
         df_alertas_radar = leer_matriz_nube("ALERTAS")
         if not df_alertas_radar.empty:
             df_alertas_radar.columns = [str(c).strip().upper() for c in df_alertas_radar.columns]
@@ -1604,11 +1603,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
                 
                 st.markdown("---")
-                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN EN TIEMPO REAL)")
-                st.info("Alinee el código QR dentro del visor.")
+                st.markdown("### 📷 ESCANEO TÁCTICO DE PUESTO (VALIDACIÓN DE PRESENCIA)")
+                st.info("Alinee el código QR dentro del visor. El sistema validará que se encuentre en el objetivo seleccionado.")
                 
                 tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                 accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+
+                # Validación de presencia física
+                confirmacion_presencia = st.checkbox(f"📍 Confirmo que me encuentro físicamente en el puesto: {obj_select}", value=False)
 
                 st.markdown("""
                     <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
@@ -1625,29 +1627,32 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.success(st.session_state.ultimo_mensaje_qr)
 
                 if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
-                    clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
-                    
-                    if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
-                        st.session_state.ultimo_qr_procesado = clave_registro_actual
-                        try:
-                            exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                            if exito_registro:
-                                try:
-                                    escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                                except:
-                                    pass
-                                
-                                if accion_str == "INICIO":
-                                    st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                    if not confirmacion_presencia:
+                        st.warning("⚠️ Debe marcar la casilla de confirmación de presencia física en el objetivo para procesar el escaneo QR.")
+                    else:
+                        clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
+                        
+                        if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
+                            st.session_state.ultimo_qr_procesado = clave_registro_actual
+                            try:
+                                exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                                if exito_registro:
+                                    try:
+                                        escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                                    except:
+                                        pass
+                                    
+                                    if accion_str == "INICIO":
+                                        st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                                    else:
+                                        st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                                    
+                                    sincronizar_url_sesion()
+                                    st.rerun()
                                 else:
-                                    st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                
-                                sincronizar_url_sesion()
-                                st.rerun()
-                            else:
-                                st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                        except Exception as e:
-                            st.warning(f"⚠️ Nota de sistema: {e}")
+                                    st.error("❌ Error al registrar en la nube. Intente nuevamente.")
+                            except Exception as e:
+                                st.warning(f"⚠️ Nota de sistema: {e}")
 
                 st.markdown("---")
                 
@@ -1732,16 +1737,17 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             with tab_alta_sup:
                 with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
                     col_no1, col_no2 = st.columns(2)
-                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="CARLOS PELLEGRINI").upper().strip()
-                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="1163").upper().strip()
+                    # Campos vacíos por defecto
+                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="").upper().strip()
+                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="").upper().strip()
                     
                     col_loc1, col_loc2 = st.columns(2)
-                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="CABA").upper().strip()
-                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="-34.5985")
+                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="").upper().strip()
+                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="")
                     
                     col_lon1, col_lon2 = st.columns(2)
-                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="-58.3838")
-                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="CENTRO").upper().strip()
+                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="")
+                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="").upper().strip()
                     
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
