@@ -1604,16 +1604,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 
                 st.markdown("---")
                 st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
-                st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS que te encuentras en el objetivo.")
+                st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
 
-                # Validación automática de GPS del navegador
+                # Validación avanzada con precisión GPS (Accuracy)
                 ubicacion_gps = get_geolocation()
                 en_rango_gps = False
                 distancia_actual_m = 0.0
+                precision_gps = 999.0
 
                 if ubicacion_gps and 'coords' in ubicacion_gps:
                     lat_actual = float(ubicacion_gps['coords']['latitude'])
                     lon_actual = float(ubicacion_gps['coords']['longitude'])
+                    precision_gps = float(ubicacion_gps['coords'].get('accuracy', 50.0))
                     
                     lat_obj_val = float(datos_sel['LATITUD'])
                     lon_obj_val = float(datos_sel['LONGITUD'])
@@ -1624,18 +1626,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     dlat = lat2 - lat1
                     a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
                     c = 2 * math.asin(math.sqrt(a))
-                    distancia_actual_m = 6371000 * c  # en metros
+                    distancia_actual_m = 6371000 * c  # Distancia en metros
 
-                    # Margen de tolerancia de 150 metros
-                    if distancia_actual_m <= 150:
+                    # Margen estricto: Menor a 150 metros y precisión GPS confiable
+                    if distancia_actual_m <= 150 and precision_gps <= 150:
                         en_rango_gps = True
                     else:
                         en_rango_gps = False
                 else:
-                    st.warning("⚠️ Obteniendo señal GPS del dispositivo... Asegúrese de permitir el acceso a su ubicación en el navegador.")
+                    st.warning("⚠️ Obteniendo señal GPS real del dispositivo... Asegúrese de tener el GPS activado en modo alta precisión.")
 
                 if en_rango_gps:
-                    st.success(f"✅ ¡PRESENCIA GPS VERIFICADA! Estás a ~{distancia_actual_m:.1f} metros del objetivo.")
+                    st.success(f"✅ ¡PRESENCIA GPS VERIFICADA! Estás a ~{distancia_actual_m:.1f} metros del objetivo (Precisión: {precision_gps:.1f}m).")
                     
                     tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
                     accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
@@ -1680,9 +1682,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                                 st.warning(f"⚠️ Nota de sistema: {e}")
                 else:
                     if ubicacion_gps and 'coords' in ubicacion_gps:
-                        st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 150 metros para habilitar el escáner QR.")
+                        if precision_gps > 150:
+                            st.error(f"⚠️ SEÑAL GPS MUY IMRECISA ({precision_gps:.1f}m). El teléfono está triangulando por antena celular. Salga a un espacio abierto para obtener señal satelital real.")
+                        else:
+                            st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 150 metros físicos para habilitar el escáner QR.")
                     else:
-                        st.info("ℹ️ Esperando señal GPS para validar presencia física en el objetivo...")
+                        st.info("ℹ️ Esperando lectura de coordenadas GPS reales del dispositivo...")
 
                 st.markdown("---")
                 
