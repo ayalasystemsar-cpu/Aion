@@ -1027,7 +1027,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 
                 df_j_sup_hoy = df_jornadas_mon[
                     (df_jornadas_mon[col_sup_h].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
-                    (df_jornadas_mon[col_fec_h].astype(str).str.contains(fecha_hoy_str)) &
+                    (df_jornadas_mon[col_fec_h].astype(str).str.contains(fecha_hoy_str, na=False)) &
                     (df_jornadas_mon[col_acc_h].astype(str).str.strip().str.upper() == 'INICIO')
                 ]
                 visitados_sup_count = len(df_j_sup_hoy[col_obj_h].unique())
@@ -1540,7 +1540,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         df_j_obj = df_jornadas_act[
                             (df_jornadas_act[col_sup].astype(str).str.strip().str.upper() == sup_activo_normalizado) & 
                             (df_jornadas_act[col_obj].astype(str).str.strip().str.upper() == obj_item.strip().upper()) &
-                            (df_jornadas_act[col_fec_hora].astype(str).contains(fecha_hoy_str))
+                            (df_jornadas_act[col_fec_hora].astype(str).str.contains(fecha_hoy_str, na=False))
                         ]
                         
                         if not df_j_obj.empty:
