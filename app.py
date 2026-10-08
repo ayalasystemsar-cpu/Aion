@@ -563,7 +563,6 @@ def aplicar_identidad_alfa():
             width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
         }
 
-        /* --- CORRECCIÓN DE PESTAÑAS PARA ELIMINAR EL BORDE ROJO --- */
         .stTabs [data-baseweb="tab-list"] {
             gap: 6px !important; background-color: transparent !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; padding-bottom: 5px !important; border-bottom: none !important;
         }
