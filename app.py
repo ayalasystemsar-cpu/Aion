@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -136,7 +135,10 @@ def obtener_mapeo_solapas():
         "ALERTAS": "ALERTAS",
         "MENSAJERIA": "MENSAJERIA",
         "PRESENTISMO": "PRESENTISMO",
-        "VIGILADORES": "VIGILADORES"
+        "VIGILADORES": "VIGILADORES",
+        "PADRON VIGILADORES": "PADRON VIGILADORES",
+        "RECORRIDOS PUNTOS": "RECORRIDOS PUNTOS",
+        "REGISTRO RECORRIDOS": "REGISTRO RECORRIDOS"
     }
 
 def actualizar_celda(pestana, fila, columna, valor):
@@ -686,6 +688,174 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
+
+# --- 3.B RECORRIDOS CON QR (VIGILADORES) Y GENERADOR DE QR DE PUNTOS ---
+
+def renderizar_recorrido_vigilador(objetivo, nombre, dni):
+    """Pestaña de recorrido del vigilador: marca puntos de control escaneando QR."""
+    st.markdown("### 🚶 RECORRIDO CON MARCACIÓN QR")
+
+    if not dni:
+        st.warning("⚠️ Para registrar recorridos debés ingresar con tu DNI.")
+        return
+
+    obj_u = str(objetivo).strip().upper()
+    hoy = obtener_hora_argentina().split(" ")[0]
+    st.caption(f"📍 Objetivo: {obj_u}")
+
+    df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
+    if df_p.empty or not {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
+        st.info("No hay puntos de control cargados.")
+        return
+
+    puntos = df_p[df_p['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u].copy()
+    if puntos.empty:
+        st.info(f"El objetivo {obj_u} no tiene puntos de recorrido cargados.")
+        return
+
+    if 'ORDEN' in puntos.columns:
+        puntos['_ORD'] = pd.to_numeric(puntos['ORDEN'], errors='coerce')
+        puntos = puntos.sort_values('_ORD')
+    lista_puntos = [str(p).strip().upper() for p in puntos['PUNTO']]
+
+    # Registros de hoy de este vigilador en este objetivo
+    df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
+    df_hoy = pd.DataFrame()
+    if not df_r.empty and {'FECHA_HORA', 'OBJETIVO', 'PUNTO', 'DNI', 'RONDA'} <= set(df_r.columns):
+        df_hoy = df_r[
+            (df_r['DNI'].astype(str).str.strip() == str(dni)) &
+            (df_r['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u) &
+            (df_r['FECHA_HORA'].astype(str).str.contains(hoy, na=False))
+        ]
+
+    # Ronda actual: se recupera de la planilla si se recarga la página
+    rondas = pd.to_numeric(df_hoy['RONDA'], errors='coerce').dropna() if not df_hoy.empty else pd.Series(dtype=float)
+    ronda_planilla = int(rondas.max()) if not rondas.empty else 1
+    key_ronda = f"ronda_vig_{obj_u}_{hoy}"
+    ronda = max(ronda_planilla, st.session_state.get(key_ronda, 1))
+    st.session_state[key_ronda] = ronda
+
+    marcados = set()
+    if not df_hoy.empty:
+        df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
+        marcados = set(df_ronda['PUNTO'].astype(str).str.strip().str.upper())
+
+    c_r1, c_r2 = st.columns(2)
+    c_r1.metric("🔁 RONDA", ronda)
+    c_r2.metric("✅ PUNTOS", f"{len(marcados)} / {len(lista_puntos)}")
+    st.progress(min(1.0, len(marcados) / len(lista_puntos)))
+
+    for p in lista_puntos:
+        st.write(("✅ " if p in marcados else "⏳ ") + p)
+
+    if st.session_state.get("msg_recorrido"):
+        st.success(st.session_state.msg_recorrido)
+
+    if len(marcados) >= len(lista_puntos):
+        st.success("🏁 ¡Ronda completa!")
+        if st.button("🔁 INICIAR NUEVA RONDA", use_container_width=True, key=f"btn_nueva_ronda_{obj_u}"):
+            st.session_state[key_ronda] = ronda + 1
+            st.session_state.msg_recorrido = ""
+            st.rerun()
+        return
+
+    st.markdown("""
+        <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
+            <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">📷 ESCANEÁ EL QR DEL PUNTO DE CONTROL</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
+    codigo = qrcode_scanner(key=f"scan_rec_{obj_u}_{ronda}_{len(marcados)}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if codigo:
+        txt = str(codigo).strip()
+        partes = {}
+        for fragmento in txt.split("|"):
+            if ":" in fragmento:
+                k, v = fragmento.split(":", 1)
+                partes[k.strip().upper()] = v.strip().upper()
+        obj_qr = partes.get("OBJ", "")
+        pto_qr = partes.get("PTO", "")
+
+        if not txt.upper().startswith("AION-RECORRIDO"):
+            st.error("❌ Ese QR no es de un punto de recorrido.")
+        elif obj_qr != obj_u or pto_qr not in lista_puntos:
+            st.error("❌ Ese punto no pertenece a este objetivo.")
+        elif pto_qr in marcados:
+            st.warning("⚠️ Ese punto ya fue marcado en esta ronda.")
+        else:
+            ok = escribir_registro_nube("REGISTRO RECORRIDOS", [
+                obtener_hora_argentina(), obj_u, pto_qr, str(nombre).strip().upper(), str(dni), ronda, "OK"
+            ])
+            if ok:
+                st.session_state.msg_recorrido = f"✅ Marcado: {pto_qr}"
+                st.rerun()
+
+def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
+    """Carga puntos de control por objetivo y genera el QR para imprimir."""
+    st.markdown("#### 🧾 PUNTOS DE RECORRIDO Y QR")
+    lista_objetivos = list(lista_objetivos)
+    if len(lista_objetivos) == 0:
+        st.info("No hay objetivos disponibles.")
+        return
+
+    obj = st.selectbox("OBJETIVO:", lista_objetivos, key=f"{key_prefix}_rec_obj")
+    obj_u = str(obj).strip().upper()
+
+    df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
+    existentes = pd.DataFrame()
+    if not df_p.empty and {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
+        existentes = df_p[df_p['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u].copy()
+        if 'ORDEN' in existentes.columns:
+            existentes['_ORD'] = pd.to_numeric(existentes['ORDEN'], errors='coerce')
+            existentes = existentes.sort_values('_ORD')
+
+    if st.session_state.get(f"{key_prefix}_msg_punto"):
+        st.success(st.session_state[f"{key_prefix}_msg_punto"])
+        st.session_state[f"{key_prefix}_msg_punto"] = ""
+
+    if not existentes.empty:
+        cols_ver = [c for c in ['PUNTO', 'ORDEN'] if c in existentes.columns]
+        st.dataframe(existentes[cols_ver], use_container_width=True, hide_index=True)
+    else:
+        st.info("Este objetivo todavía no tiene puntos de control.")
+
+    with st.form(key=f"{key_prefix}_form_punto", clear_on_submit=True):
+        nuevo_punto = st.text_input("NOMBRE DEL PUNTO (Ej: PORTÓN 1):").strip().upper()
+        nuevo_orden = st.number_input("ORDEN EN EL RECORRIDO:", min_value=1, value=len(existentes) + 1, step=1)
+        if st.form_submit_button("➕ GUARDAR PUNTO"):
+            if nuevo_punto:
+                ya_existe = (not existentes.empty) and (nuevo_punto in existentes['PUNTO'].astype(str).str.strip().str.upper().tolist())
+                if ya_existe:
+                    st.warning("⚠️ Ese punto ya existe en este objetivo.")
+                elif escribir_registro_nube("RECORRIDOS PUNTOS", [obj_u, nuevo_punto, int(nuevo_orden)]):
+                    st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Punto '{nuevo_punto}' guardado."
+                    st.rerun()
+            else:
+                st.warning("⚠️ Ingresá el nombre del punto.")
+
+    if not existentes.empty:
+        st.markdown("##### 🖨️ GENERAR QR PARA IMPRIMIR")
+        pto_sel = st.selectbox("PUNTO:", existentes['PUNTO'].astype(str).tolist(), key=f"{key_prefix}_rec_pto")
+        texto_qr = f"AION-RECORRIDO|OBJ:{obj_u}|PTO:{str(pto_sel).strip().upper()}"
+        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=3)
+        qr.add_data(texto_qr)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#000000", back_color="#FFFFFF")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        st.image(buf.getvalue(), width=220, caption=f"{obj_u} | {str(pto_sel).strip().upper()}")
+        st.download_button(
+            "📥 DESCARGAR QR (PNG)",
+            data=buf.getvalue(),
+            file_name=f"qr_{obj_u}_{str(pto_sel).strip().upper()}.png".replace(" ", "_"),
+            mime="image/png",
+            key=f"{key_prefix}_dl_qr_{obj_u}_{pto_sel}"
+        )
+
+
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -694,8 +864,8 @@ def mostrar_landing():
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
     
     with st.form("form_acceso_real"):
-        user = st.text_input("Usuario o Apellido del Supervisor", key="u")
-        password = st.text_input("Contraseña", type="password", key="p")
+        user = st.text_input("Usuario o Apellido del Supervisor (Vigilador: DNI)", key="u")
+        password = st.text_input("Contraseña (Vigilador: DNI)", type="password", key="p")
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
         rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
 
@@ -751,14 +921,27 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR" and (user_limpio in ["VIGILADOR", "AGENTE", "CUSTODIO"] or pass_limpio == "1234"):
-                st.session_state.usuario_logueado = True
-                st.session_state.user_sel = "VIGILADOR EN PUESTO" if user_limpio == "VIGILADOR" else user_limpio
-                st.session_state.rol_sel = "VIGILADOR"
-                st.session_state.sup_autenticado = False
-                st.session_state.admin_autenticado = False
-                sincronizar_url_sesion()
-                st.rerun()
+            # --- LOGIN DE VIGILADOR: USUARIO Y CONTRASEÑA = DNI (validado contra PADRON VIGILADORES) ---
+            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR":
+                dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())
+                df_pad = leer_matriz_nube("PADRON VIGILADORES")
+                fila_vig = pd.DataFrame()
+                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
+                    fila_vig = df_pad[df_pad['DNI'].astype(str).str.replace(r'\D', '', regex=True) == dni_ingresado]
+                if not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO":
+                    nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()
+                    st.session_state.usuario_logueado = True
+                    st.session_state.user_sel = nombre_vig
+                    st.session_state.rol_sel = "VIGILADOR"
+                    st.session_state.dni_vigilador = dni_ingresado
+                    st.session_state.v_nombre_completo = nombre_vig
+                    st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '')).strip()
+                    st.session_state.sup_autenticado = False
+                    st.session_state.admin_autenticado = False
+                    sincronizar_url_sesion()
+                    st.rerun()
+                else:
+                    st.error("❌ DNI no habilitado o contraseña incorrecta.")
                 
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
@@ -1607,7 +1790,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
                 st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
 
-                # Validación GPS flexible (No requiere cambiar las coordenadas de la planilla)
                 ubicacion_gps = get_geolocation()
                 en_rango_gps = False
                 distancia_actual_m = 0.0
@@ -1621,21 +1803,18 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     lat_obj_val = float(datos_sel['LATITUD'])
                     lon_obj_val = float(datos_sel['LONGITUD'])
 
-                    # Cálculo de distancia en metros (Haversine)
                     lon1, lat1, lon2, lat2 = map(math.radians, [lon_actual, lat_actual, lon_obj_val, lat_obj_val])
                     dlon = lon2 - lon1
                     dlat = lat2 - lat1
                     a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
                     c = 2 * math.asin(math.sqrt(a))
-                    distancia_actual_m = 6371000 * c  # Distancia en metros
+                    distancia_actual_m = 6371000 * c 
 
-                    # Margen flexible ampliado a 1000 metros para tolerar coordenadas aproximadas en la base
                     if distancia_actual_m <= 1000:
                         en_rango_gps = True
                     else:
                         en_rango_gps = False
                 else:
-                    # Fallback por si el navegador tarda en devolver la geolocalización exacta
                     en_rango_gps = True 
 
                 if en_rango_gps:
@@ -1763,7 +1942,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
         with t_nuevo_obj:
             st.markdown("### ➕ AUTOGESTIÓN Y BAJA DE OBJETIVOS TÁCTICOS")
-            tab_alta_sup, tab_baja_sup = st.tabs(["🚀 DAR DE ALTA", "🗑️ SOLICITAR BAJA"])
+            tab_alta_sup, tab_baja_sup, tab_qr_rec_sup = st.tabs(["🚀 DAR DE ALTA", "🗑️ SOLICITAR BAJA", "🧾 PUNTOS QR RECORRIDO"])
             
             with tab_alta_sup:
                 with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
@@ -1800,6 +1979,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         if st.form_submit_button("🗑️ SOLICITAR BAJA DE OBJETIVO"):
                             escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", f"{obj_a_baja} - MOTIVO: {motivo_baja}", "PENDIENTE"])
                             st.success(f"✅ Petición de baja enviada para '{obj_a_baja}'.")
+
+            with tab_qr_rec_sup:
+                renderizar_generador_qr_recorrido(
+                    df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else [],
+                    "sup"
+                )
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
@@ -1965,13 +2150,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
     
     st.markdown("---")
     
-    tab_presentismo, tab_relevo, t_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
+    tab_presentismo, tab_relevo, tab_recorrido, t_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", "🚶 RECORRIDO", label_msg])
   
     with tab_presentismo:
         st.markdown("### 📸 REGISTRO BIOMÉTRICO")
         with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:", value="VIGILADOR DE PRUEBA" if st.session_state.user_sel != "VIGILADOR EN PUESTO" else "").strip() 
-            v_legajo = st.text_input("LEGAJO:", value="12345" if st.session_state.user_sel != "VIGILADOR EN PUESTO" else "").strip() 
+            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:", value=st.session_state.get("v_nombre_completo", "")).strip() 
+            v_legajo = st.text_input("LEGAJO:", value=st.session_state.get("legajo_vigilador", "")).strip() 
             v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
             v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
             img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
@@ -2013,6 +2198,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_relevo, vig_saliente, vig_entrante, v_dni_relevo, sup_resp, "RELEVO_EFECTUADO"])
                 
                 st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
+
+    with tab_recorrido:
+        renderizar_recorrido_vigilador(
+            st.session_state.get("obj_actual_vig", ""),
+            st.session_state.get("v_nombre_completo", st.session_state.user_sel),
+            st.session_state.get("dni_vigilador", "")
+        )
 
     with t_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
@@ -2524,8 +2716,9 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         st.markdown("---")
 
-        t_adm_usr, t_adm_obj, t_adm_mantenimiento = st.tabs([
-            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO"
+        t_adm_usr, t_adm_obj, t_adm_mantenimiento, t_adm_vig, t_adm_qr_rec = st.tabs([
+            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO",
+            "🪪 PADRÓN DE VIGILADORES", "🧾 PUNTOS QR RECORRIDO"
         ])
 
         with t_adm_usr:
@@ -2559,6 +2752,39 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             if not df_obj_m.empty:
                 pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
                 st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
+
+        with t_adm_vig:
+            st.markdown("#### 🪪 PADRÓN DE VIGILADORES (LOGIN POR DNI)")
+            st.caption("El vigilador ingresa con su DNI como usuario y como contraseña. Solo pueden entrar los DNI cargados acá con estado ACTIVO.")
+            df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
+            if not df_pad_adm.empty:
+                cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO'] if c in df_pad_adm.columns]
+                st.dataframe(df_pad_adm[cols_pad], use_container_width=True, hide_index=True)
+            else:
+                st.info("El padrón todavía está vacío.")
+
+            with st.form(key="form_alta_vigilador_padron", clear_on_submit=True):
+                col_pv_a, col_pv_b = st.columns(2)
+                nuevo_dni = col_pv_a.text_input("DNI (solo números):").strip()
+                nuevo_nombre_vig = col_pv_b.text_input("APELLIDO Y NOMBRE:").strip().upper()
+                nuevo_legajo_vig = col_pv_a.text_input("LEGAJO:").strip()
+                if st.form_submit_button("➕ DAR DE ALTA VIGILADOR"):
+                    dni_limpio = "".join(ch for ch in nuevo_dni if ch.isdigit())
+                    if dni_limpio and nuevo_nombre_vig:
+                        ya_cargado = (not df_pad_adm.empty) and ('DNI' in df_pad_adm.columns) and \
+                                     (dni_limpio in df_pad_adm['DNI'].astype(str).str.replace(r'\D', '', regex=True).tolist())
+                        if ya_cargado:
+                            st.warning("⚠️ Ese DNI ya está cargado en el padrón.")
+                        elif escribir_registro_nube("PADRON VIGILADORES", [dni_limpio, nuevo_nombre_vig, nuevo_legajo_vig, "ACTIVO"]):
+                            st.success(f"✅ Vigilador {nuevo_nombre_vig} habilitado.")
+                    else:
+                        st.warning("⚠️ Completá DNI y nombre.")
+
+        with t_adm_qr_rec:
+            renderizar_generador_qr_recorrido(
+                df_obj_m['OBJETIVO'].unique() if not df_obj_m.empty else [],
+                "adm"
+            )
 
         st.markdown('</div>', unsafe_allow_html=True)
     else:
