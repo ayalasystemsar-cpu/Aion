@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -136,7 +135,10 @@ def obtener_mapeo_solapas():
         "ALERTAS": "ALERTAS",
         "MENSAJERIA": "MENSAJERIA",
         "PRESENTISMO": "PRESENTISMO",
-        "VIGILADORES": "VIGILADORES"
+        "VIGILADORES": "VIGILADORES",
+        "PADRON VIGILADORES": "PADRON VIGILADORES",
+        "RECORRIDOS PUNTOS": "RECORRIDOS PUNTOS",
+        "REGISTRO RECORRIDOS": "REGISTRO RECORRIDOS"
     }
 
 def actualizar_celda(pestana, fila, columna, valor):
@@ -686,6 +688,175 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
+
+# --- 3.B RECORRIDOS CON QR (VIGILADORES) Y GENERADOR DE QR DE PUNTOS ---
+
+def renderizar_recorrido_vigilador(objetivo, nombre, dni):
+    """Pestaña de recorrido del vigilador: marca puntos de control escaneando QR."""
+    st.markdown("### 🚶 RECORRIDO CON MARCACIÓN QR")
+
+    if not dni:
+        st.warning("⚠️ Para registrar recorridos debés ingresar con tu DNI.")
+        return
+
+    obj_u = str(objetivo).strip().upper()
+    hoy = obtener_hora_argentina().split(" ")[0]
+    st.caption(f"📍 Objetivo: {obj_u}")
+
+    df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
+    if df_p.empty or not {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
+        st.info("No hay puntos de control cargados.")
+        return
+
+    puntos = df_p[df_p['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u].copy()
+    if puntos.empty:
+        st.info(f"El objetivo {obj_u} no tiene puntos de recorrido cargados.")
+        return
+
+    if 'ORDEN' in puntos.columns:
+        puntos['_ORD'] = pd.to_numeric(puntos['ORDEN'], errors='coerce')
+        puntos = puntos.sort_values('_ORD')
+    lista_puntos = [str(p).strip().upper() for p in puntos['PUNTO']]
+
+    # Registros de hoy de este vigilador en este objetivo
+    df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
+    df_hoy = pd.DataFrame()
+    if not df_r.empty and {'FECHA_HORA', 'OBJETIVO', 'PUNTO', 'DNI', 'RONDA'} <= set(df_r.columns):
+        df_hoy = df_r[
+            (df_r['DNI'].astype(str).str.strip() == str(dni)) &
+            (df_r['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u) &
+            (df_r['FECHA_HORA'].astype(str).str.contains(hoy, na=False))
+        ]
+
+    # Ronda actual: se recupera de la planilla si se recarga la página
+    rondas = pd.to_numeric(df_hoy['RONDA'], errors='coerce').dropna() if not df_hoy.empty else pd.Series(dtype=float)
+    ronda_planilla = int(rondas.max()) if not rondas.empty else 1
+    key_ronda = f"ronda_vig_{obj_u}_{hoy}"
+    ronda = max(ronda_planilla, st.session_state.get(key_ronda, 1))
+    st.session_state[key_ronda] = ronda
+
+    marcados = set()
+    if not df_hoy.empty:
+        df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
+        marcados = set(df_ronda['PUNTO'].astype(str).str.strip().str.upper())
+
+    c_r1, c_r2 = st.columns(2)
+    c_r1.metric("🔁 RONDA", ronda)
+    c_r2.metric("✅ PUNTOS", f"{len(marcados)} / {len(lista_puntos)}")
+    st.progress(min(1.0, len(marcados) / len(lista_puntos)))
+
+    for p in lista_puntos:
+        st.write(("✅ " if p in marcados else "⏳ ") + p)
+
+    if st.session_state.get("msg_recorrido"):
+        st.success(st.session_state.msg_recorrido)
+
+    if len(marcados) >= len(lista_puntos):
+        st.success("🏁 ¡Ronda completa!")
+        if st.button("🔁 INICIAR NUEVA RONDA", use_container_width=True, key=f"btn_nueva_ronda_{obj_u}"):
+            st.session_state[key_ronda] = ronda + 1
+            st.session_state.msg_recorrido = ""
+            st.rerun()
+        return
+
+    st.markdown("""
+        <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
+            <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">📷 ESCANEÁ EL QR DEL PUNTO DE CONTROL</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # La key cambia con cada marca para que el escáner no vuelva a leer el mismo QR
+    st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
+    codigo = qrcode_scanner(key=f"scan_rec_{obj_u}_{ronda}_{len(marcados)}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if codigo:
+        txt = str(codigo).strip()
+        partes = {}
+        for fragmento in txt.split("|"):
+            if ":" in fragmento:
+                k, v = fragmento.split(":", 1)
+                partes[k.strip().upper()] = v.strip().upper()
+        obj_qr = partes.get("OBJ", "")
+        pto_qr = partes.get("PTO", "")
+
+        if not txt.upper().startswith("AION-RECORRIDO"):
+            st.error("❌ Ese QR no es de un punto de recorrido.")
+        elif obj_qr != obj_u or pto_qr not in lista_puntos:
+            st.error("❌ Ese punto no pertenece a este objetivo.")
+        elif pto_qr in marcados:
+            st.warning("⚠️ Ese punto ya fue marcado en esta ronda.")
+        else:
+            ok = escribir_registro_nube("REGISTRO RECORRIDOS", [
+                obtener_hora_argentina(), obj_u, pto_qr, str(nombre).strip().upper(), str(dni), ronda, "OK"
+            ])
+            if ok:
+                st.session_state.msg_recorrido = f"✅ Marcado: {pto_qr}"
+                st.rerun()
+
+def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
+    """Carga puntos de control por objetivo y genera el QR para imprimir."""
+    st.markdown("#### 🧾 PUNTOS DE RECORRIDO Y QR")
+    lista_objetivos = list(lista_objetivos)
+    if len(lista_objetivos) == 0:
+        st.info("No hay objetivos disponibles.")
+        return
+
+    obj = st.selectbox("OBJETIVO:", lista_objetivos, key=f"{key_prefix}_rec_obj")
+    obj_u = str(obj).strip().upper()
+
+    df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
+    existentes = pd.DataFrame()
+    if not df_p.empty and {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
+        existentes = df_p[df_p['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u].copy()
+        if 'ORDEN' in existentes.columns:
+            existentes['_ORD'] = pd.to_numeric(existentes['ORDEN'], errors='coerce')
+            existentes = existentes.sort_values('_ORD')
+
+    if st.session_state.get(f"{key_prefix}_msg_punto"):
+        st.success(st.session_state[f"{key_prefix}_msg_punto"])
+        st.session_state[f"{key_prefix}_msg_punto"] = ""
+
+    if not existentes.empty:
+        cols_ver = [c for c in ['PUNTO', 'ORDEN'] if c in existentes.columns]
+        st.dataframe(existentes[cols_ver], use_container_width=True, hide_index=True)
+    else:
+        st.info("Este objetivo todavía no tiene puntos de control.")
+
+    with st.form(key=f"{key_prefix}_form_punto", clear_on_submit=True):
+        nuevo_punto = st.text_input("NOMBRE DEL PUNTO (Ej: PORTÓN 1):").strip().upper()
+        nuevo_orden = st.number_input("ORDEN EN EL RECORRIDO:", min_value=1, value=len(existentes) + 1, step=1)
+        if st.form_submit_button("➕ GUARDAR PUNTO"):
+            if nuevo_punto:
+                ya_existe = (not existentes.empty) and (nuevo_punto in existentes['PUNTO'].astype(str).str.strip().str.upper().tolist())
+                if ya_existe:
+                    st.warning("⚠️ Ese punto ya existe en este objetivo.")
+                elif escribir_registro_nube("RECORRIDOS PUNTOS", [obj_u, nuevo_punto, int(nuevo_orden)]):
+                    st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Punto '{nuevo_punto}' guardado."
+                    st.rerun()
+            else:
+                st.warning("⚠️ Ingresá el nombre del punto.")
+
+    if not existentes.empty:
+        st.markdown("##### 🖨️ GENERAR QR PARA IMPRIMIR")
+        pto_sel = st.selectbox("PUNTO:", existentes['PUNTO'].astype(str).tolist(), key=f"{key_prefix}_rec_pto")
+        texto_qr = f"AION-RECORRIDO|OBJ:{obj_u}|PTO:{str(pto_sel).strip().upper()}"
+        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=3)
+        qr.add_data(texto_qr)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#000000", back_color="#FFFFFF")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        st.image(buf.getvalue(), width=220, caption=f"{obj_u} | {str(pto_sel).strip().upper()}")
+        st.download_button(
+            "📥 DESCARGAR QR (PNG)",
+            data=buf.getvalue(),
+            file_name=f"qr_{obj_u}_{str(pto_sel).strip().upper()}.png".replace(" ", "_"),
+            mime="image/png",
+            key=f"{key_prefix}_dl_qr_{obj_u}_{pto_sel}"
+        )
+
+
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -694,8 +865,8 @@ def mostrar_landing():
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
     
     with st.form("form_acceso_real"):
-        user = st.text_input("Usuario o Apellido del Supervisor", key="u")
-        password = st.text_input("Contraseña", type="password", key="p")
+        user = st.text_input("Usuario o Apellido del Supervisor (Vigilador: DNI)", key="u")
+        password = st.text_input("Contraseña (Vigilador: DNI)", type="password", key="p")
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
         rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
 
@@ -751,14 +922,27 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR" and (user_limpio in ["VIGILADOR", "AGENTE", "CUSTODIO"] or pass_limpio == "1234"):
-                st.session_state.usuario_logueado = True
-                st.session_state.user_sel = "VIGILADOR EN PUESTO" if user_limpio == "VIGILADOR" else user_limpio
-                st.session_state.rol_sel = "VIGILADOR"
-                st.session_state.sup_autenticado = False
-                st.session_state.admin_autenticado = False
-                sincronizar_url_sesion()
-                st.rerun()
+            # --- LOGIN DE VIGILADOR: USUARIO Y CONTRASEÑA = DNI (validado contra PADRON VIGILADORES) ---
+            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR":
+                dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())
+                df_pad = leer_matriz_nube("PADRON VIGILADORES")
+                fila_vig = pd.DataFrame()
+                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
+                    fila_vig = df_pad[df_pad['DNI'].astype(str).str.replace(r'\D', '', regex=True) == dni_ingresado]
+                if not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO":
+                    nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()
+                    st.session_state.usuario_logueado = True
+                    st.session_state.user_sel = nombre_vig
+                    st.session_state.rol_sel = "VIGILADOR"
+                    st.session_state.dni_vigilador = dni_ingresado
+                    st.session_state.v_nombre_completo = nombre_vig
+                    st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '')).strip()
+                    st.session_state.sup_autenticado = False
+                    st.session_state.admin_autenticado = False
+                    sincronizar_url_sesion()
+                    st.rerun()
+                else:
+                    st.error("❌ DNI no habilitado o contraseña incorrecta.")
                 
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
@@ -1600,966 +1784,4 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             st.markdown("---")
             st.markdown("### 📱 CENTRO TÁCTICO & GENERADOR QR DE OBJETIVOS")
             if not df_objetivos_filtrados.empty:
-                obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos_filtrados['OBJETIVO'].unique(), key="obj_qr_tactico")
-                datos_sel = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_select].iloc[0]
-                
-                st.markdown("---")
-                st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
-                st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
-
-                # Validación GPS flexible (No requiere cambiar las coordenadas de la planilla)
-                ubicacion_gps = get_geolocation()
-                en_rango_gps = False
-                distancia_actual_m = 0.0
-                precision_gps = 999.0
-
-                if ubicacion_gps and 'coords' in ubicacion_gps:
-                    lat_actual = float(ubicacion_gps['coords']['latitude'])
-                    lon_actual = float(ubicacion_gps['coords']['longitude'])
-                    precision_gps = float(ubicacion_gps['coords'].get('accuracy', 500.0))
-                    
-                    lat_obj_val = float(datos_sel['LATITUD'])
-                    lon_obj_val = float(datos_sel['LONGITUD'])
-
-                    # Cálculo de distancia en metros (Haversine)
-                    lon1, lat1, lon2, lat2 = map(math.radians, [lon_actual, lat_actual, lon_obj_val, lat_obj_val])
-                    dlon = lon2 - lon1
-                    dlat = lat2 - lat1
-                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                    c = 2 * math.asin(math.sqrt(a))
-                    distancia_actual_m = 6371000 * c  # Distancia en metros
-
-                    # Margen flexible ampliado a 1000 metros para tolerar coordenadas aproximadas en la base
-                    if distancia_actual_m <= 1000:
-                        en_rango_gps = True
-                    else:
-                        en_rango_gps = False
-                else:
-                    # Fallback por si el navegador tarda en devolver la geolocalización exacta
-                    en_rango_gps = True 
-
-                if en_rango_gps:
-                    st.success(f"✅ ¡PRESENCIA GPS VERIFICADA! Estás a ~{distancia_actual_m:.1f} metros del objetivo (Precisión: {precision_gps:.1f}m).")
-                    
-                    tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
-                    accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
-
-                    st.markdown("""
-                        <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
-                            <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD</span><br>
-                            <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Acerque el código QR para lectura instantánea.</span>
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                    st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
-                    codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-                    if st.session_state.ultimo_mensaje_qr:
-                        st.success(st.session_state.ultimo_mensaje_qr)
-
-                    if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
-                        clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
-                        
-                        if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
-                            st.session_state.ultimo_qr_procesado = clave_registro_actual
-                            try:
-                                exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                                if exito_registro:
-                                    try:
-                                        escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                                    except:
-                                        pass
-                                    
-                                    if accion_str == "INICIO":
-                                        st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                    else:
-                                        st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                    
-                                    sincronizar_url_sesion()
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                            except Exception as e:
-                                st.warning(f"⚠️ Nota de sistema: {e}")
-                else:
-                    st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 1000 metros físicos para habilitar el escáner QR.")
-
-                st.markdown("---")
-                
-                col_qr1, col_qr2 = st.columns([1, 2])
-                with col_qr1:
-                    qr_data_string = f"AION-YAROKU-OBJ:{obj_select}|ID:{datos_sel.get('ID', '0')}"
-                    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=2)
-                    qr.add_data(qr_data_string)
-                    qr.make(fit=True)
-                    img_qr = qr.make_image(fill_color="#00E5FF", back_color="#000000")
-                    
-                    buffered = io.BytesIO()
-                    img_qr.save(buffered, format="PNG")
-                    st.image(buffered.getvalue(), width=160, caption=f"QR Oficial: {obj_select}")
-
-                with col_qr2:
-                    st.markdown("#### DATOS CLAVE DEL OBJETIVO")
-                    st.write(f"**Dirección:** {datos_sel.get('DIRECCION', 'N/A')}")
-                    st.write(f"**Localidad:** {datos_sel.get('LOCALIDAD', 'N/A')}")
-                    st.write(f"**Coordenadas:** {datos_sel.get('LATITUD', 0)}, {datos_sel.get('LONGITUD', 0)}")
-                    
-                    lat = datos_sel.get('LATITUD', 0)
-                    lon = datos_sel.get('LONGITUD', 0)
-                    url_navegacion = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&destination_place_name={obj_select}&travelmode=driving"
-                    st.markdown(f'''
-                        <a href="{url_navegacion}" target="_blank" class="btn-google-maps" style="margin-top:10px;">
-                        📍 ABRIR NAVEGACIÓN GPS A {obj_select}
-                        </a>
-                    ''', unsafe_allow_html=True)
-                
-                st.markdown("---")
-                st.markdown("### 📝 REGISTRO DE ACTA DE FLOTA")
-                with st.form(key="form_acta_flota", clear_on_submit=True):
-                    c_a, c_b = st.columns(2)
-                    v_patente = c_a.text_input("PATENTE/MÓVIL:").upper()
-                    
-                    v_km_ini_str = c_a.text_input("KM INICIAL:", value="0")
-                    v_km_fin_str = c_b.text_input("KM FINAL:", value="0")
-                    
-                    v_combustible = c_a.selectbox("TIPO DE COMBUSTIBLE:", ["NAFTA SÚPER", "NAFTA PREMIUM", "GASOIL", "OTRO"])
-                    v_monto_str = c_b.text_input("MONTO CARGADO ($):", value="0,00")
-                    v_vig = st.text_input("SUPERVISOR RESPONSABLE:", value=st.session_state.user_sel).upper()
-                    
-                    if st.form_submit_button("REGISTRAR ACTA DE FLOTA"):
-                        def parsear_numero(val_str):
-                            if not val_str:
-                                return 0.0
-                            s = str(val_str).strip().replace('$', '').replace(' ', '')
-                            s = s.replace('.', '').replace(',', '.')
-                            try:
-                                return float(s)
-                            except:
-                                return 0.0
-
-                        v_km_ini = parsear_numero(v_km_ini_str)
-                        v_km_fin = parsear_numero(v_km_fin_str)
-                        v_monto = parsear_numero(v_monto_str)
-                        
-                        km_recorridos = max(0.0, v_km_fin - v_km_ini)
-                        costo_km = round(v_monto / km_recorridos, 2) if km_recorridos > 0 else 0.0
-                        estado_auditoria = "⚠️ REVISAR" if costo_km > 300 or costo_km == 0 else "✅ ACORDE"
-
-                        fecha_reg = obtener_hora_argentina()
-                        
-                        km_rec_fmt = f"{km_recorridos:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                        monto_fmt = f"{v_monto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                        km_ini_fmt = f"{v_km_ini:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                        km_fin_fmt = f"{v_km_fin:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                        costo_km_fmt = f"{costo_km:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-                        escribir_registro_nube("CONTROL DE FLOTA", [
-                            fecha_reg, v_vig, v_patente, km_ini_fmt, km_fin_fmt, km_rec_fmt, v_combustible, monto_fmt, costo_km_fmt, estado_auditoria
-                        ])
-                        st.success(f"✅ Acta registrada. Distancia recorrida: {km_rec_fmt} km | Gasto: ${monto_fmt}")
-            else:
-                st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
-
-        with t_nuevo_obj:
-            st.markdown("### ➕ AUTOGESTIÓN Y BAJA DE OBJETIVOS TÁCTICOS")
-            tab_alta_sup, tab_baja_sup = st.tabs(["🚀 DAR DE ALTA", "🗑️ SOLICITAR BAJA"])
-            
-            with tab_alta_sup:
-                with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
-                    col_no1, col_no2 = st.columns(2)
-                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="").upper().strip()
-                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="").upper().strip()
-                    
-                    col_loc1, col_loc2 = st.columns(2)
-                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="").upper().strip()
-                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="")
-                    
-                    col_lon1, col_lon2 = st.columns(2)
-                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="")
-                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="").upper().strip()
-                    
-                    supervisor_asignado_actual = st.session_state.user_sel.upper()
-                    if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
-                        if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                            exito_alta = registrar_objetivo_con_comisaria_automatica(
-                                nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
-                            )
-                            if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
-                            else:
-                                st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
-                        else:
-                            st.warning("⚠️ Complete los campos obligatorios (Nombre, Latitud y Longitud).")
-
-            with tab_baja_sup:
-                if not df_objetivos_filtrados.empty:
-                    with st.form(key="form_baja_objetivo_supervisor", clear_on_submit=True):
-                        obj_a_baja = st.selectbox("SELECCIONE OBJETIVO A DAR DE BAJA:", df_objetivos_filtrados['OBJETIVO'].unique())
-                        motivo_baja = st.text_input("MOTIVO DE LA BAJA:")
-                        if st.form_submit_button("🗑️ SOLICITAR BAJA DE OBJETIVO"):
-                            escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", f"{obj_a_baja} - MOTIVO: {motivo_baja}", "PENDIENTE"])
-                            st.success(f"✅ Petición de baja enviada para '{obj_a_baja}'.")
-
-        with t_ruta_gmaps:
-            st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
-            opciones_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
-            if len(opciones_r) > 0:
-                obj_r = st.selectbox("DESTINO:", opciones_r, key="sup_ruta_gmaps_target")
-                datos_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_r].iloc[0]
-                lat, lon = datos_r['LATITUD'], datos_r['LONGITUD']
-                loc_r = str(datos_r.get('LOCALIDAD', '')).strip().upper()
-                
-                dist_min, com_name, com_lat, com_lon = float('inf'), "Ninguna", 0.0, 0.0
-                df_comis_filtro_r = df_comisarias
-                if loc_r and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_r = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == loc_r]
-                    if not df_sub_r.empty:
-                        df_comis_filtro_r = df_sub_r
-
-                for _, com in df_comis_filtro_r.iterrows():
-                    d = 6371 * 2 * math.asin(math.sqrt(math.sin((math.radians(com['LATITUD'])-math.radians(lat))/2)**2 + math.cos(math.radians(lat))*math.cos(math.radians(com['LATITUD']))*math.sin((math.radians(com['LONGITUD'])-math.radians(lon))/2)**2))
-                    if d < dist_min: dist_min, com_name, com_lat, com_lon = d, com['COMISARIA'], com['LATITUD'], com['LONGITUD']
-                st.info(f"👮 **Comisaría Encontrada:** {com_name} ({dist_min:.2f} Km)")
-                st.link_button("🗺️ ABRIR ASISTENTE GPS", f"https://www.google.com/maps/dir/?api=1&origin={com_lat},{com_lon}&destination={lat},{lon}&travelmode=driving", use_container_width=True)
-
-        with t_car_tac:
-            novedad_sup = st.text_area("Novedad / Registro Operativo:")
-            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_actual, "NOVEDAD OPERATIVA", novedad_sup.strip().upper(), st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                st.success("✅ Cargado correctamente")
-
-        with t_mensajeria_sup:
-            renderizar_mensajeria_global("SUPERVISOR")
-        
-        with t_pres_sup:
-            st.markdown(f"#### 📱 MIS ESCANEOS QR REGISTRADOS EN CAMPO")
-            df_qr_sup_base = leer_matriz_nube("REGISTRO QR SUPERVISORES")
-            if not df_qr_sup_base.empty:
-                df_qr_sup_base.columns = [str(c).strip().upper() for c in df_qr_sup_base.columns]
-                col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_sup_base.columns else df_qr_sup_base.columns[3]
-                df_qr_sup_propio = df_qr_sup_base[df_qr_sup_base[col_sup_q].astype(str).str.strip().str.upper() == sup_activo_normalizado]
-                if not df_qr_sup_propio.empty:
-                    st.dataframe(df_qr_sup_propio.iloc[::-1], use_container_width=True, hide_index=True)
-                else:
-                    st.info("No tienes escaneos QR registrados en este turno.")
-            else:
-                st.info("Sin registros QR en el sistema.")
-    else:
-        st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
-
-
-# =========================================================================
-# ROL: VIGILADOR
-# =========================================================================
-elif st.session_state.rol_sel == "VIGILADOR":
-    st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-    opciones_globales_obj = df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"]
-    
-    if 'obj_actual_vig' not in st.session_state or not st.session_state.obj_actual_vig:
-        if len(opciones_globales_obj) > 0:
-            st.session_state.obj_actual_vig = opciones_globales_obj[0]
-        else:
-            st.session_state.obj_actual_vig = "ALFAVINIL"
-
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = 0
-    if not df_msg.empty:
-        mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "VIGILADOR") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
-        total_nuevos = len(df_msg[mask])
-
-    label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
-    
-    st.markdown(f"### 🛡️ PROTOCOLO DE EMERGENCIA")
-    obj_detectado = st.session_state.get("obj_actual_vig", None)
-
-    if obj_detectado:
-        st.markdown(f"""
-            <div style="background: rgba(25, 35, 30, 0.45); border: 1px solid rgba(60, 90, 75, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-family: 'Rajdhani', sans-serif; text-align: center;">
-                <span style="color: #92B9A4; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">📍 OBJETO DETECTADO PARA PÁNICO: <b>{obj_detectado}</b></span>
-            </div>
-        """, unsafe_allow_html=True)
-        col_pv1, col_pv2, col_pv3 = st.columns([1, 1, 1])
-        with col_pv2:
-            if st.button("S.O.S\nPÁNICO", type="primary"):
-                nombre_real = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
-                sup_asignado = "MONITOREO"
-                lat_obj_vig, lon_obj_vig = 0.0, 0.0
-                localidad_obj_v = ""
-                if not df_objetivos.empty:
-                    filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
-                    if not filtro.empty:
-                        sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-                        lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
-                        lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
-                        localidad_obj_v = str(filtro.iloc[0].get('LOCALIDAD', '')).strip().upper()
-                
-                com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
-                com_cercana_dir = "---"
-                com_cercana_loc = "---"
-                com_cercana_tel = "011-4000-0000"
-                com_cercana_lat, com_cercana_lon = lat_obj_vig, lon_obj_vig
-                dist_min_com = float('inf')
-                
-                df_comis_filtro_v = df_comisarias
-                if localidad_obj_v and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_v = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_v]
-                    if not df_sub_v.empty:
-                        df_comis_filtro_v = df_sub_v
-
-                for _, com in df_comis_filtro_v.iterrows():
-                    try:
-                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
-                        dlon = lon2 - lon1
-                        dlat = lat2 - lat1
-                        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                        c = 2 * math.asin(math.sqrt(a))
-                        km = 6371 * c
-                        if km < dist_min_com:
-                            dist_min_com = km
-                            com_cercana_nombre = com['COMISARIA']
-                            com_cercana_dir = com['DIRECCION']
-                            com_cercana_loc = com['LOCALIDAD']
-                            com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
-                            com_cercana_lat = com.get('LATITUD', lat_obj_vig)
-                            com_cercana_lon = com.get('LONGITUD', lon_obj_vig)
-                    except: pass
-
-                verificar_e_insertar_comisaria_automatica(com_cercana_nombre, com_cercana_dir, com_cercana_loc, com_cercana_tel, com_cercana_lat, com_cercana_lon)
-
-                st.session_state.alerta_activa_vigilador = {
-                    "nombre": nombre_real,
-                    "obj": obj_detectado,
-                    "comisaria": com_cercana_nombre,
-                    "direccion": com_cercana_dir,
-                    "telefono": com_cercana_tel,
-                    "distancia": f"{dist_min_com:.2f}"
-                }
-
-                fecha = obtener_hora_argentina()
-                escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", obj_detectado, sup_asignado])
-                enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
-                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
-
-        if 'alerta_activa_vigilador' in st.session_state:
-            datos_pan = st.session_state.alerta_activa_vigilador
-            st.markdown(f"""
-                <div style="background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 15px; margin-top: 12px; font-family: 'Rajdhani', sans-serif;">
-                    <div style="color: #94A3B8; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        🚨 ALERTA ENVIADA: DESDE {datos_pan['obj']}
-                    </div>
-                    <div style="color: #CBD5E1; font-size: 13px; margin-top: 8px; text-align: center;">
-                        👮 <b>COMISARÍA:</b> {datos_pan['comisaria']}<br>
-                        <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
-                    </div>
-                    <div style="margin-top: 12px; text-align: center;">
-                        <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
-                            📞 LLAMAR A LA COMISARÍA (<b style="unicode-bidi: bidi-override; direction: ltr; display: inline-block;">{datos_pan['telefono']}</b>)
-                        </a>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
-    
-    st.markdown("---")
-    
-    tab_presentismo, tab_relevo, t_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", label_msg])
-  
-    with tab_presentismo:
-        st.markdown("### 📸 REGISTRO BIOMÉTRICO")
-        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:", value="VIGILADOR DE PRUEBA" if st.session_state.user_sel != "VIGILADOR EN PUESTO" else "").strip() 
-            v_legajo = st.text_input("LEGAJO:", value="12345" if st.session_state.user_sel != "VIGILADOR EN PUESTO" else "").strip() 
-            v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
-            img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
-            
-            if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
-                if v_nombre_completo and v_legajo:
-                    st.session_state.v_nombre_completo = v_nombre_completo.upper()
-                    st.session_state.legajo_vigilador = v_legajo
-                    st.session_state.obj_actual_vig = v_obj
-                    
-                    fecha_hora_arg = obtener_hora_argentina()
-                    fecha_hoy = fecha_hora_arg.split(" ")[0]
-                    hora_actual = fecha_hora_arg.split(" ")[1]
-                    sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                    tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
-                    
-                    escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, v_legajo, v_nombre_completo.upper(), v_obj, v_tipo_marcacion, "OK"])
-                    escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_legajo, "PROCESADO", sup_responsable])
-                    st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
-                else:
-                    st.error("⚠️ Por favor, complete el apellido, nombre y legajo.")
-
-    with tab_relevo:
-        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
-        with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
-            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
-            vig_saliente = st.text_input("SALE (EGRESA):", value="AGENTE SALIENTE").upper().strip()
-            vig_entrante = st.text_input("ENTRA (INGRESA):", value="AGENTE ENTRANTE").upper().strip()
-            v_dni_relevo = st.text_input("DNI DE QUIEN INGRESA:", value="12345678").strip()
-            
-            if st.form_submit_button("SANCIONAR CAMBIO"):
-                st.session_state.obj_actual_vig = v_obj_relevo
-                sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                fecha_hora_arg = obtener_hora_argentina()
-                fecha_hoy = fecha_hora_arg.split(" ")[0]
-                hora_actual = fecha_hora_arg.split(" ")[1]
-                
-                escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
-                escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_relevo, vig_saliente, vig_entrante, v_dni_relevo, sup_resp, "RELEVO_EFECTUADO"])
-                
-                st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
-
-    with t_mensajeria:
-        renderizar_mensajeria_global("VIGILADOR")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# =========================================================================
-# ROL: JEFE DE OPERACIONES / GERENCIA
-# =========================================================================
-if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1.container():
-        @st.fragment(run_every=5)
-        def mostrar_sos():
-            df_alertas = leer_matriz_nube("ALERTAS")
-            df_pan_vig_jefe = df_alertas[
-                (df_alertas['TIPO'].astype(str).str.upper() == "PÁNICO") & 
-                (df_alertas['ESTADO'].astype(str).str.upper() == "PENDIENTE")
-            ] if not df_alertas.empty and 'TIPO' in df_alertas.columns else pd.DataFrame()
-            total_sos = len(df_pan_vig_jefe)
-            st.metric("🚨 S.O.S ACTIVOS", total_sos)
-        mostrar_sos()
-
-    col2.metric("📡 RED", "OPERATIVA")
-    col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
-    
-    with col4.container():
-        renderizar_reloj_fluido()
-
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | 
-                            (df_msg['DESTINATARIO'] == st.session_state.rol_sel) | 
-                            (df_msg['DESTINATARIO'] == nombre_user)) & 
-                           (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
-    
-    label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
-    
-    st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: {st.session_state.rol_sel}</h2>', unsafe_allow_html=True)
-    
-    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA"])
-    
-    with t_mensajeria_jefe:
-        renderizar_mensajeria_global(st.session_state.rol_sel)
-        
-    with t_ejecucion:
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.subheader("ALTA DE RECURSO / OBJETIVO")
-            g_alta_nom = st.text_input("Nombre:", key="jefe_alta_nom")
-            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="jefe_alta_asig")
-            if st.button("Solicitar Alta"):
-                escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", f"{g_alta_nom} | ASIG: {g_alta_asig}", "PENDIENTE"])
-                st.success("✅ Petición enviada")
-        with col_g2:
-            st.subheader("BAJA DE OBJETIVO")
-            g_baja_obj = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"], key="jefe_baja_obj")
-            if st.button("Solicitar Baja"):
-                escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", g_baja_obj, "PENDIENTE"])
-                st.success("✅ Petición enviada")
-    
-    with t_tab_auditoria:
-        st.markdown(f"### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
-        df_jornada_aud = leer_matriz_nube("JORNADA SUPERVISORES")
-        df_qr_aud = leer_matriz_nube("REGISTRO QR SUPERVISORES")
-        df_flota_aud = leer_matriz_nube("CONTROL DE FLOTA")
-        df_alertas_aud = leer_matriz_nube("ALERTAS")
-        df_vig_rel_aud = leer_matriz_nube("VIGILADORES")
-        df_nov_aud = leer_matriz_nube("NOVEDADES GUARDIA")
-
-        supervisores_en_qr_set = set()
-        if not df_qr_aud.empty:
-            df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
-            col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_aud.columns else df_qr_aud.columns[3]
-            if col_sup_q in df_qr_aud.columns:
-                for s in df_qr_aud[col_sup_q].dropna().astype(str).str.strip().str.upper():
-                    if s and s != "NAN": supervisores_en_qr_set.add(s)
-
-        if not df_jornada_aud.empty:
-            df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
-            col_sup_j = 'SUPERVISOR' if 'SUPERVISOR' in df_jornada_aud.columns else df_jornada_aud.columns[1]
-            if col_sup_j in df_jornada_aud.columns:
-                for s in df_jornada_aud[col_sup_j].dropna().astype(str).str.strip().str.upper():
-                    if s and s != "NAN": supervisores_en_qr_set.add(s)
-
-        if not df_flota_aud.empty:
-            df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
-            col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else df_flota_aud.columns[1]
-            if col_sup_f in df_flota_aud.columns:
-                for s in df_flota_aud[col_sup_f].dropna().astype(str).str.strip().str.upper():
-                    if s and s != "NAN": supervisores_en_qr_set.add(s)
-
-        supervisores_en_qr = sorted(list(supervisores_en_qr_set))
-
-        if len(supervisores_en_qr) > 0:
-            pestanas_jefe = st.tabs(supervisores_en_qr)
-            
-            for idx_pj, sup_seleccionado_jefe in enumerate(supervisores_en_qr):
-                with pestanas_jefe[idx_pj]:
-                    st.markdown(f"### 🛡️ REPORTE TÁCTICO INTEGRAL: **{sup_seleccionado_jefe}**")
-                    
-                    inicio_jornada_gen = "---"
-                    fin_jornada_gen = "---"
-                    total_horas_trabajadas = "---"
-                    
-                    if not df_jornada_aud.empty:
-                        df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
-                        col_s_j = df_jornada_aud.columns[1]
-                        col_a_j = df_jornada_aud.columns[3]
-                        col_h_j = df_jornada_aud.columns[4]
-                        
-                        df_sup_jor = df_jornada_aud[df_jornada_aud[col_s_j].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]
-                        if not df_sup_jor.empty:
-                            inicios_jor = df_sup_jor[df_sup_jor[col_a_j].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines_jor = df_sup_jor[df_sup_jor[col_a_j].astype(str).str.strip().str.upper() == 'FIN']
-                            
-                            dt_ini_j = None
-                            dt_fin_j = None
-                            
-                            if not inicios_jor.empty:
-                                inicio_jornada_gen = str(inicios_jor.iloc[-1][col_h_j])
-                                try:
-                                    dt_ini_j = datetime.strptime(inicio_jornada_gen, "%H:%M:%S")
-                                except: pass
-                            if not fines_jor.empty:
-                                fin_jornada_gen = str(fines_jor.iloc[-1][col_h_j])
-                                try:
-                                    dt_fin_j = datetime.strptime(fin_jornada_gen, "%H:%M:%S")
-                                except: pass
-                                
-                            if dt_ini_j and dt_fin_j and dt_fin_j >= dt_ini_j:
-                                dif_j = dt_fin_j - dt_ini_j
-                                m_tot_j = int(dif_j.total_seconds() // 60)
-                                h_j = m_tot_j // 60
-                                mi_j = m_tot_j % 60
-                                total_horas_trabajadas = f"{h_j}h {mi_j}m" if h_j > 0 else f"{mi_j} min"
-
-                    c_jor1, c_jor2, c_jor3 = st.columns(3)
-                    c_jor1.metric("🚀 INICIO DE JORNADA", inicio_jornada_gen)
-                    c_jor2.metric("🏁 CIERRE DE JORNADA", fin_jornada_gen)
-                    c_jor3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_trabajadas)
-
-                    df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
-                    
-                    df_tabla_permanencia = pd.DataFrame()
-                    if not df_sup_qrs.empty:
-                        df_sup_qrs.columns = [str(c).strip().upper() for c in df_sup_qrs.columns]
-                        col_fh_qr = df_sup_qrs.columns[0]
-                        col_obj_qr = df_sup_qrs.columns[1]
-                        col_acc_qr = df_sup_qrs.columns[2]
-                        
-                        lista_resumen_permanencia = []
-                        objetivos_visitados_set = df_sup_qrs[col_obj_qr].dropna().astype(str).str.strip().str.upper().unique()
-                        
-                        for obj_v in objetivos_visitados_set:
-                            df_obj_reg = df_sup_qrs[df_sup_qrs[col_obj_qr].astype(str).str.strip().str.upper() == obj_v]
-                            inicios_obj = df_obj_reg[df_obj_reg[col_acc_qr].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines_obj = df_obj_reg[df_obj_reg[col_acc_qr].astype(str).str.strip().str.upper() == 'FIN']
-                            
-                            ingreso_str = "---"
-                            egreso_str = "---"
-                            permanencia_calc = "---"
-                            dt_ing, dt_egr = None, None
-                            
-                            if not inicios_obj.empty:
-                                fh_ing_raw = str(inicios_obj.iloc[-1][col_fh_qr])
-                                ingreso_str = fh_ing_raw.split(" ")[1] if " " in fh_ing_raw else fh_ing_raw
-                                try: dt_ing = datetime.strptime(ingreso_str, "%H:%M:%S")
-                                except: pass
-                                
-                            if not fines_obj.empty:
-                                fh_egr_raw = str(fines_obj.iloc[-1][col_fh_qr])
-                                egreso_str = fh_egr_raw.split(" ")[1] if " " in fh_egr_raw else fh_egr_raw
-                                try: dt_egr = datetime.strptime(egreso_str, "%H:%M:%S")
-                                except: pass
-                                
-                            if dt_ing and dt_egr and dt_egr >= dt_ing:
-                                dif_p = dt_egr - dt_ing
-                                m_tot_p = int(dif_p.total_seconds() // 60)
-                                hp, mp = m_tot_p // 60, m_tot_p % 60
-                                permanencia_calc = f"{hp}h {mp}m" if hp > 0 else f"{mp} min"
-                                
-                            lista_resumen_permanencia.append({
-                                "OBJETIVO": obj_v,
-                                "HORARIO INGRESO": ingreso_str,
-                                "HORARIO EGRESO": egreso_str,
-                                "TIEMPO DE PERMANENCIA": permanencia_calc
-                            })
-                            
-                        df_tabla_permanencia = pd.DataFrame(lista_resumen_permanencia)
-                        st.markdown("##### 📍 Detalle de Permanencia por Objetivo (Escaneos QR)")
-                        st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("No hay registros de escaneos QR para este supervisor.")
-
-                    st.markdown("---")
-                    
-                    objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
-                    
-                    df_fich_filtrado = pd.DataFrame()
-                    if not df_nov_aud.empty and len(objs_del_sup) > 0:
-                        df_nov_aud.columns = [str(c).strip().upper() for c in df_nov_aud.columns]
-                        df_nov_aud['OBJETIVO_CLEAN'] = df_nov_aud['OBJETIVO'].astype(str).str.strip().str.upper() if 'OBJETIVO' in df_nov_aud.columns else ""
-                        col_ev = next((p for p in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO'] if p in df_nov_aud.columns), df_nov_aud.columns[2] if len(df_nov_aud.columns) > 2 else None)
-                        if col_ev:
-                            mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                            df_fich_raw = df_nov_aud[mask_f].copy()
-                            if not df_fich_raw.empty:
-                                filas_fich_limpias = []
-                                for _, r in df_fich_raw.iterrows():
-                                    fh_val = str(r.iloc[0])
-                                    obj_val = str(r.iloc[1])
-                                    ev_val = str(r.iloc[2])
-                                    nombre_vig = str(r.iloc[4])
-                                    leg_val = str(r.iloc[5])
-                                    est_val = str(r.iloc[6]) if len(r) > 6 else "PROCESADO"
-                                    
-                                    ingreso_col = nombre_vig if "INGRESO" in ev_val.upper() or "MARCACIÓN_INGRESO" in ev_val.upper() else "---"
-                                    egreso_col = nombre_vig if "EGRESO" in ev_val.upper() or "MARCACIÓN_EGRESO" in ev_val.upper() else "---"
-                                    
-                                    filas_fich_limpias.append({
-                                        "FECHA": fh_val,
-                                        "OBJETIVO": obj_val,
-                                        "EVENTO": ev_val,
-                                        "INGRESO": ingreso_col,
-                                        "EGRESO": egreso_col,
-                                        "LEGAJO": leg_val,
-                                        "ESTADO": est_val
-                                    })
-                                df_fich_filtrado = pd.DataFrame(filas_fich_limpias)
-
-                    df_rel_filtrado = pd.DataFrame()
-                    if not df_vig_rel_aud.empty and len(objs_del_sup) > 0:
-                        df_vig_rel_aud.columns = [str(c).strip().upper() for c in df_vig_rel_aud.columns]
-                        col_ov = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
-                        df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_ov].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
-
-                    df_pan_sup_filtrado = pd.DataFrame()
-                    if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
-                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
-                        mask_s_pan = (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
-                        df_pan_sup_filtrado = df_pan_op[mask_s_pan]
-
-                    df_pan_vig_filtrado = pd.DataFrame()
-                    if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
-                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
-                        mask_v_pan = df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
-                        mask_no_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
-                        df_pan_vig_filtrado = df_pan_op[mask_v_pan & mask_no_sup]
-
-                    df_alt_sup_filtrado = pd.DataFrame()
-                    if not df_alertas_aud.empty:
-                        df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
-                        mask_alt = (df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
-                                   (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe if 'SUPERVISOR' in df_alt_op.columns else False)
-                        df_alt_sup_filtrado = df_alt_op[mask_alt]
-
-                    df_flota_sup_filtro = pd.DataFrame()
-                    if not df_flota_aud.empty:
-                        df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
-                        col_sf = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
-                        if col_sf:
-                            df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sf].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()].copy()
-
-                    st.markdown("---")
-                    
-                    with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
-                        st.markdown(f"**Supervisor:** {sup_seleccionado_jefe} | **Emisión:** {obtener_hora_argentina()}")
-                        
-                        st.markdown("##### ⏱️ Control de Jornada y Horas Trabajadas")
-                        df_resumen_jor_prev = pd.DataFrame({
-                            "INICIO DE JORNADA": [inicio_jornada_gen],
-                            "CIERRE DE JORNADA": [fin_jornada_gen],
-                            "TOTAL HORAS TRABAJADAS": [total_horas_trabajadas]
-                        })
-                        st.dataframe(df_resumen_jor_prev, use_container_width=True, hide_index=True)
-                        
-                        st.markdown("##### 📍 Detalle de Escaneos QR y Permanencia")
-                        if not df_tabla_permanencia.empty:
-                            st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin registros QR en este periodo.")
-                            
-                        st.markdown("##### 📋 Fichaje de Vigiladores")
-                        if not df_fich_filtrado.empty:
-                            st.dataframe(df_fich_filtrado, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin fichajes registrados.")
-
-                        st.markdown("##### 🔄 Relevos de Vigiladores")
-                        if not df_rel_filtrado.empty:
-                            st.dataframe(df_rel_filtrado, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin relevos registrados.")
-
-                        st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
-                        if not df_pan_sup_filtrado.empty:
-                            st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin pánicos de supervisor.")
-
-                        st.markdown("##### 🚨 Pánicos S.O.S de Vigiladores")
-                        if not df_pan_vig_filtrado.empty:
-                            df_pan_vig_c_turno = df_pan_vig_filtrado.copy()
-                            turnos_vig_list = []
-                            for _, f_row in df_pan_vig_c_turno.iterrows():
-                                fh_val_p = str(f_row.get('FECHA', ''))
-                                turnos_vig_list.append(determinar_turno_activo(fh_val_p))
-                            df_pan_vig_c_turno['TURNO VIGILADOR'] = turnos_vig_list
-                            st.dataframe(df_pan_vig_c_turno.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin pánicos de vigiladores.")
-
-                        total_alertas_supervisor_j = len(df_pan_sup_filtrado) if not df_pan_sup_filtrado.empty else 0
-                        total_alertas_vigilador_j = len(df_pan_vig_filtrado) if not df_pan_vig_filtrado.empty else 0
-
-                        if total_alertas_supervisor_j > 0 or total_alertas_vigilador_j > 0 or not df_alt_sup_filtrado.empty:
-                            st.markdown("##### ⚠️ Alertas Operativas")
-                            if total_alertas_supervisor_j > 0:
-                                st.markdown(f"• TOTAL ALERTAS DE SUPERVISOR: **{total_alertas_supervisor_j}**")
-                            if total_alertas_vigilador_j > 0:
-                                st.markdown(f"• TOTAL ALERTAS DE VIGILADOR: **{total_alertas_vigilador_j}**")
-                            if not df_alt_sup_filtrado.empty:
-                                st.dataframe(df_alt_sup_filtrado, use_container_width=True, hide_index=True)
-
-                        st.markdown("##### 🚗 Control de Flota")
-                        if not df_flota_sup_filtro.empty:
-                            st.dataframe(df_flota_sup_filtro, use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin registros de flota.")
-
-                    st.markdown("---")
-
-                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt):
-                        buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(
-                            buffer, 
-                            pagesize=landscape(letter), 
-                            rightMargin=24, 
-                            leftMargin=24, 
-                            topMargin=24, 
-                            bottomMargin=35
-                        )
-                        elementos = []
-                        styles = getSampleStyleSheet()
-                        
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, leading=15, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=10, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, leading=11, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
-                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
-
-                        elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
-                        elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
-                        
-                        elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
-                        datos_jornada_resumen = [
-                            ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
-                            [j_ini, j_fin, j_tot]
-                        ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[248, 248, 248])
-                        t_jor.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
-                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 8),
-                            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
-                            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                            ('TOPPADDING', (0, 0), (-1, -1), 4),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                        ]))
-                        elementos.append(t_jor)
-                        elementos.append(Spacer(1, 6))
-
-                        def agregar_tabla_pdf(titulo_sec, df_in, anchos_personalizados=None):
-                            elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
-                            if not df_in.empty:
-                                cols = list(df_in.columns)
-                                num_cols = len(cols)
-                                ancho_total_disponible = 744.0
-                                
-                                if anchos_personalizados and len(anchos_personalizados) == num_cols:
-                                    anchos_lista = anchos_personalizados
-                                else:
-                                    anchos_lista = [ancho_total_disponible / num_cols] * num_cols
-
-                                estilo_cab = ParagraphStyle('EC', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7, leading=9, textColor=colors.white, alignment=1)
-                                estilo_cel = ParagraphStyle('ECL', parent=styles['Normal'], fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=colors.HexColor('#333333'), alignment=1)
-
-                                datos = []
-                                fila_encabezados = [Paragraph(str(c), estilo_cab) for c in cols]
-                                datos.append(fila_encabezados)
-
-                                for _, row in df_in.iterrows():
-                                    fila_parrafos = []
-                                    for c in cols:
-                                        val = str(row[c]) if pd.notna(row[c]) else ""
-                                        fila_parrafos.append(Paragraph(val, estilo_cel))
-                                    datos.append(fila_parrafos)
-
-                                t = Table(datos, colWidths=anchos_lista, repeatRows=1)
-                                t.setStyle(TableStyle([
-                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
-                                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 3),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
-                                    ('LEFTPADDING', (0, 0), (-1, -1), 2),
-                                    ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-                                ]))
-                                element = t
-                                elementos.append(element)
-                            else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
-                            elementos.append(Spacer(1, 6))
-
-                        agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
-                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
-                        agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
-                        agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
-                        
-                        df_pvig_pdf = d_pvig.copy()
-                        if not df_pvig_pdf.empty:
-                            turnos_vig_pdf_list = []
-                            for _, p_row in df_pvig_pdf.iterrows():
-                                f_val_p = str(p_row.get('FECHA', ''))
-                                turnos_vig_pdf_list.append(determinar_turno_activo(f_val_p))
-                            df_pvig_pdf['TURNO VIGILADOR'] = turnos_vig_pdf_list
-                        agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", df_pvig_pdf)
-                        
-                        if tot_s_cnt > 0 or tot_v_cnt > 0 or not d_alt.empty:
-                            elementos.append(Paragraph("<b>Alertas Operativas</b>", estilo_seccion))
-                            if tot_s_cnt > 0:
-                                elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
-                            if tot_v_cnt > 0:
-                                element_v = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
-                                elementos.append(element_v)
-                            elementos.append(Spacer(1, 4))
-
-                            if not d_alt.empty:
-                                agregar_tabla_pdf("Detalle de Alertas Operativas:", d_alt)
-
-                        agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
-
-                        doc.build(elementos, canvasmaker=NumberedCanvas)
-                        buffer.seek(0)
-                        return buffer.getvalue()
-
-                    pdf_bytes_integral = generar_pdf_integral_completo(
-                        sup_seleccionado_jefe, inicio_jornada_gen, fin_jornada_gen, total_horas_trabajadas,
-                        df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, 
-                        df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro,
-                        total_alertas_supervisor_j, total_alertas_vigilador_j
-                    )
-
-                    st.download_button(
-                        label=f"📥 DESCARGAR REPORTE TÁCTICO INTEGRAL (PDF COMPLETO) - {sup_seleccionado_jefe}",
-                        data=pdf_bytes_integral,
-                        file_name=f"reporte_tactico_integral_{sup_seleccionado_jefe.replace(' ', '_')}.pdf",
-                        mime="application/pdf",
-                        key=f"btn_pdf_integral_jefe_{sup_seleccionado_jefe}_{idx_pj}",
-                        use_container_width=True
-                    )
-        else:
-            st.info("No hay registros activos de supervisores en el sistema todavía.")
-
-        if st.session_state.rol_sel == "GERENCIA":
-            st.markdown("---")
-            st.markdown("### 🔒 PROTOCOLO DE CIERRE TÁCTICO MENSUAL")
-            st.info("ℹ️ Esta acción archivará y limpiará las tablas operativas actuales para iniciar un nuevo ciclo.")
-            if st.button("EJECUTAR CIERRE TÁCTICO MENSUAL"):
-                if ejecutar_cierre_táctico():
-                    st.success("✅ ¡Cierre táctico ejecutado con éxito! Ciclo reiniciado.")
-                    st.rerun()
-
-
-# =========================================================================
-# ROL: ADMINISTRADOR
-# =========================================================================
-elif st.session_state.rol_sel == "ADMINISTRADOR":
-    if st.session_state.user_sel == "ADMIN CENTRAL":
-        st.session_state.admin_autenticado = True
-    
-    if st.session_state.admin_autenticado:
-        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
-        st.markdown("### ⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL DE ADMINISTRACIÓN")
-        st.success("✅ Acceso autorizado al Núcleo Maestro Central.")
-
-        df_usr_m = leer_matriz_nube("USUARIOS")
-        df_obj_m = cargar_objetivos()
-        df_alt_m = leer_matriz_nube("ALERTAS")
-        
-        total_usrs = len(df_usr_m) if not df_usr_m.empty else 0
-        total_objs = len(df_obj_m) if not df_obj_m.empty else 0
-        df_pan_vig_adm = df_alt_m[
-            (df_alt_m['TIPO'].astype(str).str.upper() == "PÁNICO") & 
-            (df_alt_m['ESTADO'].astype(str).str.upper() == "PENDIENTE")
-        ] if not df_alt_m.empty and 'TIPO' in df_alt_m.columns else pd.DataFrame()
-        pend_sos = len(df_pan_vig_adm)
-
-        c_adm1, c_adm2, c_adm3 = st.columns(3)
-        c_adm1.metric("👥 TOTAL USUARIOS", total_usrs)
-        c_adm2.metric("🎯 OBJETIVOS ACTIVOS", total_objs)
-        c_adm3.metric("🚨 ALERTAS PENDIENTES", pend_sos)
-
-        st.markdown("---")
-
-        t_adm_usr, t_adm_obj, t_adm_mantenimiento = st.tabs([
-            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO"
-        ])
-
-        with t_adm_usr:
-            st.markdown("#### 👤 SOLICITUDES DE ACCESO Y PADRÓN DE USUARIOS")
-            if not df_usr_m.empty:
-                st.dataframe(df_usr_m[['USUARIO', 'ROL', 'ESTADO']], use_container_width=True, hide_index=True)
-                pdf_usuarios = generar_pdf_reporte("PADRÓN GENERAL DE USUARIOS Y ACCESOS", df_usr_m[['USUARIO', 'ROL', 'ESTADO']])
-                st.download_button("📥 DESCARGAR PADRÓN DE USUARIOS (PDF)", data=pdf_usuarios, file_name=f"padron_usuarios_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_usuarios_admin")
-                
-                st.markdown("---")
-                if 'ESTADO' in df_usr_m.columns:
-                    pendientes_u = df_usr_m[df_usr_m['ESTADO'] == "PENDIENTE"]
-                    if not pendientes_u.empty:
-                        usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes_u['USUARIO'].tolist(), key="sel_usr_aprobar")
-                        if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
-                            idx = df_usr_m[df_usr_m['USUARIO'] == usuario_a_aprobar].index[0]
-                            if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
-                                st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
-                                st.cache_data.clear()
-                                st.rerun()
-
-        with t_adm_obj:
-            st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
-            if not df_obj_m.empty:
-                st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
-                pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
-
-        with t_adm_mantenimiento:
-            st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
-            if not df_obj_m.empty:
-                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
-
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.error("⚠️ Acceso restringido.")
+                obj_select = st.selectbox("Seleccione su Objetivo Asignado:", df_objetivos
