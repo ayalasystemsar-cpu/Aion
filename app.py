@@ -705,6 +705,9 @@ def ejecutar_cierre_táctico():
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     st.markdown("### 🚶 RECORRIDO CON MARCACIÓN QR")
 
+    if not dni and st.session_state.get('rol_sel') == "ADMINISTRADOR":
+        dni = "99999999"
+
     if not dni:
         st.warning("⚠️ Para registrar recorridos debés ingresar con tu DNI.")
         return
@@ -871,7 +874,7 @@ def mostrar_landing():
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
     
     with st.form("form_acceso_real"):
-        user = st.text_input("Usuario o Apellido del Supervisor (Vigilador: DNI)", key="u")
+        user = st.text_input("Usuario (Vigilador: DNI)", key="u")
         password = st.text_input("Contraseña (Vigilador: DNI)", type="password", key="p")
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "ADMINISTRADOR"]
         rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
@@ -932,11 +935,14 @@ def mostrar_landing():
                 dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())
                 df_pad = leer_matriz_nube("PADRON VIGILADORES")
                 fila_vig = pd.DataFrame()
-                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
-                    fila_vig = df_pad[df_pad['DNI'].astype(str).str.replace(r'\D', '', regex=True) == dni_ingresado]
                 
-                if (not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO") or pass_limpio == dni_ingresado or pass_limpio == "1234":
+                if dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
+                    df_pad['DNI_CLEAN'] = df_pad['DNI'].astype(str).str.replace(r'\D', '', regex=True)
+                    fila_vig = df_pad[df_pad['DNI_CLEAN'] == dni_ingresado]
+                
+                if (not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO" and pass_limpio == dni_ingresado) or pass_limpio == dni_ingresado or pass_limpio == "1234":
                     nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', user_limpio if user_limpio else "VIGILADOR")).strip().upper() if not fila_vig.empty else (user_limpio if user_limpio else "VIGILADOR")
+                    
                     st.session_state.usuario_logueado = True
                     st.session_state.user_sel = nombre_vig
                     st.session_state.rol_sel = "VIGILADOR"
@@ -2721,9 +2727,9 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         st.markdown("---")
 
-        t_adm_usr, t_adm_obj, t_adm_mantenimiento, t_adm_vig, t_adm_qr_rec = st.tabs([
+        t_adm_usr, t_adm_obj, t_adm_mantenimiento, t_adm_vig, t_adm_qr_rec, t_adm_probar_rec = st.tabs([
             "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO",
-            "🪪 PADRÓN DE VIGILADORES", "🧾 PUNTOS QR RECORRIDO"
+            "🪪 PADRÓN DE VIGILADORES", "🧾 PUNTOS QR RECORRIDO", "🚶 PROBAR RECORRIDO QR"
         ])
 
         with t_adm_usr:
@@ -2790,6 +2796,21 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 df_obj_m['OBJETIVO'].unique() if not df_obj_m.empty else [],
                 "adm"
             )
+
+        with t_adm_probar_rec:
+            st.markdown("#### 🧪 MODO DE PRUEBA: RECORRIDO Y ESCÁNER QR")
+            st.info("ℹ️ Como Administrador puedes probar el escaneo y la marcación de puntos de recorrido de cualquier objetivo sin restricciones.")
+            
+            objs_admin_test = df_obj_m['OBJETIVO'].unique() if not df_obj_m.empty else []
+            if len(objs_admin_test) > 0:
+                obj_test_elegido = st.selectbox("SELECCIONAR OBJETIVO A PROBAR:", objs_admin_test, key="test_obj_admin_rec")
+                renderizar_recorrido_vigilador(
+                    obj_test_elegido,
+                    st.session_state.user_sel,
+                    "99999999"
+                )
+            else:
+                st.warning("No hay objetivos cargados en el sistema para probar.")
 
         st.markdown('</div>', unsafe_allow_html=True)
     else:
