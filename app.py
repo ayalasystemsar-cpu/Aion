@@ -1505,6 +1505,22 @@ if st.session_state.rol_sel == "MONITOREO":
                         st.info("No hay relevos de vigiladores registrados.")
 
                     st.markdown("---")
+                    st.markdown("#### 🚶 Recorridos de Vigiladores (Puntos QR)")
+                    df_rec_m_base = leer_matriz_nube("REGISTRO RECORRIDOS")
+                    if not df_rec_m_base.empty and len(objs_del_sup) > 0:
+                        df_rec_m_base.columns = [str(c).strip().upper() for c in df_rec_m_base.columns]
+                        if 'OBJETIVO' in df_rec_m_base.columns:
+                            df_rec_sup_filtrado = df_rec_m_base[df_rec_m_base['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
+                            if not df_rec_sup_filtrado.empty:
+                                st.dataframe(df_rec_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                            else:
+                                st.info("No hay recorridos de vigiladores registrados para los objetivos de este supervisor.")
+                        else:
+                            st.info("Estructura de recorridos no disponible.")
+                    else:
+                        st.info("No hay registros de recorridos en la red.")
+
+                    st.markdown("---")
                     st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
                     if not df_alt_m_base.empty:
                         df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
@@ -2285,6 +2301,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
         df_alertas_aud = leer_matriz_nube("ALERTAS")
         df_vig_rel_aud = leer_matriz_nube("VIGILADORES")
         df_nov_aud = leer_matriz_nube("NOVEDADES GUARDIA")
+        df_rec_aud = leer_matriz_nube("REGISTRO RECORRIDOS")
 
         supervisores_en_qr_set = set()
         if not df_qr_aud.empty:
@@ -2453,6 +2470,12 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         col_ov = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
                         df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_ov].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
 
+                    df_rec_filtrado = pd.DataFrame()
+                    if not df_rec_aud.empty and len(objs_del_sup) > 0:
+                        df_rec_aud.columns = [str(c).strip().upper() for c in df_rec_aud.columns]
+                        if 'OBJETIVO' in df_rec_aud.columns:
+                            df_rec_filtrado = df_rec_aud[df_rec_aud['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
+
                     df_pan_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
                         df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
@@ -2512,6 +2535,12 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin relevos registrados.")
 
+                        st.markdown("##### 🚶 Recorridos de Vigiladores (Puntos QR)")
+                        if not df_rec_filtrado.empty:
+                            st.dataframe(df_rec_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin recorridos de vigiladores registrados.")
+
                         st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
                         if not df_pan_sup_filtrado.empty:
                             st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
@@ -2550,7 +2579,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
 
-                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt):
+                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_rec, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
                             buffer, 
@@ -2638,6 +2667,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
+                        agregar_tabla_pdf("Recorridos de Vigiladores (Puntos QR):", d_rec)
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                         
                         df_pvig_pdf = d_pvig.copy()
@@ -2669,7 +2699,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     pdf_bytes_integral = generar_pdf_integral_completo(
                         sup_seleccionado_jefe, inicio_jornada_gen, fin_jornada_gen, total_horas_trabajadas,
-                        df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, 
+                        df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, df_rec_filtrado, 
                         df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro,
                         total_alertas_supervisor_j, total_alertas_vigilador_j
                     )
