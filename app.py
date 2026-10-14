@@ -22,7 +22,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 import streamlit.components.v1 as components
-from streamlit_qrcode_scanner import qrcode_scanner
+import os, tempfile
 
 # --- 1. CLASE PARA NUMERACIÓN DE PÁGINAS EN PDF ---
 class NumberedCanvas(canvas.Canvas):
@@ -558,24 +558,6 @@ def aplicar_identidad_alfa():
         }
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
-         
-        /* ESCÁNER CUADRADO, IGUAL EN CELULAR Y WEB */
-        div[data-testid="stElementContainer"]:has(iframe[title*="qrcode_scanner"]) {
-            display: flex !important;
-            justify-content: center !important;
-            width: 100% !important;
-        }
-        iframe[title*="qrcode_scanner"] {
-            width: min(100%, 340px) !important;
-            height: auto !important;
-            aspect-ratio: 1 / 1 !important;
-            border: 2px solid #00E5FF !important;
-            border-radius: 14px !important;
-            background: #000 !important;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.3) !important;
-            display: block !important;
-            margin: 6px auto !important;
-        }
 
         .stTabs [data-baseweb="tab-list"] {
             gap: 6px !important; background-color: transparent !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; padding-bottom: 5px !important;
@@ -701,32 +683,53 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
-# --- FUNCIÓN AUXILIAR PARA ESTILIZAR EL VISOR QR INTERNO (ACTUALIZADA) ---
-def estilizar_visor_qr():
-    components.html("""
-    <script>
-    const ajustar = () => {
-        const f = window.parent.document.querySelector('iframe[title*="qrcode_scanner"]');
-        if (!f || !f.contentDocument) return;
-        const d = f.contentDocument;
-        if (!d.getElementById('visor-aion')) {
-            const s = d.createElement('style');
-            s.id = 'visor-aion';
-            s.innerHTML = `
-                html, body { margin:0 !important; padding:0 !important; background:#000 !important;
-                             width:100% !important; height:100% !important; overflow:hidden !important; }
-                video { position:fixed !important; top:0 !important; left:0 !important;
-                        width:100vw !important; height:100vh !important;
-                        object-fit:cover !important; border-radius:12px !important; }
-                .scan-region-highlight, .scan-region-highlight-svg,
-                .code-outline-highlight, svg { display:none !important; }
-            `;
-            d.head.appendChild(s);
-        }
-    };
-    setInterval(ajustar, 300);
-    </script>
-    """, height=0)
+# --- COMPONENTE PERSONALIZADO VISOR QR ---
+_QR_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html,body{margin:0;padding:0;background:transparent;overflow:hidden}
+#caja{position:relative;box-sizing:border-box;width:min(100%,340px);aspect-ratio:1/1;margin:6px auto;
+border:2px solid #00E5FF;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 0 15px rgba(0,229,255,.3)}
+video{width:100%;height:100%;object-fit:cover;display:block}
+#msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ccc;
+font:13px sans-serif;text-align:center;padding:12px}
+</style></head><body>
+<div id="caja"><video id="v" playsinline muted autoplay></video><div id="msg"></div></div>
+<canvas id="c" style="display:none"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
+function altura(){var w=Math.min(document.documentElement.clientWidth||window.innerWidth,340);
+enviar("streamlit:setFrameHeight",{height:w+16});}
+enviar("streamlit:componentReady",{apiVersion:1});altura();window.addEventListener("resize",altura);
+var v=document.getElementById("v"),c=document.getElementById("c"),m=document.getElementById("msg");
+var ctx=c.getContext("2d",{willReadFrequently:true}),pausa=false;
+navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false})
+.then(function(s){
+  v.srcObject=s;v.play();
+  window.addEventListener("pagehide",function(){s.getTracks().forEach(function(t){t.stop();});});
+  setInterval(function(){
+    if(pausa||v.readyState<2||!v.videoWidth)return;
+    var e=Math.min(1,640/Math.max(v.videoWidth,v.videoHeight));
+    c.width=Math.round(v.videoWidth*e);c.height=Math.round(v.videoHeight*e);
+    ctx.drawImage(v,0,0,c.width,c.height);
+    var im=ctx.getImageData(0,0,c.width,c.height);
+    var r=jsQR(im.data,im.width,im.height,{inversionAttempts:"attemptBoth"});
+    if(r&&r.data){pausa=true;enviar("streamlit:setComponentValue",{value:r.data,dataType:"json"});
+      setTimeout(function(){pausa=false;},3000);}
+  },120);
+}).catch(function(){m.textContent="No se pudo abrir la cámara. Revisá el permiso del navegador.";});
+</script></body></html>"""
+
+@st.cache_resource
+def _declarar_visor_qr():
+    carpeta = tempfile.mkdtemp(prefix="aion_qr_")
+    with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
+        f.write(_QR_HTML)
+    return components.declare_component("aion_visor_qr", path=carpeta)
+
+def visor_qr(key):
+    return _declarar_visor_qr()(key=key, default=None)
 
 # --- 3.B RECORRIDOS CON QR (VIGILADORES) Y GENERADOR DE QR DE PUNTOS ---
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
@@ -803,8 +806,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         </div>
     """, unsafe_allow_html=True)
 
-    codigo = qrcode_scanner(key=f"scan_rec_{obj_u}_{ronda}_{len(marcados)}")
-    estilizar_visor_qr()
+    codigo = visor_qr(key=f"scan_rec_{obj_u}_{ronda}_{len(marcados)}")
 
     if codigo:
         txt = str(codigo).strip()
@@ -1862,8 +1864,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </div>
                     """, unsafe_allow_html=True)
 
-                    codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
-                    estilizar_visor_qr()
+                    codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}")
 
                     if st.session_state.ultimo_mensaje_qr:
                         st.success(st.session_state.ultimo_mensaje_qr)
