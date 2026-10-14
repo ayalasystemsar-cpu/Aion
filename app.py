@@ -592,6 +592,12 @@ def renderizar_reloj_fluido():
     hora_actual = datetime.now(tz).strftime("%H:%M:%S")
     st.metric(label="HORA LOCAL", value=hora_actual)
 
+def col_texto(df, col):
+    s = df[col]
+    if isinstance(s, pd.DataFrame):
+        s = s.iloc[:, 0]
+    return s.astype(str)
+
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
@@ -683,7 +689,7 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
-# --- COMPONENTE PERSONALIZADO VISOR QR ---
+# --- COMPONENTE PERSONALIZADO VISOR QR CON BIP Y VIBRACIÓN ---
 _QR_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -704,6 +710,17 @@ enviar("streamlit:setFrameHeight",{height:w+16});}
 enviar("streamlit:componentReady",{apiVersion:1});altura();window.addEventListener("resize",altura);
 var v=document.getElementById("v"),c=document.getElementById("c"),m=document.getElementById("msg");
 var ctx=c.getContext("2d",{willReadFrequently:true}),pausa=false;
+function bip(){
+  try{
+    var AC;try{AC=window.parent.AudioContext||window.parent.webkitAudioContext;}catch(e){}
+    AC=AC||window.AudioContext||window.webkitAudioContext;
+    var a=new AC(),o=a.createOscillator(),g=a.createGain();
+    o.type="sine";o.frequency.value=1300;g.gain.value=0.25;
+    o.connect(g);g.connect(a.destination);o.start();
+    setTimeout(function(){o.stop();a.close();},170);
+  }catch(e){}
+  try{if(navigator.vibrate)navigator.vibrate(120);}catch(e){}
+}
 navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false})
 .then(function(s){
   v.srcObject=s;v.play();
@@ -715,7 +732,7 @@ navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},wid
     ctx.drawImage(v,0,0,c.width,c.height);
     var im=ctx.getImageData(0,0,c.width,c.height);
     var r=jsQR(im.data,im.width,im.height,{inversionAttempts:"attemptBoth"});
-    if(r&&r.data){pausa=true;enviar("streamlit:setComponentValue",{value:r.data,dataType:"json"});
+    if(r&&r.data){pausa=true;bip();enviar("streamlit:setComponentValue",{value:r.data,dataType:"json"});
       setTimeout(function(){pausa=false;},3000);}
   },120);
 }).catch(function(){m.textContent="No se pudo abrir la cámara. Revisá el permiso del navegador.";});
@@ -767,7 +784,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         df_r = df_r.loc[:, ~df_r.columns.duplicated()].copy()
         m_dni = df_r['DNI'].map(lambda v: str(v).strip() == str(dni))
         m_obj = df_r['OBJETIVO'].map(lambda v: str(v).strip().upper() == obj_u)
-        m_fecha = df_r['FECHA_HORA'].map(lambda v: hoy in str(v))
+        m_fecha = col_texto(df_r, 'FECHA_HORA').map(lambda v: hoy in str(v))
         df_hoy = df_r[m_dni & m_obj & m_fecha]
 
     rondas = pd.to_numeric(df_hoy['RONDA'], errors='coerce').dropna() if not df_hoy.empty else pd.Series(dtype=float)
@@ -779,7 +796,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     marcados = set()
     if not df_hoy.empty:
         df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
-        marcados = set(df_ronda['PUNTO'].astype(str).str.strip().str.upper())
+        marcados = set(col_texto(df_ronda, 'PUNTO').str.strip().str.upper())
 
     c_r1, c_r2 = st.columns(2)
     c_r1.metric("🔁 RONDA", ronda)
@@ -865,7 +882,7 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
         nuevo_orden = st.number_input("ORDEN EN EL RECORRIDO:", min_value=1, value=len(existentes) + 1, step=1)
         if st.form_submit_button("➕ GUARDAR PUNTO"):
             if nuevo_punto:
-                ya_existe = (not existentes.empty) and (nuevo_punto in existentes['PUNTO'].astype(str).str.strip().str.upper().tolist())
+                ya_existe = (not existentes.empty) and (nuevo_punto in col_texto(existentes, 'PUNTO').str.strip().str.upper().tolist())
                 if ya_existe:
                     st.warning("⚠️ Ese punto ya existe en este objetivo.")
                 elif escribir_registro_nube("RECORRIDOS PUNTOS", [obj_u, nuevo_punto, int(nuevo_orden)]):
@@ -876,7 +893,7 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
 
     if not existentes.empty:
         st.markdown("##### 🖨️ GENERAR QR PARA IMPRIMIR")
-        pto_sel = st.selectbox("PUNTO:", existentes['PUNTO'].astype(str).tolist(), key=f"{key_prefix}_rec_pto")
+        pto_sel = st.selectbox("PUNTO:", col_texto(existentes, 'PUNTO').tolist(), key=f"{key_prefix}_rec_pto")
         texto_qr = f"AION-RECORRIDO|OBJ:{obj_u}|PTO:{str(pto_sel).strip().upper()}"
         qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=3)
         qr.add_data(texto_qr)
@@ -963,7 +980,7 @@ def mostrar_landing():
                 df_pad = leer_matriz_nube("PADRON VIGILADORES")
                 fila_vig = pd.DataFrame()
                 if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
-                    fila_vig = df_pad[df_pad['DNI'].astype(str).str.replace(r'\D', '', regex=True) == dni_ingresado]
+                    fila_vig = df_pad[col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True) == dni_ingresado]
                 if not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO":
                     nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()
                     st.session_state.usuario_logueado = True
@@ -984,8 +1001,8 @@ def mostrar_landing():
                 usuario_ok = pd.DataFrame()
                 if not df_usuarios.empty and 'USUARIO' in df_usuarios.columns and 'CONTRASEÑA' in df_usuarios.columns:
                     usuario_ok = df_usuarios[
-                        (df_usuarios['USUARIO'].str.strip().str.upper() == user_limpio) & 
-                        (df_usuarios['CONTRASEÑA'].str.strip() == pass_limpio)
+                        (col_texto(df_usuarios, 'USUARIO').str.strip().str.upper() == user_limpio) & 
+                        (col_texto(df_usuarios, 'CONTRASEÑA').str.strip() == pass_limpio)
                     ]
                 if not usuario_ok.empty:
                     estado = str(usuario_ok.iloc[0].get('ESTADO', 'PENDIENTE')).strip().upper()
@@ -1228,7 +1245,7 @@ if st.session_state.rol_sel == "MONITOREO":
         df_mapa_filtrado_sup = df_mapa_monitoreo.copy()
         if sup_filtro_mono != "TODOS LOS SUPERVISORES":
             if 'SUPERVISOR' in df_mapa_filtrado_sup.columns:
-                df_mapa_filtrado_sup = df_mapa_filtrado_sup[df_mapa_filtrado_sup['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_filtro_mono]
+                df_mapa_filtrado_sup = df_mapa_filtrado_sup[col_texto(df_mapa_filtrado_sup, 'SUPERVISOR').str.strip().str.upper() == sup_filtro_mono]
 
         if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
             df_jornadas_mon = leer_matriz_nube("REGISTRO QR SUPERVISORES")
@@ -1245,9 +1262,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 col_sup_h = df_jornadas_mon.columns[3]
                  
                 df_j_sup_hoy = df_jornadas_mon[
-                    (df_jornadas_mon[col_sup_h].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
-                    (df_jornadas_mon[col_fec_h].astype(str).contains(fecha_hoy_str, na=False)) &
-                    (df_jornadas_mon[col_acc_h].astype(str).str.strip().str.upper() == 'INICIO')
+                    (col_texto(df_jornadas_mon, col_sup_h).str.strip().str.upper() == sup_filtro_mono) & 
+                    (col_texto(df_jornadas_mon, col_fec_h).str.contains(fecha_hoy_str, na=False)) &
+                    (col_texto(df_jornadas_mon, col_acc_h).str.strip().str.upper() == 'INICIO')
                 ]
                 visitados_sup_count = len(df_j_sup_hoy[col_obj_h].unique())
              
@@ -1299,7 +1316,7 @@ if st.session_state.rol_sel == "MONITOREO":
              
             df_comis_filtro_mono = df_comisarias
             if localidad_obj_val and 'LOCALIDAD' in df_comisarias.columns:
-                df_sub_c = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_val]
+                df_sub_c = df_comisarias[col_texto(df_comisarias, 'LOCALIDAD').str.strip().str.upper() == localidad_obj_val]
                 if not df_sub_c.empty:
                     df_comis_filtro_mono = df_sub_c
 
@@ -1357,9 +1374,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 texto_tooltip = f"🎯 {obj_nombre}"
                 if es_panico:
                     alerta_activa = df_emergencias[
-                        ((df_emergencias['OBJETIVO'].astype(str).str.strip().str.upper() == obj_nombre)) & 
-                        (df_emergencias['ESTADO'].astype(str).str.strip().str.upper() == 'PENDIENTE') & 
-                        (df_emergencias['TIPO'].astype(str).str.strip().str.upper() == 'PÁNICO')
+                        ((col_texto(df_emergencias, 'OBJETIVO').str.strip().str.upper() == obj_nombre)) & 
+                        (col_texto(df_emergencias, 'ESTADO').str.strip().str.upper() == 'PENDIENTE') & 
+                        (col_texto(df_emergencias, 'TIPO').str.strip().str.upper() == 'PÁNICO')
                     ] if 'OBJETIVO' in df_emergencias.columns else pd.DataFrame()
                     if not alerta_activa.empty:
                         nombre_persona = alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')
@@ -1435,21 +1452,21 @@ if st.session_state.rol_sel == "MONITOREO":
             df_qr_m_base.columns = [str(c).strip().upper() for c in df_qr_m_base.columns]
             col_sup_qm = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_m_base.columns else df_qr_m_base.columns[3]
             if col_sup_qm in df_qr_m_base.columns:
-                for s in df_qr_m_base[col_sup_qm].dropna().astype(str).str.strip().str.upper():
+                for s in col_texto(df_qr_m_base, col_sup_qm).dropna().str.strip().str.upper():
                     if s and s != "NAN": sups_dinamicos_set.add(s)
 
         if not df_jor_m_base.empty:
             df_jor_m_base.columns = [str(c).strip().upper() for c in df_jor_m_base.columns]
             col_sup_jm = 'SUPERVISOR' if 'SUPERVISOR' in df_jor_m_base.columns else df_jor_m_base.columns[1]
             if col_sup_jm in df_jor_m_base.columns:
-                for s in df_jor_m_base[col_sup_jm].dropna().astype(str).str.strip().str.upper():
+                for s in col_texto(df_jor_m_base, col_sup_jm).dropna().str.strip().str.upper():
                     if s and s != "NAN": sups_dinamicos_set.add(s)
 
         if not df_flota_m_base.empty:
             df_flota_m_base.columns = [str(c).strip().upper() for c in df_flota_m_base.columns]
             col_sup_fm = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_m_base.columns else df_flota_m_base.columns[1]
             if col_sup_fm in df_flota_m_base.columns:
-                for s in df_flota_m_base[col_sup_fm].dropna().astype(str).str.strip().str.upper():
+                for s in col_texto(df_flota_m_base, col_sup_fm).dropna().str.strip().str.upper():
                     if s and s != "NAN": sups_dinamicos_set.add(s)
 
         sups_dinamicos_lista = sorted(list(sups_dinamicos_set))
@@ -1469,7 +1486,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.markdown("#### 📱 Fichajes QR")
                     if not df_qr_m_base.empty:
                         col_sup_qm = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_m_base.columns else df_qr_m_base.columns[3]
-                        df_sup_qrs_m = df_qr_m_base[df_qr_m_base[col_sup_qm].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]
+                        df_sup_qrs_m = df_qr_m_base[col_texto(df_qr_m_base, col_sup_qm).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]
                         if not df_sup_qrs_m.empty:
                             st.dataframe(df_sup_qrs_m.iloc[::-1], use_container_width=True, hide_index=True)
                         else:
@@ -1481,10 +1498,10 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.markdown("#### 📋 Fichaje de Vigiladores")
                     if not df_nov_m_base.empty:
                         df_nov_m_base.columns = [str(c).strip().upper() for c in df_nov_m_base.columns]
-                        objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
+                        objs_del_sup = [o.strip().upper() for o in df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                          
                         if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_m_base.columns:
-                            df_nov_m_base['OBJETIVO_CLEAN'] = df_nov_m_base['OBJETIVO'].astype(str).str.strip().str.upper()
+                            df_nov_m_base['OBJETIVO_CLEAN'] = col_texto(df_nov_m_base, 'OBJETIVO').str.strip().str.upper()
                              
                             col_evento_real = None
                             for posible_col in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO']:
@@ -1496,7 +1513,7 @@ if st.session_state.rol_sel == "MONITOREO":
 
                             if col_evento_real:
                                 mask_fich = df_nov_m_base['OBJETIVO_CLEAN'].isin(objs_del_sup) & \
-                                            df_nov_m_base[col_evento_real].astype(str).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+                                            col_texto(df_nov_m_base, col_evento_real).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
                                 df_fichajes_sup_filtrado = df_nov_m_base[mask_fich].copy()
                             else:
                                 df_fichajes_sup_filtrado = pd.DataFrame()
@@ -1514,11 +1531,11 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.markdown("#### 🔄 Relevos de vigiladores")
                     if not df_vig_rel_m_base.empty:
                         df_vig_rel_m_base.columns = [str(c).strip().upper() for c in df_vig_rel_m_base.columns]
-                        objs_del_sup = df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_mono]['OBJETIVO'].tolist() if not df_objetivos.empty else []
+                        objs_del_sup = df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == sup_seleccionado_mono]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                          
                         if len(objs_del_sup) > 0:
                             col_obj_v = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_m_base.columns else df_vig_rel_m_base.columns[2]
-                            df_rel_sup_filtrado = df_vig_rel_m_base[df_vig_rel_m_base[col_obj_v].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
+                            df_rel_sup_filtrado = df_vig_rel_m_base[col_texto(df_vig_rel_m_base, col_obj_v).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
                              
                             if not df_rel_sup_filtrado.empty:
                                 st.dataframe(df_rel_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
@@ -1533,10 +1550,10 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
                     if not df_alt_m_base.empty:
                         df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                        df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                        df_panicos_op = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
                          
                         if not df_panicos_op.empty:
-                            mask_solo_supervisor = (df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                            mask_solo_supervisor = (col_texto(df_panicos_op, 'USUARIO').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
                             df_pan_sup_filtrado = df_panicos_op[mask_solo_supervisor]
                         else:
                             df_pan_sup_filtrado = pd.DataFrame()
@@ -1552,12 +1569,12 @@ if st.session_state.rol_sel == "MONITOREO":
                     st.markdown("#### 🚨 Pánico S.O.S Vigilador")
                     if not df_alt_m_base.empty:
                         df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                        df_panicos_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
-                        objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
+                        df_panicos_op = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                        objs_del_sup = [o.strip().upper() for o in df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                          
                         if not df_panicos_op.empty:
-                            mask_obj_del_sup = df_panicos_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
-                            mask_no_es_supervisor = ~(df_panicos_op['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                            mask_obj_del_sup = col_texto(df_panicos_op, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                            mask_no_es_supervisor = ~(col_texto(df_panicos_op, 'USUARIO').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
                             df_pan_vig_filtrado = df_panicos_op[mask_obj_del_sup & mask_no_es_supervisor]
                         else:
                             df_pan_vig_filtrado = pd.DataFrame()
@@ -1580,24 +1597,24 @@ if st.session_state.rol_sel == "MONITOREO":
                     if not df_alt_m_base.empty:
                         df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
                          
-                        df_panicos_op_total = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
+                        df_panicos_op_total = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
                          
-                        mask_solo_sup_cnt = (df_panicos_op_total['USUARIO'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()) if not df_panicos_op_total.empty else pd.Series([False])
+                        mask_solo_sup_cnt = (col_texto(df_panicos_op_total, 'USUARIO').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()) if not df_panicos_op_total.empty else pd.Series([False])
                         total_alertas_supervisor = len(df_panicos_op_total[mask_solo_sup_cnt]) if not df_panicos_op_total.empty else 0
                          
-                        objs_del_sup_cnt = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
-                        mask_obj_sup_cnt = df_panicos_op_total['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup_cnt]) if not df_panicos_op_total.empty and 'OBJETIVO' in df_panicos_op_total.columns else pd.Series([False])
+                        objs_del_sup_cnt = [o.strip().upper() for o in df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
+                        mask_obj_sup_cnt = col_texto(df_panicos_op_total, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup_cnt]) if not df_panicos_op_total.empty and 'OBJETIVO' in df_panicos_op_total.columns else pd.Series([False])
                         mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
                         total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
 
-                        df_alertas_op = df_alt_m_base[df_alt_m_base['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
+                        df_alertas_op = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
                          
                         if not df_alertas_op.empty:
                             mask_alt = pd.Series([False]*len(df_alertas_op))
                             if 'OBJETIVO' in df_alertas_op.columns:
-                                mask_alt = mask_alt | df_alertas_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                                mask_alt = mask_alt | col_texto(df_alertas_op, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
                             if 'SUPERVISOR' in df_alertas_op.columns:
-                                mask_alt = mask_alt | (df_alertas_op['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
+                                mask_alt = mask_alt | (col_texto(df_alertas_op, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
                             df_alt_sup_filtrado = df_alertas_op[mask_alt]
                         else:
                             df_alt_sup_filtrado = pd.DataFrame()
@@ -1626,7 +1643,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
          
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[
-                df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado
+                col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == sup_activo_normalizado
             ].copy()
         else:
             df_objetivos_filtrados = pd.DataFrame()
@@ -1677,7 +1694,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 df_comis_filtro_s = df_comisarias
                 if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_s = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_s]
+                    df_sub_s = df_comisarias[col_texto(df_comisarias, 'LOCALIDAD').str.strip().str.upper() == localidad_obj_s]
                     if not df_sub_s.empty:
                         df_comis_filtro_s = df_sub_s
 
@@ -1756,14 +1773,14 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         col_sup = df_jornadas_act.columns[3]
                          
                         df_j_obj = df_jornadas_act[
-                            (df_jornadas_act[col_sup].astype(str).str.strip().str.upper() == sup_activo_normalizado) & 
-                            (df_jornadas_act[col_obj].astype(str).str.strip().str.upper() == obj_item.strip().upper()) &
-                            (df_jornadas_act[col_fec_hora].astype(str).contains(fecha_hoy_str, na=False))
+                            (col_texto(df_jornadas_act, col_sup).str.strip().str.upper() == sup_activo_normalizado) & 
+                            (col_texto(df_jornadas_act, col_obj).str.strip().str.upper() == obj_item.strip().upper()) &
+                            (col_texto(df_jornadas_act, col_fec_hora).str.contains(fecha_hoy_str, na=False))
                         ]
                          
                         if not df_j_obj.empty:
-                            inicios = df_j_obj[df_j_obj[col_acc].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines = df_j_obj[df_j_obj[col_acc].astype(str).str.strip().str.upper() == 'FIN']
+                            inicios = df_j_obj[col_texto(df_j_obj, col_acc).str.strip().str.upper() == 'INICIO']
+                            fines = df_j_obj[col_texto(df_j_obj, col_acc).str.strip().str.upper() == 'FIN']
                              
                             hora_ingreso_dt = None
                             hora_egreso_dt = None
@@ -2030,7 +2047,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 dist_min, com_name, com_lat, com_lon = float('inf'), "Ninguna", 0.0, 0.0
                 df_comis_filtro_r = df_comisarias
                 if loc_r and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_r = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == loc_r]
+                    df_sub_r = df_comisarias[col_texto(df_comisarias, 'LOCALIDAD').str.strip().str.upper() == loc_r]
                     if not df_sub_r.empty:
                         df_comis_filtro_r = df_sub_r
 
@@ -2055,7 +2072,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             if not df_qr_sup_base.empty:
                 df_qr_sup_base.columns = [str(c).strip().upper() for c in df_qr_sup_base.columns]
                 col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_sup_base.columns else df_qr_sup_base.columns[3]
-                df_qr_sup_propio = df_qr_sup_base[df_qr_sup_base[col_sup_q].astype(str).str.strip().str.upper() == sup_activo_normalizado]
+                df_qr_sup_propio = df_qr_sup_base[col_texto(df_qr_sup_base, col_sup_q).str.strip().str.upper() == sup_activo_normalizado]
                 if not df_qr_sup_propio.empty:
                     st.dataframe(df_qr_sup_propio.iloc[::-1], use_container_width=True, hide_index=True)
                 else:
@@ -2089,7 +2106,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
     df_msg = leer_matriz_nube("MENSAJERIA")
     total_nuevos = 0
     if not df_msg.empty:
-        mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "VIGILADOR") | (df_msg['DESTINATARIO'] == nombre_vigilador_actual)) & (df_msg['ESTADO'] == "PENDIENTE")
+        mask = ((col_texto(df_msg, 'DESTINATARIO') == "TODOS") | (col_texto(df_msg, 'DESTINATARIO') == "VIGILADOR") | (col_texto(df_msg, 'DESTINATARIO') == nombre_vigilador_actual)) & (col_texto(df_msg, 'ESTADO') == "PENDIENTE")
         total_nuevos = len(df_msg[mask])
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
@@ -2126,7 +2143,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                  
                 df_comis_filtro_v = df_comisarias
                 if localidad_obj_v and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_v = df_comisarias[df_comisarias['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_v]
+                    df_sub_v = df_comisarias[col_texto(df_comisarias, 'LOCALIDAD').str.strip().str.upper() == localidad_obj_v]
                     if not df_sub_v.empty:
                         df_comis_filtro_v = df_sub_v
 
@@ -2243,8 +2260,8 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
         def mostrar_sos():
             df_alertas = leer_matriz_nube("ALERTAS")
             df_pan_vig_jefe = df_alertas[
-                (df_alertas['TIPO'].astype(str).str.upper() == "PÁNICO") & 
-                (df_alertas['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+                (col_texto(df_alertas, 'TIPO').str.upper() == "PÁNICO") & 
+                (col_texto(df_alertas, 'ESTADO').str.upper() == "PENDIENTE")
             ] if not df_alertas.empty and 'TIPO' in df_alertas.columns else pd.DataFrame()
             total_sos = len(df_pan_vig_jefe)
             st.metric("🚨 S.O.S ACTIVOS", total_sos)
@@ -2258,10 +2275,10 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = len(df_msg[((df_msg['DESTINATARIO'] == "TODOS") | 
-                            (df_msg['DESTINATARIO'] == st.session_state.rol_sel) | 
-                            (df_msg['DESTINATARIO'] == nombre_user)) & 
-                           (df_msg['ESTADO'] == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
+    total_nuevos = len(df_msg[((col_texto(df_msg, 'DESTINATARIO') == "TODOS") | 
+                            (col_texto(df_msg, 'DESTINATARIO') == st.session_state.rol_sel) | 
+                            (col_texto(df_msg, 'DESTINATARIO') == nombre_user)) & 
+                           (col_texto(df_msg, 'ESTADO') == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
      
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
      
@@ -2302,21 +2319,21 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
             df_qr_aud.columns = [str(c).strip().upper() for c in df_qr_aud.columns]
             col_sup_q = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_aud.columns else df_qr_aud.columns[3]
             if col_sup_q in df_qr_aud.columns:
-                for s in df_qr_aud[col_sup_q].dropna().astype(str).str.strip().str.upper():
+                for s in col_texto(df_qr_aud, col_sup_q).dropna().str.strip().str.upper():
                     if s and s != "NAN": supervisores_en_qr_set.add(s)
 
         if not df_jornada_aud.empty:
             df_jornada_aud.columns = [str(c).strip().upper() for c in df_jornada_aud.columns]
             col_sup_j = 'SUPERVISOR' if 'SUPERVISOR' in df_jornada_aud.columns else df_jornada_aud.columns[1]
             if col_sup_j in df_jornada_aud.columns:
-                for s in df_jornada_aud[col_sup_j].dropna().astype(str).str.strip().str.upper():
+                for s in col_texto(df_jornada_aud, col_sup_j).dropna().str.strip().str.upper():
                     if s and s != "NAN": supervisores_en_qr_set.add(s)
 
         if not df_flota_aud.empty:
             df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
             col_sup_f = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else df_flota_aud.columns[1]
             if col_sup_f in df_flota_aud.columns:
-                for s in df_flota_aud[col_sup_f].dropna().astype(str).str.strip().str.upper():
+                for s in col_texto(df_flota_aud, col_sup_f).dropna().str.strip().str.upper():
                     if s and s != "NAN": supervisores_en_qr_set.add(s)
 
         supervisores_en_qr = sorted(list(supervisores_en_qr_set))
@@ -2338,10 +2355,10 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         col_a_j = df_jornada_aud.columns[3]
                         col_h_j = df_jornada_aud.columns[4]
                          
-                        df_sup_jor = df_jornada_aud[df_jornada_aud[col_s_j].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]
+                        df_sup_jor = df_jornada_aud[col_texto(df_jornada_aud, col_s_j).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]
                         if not df_sup_jor.empty:
-                            inicios_jor = df_sup_jor[df_sup_jor[col_a_j].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines_jor = df_sup_jor[df_sup_jor[col_a_j].astype(str).str.strip().str.upper() == 'FIN']
+                            inicios_jor = df_sup_jor[col_texto(df_sup_jor, col_a_j).str.strip().str.upper() == 'INICIO']
+                            fines_jor = df_sup_jor[col_texto(df_sup_jor, col_a_j).str.strip().str.upper() == 'FIN']
                              
                             dt_ini_j = None
                             dt_fin_j = None
@@ -2369,7 +2386,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     c_jor2.metric("🏁 CIERRE DE JORNADA", fin_jornada_gen)
                     c_jor3.metric("⏳ TOTAL HORAS TRABAJADAS", total_horas_trabajadas)
 
-                    df_sup_qrs = df_qr_aud[df_qr_aud[col_sup_q].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
+                    df_sup_qrs = df_qr_aud[col_texto(df_qr_aud, col_sup_q).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()] if not df_qr_aud.empty and col_sup_q in df_qr_aud.columns else pd.DataFrame()
                      
                     df_tabla_permanencia = pd.DataFrame()
                     if not df_sup_qrs.empty:
@@ -2379,12 +2396,12 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         col_acc_qr = df_sup_qrs.columns[2]
                          
                         lista_resumen_permanencia = []
-                        objetivos_visitados_set = df_sup_qrs[col_obj_qr].dropna().astype(str).str.strip().str.upper().unique()
+                        objetivos_visitados_set = col_texto(df_sup_qrs, col_obj_qr).dropna().str.strip().str.upper().unique()
                          
                         for obj_v in objetivos_visitados_set:
-                            df_obj_reg = df_sup_qrs[df_sup_qrs[col_obj_qr].astype(str).str.strip().str.upper() == obj_v]
-                            inicios_obj = df_obj_reg[df_obj_reg[col_acc_qr].astype(str).str.strip().str.upper() == 'INICIO']
-                            fines_obj = df_obj_reg[df_obj_reg[col_acc_qr].astype(str).str.strip().str.upper() == 'FIN']
+                            df_obj_reg = df_sup_qrs[col_texto(df_sup_qrs, col_obj_qr).str.strip().str.upper() == obj_v]
+                            inicios_obj = df_obj_reg[col_texto(df_obj_reg, col_acc_qr).str.strip().str.upper() == 'INICIO']
+                            fines_obj = df_obj_reg[col_texto(df_obj_reg, col_acc_qr).str.strip().str.upper() == 'FIN']
                              
                             ingreso_str = "---"
                             egreso_str = "---"
@@ -2424,15 +2441,15 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
                      
-                    objs_del_sup = [o.strip().upper() for o in df_objetivos[df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
+                    objs_del_sup = [o.strip().upper() for o in df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
                      
                     df_fich_filtrado = pd.DataFrame()
                     if not df_nov_aud.empty and len(objs_del_sup) > 0:
                         df_nov_aud.columns = [str(c).strip().upper() for c in df_nov_aud.columns]
-                        df_nov_aud['OBJETIVO_CLEAN'] = df_nov_aud['OBJETIVO'].astype(str).str.strip().str.upper() if 'OBJETIVO' in df_nov_aud.columns else ""
+                        df_nov_aud['OBJETIVO_CLEAN'] = col_texto(df_nov_aud, 'OBJETIVO').str.strip().str.upper() if 'OBJETIVO' in df_nov_aud.columns else ""
                         col_ev = next((p for p in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO'] if p in df_nov_aud.columns), df_nov_aud.columns[2] if len(df_nov_aud.columns) > 2 else None)
                         if col_ev:
-                            mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & df_nov_aud[col_ev].astype(str).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+                            mask_f = df_nov_aud['OBJETIVO_CLEAN'].isin(objs_del_sup) & col_texto(df_nov_aud, col_ev).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
                             df_fich_raw = df_nov_aud[mask_f].copy()
                             if not df_fich_raw.empty:
                                 filas_fich_limpias = []
@@ -2462,27 +2479,27 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     if not df_vig_rel_aud.empty and len(objs_del_sup) > 0:
                         df_vig_rel_aud.columns = [str(c).strip().upper() for c in df_vig_rel_aud.columns]
                         col_ov = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
-                        df_rel_filtrado = df_vig_rel_aud[df_vig_rel_aud[col_ov].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
+                        df_rel_filtrado = df_vig_rel_aud[col_texto(df_vig_rel_aud, col_ov).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
 
                     df_pan_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
-                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
-                        mask_s_pan = (df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
+                        df_pan_op = df_alertas_aud[col_texto(df_alertas_aud, 'TIPO').str.strip().str.upper() == "PÁNICO"]
+                        mask_s_pan = (col_texto(df_pan_op, 'USUARIO').str.strip().str.upper() == sup_seleccionado_jefe)
                         df_pan_sup_filtrado = df_pan_op[mask_s_pan]
 
                     df_pan_vig_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
-                        df_pan_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() == "PÁNICO"]
-                        mask_v_pan = df_pan_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
-                        mask_no_sup = ~(df_pan_op['USUARIO'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe)
+                        df_pan_op = df_alertas_aud[col_texto(df_alertas_aud, 'TIPO').str.strip().str.upper() == "PÁNICO"]
+                        mask_v_pan = col_texto(df_pan_op, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
+                        mask_no_sup = ~(col_texto(df_pan_op, 'USUARIO').str.strip().str.upper() == sup_seleccionado_jefe)
                         df_pan_vig_filtrado = df_pan_op[mask_v_pan & mask_no_sup]
 
                     df_alt_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty:
                         df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_alt_op = df_alertas_aud[df_alertas_aud['TIPO'].astype(str).str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
-                        mask_alt = (df_alt_op['OBJETIVO'].astype(str).str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
-                                   (df_alt_op['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_seleccionado_jefe if 'SUPERVISOR' in df_alt_op.columns else False)
+                        df_alt_op = df_alertas_aud[col_texto(df_alertas_aud, 'TIPO').str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
+                        mask_alt = (col_texto(df_alt_op, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
+                                   (col_texto(df_alt_op, 'SUPERVISOR').str.strip().str.upper() == sup_seleccionado_jefe if 'SUPERVISOR' in df_alt_op.columns else False)
                         df_alt_sup_filtrado = df_alt_op[mask_alt]
 
                     df_flota_sup_filtro = pd.DataFrame()
@@ -2490,7 +2507,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         df_flota_aud.columns = [str(c).strip().upper() for c in df_flota_aud.columns]
                         col_sf = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_aud.columns else (df_flota_aud.columns[1] if len(df_flota_aud.columns) > 1 else None)
                         if col_sf:
-                            df_flota_sup_filtro = df_flota_aud[df_flota_aud[col_sf].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()].copy()
+                            df_flota_sup_filtro = df_flota_aud[col_texto(df_flota_aud, col_sf).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()].copy()
 
                     st.markdown("---")
                      
@@ -2724,8 +2741,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         total_usrs = len(df_usr_m) if not df_usr_m.empty else 0
         total_objs = len(df_obj_m) if not df_obj_m.empty else 0
         df_pan_vig_adm = df_alt_m[
-            (df_alt_m['TIPO'].astype(str).str.upper() == "PÁNICO") & 
-            (df_alt_m['ESTADO'].astype(str).str.upper() == "PENDIENTE")
+            (col_texto(df_alt_m, 'TIPO').str.upper() == "PÁNICO") & 
+            (col_texto(df_alt_m, 'ESTADO').str.upper() == "PENDIENTE")
         ] if not df_alt_m.empty and 'TIPO' in df_alt_m.columns else pd.DataFrame()
         pend_sos = len(df_pan_vig_adm)
 
@@ -2750,11 +2767,11 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                  
                 st.markdown("---")
                 if 'ESTADO' in df_usr_m.columns:
-                    pendientes_u = df_usr_m[df_usr_m['ESTADO'] == "PENDIENTE"]
+                    pendientes_u = df_usr_m[col_texto(df_usr_m, 'ESTADO') == "PENDIENTE"]
                     if not pendientes_u.empty:
-                        usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", pendientes_u['USUARIO'].tolist(), key="sel_usr_aprobar")
+                        usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", col_texto(pendientes_u, 'USUARIO').tolist(), key="sel_usr_aprobar")
                         if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
-                            idx = df_usr_m[df_usr_m['USUARIO'] == usuario_a_aprobar].index[0]
+                            idx = df_usr_m[col_texto(df_usr_m, 'USUARIO') == usuario_a_aprobar].index[0]
                             if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
                                 st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
                                 st.cache_data.clear()
@@ -2792,7 +2809,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                     dni_limpio = "".join(ch for ch in nuevo_dni if ch.isdigit())
                     if dni_limpio and nuevo_nombre_vig:
                         ya_cargado = (not df_pad_adm.empty) and ('DNI' in df_pad_adm.columns) and \
-                                     (dni_limpio in df_pad_adm['DNI'].astype(str).str.replace(r'\D', '', regex=True).tolist())
+                                     (dni_limpio in col_texto(df_pad_adm, 'DNI').str.replace(r'\D', '', regex=True).tolist())
                         if ya_cargado:
                             st.warning("⚠️ Ese DNI ya está cargado en el padrón.")
                         elif escribir_registro_nube("PADRON VIGILADORES", [dni_limpio, nuevo_nombre_vig, nuevo_legajo_vig, "ACTIVO"]):
