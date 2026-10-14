@@ -570,27 +570,32 @@ def aplicar_identidad_alfa():
             justify-content: center !important;
             align-items: center !important;
             width: 100% !important;
-            max-width: 500px !important;
-            height: 360px !important;
+            max-width: 400px !important;
+            height: 320px !important;
             margin: 0 auto 15px auto !important;
             overflow: hidden !important;
-            border-radius: 10px !important;
+            border-radius: 12px !important;
             background: #000000 !important;
             border: 2px solid #00E5FF !important;
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.3) !important;
             position: relative !important;
         }
         
-        .qr-scanner-container iframe, 
-        .qr-scanner-container video, 
-        .qr-scanner-container div {
+        .qr-scanner-container video {
             width: 100% !important;
             height: 100% !important;
-            max-width: 100% !important;
-            object-fit: contain !important;
+            object-fit: cover !important;
             border-radius: 8px !important;
             border: none !important;
+        }
+
+        .qr-scanner-container iframe {
+            display: none !important;
+        }
+
+        .qr-scanner-container div {
             background: transparent !important;
+            border: none !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
