@@ -756,11 +756,11 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
     df_hoy = pd.DataFrame()
     if not df_r.empty and {'FECHA_HORA', 'OBJETIVO', 'PUNTO', 'DNI', 'RONDA'} <= set(df_r.columns):
-        df_hoy = df_r[
-            (df_r['DNI'].astype(str).str.strip() == str(dni)) &
-            (df_r['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u) &
-            (df_r['FECHA_HORA'].astype(str).contains(hoy, na=False))
-        ]
+        df_r = df_r.loc[:, ~df_r.columns.duplicated()].copy()
+        m_dni = df_r['DNI'].map(lambda v: str(v).strip() == str(dni))
+        m_obj = df_r['OBJETIVO'].map(lambda v: str(v).strip().upper() == obj_u)
+        m_fecha = df_r['FECHA_HORA'].map(lambda v: hoy in str(v))
+        df_hoy = df_r[m_dni & m_obj & m_fecha]
 
     rondas = pd.to_numeric(df_hoy['RONDA'], errors='coerce').dropna() if not df_hoy.empty else pd.Series(dtype=float)
     ronda_planilla = int(rondas.max()) if not rondas.empty else 1
@@ -1239,7 +1239,7 @@ if st.session_state.rol_sel == "MONITOREO":
                  
                 df_j_sup_hoy = df_jornadas_mon[
                     (df_jornadas_mon[col_sup_h].astype(str).str.strip().str.upper() == sup_filtro_mono) & 
-                    (df_jornadas_mon[col_fec_h].astype(str).str.contains(fecha_hoy_str, na=False)) &
+                    (df_jornadas_mon[col_fec_h].astype(str).contains(fecha_hoy_str, na=False)) &
                     (df_jornadas_mon[col_acc_h].astype(str).str.strip().str.upper() == 'INICIO')
                 ]
                 visitados_sup_count = len(df_j_sup_hoy[col_obj_h].unique())
