@@ -701,7 +701,7 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
-# --- FUNCIÓN AUXILIAR PARA ESTILIZAR EL VISOR QR INTERNO ---
+# --- FUNCIÓN AUXILIAR PARA ESTILIZAR EL VISOR QR INTERNO (ACTUALIZADA) ---
 def estilizar_visor_qr():
     components.html("""
     <script>
@@ -713,13 +713,18 @@ def estilizar_visor_qr():
             const s = d.createElement('style');
             s.id = 'visor-aion';
             s.innerHTML = `
-                html, body { margin:0; background:#000; overflow:hidden; border-radius:12px; }
-                video { width:100% !important; height:100% !important; object-fit:cover !important; border-radius:12px; }
+                html, body { margin:0 !important; padding:0 !important; background:#000 !important;
+                             width:100% !important; height:100% !important; overflow:hidden !important; }
+                video { position:fixed !important; top:0 !important; left:0 !important;
+                        width:100vw !important; height:100vh !important;
+                        object-fit:cover !important; border-radius:12px !important; }
+                .scan-region-highlight, .scan-region-highlight-svg,
+                .code-outline-highlight, svg { display:none !important; }
             `;
             d.head.appendChild(s);
         }
     };
-    setInterval(ajustar, 500);
+    setInterval(ajustar, 300);
     </script>
     """, height=0)
 
