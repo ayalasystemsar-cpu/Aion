@@ -192,10 +192,11 @@ def leer_matriz_nube(pestana):
 @st.cache_data(ttl=60)
 def cargar_datos_comisarias():
     df_nube = leer_matriz_nube("COMISARIAS")
-    if not df_nube.empty and 'COMISARIA' in df_nube.columns and len(df_nube) > 1:
+    if not df_nube.empty and 'COMISARIA' in df_nube.columns:
         df_nube['LATITUD'] = pd.to_numeric(df_nube['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
         df_nube['LONGITUD'] = pd.to_numeric(df_nube['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        return df_nube
+    else:
+        df_nube = pd.DataFrame()
     
     data = {
         "COMISARIA": [
@@ -272,14 +273,22 @@ def cargar_datos_comisarias():
         "LONGITUD": [
             -58.3838, -58.3862, -58.3790, -58.4012, -58.3950, -58.3850, -58.3800, -58.4050, -58.3650, -58.4800,
             -58.4200, -58.3830, -58.4400, -58.4350, -58.3750, -58.4600, -58.4500, -58.4650, -58.4450, -58.5100,
-            -58.5050, -58.5200, -58.4900, -58.4600, -58.4750, -58.4950, -58.4700, -58.4600, -58.4800, -58.5414,
+            -58.5050, -58.5200, -58.4900, -58.4600, -58.4750, -58.4950, -58.4700, -58.4721, -58.4820, -58.4600,
+            -58.4611, -58.4550, -58.4500, -58.4160, -58.4100, -58.3950, -58.4700, -58.4600, -58.4800, -58.5414,
             -58.3680, -58.9614, -58.5561, -58.5797, -58.8682, -58.7205, -58.4937, -58.5100, -58.3700, -58.4000,
             -58.6200, -58.5600, -58.5400, -58.2700, -58.2800, -58.2100, -58.6300, -58.7900, -58.9000, -58.8500,
             -58.9700, -58.9100, -59.5400, -59.4300, -59.7100, -58.5500, -58.4800, -58.5200, -58.5400, -58.6000,
             -58.7000, -58.7100, -58.7200, -58.9000, -58.7100
         ]
     }
-    return pd.DataFrame(data)
+    df_base = pd.DataFrame(data)
+    if df_nube.empty:
+        return df_base
+    df_total = pd.concat([df_nube, df_base], ignore_index=True)
+    df_total['_KEY'] = df_total['COMISARIA'].astype(str).str.strip().str.upper()
+    df_total = df_total.drop_duplicates(subset='_KEY', keep='first').drop(columns='_KEY')
+    df_total = df_total.dropna(subset=['LATITUD', 'LONGITUD'])
+    return df_total.reset_index(drop=True)
 
 @st.cache_data(ttl=30)
 def cargar_objetivos():
@@ -564,24 +573,13 @@ def aplicar_identidad_alfa():
         }
 
         .stTabs [data-baseweb="tab-list"] {
-            gap: 6px !important; background-color: transparent !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; padding-bottom: 5px !important; border-bottom: none !important;
+            gap: 6px !important; background-color: transparent !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; padding-bottom: 5px !important;
         }
         .stTabs [data-baseweb="tab"] {
             background-color: rgba(26, 28, 35, 0.6) !important; border: 1px solid #2D313E !important; color: #A0A5B5 !important;
             border-radius: 4px 4px 0px 0px !important; padding: 8px 12px !important; font-family: 'Orbitron', sans-serif; font-size: 11px !important; font-weight: bold; flex-shrink: 0 !important;
         }
-        .stTabs [data-baseweb="tab"]:focus {
-            box-shadow: none !important;
-            border-color: #00E5FF !important;
-        }
-        .stTabs [aria-selected="true"] { 
-            background-color: #1A1C23 !important; 
-            border-top: 2px solid #00E5FF !important; 
-            border-left: 1px solid #2D313E !important;
-            border-right: 1px solid #2D313E !important;
-            border-bottom: 1px solid #1A1C23 !important;
-            color: #00E5FF !important; 
-        }
+        .stTabs [aria-selected="true"] { background-color: #1A1C23 !important; border-top: 2px solid #00E5FF !important; color: #00E5FF !important; }
         
         div[data-testid="stMetric"] { background-color: rgba(10, 11, 15, 0.6) !important; border: 1px solid #1A1C23 !important; border-radius: 6px !important; padding: 8px !important; }
         div[data-testid="stMetricLabel"] p { color: #00E5FF !important; font-family: 'Rajdhani', sans-serif !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -664,7 +662,7 @@ def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asigna
     destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
     for dest in destinatarios:
         if dest and dest != "MONITOREO" and dest != "N/A":
-            escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, mensaje, "PENDIENTE"])
+            escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, "ALERTA DE PÁNICO", mensaje, "PENDIENTE", "ROJA"])
 
 def limpiar_matriz_nube(nombre_hoja):
     try:
@@ -702,6 +700,7 @@ def ejecutar_cierre_táctico():
 # --- 3.B RECORRIDOS CON QR (VIGILADORES) Y GENERADOR DE QR DE PUNTOS ---
 
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
+    """Pestaña de recorrido del vigilador: marca puntos de control escaneando QR."""
     st.markdown("### 🚶 RECORRIDO CON MARCACIÓN QR")
 
     if not dni and st.session_state.get('rol_sel') == "ADMINISTRADOR":
@@ -804,6 +803,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                 st.rerun()
 
 def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
+    """Carga puntos de control por objetivo y genera el QR para imprimir."""
     st.markdown("#### 🧾 PUNTOS DE RECORRIDO Y QR")
     lista_objetivos = list(lista_objetivos)
     if len(lista_objetivos) == 0:
@@ -873,9 +873,9 @@ def mostrar_landing():
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
     
     with st.form("form_acceso_real"):
-        user = st.text_input("Usuario (Vigilador: DNI)", key="u")
+        user = st.text_input("Usuario o Apellido del Supervisor (Vigilador: DNI)", key="u")
         password = st.text_input("Contraseña (Vigilador: DNI)", type="password", key="p")
-        roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "ADMINISTRADOR"]
+        roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
         rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
 
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
@@ -884,7 +884,7 @@ def mostrar_landing():
             user_limpio = user.strip().upper()
             pass_limpio = password.strip()
             
-            if modo == "Iniciar Sesión" and (user_limpio == "ADMIN" or rol_usuario == "ADMINISTRADOR") and (pass_limpio == "aion2026" or pass_limpio == "1234"):
+            if modo == "Iniciar Sesión" and user_limpio == "ADMIN" and pass_limpio == "aion2026":
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = "ADMIN CENTRAL"
                 st.session_state.rol_sel = "ADMINISTRADOR"
@@ -893,8 +893,8 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
                 
-            elif modo == "Iniciar Sesión" and (rol_usuario == "SUPERVISOR" or user_limpio.startswith("SUPERVISOR") or user_limpio in ["AYALA BRIAN", "AYALA", "GONZALEZ", "CONTROLADOR NOCTURNO", "TIKI"]) and (pass_limpio == "1234" or pass_limpio != ""):
-                usuario_final = "AYALA BRIAN" if user_limpio in ["AYALA BRIAN", "AYALA"] else (user_limpio if user_limpio else "SUPERVISOR")
+            elif modo == "Iniciar Sesión" and rol_usuario == "SUPERVISOR" and (user_limpio.startswith("SUPERVISOR") or user_limpio in ["AYALA BRIAN", "AYALA", "GONZALEZ", "CONTROLADOR NOCTURNO", "TIKI"] or pass_limpio == "1234"):
+                usuario_final = "AYALA BRIAN" if user_limpio in ["AYALA BRIAN", "AYALA"] else user_limpio
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = usuario_final
                 st.session_state.rol_sel = "SUPERVISOR"
@@ -903,16 +903,16 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "MONITOREO":
+            elif modo == "Iniciar Sesión" and rol_usuario == "MONITOREO" and (user_limpio in ["MONITOREO", "OPERADOR", "OPERADOR CENTRAL"] or pass_limpio == "1234"):
                 st.session_state.usuario_logueado = True
-                st.session_state.user_sel = "OPERADOR CENTRAL" if (not user_limpio or user_limpio == "MONITOREO") else user_limpio
+                st.session_state.user_sel = "OPERADOR CENTRAL" if user_limpio == "MONITOREO" else user_limpio
                 st.session_state.rol_sel = "MONITOREO"
                 st.session_state.sup_autenticado = False
                 st.session_state.admin_autenticado = False
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "JEFE DE OPERACIONES":
+            elif modo == "Iniciar Sesión" and rol_usuario == "JEFE DE OPERACIONES" and (user_limpio in ["JEFE", "JEFE DE OPERACIONES"] or pass_limpio == "1234"):
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = "JEFE DE OPERACIONES"
                 st.session_state.rol_sel = "JEFE DE OPERACIONES"
@@ -921,7 +921,7 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA":
+            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCIÓN GENERAL"] or pass_limpio == "1234"):
                 st.session_state.usuario_logueado = True
                 st.session_state.user_sel = "DIRECCIÓN GENERAL"
                 st.session_state.rol_sel = "GERENCIA"
@@ -934,26 +934,22 @@ def mostrar_landing():
                 dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())
                 df_pad = leer_matriz_nube("PADRON VIGILADORES")
                 fila_vig = pd.DataFrame()
-                
-                if dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
-                    df_pad['DNI_CLEAN'] = df_pad['DNI'].astype(str).str.replace(r'\D', '', regex=True)
-                    fila_vig = df_pad[df_pad['DNI_CLEAN'] == dni_ingresado]
-                
-                if (not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO" and pass_limpio == dni_ingresado) or pass_limpio == dni_ingresado or pass_limpio == "1234":
-                    nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', user_limpio if user_limpio else "VIGILADOR")).strip().upper() if not fila_vig.empty else (user_limpio if user_limpio else "VIGILADOR")
-                    
+                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
+                    fila_vig = df_pad[df_pad['DNI'].astype(str).str.replace(r'\D', '', regex=True) == dni_ingresado]
+                if not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO":
+                    nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()
                     st.session_state.usuario_logueado = True
                     st.session_state.user_sel = nombre_vig
                     st.session_state.rol_sel = "VIGILADOR"
-                    st.session_state.dni_vigilador = dni_ingresado if dni_ingresado else pass_limpio
+                    st.session_state.dni_vigilador = dni_ingresado
                     st.session_state.v_nombre_completo = nombre_vig
-                    st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '001')) if not fila_vig.empty else "001"
+                    st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '')).strip()
                     st.session_state.sup_autenticado = False
                     st.session_state.admin_autenticado = False
                     sincronizar_url_sesion()
                     st.rerun()
                 else:
-                    st.error("❌ DNI no habilitado en el padrón o contraseña incorrecta.")
+                    st.error("❌ DNI no habilitado o contraseña incorrecta.")
                 
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
@@ -1007,66 +1003,68 @@ df_objetivos = cargar_objetivos()
 df_comisarias = cargar_datos_comisarias()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
 
-with st.sidebar:
-    st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
-    st.subheader("⚙️ NÚCLEO MAESTRO")
-    
-    vista_admin_sel = st.selectbox(
-        "MODO DE VISTA ACTIVO:", 
-        ["ADMINISTRADOR (NÚCLEO)", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "VIGILADOR"],
-        key="selector_vista_admin"
-    )
-    
-    if "ADMINISTRADOR" in vista_admin_sel:
-        st.session_state.rol_sel = "ADMINISTRADOR"
-        st.session_state.user_sel = "ADMIN CENTRAL"
-        st.session_state.admin_autenticado = True
-        st.session_state.sup_autenticado = False
-    elif "MONITOREO" in vista_admin_sel:
-        st.session_state.rol_sel = "MONITOREO"
-        st.session_state.user_sel = "OPERADOR CENTRAL"
-        st.session_state.admin_autenticado = False
-        st.session_state.sup_autenticado = False
-    elif "JEFE DE OPERACIONES" in vista_admin_sel:
-        st.session_state.rol_sel = "JEFE DE OPERACIONES"
-        st.session_state.user_sel = "JEFE DE OPERACIONES"
-        st.session_state.admin_autenticado = False
-        st.session_state.sup_autenticado = False
-    elif "GERENCIA" in vista_admin_sel:
-        st.session_state.rol_sel = "GERENCIA"
-        st.session_state.user_sel = "DIRECCIÓN GENERAL"
-        st.session_state.admin_autenticado = False
-        st.session_state.sup_autenticado = False
-    elif "VIGILADOR" in vista_admin_sel:
-        st.session_state.rol_sel = "VIGILADOR"
-        st.session_state.user_sel = "VIGILADOR EN PUESTO"
-        st.session_state.admin_autenticado = False
-        st.session_state.sup_autenticado = False
-    elif "SUPERVISOR" in vista_admin_sel:
-        st.session_state.rol_sel = "SUPERVISOR"
-        st.session_state.sup_autenticado = True
-        st.session_state.admin_autenticado = False
+if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_autenticado", False):
+    with st.sidebar:
+        st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
+        st.subheader("⚙️ NÚCLEO MAESTRO")
         
-    if "SUPERVISOR" in vista_admin_sel or st.session_state.rol_sel == "SUPERVISOR":
-        st.markdown("---")
-        st.markdown("### 👤 SELECCIONAR SUPERVISOR")
-        nom_sup_elegido = st.selectbox("ELEGIR RESPONSABLE:", LISTA_SUPS_TACTICOS, key="selector_directo_supervisor_admin")
+        vista_admin_sel = st.selectbox(
+            "MODO DE VISTA ACTIVO:", 
+            ["ADMINISTRADOR (NÚCLEO)", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "VIGILADOR"],
+            key="selector_vista_admin"
+        )
         
-        if st.button("🚀 ACCEDER A ESTA VISTA", use_container_width=True):
+        if "ADMINISTRADOR" in vista_admin_sel:
+            st.session_state.rol_sel = "ADMINISTRADOR"
+            st.session_state.user_sel = "ADMIN CENTRAL"
+            st.session_state.sup_autenticado = False
+        elif "MONITOREO" in vista_admin_sel:
+            st.session_state.rol_sel = "MONITOREO"
+            st.session_state.user_sel = "OPERADOR CENTRAL"
+            st.session_state.sup_autenticado = False
+        elif "JEFE DE OPERACIONES" in vista_admin_sel:
+            st.session_state.rol_sel = "JEFE DE OPERACIONES"
+            st.session_state.user_sel = "JEFE DE OPERACIONES"
+            st.session_state.sup_autenticado = False
+        elif "GERENCIA" in vista_admin_sel:
+            st.session_state.rol_sel = "GERENCIA"
+            st.session_state.user_sel = "DIRECCIÓN GENERAL"
+            st.session_state.sup_autenticado = False
+        elif "VIGILADOR" in vista_admin_sel:
+            st.session_state.rol_sel = "VIGILADOR"
+            st.session_state.user_sel = "VIGILADOR EN PUESTO"
+            st.session_state.sup_autenticado = False
+        elif "SUPERVISOR" in vista_admin_sel:
             st.session_state.rol_sel = "SUPERVISOR"
-            st.session_state.user_sel = nom_sup_elegido.strip().upper()
-            st.session_state.sup_autenticado = True
-            sincronizar_url_sesion()
-            st.rerun()
+            
+        if "SUPERVISOR" in vista_admin_sel or st.session_state.rol_sel == "SUPERVISOR":
+            st.markdown("---")
+            st.markdown("### 👤 SELECCIONAR SUPERVISOR")
+            nom_sup_elegido = st.selectbox("ELEGIR RESPONSABLE:", LISTA_SUPS_TACTICOS, key="selector_directo_supervisor_admin")
+            
+            if st.button("🚀 ACCEDER A ESTA VISTA", use_container_width=True):
+                st.session_state.rol_sel = "SUPERVISOR"
+                st.session_state.user_sel = nom_sup_elegido.strip().upper()
+                st.session_state.sup_autenticado = True
+                sincronizar_url_sesion()
+                st.rerun()
 
-    st.markdown("---")
-    st.markdown(f"**PERFIL ACTUAL:** {st.session_state.rol_sel}")
-    st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
-    st.markdown("---")
-    if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
-        st.session_state.usuario_logueado = False
-        st.query_params.clear()
-        st.rerun()
+        st.markdown("---")
+        if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
+            st.session_state.usuario_logueado = False
+            st.query_params.clear()
+            st.rerun()
+else:
+    with st.sidebar:
+        st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
+        st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
+        st.markdown("---")
+        if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
+            st.session_state.usuario_logueado = False
+            st.query_params.clear()
+            st.rerun()
 
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
@@ -1597,17 +1595,15 @@ if st.session_state.rol_sel == "MONITOREO":
 # ROL: SUPERVISOR
 # =========================================================================
 elif st.session_state.rol_sel == "SUPERVISOR":
-    if st.session_state.sup_autenticado or st.session_state.rol_sel == "SUPERVISOR":
+    if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
         
         if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
             df_objetivos_filtrados = df_objetivos[
                 df_objetivos['SUPERVISOR'].astype(str).str.strip().str.upper() == sup_activo_normalizado
             ].copy()
-            if df_objetivos_filtrados.empty:
-                df_objetivos_filtrados = df_objetivos.copy()
         else:
-            df_objetivos_filtrados = df_objetivos.copy() if not df_objetivos.empty else pd.DataFrame()
+            df_objetivos_filtrados = pd.DataFrame()
         
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
@@ -1820,7 +1816,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     dlat = lat2 - lat1
                     a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
                     c = 2 * math.asin(math.sqrt(a))
-                    distancia_actual_m = 6371000 * c 
+                    distancia_actual_m = 6371000 * c  
 
                     if distancia_actual_m <= 1000:
                         en_rango_gps = True
@@ -2042,6 +2038,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.info("No tienes escaneos QR registrados en este turno.")
             else:
                 st.info("Sin registros QR en el sistema.")
+    else:
+        st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
 
 
 # =========================================================================
@@ -2193,11 +2191,14 @@ elif st.session_state.rol_sel == "VIGILADOR":
         st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
         with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
             v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
-            vig_saliente = st.text_input("SALE (EGRESA):", value="AGENTE SALIENTE").upper().strip()
-            vig_entrante = st.text_input("ENTRA (INGRESA):", value="AGENTE ENTRANTE").upper().strip()
-            v_dni_relevo = st.text_input("DNI DE QUIEN INGRESA:", value="12345678").strip()
+            vig_saliente = st.text_input("SALE (EGRESA):", value="").upper().strip()
+            vig_entrante = st.text_input("ENTRA (INGRESA):", value=st.session_state.get("v_nombre_completo", "")).upper().strip()
+            v_dni_relevo = st.text_input("DNI DE QUIEN INGRESA:", value=st.session_state.get("dni_vigilador", "")).strip()
             
-            if st.form_submit_button("SANCIONAR CAMBIO"):
+            enviar_relevo = st.form_submit_button("SANCIONAR CAMBIO")
+            if enviar_relevo and not (vig_saliente and vig_entrante):
+                st.error("⚠️ Completá quién sale y quién entra.")
+            elif enviar_relevo:
                 st.session_state.obj_actual_vig = v_obj_relevo
                 sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                 fecha_hora_arg = obtener_hora_argentina()
@@ -2702,7 +2703,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
     if st.session_state.user_sel == "ADMIN CENTRAL":
         st.session_state.admin_autenticado = True
     
-    if st.session_state.admin_autenticado or st.session_state.rol_sel == "ADMINISTRADOR":
+    if st.session_state.admin_autenticado:
         st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
         st.markdown("### ⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL DE ADMINISTRACIÓN")
         st.success("✅ Acceso autorizado al Núcleo Maestro Central.")
@@ -2798,16 +2799,11 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         with t_adm_probar_rec:
             st.markdown("#### 🧪 MODO DE PRUEBA: RECORRIDO Y ESCÁNER QR")
-            st.info("ℹ️ Como Administrador puedes probar el escaneo y la marcación de puntos de recorrido de cualquier objetivo sin restricciones.")
-            
+            st.info("ℹ️ Como Administrador podés probar la marcación de puntos de cualquier objetivo.")
             objs_admin_test = df_obj_m['OBJETIVO'].unique() if not df_obj_m.empty else []
             if len(objs_admin_test) > 0:
                 obj_test_elegido = st.selectbox("SELECCIONAR OBJETIVO A PROBAR:", objs_admin_test, key="test_obj_admin_rec")
-                renderizar_recorrido_vigilador(
-                    obj_test_elegido,
-                    st.session_state.user_sel,
-                    "99999999"
-                )
+                renderizar_recorrido_vigilador(obj_test_elegido, st.session_state.user_sel, "99999999")
             else:
                 st.warning("No hay objetivos cargados en el sistema para probar.")
 
