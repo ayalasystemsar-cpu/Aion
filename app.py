@@ -560,11 +560,25 @@ def aplicar_identidad_alfa():
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
          
         .qr-scanner-container {
-            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
-            margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            width: 100% !important; 
+            max-width: 400px !important;
+            margin: 5px auto 10px auto !important; 
+            overflow: visible !important; 
+            border-radius: 8px !important; 
+            background: #000 !important; 
+            position: relative;
+            min-height: 280px !important;
         }
         .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
-            width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
+            width: 100% !important; 
+            max-width: 400px !important; 
+            height: 300px !important; 
+            object-fit: contain !important; 
+            border-radius: 8px !important; 
+            border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
