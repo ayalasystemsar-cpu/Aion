@@ -559,7 +559,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
          
-        /* --- ESTILOS PARA EXPANDIR EL ESCÁNER A CUADRO COMPLETO SIN PUNTAS --- */
+        /* --- ESTILOS MEJORADOS PARA OCULTAR COMPLETAMENTE LAS PUNTAS Y MARCAS BLANCAS --- */
         .qr-scanner-container {
             display: flex; 
             justify-content: center; 
@@ -585,7 +585,9 @@ def aplicar_identidad_alfa():
             object-fit: cover !important; 
             border-radius: 12px !important; 
         }
-        /* Oculta las esquinas, marcos y capas superpuestas de la librería QR */
+        
+        /* Forzar ocultación total de esquinas, bordes y recuadros internos generados por el componente */
+        .qr-scanner-container *, 
         .qr-scanner-container svg, 
         .qr-scanner-container canvas,
         .qr-scanner-container div[style*="border"],
@@ -593,14 +595,18 @@ def aplicar_identidad_alfa():
         .qr-scanner-container [class*="scanner"],
         .qr-scanner-container [class*="corner"],
         .qr-scanner-container [class*="frame"],
-        .qr-scanner-container [style*="border-color"],
-        .qr-scanner-container span,
-        .qr-scanner-container ::before,
-        .qr-scanner-container ::after {
-            display: none !important;
+        .qr-scanner-container [class*="box"],
+        .qr-scanner-container [style*="border-color"] {
             border: none !important;
             box-shadow: none !important;
-            opacity: 0 !important;
+            outline: none !important;
+        }
+        
+        /* Ocultar específicamente los divs que forman las cuatro esquinas blancas */
+        .qr-scanner-container div > div > div {
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
