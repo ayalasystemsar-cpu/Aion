@@ -559,26 +559,35 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
          
+        /* --- ESTILOS CORREGIDOS PARA EL ESCÁNER QR --- */
         .qr-scanner-container {
             display: flex; 
             justify-content: center; 
             align-items: center; 
             width: 100% !important; 
             max-width: 400px !important;
-            margin: 5px auto 10px auto !important; 
-            overflow: visible !important; 
+            margin: 0 auto 5px auto !important; 
+            overflow: hidden !important; 
             border-radius: 8px !important; 
-            background: #000 !important; 
+            background: transparent !important; 
             position: relative;
-            min-height: 280px !important;
+            min-height: 250px !important;
         }
-        .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
+        .qr-scanner-container iframe {
+            width: 100% !important;
+            max-width: 400px !important;
+            height: 260px !important;
+            border: 2px solid #00E5FF !important;
+            border-radius: 8px !important;
+            background: #000 !important;
+            margin-top: -30px !important; /* Sube la visualización del componente para eliminar el bloque negro superior */
+        }
+        .qr-scanner-container video, .qr-scanner-container div {
             width: 100% !important; 
             max-width: 400px !important; 
-            height: 300px !important; 
-            object-fit: contain !important; 
+            height: 260px !important; 
+            object-fit: cover !important; 
             border-radius: 8px !important; 
-            border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
