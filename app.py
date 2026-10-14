@@ -565,38 +565,11 @@ def aplicar_identidad_alfa():
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
         
         .qr-scanner-container {
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: center !important;
-            align-items: center !important;
-            width: 100% !important;
-            max-width: 400px !important;
-            height: 320px !important;
-            margin: 0 auto 15px auto !important;
-            overflow: hidden !important;
-            border-radius: 12px !important;
-            background: #000000 !important;
-            border: 2px solid #00E5FF !important;
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3) !important;
-            position: relative !important;
+            display: flex; justify-content: center; align-items: center; width: 100% !important; max-width: 320px !important;
+            margin: 0 auto 10px auto !important; overflow: hidden !important; border-radius: 8px !important; background: #000 !important; position: relative;
         }
-        
-        .qr-scanner-container video {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
-            border-radius: 8px !important;
-            border: none !important;
-            background: transparent !important;
-        }
-
-        .qr-scanner-container iframe {
-            display: none !important;
-        }
-
-        .qr-scanner-container div, .qr-scanner-container img, .qr-scanner-container canvas {
-            background: transparent !important;
-            border: none !important;
+        .qr-scanner-container iframe, .qr-scanner-container video, .qr-scanner-container div {
+            width: 100% !important; max-width: 320px !important; height: 220px !important; object-fit: cover !important; border-radius: 8px !important; border: 2px solid #00E5FF !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -733,35 +706,17 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     if not dni and st.session_state.get('rol_sel') == "ADMINISTRADOR":
         dni = "99999999"
 
-    if not dni or dni == "0":
-        df_pad_rec = leer_matriz_nube("PADRON VIGILADORES")
-        if not df_pad_rec.empty and 'NOMBRE' in df_pad_rec.columns and 'DNI' in df_pad_rec.columns:
-            match_vig = df_pad_rec[df_pad_rec['NOMBRE'].astype(str).str.strip().str.upper() == str(nombre).strip().upper()]
-            if not match_vig.empty:
-                dni = str(match_vig.iloc[0]['DNI']).strip()
-                st.session_state.dni_vigilador = dni
-
-    if not dni or dni == "0":
-        st.warning("⚠️ No se detectó el DNI en tu sesión actual. Ingresalo por única vez para habilitar las recorridas:")
-        with st.form(key="form_emergencia_dni_vigilador"):
-            dni_input_manual = st.text_input("INGRESA TU DNI (SOLO NÚMEROS):").strip()
-            if st.form_submit_button("✅ HABILITAR RECORRIDOS"):
-                dni_limpio = "".join(ch for ch in dni_input_manual if ch.isdigit())
-                if dni_limpio:
-                    st.session_state.dni_vigilador = dni_limpio
-                    st.success("¡DNI guardado con éxito!")
-                    st.rerun()
-                else:
-                    st.error("Por favor ingresa un DNI válido.")
+    if not dni:
+        st.warning("⚠️ Para registrar recorridos debés ingresar con tu DNI.")
         return
 
     obj_u = str(objetivo).strip().upper()
     hoy = obtener_hora_argentina().split(" ")[0]
-    st.caption(f"📍 Objetivo: {obj_u} | 👤 DNI: {dni}")
+    st.caption(f"📍 Objetivo: {obj_u}")
 
     df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
     if df_p.empty or not {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
-        st.info("No hay puntos de control cargados en este objetivo.")
+        st.info("No hay puntos de control cargados.")
         return
 
     puntos = df_p[df_p['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u].copy()
@@ -2229,9 +2184,11 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_actual = fecha_hora_arg.split(" ")[1]
                     
+                    # 1. Registro automático de presentismo e ingreso
                     escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, legajo_vigilador_actual, nombre_vigilador_actual, v_obj_auto, "INGRESO", "OK"])
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "MARCACIÓN_INGRESO", "---", nombre_vigilador_actual, legajo_vigilador_actual, "PROCESADO", sup_responsable])
                     
+                    # 2. Registro automático de relevo de turno
                     saliente_fmt = vig_saliente_auto if vig_saliente_auto else "PERSONAL ANTERIOR"
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
                     escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
@@ -2664,8 +2621,7 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 element = t
                                 elementos.append(element)
                             else:
-                                element_vacio = Paragraph("Sin registros en este periodo.", estilo_texto)
-                                elementos.append(element_vacio)
+                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
                             elementos.append(Spacer(1, 6))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
