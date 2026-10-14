@@ -2043,7 +2043,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
 
 # =========================================================================
-# ROL: VIGILADOR
+# ROL: VIGILADOR (FLUJO AUTOMATIZADO DE INGRESO, FOTO, RELEVO Y RECORRIDO)
 # =========================================================================
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
@@ -2055,11 +2055,14 @@ elif st.session_state.rol_sel == "VIGILADOR":
         else:
             st.session_state.obj_actual_vig = "ALFAVINIL"
 
+    nombre_vigilador_actual = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
+    legajo_vigilador_actual = st.session_state.get("legajo_vigilador", "S/L")
+    dni_vigilador_actual = st.session_state.get("dni_vigilador", "")
+
     df_msg = leer_matriz_nube("MENSAJERIA")
-    nombre_user = st.session_state.user_sel.upper()
     total_nuevos = 0
     if not df_msg.empty:
-        mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "VIGILADOR") | (df_msg['DESTINATARIO'] == nombre_user)) & (df_msg['ESTADO'] == "PENDIENTE")
+        mask = ((df_msg['DESTINATARIO'] == "TODOS") | (df_msg['DESTINATARIO'] == "VIGILADOR") | (df_msg['DESTINATARIO'] == nombre_vigilador_actual)) & (df_msg['ESTADO'] == "PENDIENTE")
         total_nuevos = len(df_msg[mask])
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
@@ -2070,13 +2073,12 @@ elif st.session_state.rol_sel == "VIGILADOR":
     if obj_detectado:
         st.markdown(f"""
             <div style="background: rgba(25, 35, 30, 0.45); border: 1px solid rgba(60, 90, 75, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-family: 'Rajdhani', sans-serif; text-align: center;">
-                <span style="color: #92B9A4; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">📍 OBJETO DETECTADO PARA PÁNICO: <b>{obj_detectado}</b></span>
+                <span style="color: #92B9A4; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">📍 OBJETIVO ACTIVO: <b>{obj_detectado}</b></span>
             </div>
         """, unsafe_allow_html=True)
         col_pv1, col_pv2, col_pv3 = st.columns([1, 1, 1])
         with col_pv2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
-                nombre_real = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
                 sup_asignado = "MONITOREO"
                 lat_obj_vig, lon_obj_vig = 0.0, 0.0
                 localidad_obj_v = ""
@@ -2122,7 +2124,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 verificar_e_insertar_comisaria_automatica(com_cercana_nombre, com_cercana_dir, com_cercana_loc, com_cercana_tel, com_cercana_lat, com_cercana_lon)
 
                 st.session_state.alerta_activa_vigilador = {
-                    "nombre": nombre_real,
+                    "nombre": nombre_vigilador_actual,
                     "obj": obj_detectado,
                     "comisaria": com_cercana_nombre,
                     "direccion": com_cercana_dir,
@@ -2131,9 +2133,9 @@ elif st.session_state.rol_sel == "VIGILADOR":
                 }
 
                 fecha = obtener_hora_argentina()
-                escribir_registro_nube("ALERTAS", [fecha, nombre_real, "PÁNICO", "PENDIENTE", obj_detectado, sup_asignado])
-                enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_real, sup_asignado)
-                st.error(f"🚨 ALERTA ENVIADA: {nombre_real} DESDE {obj_detectado}")
+                escribir_registro_nube("ALERTAS", [fecha, nombre_vigilador_actual, "PÁNICO", "PENDIENTE", obj_detectado, sup_asignado])
+                enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_vigilador_actual, sup_asignado)
+                st.error(f"🚨 ALERTA ENVIADA: {nombre_vigilador_actual} DESDE {obj_detectado}")
 
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
@@ -2153,68 +2155,50 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     </div>
                 </div>
             """, unsafe_allow_html=True)
-    else:
-        st.warning("⚠️ Debes realizar el Fichaje o Relevo primero para activar el sistema de pánico.")
     
     st.markdown("---")
     
-    tab_presentismo, tab_relevo, tab_recorrido, t_mensajeria = st.tabs(["📋 FICHAJE", "🔄 RELEVO", "🚶 RECORRIDO", label_msg])
+    tab_auto_ingreso, tab_recorrido, t_mensajeria = st.tabs(["🚀 INGRESO & RELEVO AUTOMÁTICO", "🚶 RECORRIDO QR", label_msg])
   
-    with tab_presentismo:
-        st.markdown("### 📸 REGISTRO BIOMÉTRICO")
-        with st.form(key="form_fichaje_vigilador", clear_on_submit=True):
-            v_nombre_completo = st.text_input("APELLIDO Y NOMBRE:", value=st.session_state.get("v_nombre_completo", "")).strip() 
-            v_legajo = st.text_input("LEGAJO:", value=st.session_state.get("legajo_vigilador", "")).strip() 
-            v_obj = st.selectbox("OBJETIVO:", opciones_globales_obj)
-            v_tipo_marcacion = st.selectbox("TIPO:", ["INGRESO", "EGRESO"])
-            img_facial = st.camera_input("RECONOCIMIENTO FACIAL")
+    with tab_auto_ingreso:
+        st.markdown(f"### ⚡ ACCESO Y VALIDACIÓN: **{nombre_vigilador_actual}**")
+        st.info("ℹ️ Al confirmar el objetivo y tomar la foto, el sistema registrará tu fichaje de ingreso, generará el relevo automático y te habilitará el módulo de recorridas.")
+
+        with st.form(key="form_ingreso_automatico_vigilador", clear_on_submit=False):
+            v_obj_auto = st.selectbox("SELECCIONAR OBJETIVO DE TURNO:", opciones_globales_obj)
+            vig_saliente_auto = st.text_input("VIGILADOR SALIENTE (A QUIÉN RELEVAS):", value="").upper().strip()
+            img_facial_auto = st.camera_input("📸 FOTO OBLIGATORIA DE VERIFICACIÓN (RECONOCIMIENTO FACIAL)")
             
-            if st.form_submit_button("CONSIGNAR Y TRANSMITIR"):
-                if v_nombre_completo and v_legajo:
-                    st.session_state.v_nombre_completo = v_nombre_completo.upper()
-                    st.session_state.legajo_vigilador = v_legajo
-                    st.session_state.obj_actual_vig = v_obj
+            confirmar_ingreso = st.form_submit_button("🚀 CONFIRMAR INGRESO, FOTO Y RELEVO")
+            
+            if confirmar_ingreso:
+                if img_facial_auto is not None and v_obj_auto:
+                    st.session_state.obj_actual_vig = v_obj_auto
+                    sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_auto]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                     
                     fecha_hora_arg = obtener_hora_argentina()
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_actual = fecha_hora_arg.split(" ")[1]
-                    sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                    tipo_evento = f"MARCACIÓN_{v_tipo_marcacion}"
                     
-                    escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, v_legajo, v_nombre_completo.upper(), v_obj, v_tipo_marcacion, "OK"])
-                    escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj, tipo_evento, "---", v_nombre_completo.upper(), v_legajo, "PROCESADO", sup_responsable])
-                    st.success(f"🔒 {tipo_evento} REGISTRADA PARA {v_nombre_completo.upper()}")
+                    # 1. Registro automático de presentismo e ingreso
+                    escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, legajo_vigilador_actual, nombre_vigilador_actual, v_obj_auto, "INGRESO", "OK"])
+                    escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "MARCACIÓN_INGRESO", "---", nombre_vigilador_actual, legajo_vigilador_actual, "PROCESADO", sup_responsable])
+                    
+                    # 2. Registro automático de relevo de turno
+                    saliente_fmt = vig_saliente_auto if vig_saliente_auto else "PERSONAL ANTERIOR"
+                    escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
+                    escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
+                    
+                    st.success(f"✅ ¡Ingreso, foto y relevo registrado con éxito para {nombre_vigilador_actual} en {v_obj_auto}!")
+                    st.balloons()
                 else:
-                    st.error("⚠️ Por favor, complete el apellido, nombre y legajo.")
-
-    with tab_relevo:
-        st.markdown("### 🔄 REGISTRO FORMAL DE CAMBIO")
-        with st.form(key="form_relevo_vigilador_directo", clear_on_submit=True):
-            v_obj_relevo = st.selectbox("OBJETIVO:", opciones_globales_obj, key="relevo_obj")
-            vig_saliente = st.text_input("SALE (EGRESA):", value="").upper().strip()
-            vig_entrante = st.text_input("ENTRA (INGRESA):", value=st.session_state.get("v_nombre_completo", "")).upper().strip()
-            v_dni_relevo = st.text_input("DNI DE QUIEN INGRESA:", value=st.session_state.get("dni_vigilador", "")).strip()
-            
-            enviar_relevo = st.form_submit_button("SANCIONAR CAMBIO")
-            if enviar_relevo and not (vig_saliente and vig_entrante):
-                st.error("⚠️ Completá quién sale y quién entra.")
-            elif enviar_relevo:
-                st.session_state.obj_actual_vig = v_obj_relevo
-                sup_resp = df_objetivos[df_objetivos['OBJETIVO']==v_obj_relevo]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
-                fecha_hora_arg = obtener_hora_argentina()
-                fecha_hoy = fecha_hora_arg.split(" ")[0]
-                hora_actual = fecha_hora_arg.split(" ")[1]
-                
-                escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_relevo, "RELEVO DE TURNO", vig_saliente, vig_entrante, v_dni_relevo, "PROCESADO", sup_resp])
-                escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_relevo, vig_saliente, vig_entrante, v_dni_relevo, sup_resp, "RELEVO_EFECTUADO"])
-                
-                st.success("🔒 RELEVO REGISTRADO Y EXITOSO")
+                    st.error("⚠️ Es obligatorio tomar la foto con la cámara para confirmar el ingreso.")
 
     with tab_recorrido:
         renderizar_recorrido_vigilador(
             st.session_state.get("obj_actual_vig", ""),
-            st.session_state.get("v_nombre_completo", st.session_state.user_sel),
-            st.session_state.get("dni_vigilador", "")
+            nombre_vigilador_actual,
+            dni_vigilador_actual
         )
 
     with t_mensajeria:
