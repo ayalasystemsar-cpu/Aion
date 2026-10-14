@@ -559,7 +559,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
          
-        /* --- ESTILOS MEJORADOS PARA OCULTAR COMPLETAMENTE LAS PUNTAS Y MARCAS BLANCAS --- */
+        /* --- ESCÁNER LIMPIO: CUADRADO PURO SIN MARCAS INTERNAS NI PUNTAS BLANCAS --- */
         .qr-scanner-container {
             display: flex; 
             justify-content: center; 
@@ -571,6 +571,8 @@ def aplicar_identidad_alfa():
             border-radius: 12px !important; 
             background: #000 !important; 
             position: relative;
+            border: 2px solid #00E5FF !important;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.3) !important;
         }
         .qr-scanner-container iframe {
             width: 100% !important;
@@ -586,7 +588,7 @@ def aplicar_identidad_alfa():
             border-radius: 12px !important; 
         }
         
-        /* Forzar ocultación total de esquinas, bordes y recuadros internos generados por el componente */
+        /* Ocultar cualquier elemento superpuesto, esquinas o marcas internas que inyecta la librería web */
         .qr-scanner-container *, 
         .qr-scanner-container svg, 
         .qr-scanner-container canvas,
@@ -596,17 +598,12 @@ def aplicar_identidad_alfa():
         .qr-scanner-container [class*="corner"],
         .qr-scanner-container [class*="frame"],
         .qr-scanner-container [class*="box"],
-        .qr-scanner-container [style*="border-color"] {
+        .qr-scanner-container [style*="border-color"],
+        .qr-scanner-container div > div {
             border: none !important;
             box-shadow: none !important;
             outline: none !important;
-        }
-        
-        /* Ocultar específicamente los divs que forman las cuatro esquinas blancas */
-        .qr-scanner-container div > div > div {
-            border: none !important;
             background: transparent !important;
-            box-shadow: none !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -1863,7 +1860,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                     st.markdown("""
                         <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
-                            <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">🚨 ESCANER TÁCTICO DE ALTA VELOCIDAD (VISOR LIMPIO)</span><br>
+                            <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">📷 ESCANER TÁCTICO DE ALTA VELOCIDAD (VISOR LIMPIO)</span><br>
                             <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Enfoque el código QR directamente con la cámara.</span>
                         </div>
                     """, unsafe_allow_html=True)
