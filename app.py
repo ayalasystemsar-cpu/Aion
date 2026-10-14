@@ -559,7 +559,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
          
-        /* --- ESTILOS PARA QUITAR EL VISOR DE LAS CUATRO PUNTAS EN WEB --- */
+        /* --- ESTILOS RADICALES PARA OCULTAR LAS CUATRO PUNTAS DEL ESCÁNER --- */
         .qr-scanner-container {
             display: flex; 
             justify-content: center; 
@@ -587,13 +587,21 @@ def aplicar_identidad_alfa():
             object-fit: cover !important; 
             border-radius: 12px !important; 
         }
-        /* Oculta de forma radical cualquier recuadro, esquinas o SVG interno del componente QR */
+        /* Oculta de raíz cualquier SVG, canvas secundario, marcos o pseudo-elementos con esquinas */
         .qr-scanner-container svg, 
-        .qr-scanner-container [class*="scanner"], 
+        .qr-scanner-container canvas,
         .qr-scanner-container div[style*="border"],
-        .qr-scanner-container span {
+        .qr-scanner-container div[style*="position: absolute"],
+        .qr-scanner-container [class*="scanner"],
+        .qr-scanner-container [class*="corner"],
+        .qr-scanner-container [class*="frame"],
+        .qr-scanner-container span,
+        .qr-scanner-container ::before,
+        .qr-scanner-container ::after {
             display: none !important;
             border: none !important;
+            box-shadow: none !important;
+            opacity: 0 !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
