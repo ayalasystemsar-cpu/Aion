@@ -559,13 +559,13 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
          
-        /* --- ESTILOS RADICALES PARA OCULTAR LAS CUATRO PUNTAS DEL ESCÁNER --- */
+        /* --- ESTILOS PARA EXPANDIR EL ESCÁNER A CUADRO COMPLETO SIN PUNTAS --- */
         .qr-scanner-container {
             display: flex; 
             justify-content: center; 
             align-items: center; 
             width: 100% !important; 
-            max-width: 400px !important;
+            max-width: 100% !important;
             margin: 0 auto 5px auto !important; 
             overflow: hidden !important; 
             border-radius: 12px !important; 
@@ -574,20 +574,18 @@ def aplicar_identidad_alfa():
         }
         .qr-scanner-container iframe {
             width: 100% !important;
-            max-width: 400px !important;
-            height: 260px !important;
+            height: 350px !important;
             border: none !important;
             border-radius: 12px !important; 
             background: #000 !important;
         }
         .qr-scanner-container video, .qr-scanner-container div {
             width: 100% !important; 
-            max-width: 400px !important; 
-            height: 260px !important; 
+            height: 350px !important; 
             object-fit: cover !important; 
             border-radius: 12px !important; 
         }
-        /* Oculta de raíz cualquier SVG, canvas secundario, marcos o pseudo-elementos con esquinas */
+        /* Oculta las esquinas, marcos y capas superpuestas de la librería QR */
         .qr-scanner-container svg, 
         .qr-scanner-container canvas,
         .qr-scanner-container div[style*="border"],
@@ -595,6 +593,7 @@ def aplicar_identidad_alfa():
         .qr-scanner-container [class*="scanner"],
         .qr-scanner-container [class*="corner"],
         .qr-scanner-container [class*="frame"],
+        .qr-scanner-container [style*="border-color"],
         .qr-scanner-container span,
         .qr-scanner-container ::before,
         .qr-scanner-container ::after {
