@@ -559,51 +559,22 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
          
-        /* --- ESCÁNER LIMPIO: CUADRADO PURO SIN MARCAS INTERNAS NI PUNTAS BLANCAS --- */
-        .qr-scanner-container {
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            width: 100% !important; 
-            max-width: 100% !important;
-            margin: 0 auto 5px auto !important; 
-            overflow: hidden !important; 
-            border-radius: 12px !important; 
-            background: #000 !important; 
-            position: relative;
-            border: 2px solid #00E5FF !important;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.3) !important;
-        }
-        .qr-scanner-container iframe {
+        /* ESCÁNER CUADRADO, IGUAL EN CELULAR Y WEB */
+        div[data-testid="stElementContainer"]:has(iframe[title*="qrcode_scanner"]) {
+            display: flex !important;
+            justify-content: center !important;
             width: 100% !important;
-            height: 350px !important;
-            border: none !important;
-            border-radius: 12px !important; 
+        }
+        iframe[title*="qrcode_scanner"] {
+            width: min(100%, 340px) !important;
+            height: auto !important;
+            aspect-ratio: 1 / 1 !important;
+            border: 2px solid #00E5FF !important;
+            border-radius: 14px !important;
             background: #000 !important;
-        }
-        .qr-scanner-container video, .qr-scanner-container div {
-            width: 100% !important; 
-            height: 350px !important; 
-            object-fit: cover !important; 
-            border-radius: 12px !important; 
-        }
-        
-        /* Ocultar cualquier elemento superpuesto, esquinas o marcas internas que inyecta la librería web */
-        .qr-scanner-container *, 
-        .qr-scanner-container svg, 
-        .qr-scanner-container canvas,
-        .qr-scanner-container div[style*="border"],
-        .qr-scanner-container div[style*="position: absolute"],
-        .qr-scanner-container [class*="scanner"],
-        .qr-scanner-container [class*="corner"],
-        .qr-scanner-container [class*="frame"],
-        .qr-scanner-container [class*="box"],
-        .qr-scanner-container [style*="border-color"],
-        .qr-scanner-container div > div {
-            border: none !important;
-            box-shadow: none !important;
-            outline: none !important;
-            background: transparent !important;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.3) !important;
+            display: block !important;
+            margin: 6px auto !important;
         }
 
         .stTabs [data-baseweb="tab-list"] {
@@ -730,6 +701,28 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
+# --- FUNCIÓN AUXILIAR PARA ESTILIZAR EL VISOR QR INTERNO ---
+def estilizar_visor_qr():
+    components.html("""
+    <script>
+    const ajustar = () => {
+        const f = window.parent.document.querySelector('iframe[title*="qrcode_scanner"]');
+        if (!f || !f.contentDocument) return;
+        const d = f.contentDocument;
+        if (!d.getElementById('visor-aion')) {
+            const s = d.createElement('style');
+            s.id = 'visor-aion';
+            s.innerHTML = `
+                html, body { margin:0; background:#000; overflow:hidden; border-radius:12px; }
+                video { width:100% !important; height:100% !important; object-fit:cover !important; border-radius:12px; }
+            `;
+            d.head.appendChild(s);
+        }
+    };
+    setInterval(ajustar, 500);
+    </script>
+    """, height=0)
+
 # --- 3.B RECORRIDOS CON QR (VIGILADORES) Y GENERADOR DE QR DE PUNTOS ---
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     st.markdown("### 🚶 RECORRIDO CON MARCACIÓN QR")
@@ -766,7 +759,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         df_hoy = df_r[
             (df_r['DNI'].astype(str).str.strip() == str(dni)) &
             (df_r['OBJETIVO'].astype(str).str.strip().str.upper() == obj_u) &
-            (df_r['FECHA_HORA'].astype(str).str.contains(hoy, na=False))
+            (df_r['FECHA_HORA'].astype(str).contains(hoy, na=False))
         ]
 
     rondas = pd.to_numeric(df_hoy['RONDA'], errors='coerce').dropna() if not df_hoy.empty else pd.Series(dtype=float)
@@ -805,9 +798,8 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
     codigo = qrcode_scanner(key=f"scan_rec_{obj_u}_{ronda}_{len(marcados)}")
-    st.markdown('</div>', unsafe_allow_html=True)
+    estilizar_visor_qr()
 
     if codigo:
         txt = str(codigo).strip()
@@ -1759,7 +1751,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         df_j_obj = df_jornadas_act[
                             (df_jornadas_act[col_sup].astype(str).str.strip().str.upper() == sup_activo_normalizado) & 
                             (df_jornadas_act[col_obj].astype(str).str.strip().str.upper() == obj_item.strip().upper()) &
-                            (df_jornadas_act[col_fec_hora].astype(str).str.contains(fecha_hoy_str, na=False))
+                            (df_jornadas_act[col_fec_hora].astype(str).contains(fecha_hoy_str, na=False))
                         ]
                          
                         if not df_j_obj.empty:
@@ -1865,9 +1857,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </div>
                     """, unsafe_allow_html=True)
 
-                    st.markdown('<div class="qr-scanner-container">', unsafe_allow_html=True)
                     codigo_qr_leido = qrcode_scanner(key=f"scanner_tactico_{accion_str}")
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    estilizar_visor_qr()
 
                     if st.session_state.ultimo_mensaje_qr:
                         st.success(st.session_state.ultimo_mensaje_qr)
