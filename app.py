@@ -587,13 +587,14 @@ def aplicar_identidad_alfa():
             object-fit: cover !important;
             border-radius: 8px !important;
             border: none !important;
+            background: transparent !important;
         }
 
         .qr-scanner-container iframe {
             display: none !important;
         }
 
-        .qr-scanner-container div {
+        .qr-scanner-container div, .qr-scanner-container img, .qr-scanner-container canvas {
             background: transparent !important;
             border: none !important;
         }
@@ -732,7 +733,6 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     if not dni and st.session_state.get('rol_sel') == "ADMINISTRADOR":
         dni = "99999999"
 
-    # Si no tenemos DNI, intentamos buscarlo en el padrón usando el nombre del vigilador
     if not dni or dni == "0":
         df_pad_rec = leer_matriz_nube("PADRON VIGILADORES")
         if not df_pad_rec.empty and 'NOMBRE' in df_pad_rec.columns and 'DNI' in df_pad_rec.columns:
@@ -741,7 +741,6 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                 dni = str(match_vig.iloc[0]['DNI']).strip()
                 st.session_state.dni_vigilador = dni
 
-    # Si aún no hay DNI, mostramos un campo rápido para ingresarlo y destrabar el recorrido
     if not dni or dni == "0":
         st.warning("⚠️ No se detectó el DNI en tu sesión actual. Ingresalo por única vez para habilitar las recorridas:")
         with st.form(key="form_emergencia_dni_vigilador"):
@@ -2230,11 +2229,9 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_actual = fecha_hora_arg.split(" ")[1]
                     
-                    # 1. Registro automático de presentismo e ingreso
                     escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, legajo_vigilador_actual, nombre_vigilador_actual, v_obj_auto, "INGRESO", "OK"])
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "MARCACIÓN_INGRESO", "---", nombre_vigilador_actual, legajo_vigilador_actual, "PROCESADO", sup_responsable])
                     
-                    # 2. Registro automático de relevo de turno
                     saliente_fmt = vig_saliente_auto if vig_saliente_auto else "PERSONAL ANTERIOR"
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
                     escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
@@ -2667,7 +2664,8 @@ if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 element = t
                                 elementos.append(element)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+                                element_vacio = Paragraph("Sin registros en este periodo.", estilo_texto)
+                                elementos.append(element_vacio)
                             elementos.append(Spacer(1, 6))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
