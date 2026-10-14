@@ -559,7 +559,7 @@ def aplicar_identidad_alfa():
 
         .panel-novedad { border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 15px; background-color: rgba(10, 10, 11, 0.9); }
          
-        /* --- ESTILOS CORREGIDOS: VISOR QR LIMPIO SIN LAS CUATRO PUNTAS --- */
+        /* --- ESTILOS PARA QUITAR EL VISOR DE LAS CUATRO PUNTAS EN WEB --- */
         .qr-scanner-container {
             display: flex; 
             justify-content: center; 
@@ -568,17 +568,16 @@ def aplicar_identidad_alfa():
             max-width: 400px !important;
             margin: 0 auto 5px auto !important; 
             overflow: hidden !important; 
-            border-radius: 8px !important; 
-            background: transparent !important; 
+            border-radius: 12px !important; 
+            background: #000 !important; 
             position: relative;
-            min-height: 250px !important;
         }
         .qr-scanner-container iframe {
             width: 100% !important;
             max-width: 400px !important;
             height: 260px !important;
-            border: 2px solid #00E5FF !important;
-            border-radius: 8px !important;
+            border: none !important;
+            border-radius: 12px !important; 
             background: #000 !important;
         }
         .qr-scanner-container video, .qr-scanner-container div {
@@ -586,12 +585,14 @@ def aplicar_identidad_alfa():
             max-width: 400px !important; 
             height: 260px !important; 
             object-fit: cover !important; 
-            border-radius: 8px !important; 
+            border-radius: 12px !important; 
         }
-        /* Oculta por completo las cuatro esquinas/puntas del visor interno del escáner */
+        /* Oculta de forma radical cualquier recuadro, esquinas o SVG interno del componente QR */
         .qr-scanner-container svg, 
         .qr-scanner-container [class*="scanner"], 
-        .qr-scanner-container div[style*="border"] {
+        .qr-scanner-container div[style*="border"],
+        .qr-scanner-container span {
+            display: none !important;
             border: none !important;
         }
 
