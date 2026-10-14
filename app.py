@@ -2057,7 +2057,11 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
     nombre_vigilador_actual = st.session_state.get("v_nombre_completo", st.session_state.user_sel).upper()
     legajo_vigilador_actual = st.session_state.get("legajo_vigilador", "S/L")
+    
     dni_vigilador_actual = st.session_state.get("dni_vigilador", "")
+    if not dni_vigilador_actual:
+        dni_vigilador_actual = "".join(ch for ch in str(st.session_state.get("user_sel", "")) if ch.isdigit())
+        st.session_state.dni_vigilador = dni_vigilador_actual
 
     df_msg = leer_matriz_nube("MENSAJERIA")
     total_nuevos = 0
@@ -2190,7 +2194,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
                     
                     st.success(f"✅ ¡Ingreso, foto y relevo registrado con éxito para {nombre_vigilador_actual} en {v_obj_auto}!")
-                    st.balloons()
+                    st.rerun()
                 else:
                     st.error("⚠️ Es obligatorio tomar la foto con la cámara para confirmar el ingreso.")
 
