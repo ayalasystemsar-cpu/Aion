@@ -689,7 +689,7 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
-# --- COMPONENTE PERSONALIZADO VISOR QR CON BIP Y VIBRACIÓN ---
+# --- COMPONENTE PERSONALIZADO VISOR QR CON v4 Y AUDIO DESBLOQUEADO ---
 _QR_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -697,8 +697,8 @@ html,body{margin:0;padding:0;background:transparent;overflow:hidden}
 #caja{position:relative;box-sizing:border-box;width:min(100%,340px);aspect-ratio:1/1;margin:6px auto;
 border:2px solid #00E5FF;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 0 15px rgba(0,229,255,.3)}
 video{width:100%;height:100%;object-fit:cover;display:block}
-#msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ccc;
-font:13px sans-serif;text-align:center;padding:12px}
+#msg{position:absolute;left:0;right:0;bottom:0;padding:6px;color:#fff;background:rgba(0,0,0,.55);
+font:12px sans-serif;text-align:center;pointer-events:none}
 </style></head><body>
 <div id="caja"><video id="v" playsinline muted autoplay></video><div id="msg"></div></div>
 <canvas id="c" style="display:none"></canvas>
@@ -708,25 +708,42 @@ function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage
 function altura(){var w=Math.min(document.documentElement.clientWidth||window.innerWidth,340);
 enviar("streamlit:setFrameHeight",{height:w+16});}
 enviar("streamlit:componentReady",{apiVersion:1});altura();window.addEventListener("resize",altura);
+
 var v=document.getElementById("v"),c=document.getElementById("c"),m=document.getElementById("msg");
-var ctx=c.getContext("2d",{willReadFrequently:true}),pausa=false;
+var ctx=c.getContext("2d",{willReadFrequently:true}),pausa=false,audioCtx=null;
+
+function desbloquear(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!audioCtx)audioCtx=new AC();
+    if(audioCtx.state==="suspended")audioCtx.resume();
+    m.textContent="";
+  }catch(e){}
+}
+["touchstart","click","pointerdown"].forEach(function(ev){
+  document.addEventListener(ev,desbloquear,{passive:true});
+});
+m.textContent="Tocá el visor una vez para activar el sonido";
+
 function bip(){
   try{
-    var AC;try{AC=window.parent.AudioContext||window.parent.webkitAudioContext;}catch(e){}
-    AC=AC||window.AudioContext||window.webkitAudioContext;
-    var a=new AC(),o=a.createOscillator(),g=a.createGain();
-    o.type="sine";o.frequency.value=1300;g.gain.value=0.25;
-    o.connect(g);g.connect(a.destination);o.start();
-    setTimeout(function(){o.stop();a.close();},170);
+    desbloquear();
+    var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type="sine";o.frequency.value=1300;g.gain.value=0.4;
+    o.connect(g);g.connect(audioCtx.destination);
+    o.start();
+    setTimeout(function(){o.stop();},170);
   }catch(e){}
   try{if(navigator.vibrate)navigator.vibrate(120);}catch(e){}
 }
+
 navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false})
 .then(function(s){
   v.srcObject=s;v.play();
   window.addEventListener("pagehide",function(){s.getTracks().forEach(function(t){t.stop();});});
   setInterval(function(){
     if(pausa||v.readyState<2||!v.videoWidth)return;
+    if(typeof jsQR==="undefined"){m.textContent="No cargó el lector QR. Revisá la conexión.";return;}
     var e=Math.min(1,640/Math.max(v.videoWidth,v.videoHeight));
     c.width=Math.round(v.videoWidth*e);c.height=Math.round(v.videoHeight*e);
     ctx.drawImage(v,0,0,c.width,c.height);
@@ -739,14 +756,14 @@ navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},wid
 </script></body></html>"""
 
 @st.cache_resource
-def _declarar_visor_qr():
-    carpeta = tempfile.mkdtemp(prefix="aion_qr_")
+def _declarar_visor_qr(version="v4"):
+    carpeta = tempfile.mkdtemp(prefix=f"aion_qr_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_QR_HTML)
-    return components.declare_component("aion_visor_qr", path=carpeta)
+    return components.declare_component(f"aion_visor_qr_{version}", path=carpeta)
 
 def visor_qr(key):
-    return _declarar_visor_qr()(key=key, default=None)
+    return _declarar_visor_qr("v4")(key=key, default=None)
 
 # --- 3.B RECORRIDOS CON QR (VIGILADORES) Y GENERADOR DE QR DE PUNTOS ---
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
@@ -2720,7 +2737,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         use_container_width=True
                     )
         else:
-            st.info("No hay registros activos de supervisores in the sistema todavía.")
+            st.info("No hay registros activos de supervisores en el sistema todavía.")
 
         if st.session_state.rol_sel == "GERENCIA":
             st.markdown("---")
