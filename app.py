@@ -16,6 +16,7 @@ import requests
 from branca.element import Element
 import qrcode
 import io
+import time
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -1859,12 +1860,52 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                  
                 st.markdown("---")
                 st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
-                st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
+                st.info("El escáner QR y el registro de marcación requerirán la verificación de tu ubicación GPS en el objetivo.")
 
-                ubicacion_gps = None  # PRUEBA: GPS desactivado
-                en_rango_gps = True
+                clave_gps = f"gps_sup_{obj_select}"   # un GPS por objetivo
+
+                if st.button("📍 VERIFICAR MI UBICACIÓN", key="btn_gps_sup", use_container_width=True):
+                    st.session_state.pedir_gps_sup = True
+                    st.session_state.pop(clave_gps, None)
+
+                if st.session_state.get("pedir_gps_sup"):
+                    ubic = get_geolocation()
+                    if ubic and 'coords' in ubic:
+                        st.session_state[clave_gps] = {"coords": ubic['coords'], "ts": time.time()}
+                        st.session_state.pedir_gps_sup = False
+                        st.rerun()
+                    else:
+                        st.info("⏳ Obteniendo ubicación... aceptá el permiso de ubicación del navegador.")
+
+                gps_guardado = st.session_state.get(clave_gps)
+                if gps_guardado and (time.time() - gps_guardado["ts"]) > 600:
+                    st.session_state.pop(clave_gps, None)
+                    gps_guardado = None
+                    st.warning("⏱️ La verificación de ubicación venció. Verificá de nuevo.")
+
+                en_rango_gps = False
+                gps_verificado = False
                 distancia_actual_m = 0.0
-                precision_gps = 0.0
+                precision_gps = 999.0
+
+                if gps_guardado:
+                    coords = gps_guardado["coords"]
+                    lat_actual = float(coords['latitude'])
+                    lon_actual = float(coords['longitude'])
+                    precision_gps = float(coords.get('accuracy', 500.0))
+
+                    lat_obj_val = float(datos_sel['LATITUD'])
+                    lon_obj_val = float(datos_sel['LONGITUD'])
+
+                    lon1, lat1, lon2, lat2 = map(math.radians, [lon_actual, lat_actual, lon_obj_val, lat_obj_val])
+                    dlon = lon2 - lon1
+                    dlat = lat2 - lat1
+                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                    c = 2 * math.asin(math.sqrt(a))
+                    distancia_actual_m = 6371000 * c
+
+                    gps_verificado = True
+                    en_rango_gps = distancia_actual_m <= 1000
 
                 if en_rango_gps:
                     st.success(f"✅ ¡PRESENCIA GPS VERIFICADA! Estás a ~{distancia_actual_m:.1f} metros del objetivo (Precisión: {precision_gps:.1f}m).")
@@ -1880,7 +1921,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     """, unsafe_allow_html=True)
 
                     codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}_{st.session_state.scan_n_sup}")
-                    st.caption(f"🔧 Lectura recibida: {codigo_qr_leido!r} | n={st.session_state.scan_n_sup}")
 
                     if st.session_state.ultimo_mensaje_qr:
                         st.success(st.session_state.ultimo_mensaje_qr)
@@ -1889,7 +1929,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                         if exito_registro:
                             try:
-                                # Se incluye el número de escaneo en el registro de la nube
                                 escribir_registro_nube("NOVEDADES GUARDIA", [
                                     obtener_hora_argentina(), 
                                     obj_select, 
@@ -1903,7 +1942,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             except:
                                 pass
                                 
-                            # Se añade el número actual al mensaje de éxito
                             numero_intento = st.session_state.scan_n_sup + 1
                             if accion_str == "INICIO":
                                 st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) #{numero_intento} REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
@@ -1915,8 +1953,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             st.rerun()
                         else:
                             st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                else:
+                elif gps_verificado:
                     st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 1000 metros físicos para habilitar el escáner QR.")
+                else:
+                    st.warning("📍 Apretá «VERIFICAR MI UBICACIÓN» para habilitar el escáner QR.")
 
                 st.markdown("---")
                  
@@ -2283,7 +2323,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     total_nuevos = len(df_msg[((col_texto(df_msg, 'DESTINATARIO') == "TODOS") | 
                             (col_texto(df_msg, 'DESTINATARIO') == st.session_state.rol_sel) | 
                             (col_texto(df_msg, 'DESTINATARIO') == nombre_user)) & 
-                           (col_texto(df_msg, 'ESTADO') == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
+                           (col_texto(df_msg, 'ESTADO'] == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
      
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
      
