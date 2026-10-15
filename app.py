@@ -1638,6 +1638,9 @@ if st.session_state.rol_sel == "MONITOREO":
 # ROL: SUPERVISOR
 # =========================================================================
 elif st.session_state.rol_sel == "SUPERVISOR":
+    if 'scan_n_sup' not in st.session_state:
+        st.session_state.scan_n_sup = 0
+
     if st.session_state.sup_autenticado:
         sup_activo_normalizado = st.session_state.user_sel.strip().upper()
          
@@ -1881,35 +1884,41 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         </div>
                     """, unsafe_allow_html=True)
 
-                    codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}")
+                    codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}_{st.session_state.scan_n_sup}")
 
                     if st.session_state.ultimo_mensaje_qr:
                         st.success(st.session_state.ultimo_mensaje_qr)
 
                     if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
-                        clave_registro_actual = f"{codigo_qr_leido}_{accion_str}"
-                         
-                        if st.session_state.get("ultimo_qr_procesado") != clave_registro_actual:
-                            st.session_state.ultimo_qr_procesado = clave_registro_actual
+                        exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
+                        if exito_registro:
                             try:
-                                exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                                if exito_registro:
-                                    try:
-                                        escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_select, f"SUPERVISIÓN QR VALIDADA ({accion_str})", "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                                    except:
-                                        pass
-                                     
-                                    if accion_str == "INICIO":
-                                        st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                    else:
-                                        st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                     
-                                    sincronizar_url_sesion()
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                            except Exception as e:
-                                st.warning(f"⚠️ Nota de sistema: {e}")
+                                # Se incluye el número de escaneo en el registro de la nube
+                                escribir_registro_nube("NOVEDADES GUARDIA", [
+                                    obtener_hora_argentina(), 
+                                    obj_select, 
+                                    f"SUPERVISIÓN QR VALIDADA ({accion_str}) - #{st.session_state.scan_n_sup + 1}", 
+                                    "---", 
+                                    st.session_state.user_sel, 
+                                    "---", 
+                                    "PROCESADO", 
+                                    st.session_state.user_sel
+                                ])
+                            except:
+                                pass
+                                
+                            # Se añade el número actual al mensaje de éxito
+                            numero_intento = st.session_state.scan_n_sup + 1
+                            if accion_str == "INICIO":
+                                st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) #{numero_intento} REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                            else:
+                                st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) #{numero_intento} REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
+                                
+                            st.session_state.scan_n_sup += 1
+                            sincronizar_url_sesion()
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al registrar en la nube. Intente nuevamente.")
                 else:
                     st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 1000 metros físicos para habilitar el escáner QR.")
 
@@ -2711,7 +2720,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         use_container_width=True
                     )
         else:
-            st.info("No hay registros activos de supervisores en el sistema todavía.")
+            st.info("No hay registros activos de supervisores in the sistema todavía.")
 
         if st.session_state.rol_sel == "GERENCIA":
             st.markdown("---")
