@@ -2323,7 +2323,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     total_nuevos = len(df_msg[((col_texto(df_msg, 'DESTINATARIO') == "TODOS") | 
                             (col_texto(df_msg, 'DESTINATARIO') == st.session_state.rol_sel) | 
                             (col_texto(df_msg, 'DESTINATARIO') == nombre_user)) & 
-                           (col_texto(df_msg, 'ESTADO'] == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
+                           (col_texto(df_msg, 'ESTADO') == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
      
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
      
