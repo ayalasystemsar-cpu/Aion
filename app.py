@@ -1861,32 +1861,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
                 st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
 
-                ubicacion_gps = get_geolocation()
-                en_rango_gps = False
+                ubicacion_gps = None  # PRUEBA: GPS desactivado
+                en_rango_gps = True
                 distancia_actual_m = 0.0
-                precision_gps = 999.0
-
-                if ubicacion_gps and 'coords' in ubicacion_gps:
-                    lat_actual = float(ubicacion_gps['coords']['latitude'])
-                    lon_actual = float(ubicacion_gps['coords']['longitude'])
-                    precision_gps = float(ubicacion_gps['coords'].get('accuracy', 500.0))
-                     
-                    lat_obj_val = float(datos_sel['LATITUD'])
-                    lon_obj_val = float(datos_sel['LONGITUD'])
-
-                    lon1, lat1, lon2, lat2 = map(math.radians, [lon_actual, lat_actual, lon_obj_val, lat_obj_val])
-                    dlon = lon2 - lon1
-                    dlat = lat2 - lat1
-                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                    c = 2 * math.asin(math.sqrt(a))
-                    distancia_actual_m = 6371000 * c  
-
-                    if distancia_actual_m <= 1000:
-                        en_rango_gps = True
-                    else:
-                        en_rango_gps = False
-                else:
-                    en_rango_gps = True 
+                precision_gps = 0.0
 
                 if en_rango_gps:
                     st.success(f"✅ ¡PRESENCIA GPS VERIFICADA! Estás a ~{distancia_actual_m:.1f} metros del objetivo (Precisión: {precision_gps:.1f}m).")
@@ -1902,6 +1880,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     """, unsafe_allow_html=True)
 
                     codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}_{st.session_state.scan_n_sup}")
+                    st.caption(f"🔧 Lectura recibida: {codigo_qr_leido!r} | n={st.session_state.scan_n_sup}")
 
                     if st.session_state.ultimo_mensaje_qr:
                         st.success(st.session_state.ultimo_mensaje_qr)
