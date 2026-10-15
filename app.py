@@ -2836,3 +2836,33 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.error("⚠️ Acceso restringido.")
+
+
+# --- INTEGRACIÓN DE AUDIO Y VIBRACIÓN GLOBAL ---
+components.html("""
+<script>
+var audioCtx = null;
+function desbloquear() {
+  try {
+    var AC = window.parent.AudioContext || window.parent.webkitAudioContext;
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) {}
+}
+["touchstart", "click", "pointerdown"].forEach(function(ev) {
+  document.addEventListener(ev, desbloquear, {passive: true});
+});
+
+function bip() {
+  try {
+    desbloquear();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "sine"; o.frequency.value = 1300; g.gain.value = 0.4;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    setTimeout(function() { o.stop(); }, 170);
+  } catch (e) {}
+  try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
+}
+</script>
+""", height=0)
