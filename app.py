@@ -993,26 +993,45 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR":
-                dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())
-                df_pad = leer_matriz_nube("PADRON VIGILADORES")
-                fila_vig = pd.DataFrame()
-                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
-                    fila_vig = df_pad[col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True) == dni_ingresado]
-                if not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO":
-                    nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()
-                    st.session_state.usuario_logueado = True
-                    st.session_state.user_sel = nombre_vig
-                    st.session_state.rol_sel = "VIGILADOR"
-                    st.session_state.dni_vigilador = dni_ingresado
-                    st.session_state.v_nombre_completo = nombre_vig
-                    st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '')).strip()
-                    st.session_state.sup_autenticado = False
-                    st.session_state.admin_autenticado = False
-                    sincronizar_url_sesion()
-                    st.rerun()
-                else:
-                    st.error("❌ DNI no habilitado o contraseña incorrecta.")
+            # --- LOGIN DE VIGILADOR ACTUALIZADO Y ROBUSTO ---
+            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR":  
+                dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())  
+                
+                # Forzar limpieza de caché para leer siempre los datos en tiempo real de Google Sheets
+                st.cache_data.clear()
+                df_pad = leer_matriz_nube("PADRON VIGILADORES")  
+                
+                fila_vig = pd.DataFrame()  
+                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty:  
+                    df_pad.columns = [str(c).strip().upper() for c in df_pad.columns]
+                    
+                    col_dni_key = next((c for c in df_pad.columns if 'DNI' in c), None)
+                    col_est_key = next((c for c in df_pad.columns if 'ESTADO' in c), None)
+                    
+                    if col_dni_key and col_est_key:
+                        df_pad['DNI_CLEAN'] = df_pad[col_dni_key].astype(str).str.split('.').str[0].str.replace(r'\D', '', regex=True)
+                        fila_vig = df_pad[df_pad['DNI_CLEAN'] == dni_ingresado]  
+                        
+                        estado_vig = str(fila_vig.iloc[0].get(col_est_key, '')).strip().upper() if not fila_vig.empty else ""
+                        
+                        if not fila_vig.empty and estado_vig == "ACTIVO":  
+                            nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()  
+                            st.session_state.usuario_logueado = True  
+                            st.session_state.user_sel = nombre_vig  
+                            st.session_state.rol_sel = "VIGILADOR"  
+                            st.session_state.dni_vigilador = dni_ingresado  
+                            st.session_state.v_nombre_completo = nombre_vig  
+                            st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '')).split('.')[0].strip()  
+                            st.session_state.sup_autenticado = False  
+                            st.session_state.admin_autenticado = False  
+                            sincronizar_url_sesion()  
+                            st.rerun()  
+                        else:  
+                            st.error(f"❌ DNI no habilitado, contraseña incorrecta o estado no ACTIVO (Estado actual: '{estado_vig}').")
+                    else:
+                        st.error("❌ Error en la estructura de la solapa 'PADRON VIGILADORES' (faltan columnas DNI o ESTADO).")
+                else:  
+                    st.error("❌ DNI inválido o contraseña incorrecta.")
                  
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
