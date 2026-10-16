@@ -1168,8 +1168,11 @@ else:
         st.markdown("---")
         st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
         st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
+        
+        # Notificaciones de supervisor ubicadas antes de cerrar sesión
         if st.session_state.rol_sel == "SUPERVISOR":
             mostrar_notificaciones_supervisor()
+            
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
             st.session_state.usuario_logueado = False
