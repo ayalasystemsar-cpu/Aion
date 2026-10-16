@@ -649,6 +649,35 @@ def renderizar_mensajeria_global(rol_contexto):
                         sincronizar_url_sesion()
                         st.rerun()
 
+def mostrar_notificaciones_sidebar():
+    rol_actual = st.session_state.get('rol_sel', '')
+    usuario_actual = str(st.session_state.get('user_sel', '')).strip().upper()
+    
+    df_n = leer_matriz_nube("MENSAJERIA")
+    if df_n.empty or not {'DESTINATARIO', 'ASUNTO', 'ESTADO'} <= set(df_n.columns):
+        return
+
+    # Filtrar solo las notificaciones de alta destinadas específicamente a este usuario o rol
+    pend = df_n[
+        (
+            (col_texto(df_n, 'DESTINATARIO').str.strip().str.upper() == usuario_actual) |
+            (col_texto(df_n, 'DESTINATARIO').str.strip().str.upper() == rol_actual)
+        ) &
+        (col_texto(df_n, 'ASUNTO').str.strip().str.upper() == "ALTA DE VIGILADOR") &
+        (col_texto(df_n, 'ESTADO').str.strip().str.upper() == "PENDIENTE")
+    ]
+
+    if not pend.empty:
+        st.markdown("---")
+        st.markdown(f"### 🔔 NOTIFICACIONES ({len(pend)})")
+        for idx_n, fila_n in pend.iterrows():
+            st.warning(f"{fila_n.get('MENSAJE', '')}")
+            if st.button("✔️ LEÍDO / OK", key=f"btn_notif_{idx_n}", use_container_width=True):
+                # Actualizamos en la nube el estado a LEÍDO para que desaparezca
+                # Buscamos el índice real sumando 2 por los encabezados
+                if actualizar_celda("MENSAJERIA", idx_n + 2, "F", "LEÍDO"):
+                    st.rerun()
+
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
@@ -934,11 +963,20 @@ def mostrar_landing():
      
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
      
+    nombre_vig_reg = ""
+    obj_vig_reg = ""
     with st.form("form_acceso_real"):
         user = st.text_input("Usuario o Apellido del Supervisor (Vigilador: DNI)", key="u")
         password = st.text_input("Contraseña (Vigilador: DNI)", type="password", key="p")
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
         rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
+
+        if modo == "Crear Cuenta":
+            nombre_vig_reg = st.text_input("Apellido y nombre (solo vigiladores)", key="nv_reg")
+            _df_obj_login = cargar_objetivos()
+            _lista_obj_login = sorted(_df_obj_login['OBJETIVO'].astype(str).str.strip().str.upper().unique().tolist()) if not _df_obj_login.empty else []
+            if _lista_obj_login:
+                obj_vig_reg = st.selectbox("Objetivo asignado (solo vigiladores)", _lista_obj_login, key="ov_reg")
 
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
          
@@ -1045,6 +1083,23 @@ def mostrar_landing():
                         st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
                 else:
                     st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
+            elif modo == "Crear Cuenta" and rol_usuario == "VIGILADOR":
+                dni_reg = "".join(ch for ch in user_limpio if ch.isdigit())
+                pass_reg = "".join(ch for ch in pass_limpio if ch.isdigit())
+                nombre_reg = nombre_vig_reg.strip().upper()
+                if not dni_reg or not nombre_reg or not obj_vig_reg:
+                    st.warning("⚠️ Complete DNI, apellido y nombre, y seleccione su objetivo.")
+                elif pass_reg != dni_reg:
+                    st.warning("⚠️ La contraseña debe coincidir con su DNI.")
+                else:
+                    st.cache_data.clear()
+                    df_pad_reg = leer_matriz_nube("PADRON VIGILADORES")
+                    ya_reg = (not df_pad_reg.empty) and ('DNI' in df_pad_reg.columns) and \
+                             (dni_reg in col_texto(df_pad_reg, 'DNI').str.replace(r'\D', '', regex=True).tolist())
+                    if ya_reg:
+                        st.warning("⚠️ Este DNI ya se encuentra registrado. Si ya fue dado de alta, inicie sesión.")
+                    elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, "", "PENDIENTE", obj_vig_reg]):
+                        st.success("✅ Solicitud registrada. Quedará pendiente de aprobación por la Administración.")
             else:
                 if user.strip() and password.strip():
                     exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
@@ -1111,6 +1166,9 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
                 sincronizar_url_sesion()
                 st.rerun()
 
+        # Notificaciones en la barra lateral (zona solicitada) para Administrador si simula rol
+        mostrar_notificaciones_sidebar()
+
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
             st.session_state.usuario_logueado = False
@@ -1122,6 +1180,10 @@ else:
         st.markdown("---")
         st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
         st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
+        
+        # Notificaciones en la barra lateral exactamente en la zona solicitada (arriba de Cerrar Sesión)
+        mostrar_notificaciones_sidebar()
+            
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
             st.session_state.usuario_logueado = False
@@ -2800,10 +2862,60 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             st.caption("El vigilador ingresa con su DNI como usuario y como contraseña. Solo pueden entrar los DNI cargados acá con estado ACTIVO.")
             df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
             if not df_pad_adm.empty:
-                cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO'] if c in df_pad_adm.columns]
+                cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO', 'OBJETIVO'] if c in df_pad_adm.columns]
                 st.dataframe(df_pad_adm[cols_pad], use_container_width=True, hide_index=True)
             else:
                 st.info("El padrón todavía está vacío.")
+
+            if not df_pad_adm.empty and 'ESTADO' in df_pad_adm.columns:
+                pend_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "PENDIENTE"]
+                if not pend_vig.empty:
+                    st.markdown("##### ⏳ SOLICITUDES DE ALTA PENDIENTES")
+                    etiquetas_pend = {
+                        i: f"{r.get('NOMBRE', '')} | DNI {r.get('DNI', '')} | {r.get('OBJETIVO', 'SIN OBJETIVO')}"
+                        for i, r in pend_vig.iterrows()
+                    }
+                    idx_pend = st.selectbox("Solicitud:", list(etiquetas_pend.keys()),
+                                            format_func=lambda k: etiquetas_pend[k], key="sel_vig_pend")
+                    legajo_asig = st.text_input("Legajo (opcional):", key="legajo_vig_pend").strip()
+                    c_ap, c_re = st.columns(2)
+                    if c_ap.button("✅ DAR DE ALTA", use_container_width=True, key="btn_aprobar_vig"):
+                        fila_pend = df_pad_adm.loc[idx_pend]
+                        nom_p = str(fila_pend.get('NOMBRE', '')).strip().upper()
+                        dni_p = str(fila_pend.get('DNI', '')).strip()
+                        obj_p = str(fila_pend.get('OBJETIVO', '')).strip().upper()
+                        
+                        if actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "D", "ACTIVO"):
+                            if legajo_asig:
+                                actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "C", legajo_asig)
+                            
+                            sup_p = ""
+                            if not df_objetivos.empty and obj_p:
+                                m_obj = df_objetivos[col_texto(df_objetivos, 'OBJETIVO').str.strip().str.upper() == obj_p]
+                                if not m_obj.empty:
+                                    sup_p = str(m_obj['SUPERVISOR'].iloc[0]).strip().upper()
+
+                            # Notificación dirigida al Supervisor y al Vigilador directamente en su barra lateral
+                            if sup_p:
+                                escribir_registro_nube("MENSAJERIA", [
+                                    obtener_hora_argentina(), "ADMINISTRACIÓN", sup_p,
+                                    "ALTA DE VIGILADOR",
+                                    f"El vigilador {nom_p} fue dado de alta en {obj_p}.",
+                                    "PENDIENTE", "VERDE"
+                                ])
+                            escribir_registro_nube("MENSAJERIA", [
+                                obtener_hora_argentina(), "ADMINISTRACIÓN", nom_p,
+                                "ALTA DE VIGILADOR",
+                                f"¡Bienvenido! Ya fuiste dado de alta en {obj_p}. Ya podés ingresar.",
+                                "PENDIENTE", "VERDE"
+                            ])
+                            st.success(f"✅ ALTA CONFIRMADA: Vigilador {nom_p} habilitado en {obj_p}.")
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo registrar el alta. Intente nuevamente.")
+                    if c_re.button("🚫 RECHAZAR", use_container_width=True, key="btn_rechazar_vig"):
+                        if actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "D", "RECHAZADO"):
+                            st.info("Solicitud rechazada.")
 
             with st.form(key="form_alta_vigilador_padron", clear_on_submit=True):
                 col_pv_a, col_pv_b = st.columns(2)
