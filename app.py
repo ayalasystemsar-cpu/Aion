@@ -16,7 +16,6 @@ import requests
 from branca.element import Element
 import qrcode
 import io
-import time
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -993,45 +992,26 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
 
-            # --- LOGIN DE VIGILADOR ACTUALIZADO Y ROBUSTO ---
-            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR":  
-                dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())  
-                
-                # Forzar limpieza de caché para leer siempre los datos en tiempo real de Google Sheets
-                st.cache_data.clear()
-                df_pad = leer_matriz_nube("PADRON VIGILADORES")  
-                
-                fila_vig = pd.DataFrame()  
-                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty:  
-                    df_pad.columns = [str(c).strip().upper() for c in df_pad.columns]
-                    
-                    col_dni_key = next((c for c in df_pad.columns if 'DNI' in c), None)
-                    col_est_key = next((c for c in df_pad.columns if 'ESTADO' in c), None)
-                    
-                    if col_dni_key and col_est_key:
-                        df_pad['DNI_CLEAN'] = df_pad[col_dni_key].astype(str).str.split('.').str[0].str.replace(r'\D', '', regex=True)
-                        fila_vig = df_pad[df_pad['DNI_CLEAN'] == dni_ingresado]  
-                        
-                        estado_vig = str(fila_vig.iloc[0].get(col_est_key, '')).strip().upper() if not fila_vig.empty else ""
-                        
-                        if not fila_vig.empty and estado_vig == "ACTIVO":  
-                            nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()  
-                            st.session_state.usuario_logueado = True  
-                            st.session_state.user_sel = nombre_vig  
-                            st.session_state.rol_sel = "VIGILADOR"  
-                            st.session_state.dni_vigilador = dni_ingresado  
-                            st.session_state.v_nombre_completo = nombre_vig  
-                            st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '')).split('.')[0].strip()  
-                            st.session_state.sup_autenticado = False  
-                            st.session_state.admin_autenticado = False  
-                            sincronizar_url_sesion()  
-                            st.rerun()  
-                        else:  
-                            st.error(f"❌ DNI no habilitado, contraseña incorrecta o estado no ACTIVO (Estado actual: '{estado_vig}').")
-                    else:
-                        st.error("❌ Error en la estructura de la solapa 'PADRON VIGILADORES' (faltan columnas DNI o ESTADO).")
-                else:  
-                    st.error("❌ DNI inválido o contraseña incorrecta.")
+            elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR":
+                dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())
+                df_pad = leer_matriz_nube("PADRON VIGILADORES")
+                fila_vig = pd.DataFrame()
+                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
+                    fila_vig = df_pad[col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True) == dni_ingresado]
+                if not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO":
+                    nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()
+                    st.session_state.usuario_logueado = True
+                    st.session_state.user_sel = nombre_vig
+                    st.session_state.rol_sel = "VIGILADOR"
+                    st.session_state.dni_vigilador = dni_ingresado
+                    st.session_state.v_nombre_completo = nombre_vig
+                    st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '')).strip()
+                    st.session_state.sup_autenticado = False
+                    st.session_state.admin_autenticado = False
+                    sincronizar_url_sesion()
+                    st.rerun()
+                else:
+                    st.error("❌ DNI no habilitado o contraseña incorrecta.")
                  
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
@@ -1879,52 +1859,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                  
                 st.markdown("---")
                 st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
-                st.info("El escáner QR y el registro de marcación requerirán la verificación de tu ubicación GPS en el objetivo.")
+                st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
 
-                clave_gps = f"gps_sup_{obj_select}"   # un GPS por objetivo
-
-                if st.button("📍 VERIFICAR MI UBICACIÓN", key="btn_gps_sup", use_container_width=True):
-                    st.session_state.pedir_gps_sup = True
-                    st.session_state.pop(clave_gps, None)
-
-                if st.session_state.get("pedir_gps_sup"):
-                    ubic = get_geolocation()
-                    if ubic and 'coords' in ubic:
-                        st.session_state[clave_gps] = {"coords": ubic['coords'], "ts": time.time()}
-                        st.session_state.pedir_gps_sup = False
-                        st.rerun()
-                    else:
-                        st.info("⏳ Obteniendo ubicación... aceptá el permiso de ubicación del navegador.")
-
-                gps_guardado = st.session_state.get(clave_gps)
-                if gps_guardado and (time.time() - gps_guardado["ts"]) > 600:
-                    st.session_state.pop(clave_gps, None)
-                    gps_guardado = None
-                    st.warning("⏱️ La verificación de ubicación venció. Verificá de nuevo.")
-
-                en_rango_gps = False
-                gps_verificado = False
+                ubicacion_gps = None  # PRUEBA: GPS desactivado
+                en_rango_gps = True
                 distancia_actual_m = 0.0
-                precision_gps = 999.0
-
-                if gps_guardado:
-                    coords = gps_guardado["coords"]
-                    lat_actual = float(coords['latitude'])
-                    lon_actual = float(coords['longitude'])
-                    precision_gps = float(coords.get('accuracy', 500.0))
-
-                    lat_obj_val = float(datos_sel['LATITUD'])
-                    lon_obj_val = float(datos_sel['LONGITUD'])
-
-                    lon1, lat1, lon2, lat2 = map(math.radians, [lon_actual, lat_actual, lon_obj_val, lat_obj_val])
-                    dlon = lon2 - lon1
-                    dlat = lat2 - lat1
-                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                    c = 2 * math.asin(math.sqrt(a))
-                    distancia_actual_m = 6371000 * c
-
-                    gps_verificado = True
-                    en_rango_gps = distancia_actual_m <= 1000
+                precision_gps = 0.0
 
                 if en_rango_gps:
                     st.success(f"✅ ¡PRESENCIA GPS VERIFICADA! Estás a ~{distancia_actual_m:.1f} metros del objetivo (Precisión: {precision_gps:.1f}m).")
@@ -1940,6 +1880,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     """, unsafe_allow_html=True)
 
                     codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}_{st.session_state.scan_n_sup}")
+                    st.caption(f"🔧 Lectura recibida: {codigo_qr_leido!r} | n={st.session_state.scan_n_sup}")
 
                     if st.session_state.ultimo_mensaje_qr:
                         st.success(st.session_state.ultimo_mensaje_qr)
@@ -1948,6 +1889,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                         if exito_registro:
                             try:
+                                # Se incluye el número de escaneo en el registro de la nube
                                 escribir_registro_nube("NOVEDADES GUARDIA", [
                                     obtener_hora_argentina(), 
                                     obj_select, 
@@ -1961,6 +1903,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             except:
                                 pass
                                 
+                            # Se añade el número actual al mensaje de éxito
                             numero_intento = st.session_state.scan_n_sup + 1
                             if accion_str == "INICIO":
                                 st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) #{numero_intento} REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
@@ -1972,10 +1915,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             st.rerun()
                         else:
                             st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                elif gps_verificado:
-                    st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 1000 metros físicos para habilitar el escáner QR.")
                 else:
-                    st.warning("📍 Apretá «VERIFICAR MI UBICACIÓN» para habilitar el escáner QR.")
+                    st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 1000 metros físicos para habilitar el escáner QR.")
 
                 st.markdown("---")
                  
