@@ -940,15 +940,6 @@ def mostrar_landing():
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
         rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
 
-        nombre_vig_reg = ""
-        obj_vig_reg = ""
-        if modo == "Crear Cuenta":
-            nombre_vig_reg = st.text_input("Apellido y nombre (solo vigiladores)", key="nv_reg")
-            _df_obj_login = cargar_objetivos()
-            _lista_obj_login = sorted(_df_obj_login['OBJETIVO'].astype(str).str.strip().str.upper().unique().tolist()) if not _df_obj_login.empty else []
-            if _lista_obj_login:
-                obj_vig_reg = st.selectbox("Objetivo donde prestás servicio (solo vigiladores)", _lista_obj_login, key="ov_reg")
-
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
          
         if st.form_submit_button(btn_texto):
@@ -1054,23 +1045,6 @@ def mostrar_landing():
                         st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
                 else:
                     st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
-            elif modo == "Crear Cuenta" and rol_usuario == "VIGILADOR":
-                dni_reg = "".join(ch for ch in user_limpio if ch.isdigit())
-                pass_reg = "".join(ch for ch in pass_limpio if ch.isdigit())
-                nombre_reg = nombre_vig_reg.strip().upper()
-                if not dni_reg or not nombre_reg or not obj_vig_reg:
-                    st.warning("⚠️ Completá DNI, apellido y nombre, y elegí tu objetivo.")
-                elif pass_reg != dni_reg:
-                    st.warning("⚠️ La contraseña debe ser tu DNI.")
-                else:
-                    st.cache_data.clear()
-                    df_pad_reg = leer_matriz_nube("PADRON VIGILADORES")
-                    ya_reg = (not df_pad_reg.empty) and ('DNI' in df_pad_reg.columns) and \
-                             (dni_reg in col_texto(df_pad_reg, 'DNI').str.replace(r'\D', '', regex=True).tolist())
-                    if ya_reg:
-                        st.warning("⚠️ Ese DNI ya está registrado. Si ya te dieron el alta, iniciá sesión.")
-                    elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, "", "PENDIENTE", obj_vig_reg]):
-                        st.success("✅ Solicitud enviada. El administrador la va a revisar y tu supervisor te avisa cuando puedas ingresar.")
             else:
                 if user.strip() and password.strip():
                     exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
@@ -2826,7 +2800,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             st.caption("El vigilador ingresa con su DNI como usuario y como contraseña. Solo pueden entrar los DNI cargados acá con estado ACTIVO.")
             df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
             if not df_pad_adm.empty:
-                cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO', 'OBJETIVO'] if c in df_pad_adm.columns]
+                cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO'] if c in df_pad_adm.columns]
                 st.dataframe(df_pad_adm[cols_pad], use_container_width=True, hide_index=True)
             else:
                 st.info("El padrón todavía está vacío.")
