@@ -657,7 +657,6 @@ def mostrar_notificaciones_sidebar():
     if df_n.empty or not {'DESTINATARIO', 'ASUNTO', 'ESTADO'} <= set(df_n.columns):
         return
 
-    # Filtrar solo las notificaciones de alta destinadas específicamente a este usuario o rol
     pend = df_n[
         (
             (col_texto(df_n, 'DESTINATARIO').str.strip().str.upper() == usuario_actual) |
@@ -964,17 +963,17 @@ def mostrar_landing():
     nombre_vig_reg = ""
     obj_vig_reg = ""
     with st.form("form_acceso_real"):
-        user = st.text_input("Usuario o Apellido del Supervisor (Vigilador: DNI)", key="u")
-        password = st.text_input("Contraseña (Vigilador: DNI)", type="password", key="p")
+        user = st.text_input("Usuario", key="u")
+        password = st.text_input("Contraseña", type="password", key="p")
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
-        rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
+        rol_usuario = st.selectbox("Selección del Rol", roles_registro, key="r")
 
         if modo == "Crear Cuenta":
-            nombre_vig_reg = st.text_input("Apellido y nombre (solo vigiladores)", key="nv_reg")
+            nombre_vig_reg = st.text_input("Apellido y Nombre", key="nv_reg")
             _df_obj_login = cargar_objetivos()
             _lista_obj_login = sorted(_df_obj_login['OBJETIVO'].astype(str).str.strip().str.upper().unique().tolist()) if not _df_obj_login.empty else []
             if _lista_obj_login:
-                obj_vig_reg = st.selectbox("Objetivo asignado (solo vigiladores)", _lista_obj_login, key="ov_reg")
+                obj_vig_reg = st.selectbox("Objetivo", _lista_obj_login, key="ov_reg")
 
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
          
@@ -1164,7 +1163,6 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
                 sincronizar_url_sesion()
                 st.rerun()
 
-        # Notificaciones en la barra lateral para el Administrador si simula rol
         mostrar_notificaciones_sidebar()
 
         st.markdown("---")
@@ -1179,7 +1177,6 @@ else:
         st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
         st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
         
-        # Notificaciones en la barra lateral exactamente arriba de Cerrar Sesión
         mostrar_notificaciones_sidebar()
             
         st.markdown("---")
@@ -2889,7 +2886,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                 if not m_obj.empty:
                                     sup_p = str(m_obj['SUPERVISOR'].iloc[0]).strip().upper()
 
-                            # Notificación dirigida al supervisor y al vigilador en su barra lateral
                             if sup_p:
                                 escribir_registro_nube("MENSAJERIA", [
                                     obtener_hora_argentina(), "ADMINISTRACIÓN", sup_p,
