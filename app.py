@@ -673,8 +673,6 @@ def mostrar_notificaciones_sidebar():
         for idx_n, fila_n in pend.iterrows():
             st.warning(f"{fila_n.get('MENSAJE', '')}")
             if st.button("✔️ LEÍDO / OK", key=f"btn_notif_{idx_n}", use_container_width=True):
-                # Actualizamos en la nube el estado a LEÍDO para que desaparezca
-                # Buscamos el índice real sumando 2 por los encabezados
                 if actualizar_celda("MENSAJERIA", idx_n + 2, "F", "LEÍDO"):
                     st.rerun()
 
@@ -1166,7 +1164,7 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
                 sincronizar_url_sesion()
                 st.rerun()
 
-        # Notificaciones en la barra lateral (zona solicitada) para Administrador si simula rol
+        # Notificaciones en la barra lateral para el Administrador si simula rol
         mostrar_notificaciones_sidebar()
 
         st.markdown("---")
@@ -1181,7 +1179,7 @@ else:
         st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
         st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
         
-        # Notificaciones en la barra lateral exactamente en la zona solicitada (arriba de Cerrar Sesión)
+        # Notificaciones en la barra lateral exactamente arriba de Cerrar Sesión
         mostrar_notificaciones_sidebar()
             
         st.markdown("---")
@@ -1923,7 +1921,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
                 st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
 
-                ubicacion_gps = None  # PRUEBA: GPS desactivado
+                ubicacion_gps = None
                 en_rango_gps = True
                 distancia_actual_m = 0.0
                 precision_gps = 0.0
@@ -1951,7 +1949,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                         if exito_registro:
                             try:
-                                # Se incluye el número de escaneo en el registro de la nube
                                 escribir_registro_nube("NOVEDADES GUARDIA", [
                                     obtener_hora_argentina(), 
                                     obj_select, 
@@ -1965,7 +1962,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             except:
                                 pass
                                 
-                            # Se añade el número actual al mensaje de éxito
                             numero_intento = st.session_state.scan_n_sup + 1
                             if accion_str == "INICIO":
                                 st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) #{numero_intento} REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
@@ -2150,7 +2146,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
 
 # =========================================================================
-# ROL: VIGILADOR (FLUJO AUTOMATIZADO DE INGRESO, FOTO, RELEVO Y RECORRIDO)
+# ROL: VIGILADOR
 # =========================================================================
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
@@ -2291,11 +2287,9 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_actual = fecha_hora_arg.split(" ")[1]
                      
-                    # 1. Registro automático de presentismo e ingreso
                     escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, legajo_vigilador_actual, nombre_vigilador_actual, v_obj_auto, "INGRESO", "OK"])
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "MARCACIÓN_INGRESO", "---", nombre_vigilador_actual, legajo_vigilador_actual, "PROCESADO", sup_responsable])
                      
-                    # 2. Registro automático de relevo de turno
                     saliente_fmt = vig_saliente_auto if vig_saliente_auto else "PERSONAL ANTERIOR"
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
                     escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
@@ -2895,12 +2889,12 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                 if not m_obj.empty:
                                     sup_p = str(m_obj['SUPERVISOR'].iloc[0]).strip().upper()
 
-                            # Notificación dirigida al Supervisor y al Vigilador directamente en su barra lateral
+                            # Notificación dirigida al supervisor y al vigilador en su barra lateral
                             if sup_p:
                                 escribir_registro_nube("MENSAJERIA", [
                                     obtener_hora_argentina(), "ADMINISTRACIÓN", sup_p,
                                     "ALTA DE VIGILADOR",
-                                    f"El vigilador {nom_p} fue dado de alta en {obj_p}.",
+                                    f"Aviso al Supervisor: El vigilador {nom_p} fue aprobado para el objetivo {obj_p}. Ya puede ingresar.",
                                     "PENDIENTE", "VERDE"
                                 ])
                             escribir_registro_nube("MENSAJERIA", [
@@ -2953,7 +2947,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.error("⚠️ Acceso restringido.")
-
 
 # --- INTEGRACIÓN DE AUDIO Y VIBRACIÓN GLOBAL ---
 components.html("""
