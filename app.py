@@ -649,35 +649,6 @@ def renderizar_mensajeria_global(rol_contexto):
                         sincronizar_url_sesion()
                         st.rerun()
 
-def mostrar_notificaciones_sidebar():
-    rol_actual = st.session_state.get('rol_sel', '')
-    usuario_actual = str(st.session_state.get('user_sel', '')).strip().upper()
-    
-    df_n = leer_matriz_nube("MENSAJERIA")
-    if df_n.empty or not {'DESTINATARIO', 'ASUNTO', 'ESTADO'} <= set(df_n.columns):
-        return
-
-    # Filtrar solo las notificaciones de alta destinadas específicamente a este usuario o rol
-    pend = df_n[
-        (
-            (col_texto(df_n, 'DESTINATARIO').str.strip().str.upper() == usuario_actual) |
-            (col_texto(df_n, 'DESTINATARIO').str.strip().str.upper() == rol_actual)
-        ) &
-        (col_texto(df_n, 'ASUNTO').str.strip().str.upper() == "ALTA DE VIGILADOR") &
-        (col_texto(df_n, 'ESTADO').str.strip().str.upper() == "PENDIENTE")
-    ]
-
-    if not pend.empty:
-        st.markdown("---")
-        st.markdown(f"### 🔔 NOTIFICACIONES ({len(pend)})")
-        for idx_n, fila_n in pend.iterrows():
-            st.warning(f"{fila_n.get('MENSAJE', '')}")
-            if st.button("✔️ LEÍDO / OK", key=f"btn_notif_{idx_n}", use_container_width=True):
-                # Actualizamos en la nube el estado a LEÍDO para que desaparezca
-                # Buscamos el índice real sumando 2 por los encabezados
-                if actualizar_celda("MENSAJERIA", idx_n + 2, "F", "LEÍDO"):
-                    st.rerun()
-
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
@@ -963,20 +934,11 @@ def mostrar_landing():
      
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
      
-    nombre_vig_reg = ""
-    obj_vig_reg = ""
     with st.form("form_acceso_real"):
         user = st.text_input("Usuario o Apellido del Supervisor (Vigilador: DNI)", key="u")
         password = st.text_input("Contraseña (Vigilador: DNI)", type="password", key="p")
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
         rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
-
-        if modo == "Crear Cuenta":
-            nombre_vig_reg = st.text_input("Apellido y nombre (solo vigiladores)", key="nv_reg")
-            _df_obj_login = cargar_objetivos()
-            _lista_obj_login = sorted(_df_obj_login['OBJETIVO'].astype(str).str.strip().str.upper().unique().tolist()) if not _df_obj_login.empty else []
-            if _lista_obj_login:
-                obj_vig_reg = st.selectbox("Objetivo asignado (solo vigiladores)", _lista_obj_login, key="ov_reg")
 
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
          
@@ -1083,23 +1045,6 @@ def mostrar_landing():
                         st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
                 else:
                     st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
-            elif modo == "Crear Cuenta" and rol_usuario == "VIGILADOR":
-                dni_reg = "".join(ch for ch in user_limpio if ch.isdigit())
-                pass_reg = "".join(ch for ch in pass_limpio if ch.isdigit())
-                nombre_reg = nombre_vig_reg.strip().upper()
-                if not dni_reg or not nombre_reg or not obj_vig_reg:
-                    st.warning("⚠️ Complete DNI, apellido y nombre, y seleccione su objetivo.")
-                elif pass_reg != dni_reg:
-                    st.warning("⚠️ La contraseña debe coincidir con su DNI.")
-                else:
-                    st.cache_data.clear()
-                    df_pad_reg = leer_matriz_nube("PADRON VIGILADORES")
-                    ya_reg = (not df_pad_reg.empty) and ('DNI' in df_pad_reg.columns) and \
-                             (dni_reg in col_texto(df_pad_reg, 'DNI').str.replace(r'\D', '', regex=True).tolist())
-                    if ya_reg:
-                        st.warning("⚠️ Este DNI ya se encuentra registrado. Si ya fue dado de alta, inicie sesión.")
-                    elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, "", "PENDIENTE", obj_vig_reg]):
-                        st.success("✅ Solicitud registrada. Quedará pendiente de aprobación por la Administración.")
             else:
                 if user.strip() and password.strip():
                     exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
@@ -1166,9 +1111,6 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
                 sincronizar_url_sesion()
                 st.rerun()
 
-        # Notificaciones en la barra lateral (zona solicitada) para Administrador si simula rol
-        mostrar_notificaciones_sidebar()
-
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
             st.session_state.usuario_logueado = False
@@ -1180,10 +1122,6 @@ else:
         st.markdown("---")
         st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
         st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
-        
-        # Notificaciones en la barra lateral exactamente en la zona solicitada (arriba de Cerrar Sesión)
-        mostrar_notificaciones_sidebar()
-            
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
             st.session_state.usuario_logueado = False
@@ -2766,3 +2704,170 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         sup_seleccionado_jefe, inicio_jornada_gen, fin_jornada_gen, total_horas_trabajadas,
                         df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, 
                         df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro,
+                        total_alertas_supervisor_j, total_alertas_vigilador_j
+                    )
+
+                    st.download_button(
+                        label=f"📥 DESCARGAR REPORTE TÁCTICO INTEGRAL (PDF COMPLETO) - {sup_seleccionado_jefe}",
+                        data=pdf_bytes_integral,
+                        file_name=f"reporte_tactico_integral_{sup_seleccionado_jefe.replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        key=f"btn_pdf_integral_jefe_{sup_seleccionado_jefe}_{idx_pj}",
+                        use_container_width=True
+                    )
+        else:
+            st.info("No hay registros activos de supervisores en el sistema todavía.")
+
+        if st.session_state.rol_sel == "GERENCIA":
+            st.markdown("---")
+            st.markdown("### 🔒 PROTOCOLO DE CIERRE TÁCTICO MENSUAL")
+            st.info("ℹ️ Esta acción archivará y limpiará las tablas operativas actuales para iniciar un nuevo ciclo.")
+            if st.button("EJECUTAR CIERRE TÁCTICO MENSUAL"):
+                if ejecutar_cierre_táctico():
+                    st.success("✅ ¡Cierre táctico ejecutado con éxito! Ciclo reiniciado.")
+                    st.rerun()
+
+# =========================================================================
+# ROL: ADMINISTRADOR
+# =========================================================================
+elif st.session_state.rol_sel == "ADMINISTRADOR":
+    if st.session_state.user_sel == "ADMIN CENTRAL":
+        st.session_state.admin_autenticado = True
+     
+    if st.session_state.admin_autenticado:
+        st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
+        st.markdown("### ⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL DE ADMINISTRACIÓN")
+        st.success("✅ Acceso autorizado al Núcleo Maestro Central.")
+
+        df_usr_m = leer_matriz_nube("USUARIOS")
+        df_obj_m = cargar_objetivos()
+        df_alt_m = leer_matriz_nube("ALERTAS")
+         
+        total_usrs = len(df_usr_m) if not df_usr_m.empty else 0
+        total_objs = len(df_obj_m) if not df_obj_m.empty else 0
+        df_pan_vig_adm = df_alt_m[
+            (col_texto(df_alt_m, 'TIPO').str.upper() == "PÁNICO") & 
+            (col_texto(df_alt_m, 'ESTADO').str.upper() == "PENDIENTE")
+        ] if not df_alt_m.empty and 'TIPO' in df_alt_m.columns else pd.DataFrame()
+        pend_sos = len(df_pan_vig_adm)
+
+        c_adm1, c_adm2, c_adm3 = st.columns(3)
+        c_adm1.metric("👥 TOTAL USUARIOS", total_usrs)
+        c_adm2.metric("🎯 OBJETIVOS ACTIVOS", total_objs)
+        c_adm3.metric("🚨 ALERTAS PENDIENTES", pend_sos)
+
+        st.markdown("---")
+
+        t_adm_usr, t_adm_obj, t_adm_mantenimiento, t_adm_vig, t_adm_qr_rec, t_adm_probar_rec = st.tabs([
+            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO",
+            "🪪 PADRÓN DE VIGILADORES", "🧾 PUNTOS QR RECORRIDO", "🚶 PROBAR RECORRIDO QR"
+        ])
+
+        with t_adm_usr:
+            st.markdown("#### 👤 SOLICITUDES DE ACCESO Y PADRÓN DE USUARIOS")
+            if not df_usr_m.empty:
+                st.dataframe(df_usr_m[['USUARIO', 'ROL', 'ESTADO']], use_container_width=True, hide_index=True)
+                pdf_usuarios = generar_pdf_reporte("PADRÓN GENERAL DE USUARIOS Y ACCESOS", df_usr_m[['USUARIO', 'ROL', 'ESTADO']])
+                st.download_button("📥 DESCARGAR PADRÓN DE USUARIOS (PDF)", data=pdf_usuarios, file_name=f"padron_usuarios_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_usuarios_admin")
+                 
+                st.markdown("---")
+                if 'ESTADO' in df_usr_m.columns:
+                    pendientes_u = df_usr_m[col_texto(df_usr_m, 'ESTADO') == "PENDIENTE"]
+                    if not pendientes_u.empty:
+                        usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", col_texto(pendientes_u, 'USUARIO').tolist(), key="sel_usr_aprobar")
+                        if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
+                            idx = df_usr_m[col_texto(df_usr_m, 'USUARIO') == usuario_a_aprobar].index[0]
+                            if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
+                                st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
+                                st.cache_data.clear()
+                                st.rerun()
+
+        with t_adm_obj:
+            st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
+            if not df_obj_m.empty:
+                st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
+                pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
+                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
+
+        with t_adm_mantenimiento:
+            st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
+            if not df_obj_m.empty:
+                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
+                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
+
+        with t_adm_vig:
+            st.markdown("#### 🪪 PADRÓN DE VIGILADORES (LOGIN POR DNI)")
+            st.caption("El vigilador ingresa con su DNI como usuario y como contraseña. Solo pueden entrar los DNI cargados acá con estado ACTIVO.")
+            df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
+            if not df_pad_adm.empty:
+                cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO'] if c in df_pad_adm.columns]
+                st.dataframe(df_pad_adm[cols_pad], use_container_width=True, hide_index=True)
+            else:
+                st.info("El padrón todavía está vacío.")
+
+            with st.form(key="form_alta_vigilador_padron", clear_on_submit=True):
+                col_pv_a, col_pv_b = st.columns(2)
+                nuevo_dni = col_pv_a.text_input("DNI (solo números):").strip()
+                nuevo_nombre_vig = col_pv_b.text_input("APELLIDO Y NOMBRE:").strip().upper()
+                nuevo_legajo_vig = col_pv_a.text_input("LEGAJO:").strip()
+                if st.form_submit_button("➕ DAR DE ALTA VIGILADOR"):
+                    dni_limpio = "".join(ch for ch in nuevo_dni if ch.isdigit())
+                    if dni_limpio and nuevo_nombre_vig:
+                        ya_cargado = (not df_pad_adm.empty) and ('DNI' in df_pad_adm.columns) and \
+                                     (dni_limpio in col_texto(df_pad_adm, 'DNI').str.replace(r'\D', '', regex=True).tolist())
+                        if ya_cargado:
+                            st.warning("⚠️ Ese DNI ya está cargado en el padrón.")
+                        elif escribir_registro_nube("PADRON VIGILADORES", [dni_limpio, nuevo_nombre_vig, nuevo_legajo_vig, "ACTIVO"]):
+                            st.success(f"✅ Vigilador {nuevo_nombre_vig} habilitado.")
+                    else:
+                        st.warning("⚠️ Completá DNI y nombre.")
+
+        with t_adm_qr_rec:
+            renderizar_generador_qr_recorrido(
+                df_obj_m['OBJETIVO'].unique() if not df_obj_m.empty else [],
+                "adm"
+            )
+
+        with t_adm_probar_rec:
+            st.markdown("#### 🧪 MODO DE PRUEBA: RECORRIDO Y ESCÁNER QR")
+            st.info("ℹ️ Como Administrador podés probar la marcación de puntos de cualquier objetivo.")
+            objs_admin_test = df_obj_m['OBJETIVO'].unique() if not df_obj_m.empty else []
+            if len(objs_admin_test) > 0:
+                obj_test_elegido = st.selectbox("SELECCIONAR OBJETIVO A PROBAR:", objs_admin_test, key="test_obj_admin_rec")
+                renderizar_recorrido_vigilador(obj_test_elegido, st.session_state.user_sel, "99999999")
+            else:
+                st.warning("No hay objetivos cargados en el sistema para probar.")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.error("⚠️ Acceso restringido.")
+
+
+# --- INTEGRACIÓN DE AUDIO Y VIBRACIÓN GLOBAL ---
+components.html("""
+<script>
+var audioCtx = null;
+function desbloquear() {
+  try {
+    var AC = window.parent.AudioContext || window.parent.webkitAudioContext;
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) {}
+}
+["touchstart", "click", "pointerdown"].forEach(function(ev) {
+  document.addEventListener(ev, desbloquear, {passive: true});
+});
+
+function bip() {
+  try {
+    desbloquear();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "sine"; o.frequency.value = 1300; g.gain.value = 0.4;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    setTimeout(function() { o.stop(); }, 170);
+  } catch (e) {}
+  try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
+}
+</script>
+""", height=0)
