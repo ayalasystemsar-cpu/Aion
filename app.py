@@ -870,14 +870,13 @@ navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},wid
 def visor_qr(key):
     return _declarar_visor_qr("v6")(key=key, default=None)
 
-# --- 3.B RECORRIDOS CON QR (VIGILADORES) Y ALERTA SONORA DE HORARIOS MEJORADA ---
-def renderizar_alerta_recorrida_js(horarios_previstos):
-    """Componente robusto con inyección directa en el DOM principal para forzar la alerta y el modal emergente."""
+# --- 3.B RECORRIDOS CON QR (VIGILADORES) Y ALERTA ESTILO NEXTEL & CARTEL DE SÍ/NO ---
+def renderizar_alerta_recorrida_js(horarios_previstos, objetivo_actual, vigilador_actual):
+    """Componente con alarma estilo bip de Nextel, cartel emergente con Sí/No y justificación obligatoria."""
     if not horarios_previstos:
         return
     h_str_json = str(horarios_previstos).replace("'", '"')
     
-    # Inyectamos el componente a altura completa (o flotante permanente) para ejecutar el bucle en el navegador principal
     components.html(f"""
     <div style="background:#1A1C23;border:2px solid #00E5FF;border-radius:10px;padding:12px;text-align:center;font-family:sans-serif;margin-bottom:10px;box-shadow:0 0 15px rgba(0,229,255,0.3);">
         <p style="color:#00E5FF;font-weight:bold;font-size:13px;margin:0 0 8px 0;">🛡️ SISTEMA DE ALARMAS Y HORARIOS</p>
@@ -886,8 +885,11 @@ def renderizar_alerta_recorrida_js(horarios_previstos):
     </div>
     <script>
     var horarios = {h_str_json};
+    var objetivo = "{objetivo_actual}";
+    var vigilador = "{vigilador_actual}";
     var audioCtx = null;
     var activado = false;
+    var intervaloAlarma = null;
 
     function desbloquearAudioCompleto() {{
         try {{
@@ -897,9 +899,9 @@ def renderizar_alerta_recorrida_js(horarios_previstos):
             
             var o = audioCtx.createOscillator();
             var g = audioCtx.createGain();
-            o.type = "sine"; o.frequency.value = 800; g.gain.value = 0.3;
+            o.type = "sine"; o.frequency.value = 1800; g.gain.value = 0.2;
             o.connect(g); g.connect(audioCtx.destination);
-            o.start(); setTimeout(function(){{ o.stop(); }}, 150);
+            o.start(); setTimeout(function(){{ o.stop(); }}, 80);
 
             activado = true;
             var st = document.getElementById("estado_audio");
@@ -919,26 +921,39 @@ def renderizar_alerta_recorrida_js(horarios_previstos):
         }}, {{once: true}});
     }});
 
-    function sonarAlarma() {{
+    function sonarBipNextel() {{
         try {{
             desbloquearAudioCompleto();
             if(audioCtx) {{
-                for(var i=0; i<4; i++) {{
+                [0, 120].forEach(function(delay) {{
                     setTimeout(function() {{
                         var o = audioCtx.createOscillator();
                         var g = audioCtx.createGain();
-                        o.type = "square";
-                        o.frequency.value = 1000;
-                        g.gain.value = 0.8;
+                        o.type = "sine";
+                        o.frequency.value = 1850;
+                        g.gain.value = 0.35;
                         o.connect(g);
                         g.connect(audioCtx.destination);
                         o.start();
-                        setTimeout(function(){{ o.stop(); }}, 300);
-                    }}, i * 450);
-                }}
+                        setTimeout(function(){{ o.stop(); }}, 90);
+                    }}, delay);
+                }});
             }}
-            if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400, 200, 400]);
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         }} catch(e){{}}
+    }}
+
+    function iniciarBucleNextel() {{
+        if (intervaloAlarma) return;
+        sonarBipNextel();
+        intervaloAlarma = setInterval(sonarBipNextel, 3000);
+    }}
+
+    function detenerAlarma() {{
+        if (intervaloAlarma) {{
+            clearInterval(intervaloAlarma);
+            intervaloAlarma = null;
+        }}
     }}
 
     setInterval(function() {{
@@ -948,21 +963,52 @@ def renderizar_alerta_recorrida_js(horarios_previstos):
         var ss = String(d.getSeconds()).padStart(2, '0');
         var horaActual = hh + ":" + mm;
         
-        if (horarios.includes(horaActual) && ss < 6) {{
-            sonarAlarma();
+        if (horarios.includes(horaActual) && ss < 5) {{
+            iniciarBucleNextel();
             var modalId = "modal_rec_" + horaActual.replace(":", "");
             if (!parent.document.getElementById(modalId)) {{
                 var div = parent.document.createElement("div");
                 div.id = modalId;
-                div.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.92);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;";
-                div.innerHTML = '<div style="background:#1A1C23;border:4px solid #FF0000;border-radius:14px;padding:30px;max-width:400px;width:100%;text-align:center;box-shadow:0 0 50px rgba(255,0,0,0.95);font-family:sans-serif;color:#FFF;">' +
-                    '<h1 style="color:#FF0000;margin-top:0;font-family:Orbitron,sans-serif;font-size:24px;">🚨 ¡HORA DE RECORRIDA!</h1>' +
-                    '<p style="font-size:18px;margin:20px 0;line-height:1.4;">Comienza la ronda programada de las <b>' + horaActual + ' HS</b>.<br><br>Diríjase al punto de control y escanee el código QR.</p>' +
-                    '<button id="btn_conf_ronda" style="background:#00E5FF;color:#000;border:none;padding:14px 28px;font-weight:bold;font-size:16px;border-radius:8px;cursor:pointer;font-family:Orbitron,sans-serif;margin-top:10px;box-shadow:0 0 20px rgba(0,229,255,0.7);width:100%;">¡ENTERADO / INICIAR!</button>' +
+                div.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;";
+                div.innerHTML = '<div style="background:#1A1C23;border:4px solid #00E5FF;border-radius:14px;padding:25px;max-width:420px;width:100%;text-align:center;box-shadow:0 0 40px rgba(0,229,255,0.4);font-family:sans-serif;color:#FFF;">' +
+                    '<h1 style="color:#00E5FF;margin-top:0;font-family:Orbitron,sans-serif;font-size:20px;">🚨 AVISO DE RECORRIDA PROGRAMADA</h1>' +
+                    '<p style="font-size:15px;margin:15px 0;line-height:1.4;">Comienza la ronda de las <b>' + horaActual + ' HS</b>.<br>¿Desea realizar la recorrida en este momento?</p>' +
+                    
+                    '<div id="contenedor_botones" style="display:flex;flex-direction:column;gap:10px;margin-top:15px;">' +
+                    '<button id="btn_si_ronda" style="background:#00E5FF;color:#000;border:none;padding:12px;font-weight:bold;font-size:15px;border-radius:8px;cursor:pointer;font-family:Orbitron,sans-serif;box-shadow:0 0 15px rgba(0,229,255,0.7);width:100%;">✅ SÍ, INICIAR RECORRIDA</button>' +
+                    '<button id="btn_no_ronda" style="background:#FF3333;color:#FFF;border:none;padding:12px;font-weight:bold;font-size:15px;border-radius:8px;cursor:pointer;font-family:Orbitron,sans-serif;box-shadow:0 0 15px rgba(255,51,51,0.7);width:100%;">❌ NO REALIZAR RECORRIDA</button>' +
+                    '</div>' +
+
+                    '<div id="formulario_motivo" style="display:none;margin-top:15px;text-align:left;">' +
+                    '<label style="font-size:12px;color:#FF9999;font-weight:bold;display:block;margin-bottom:5px;">INDIQUE EL MOTIVO DE LA NO REALIZACIÓN:</label>' +
+                    '<textarea id="txt_motivo_no" rows="3" style="width:100%;background:#0D0E12;color:#FFF;border:1px solid #FF3333;border-radius:6px;padding:8px;box-sizing:border-box;font-size:13px;"></textarea>' +
+                    '<button id="btn_enviar_motivo" style="background:#FF3333;color:#FFF;border:none;padding:10px;font-weight:bold;font-size:13px;border-radius:6px;cursor:pointer;width:100%;margin-top:10px;">ENVIAR JUSTIFICACIÓN Y CERRAR</button>' +
+                    '</div>' +
+
                     '</div>';
+                
                 parent.document.body.appendChild(div);
-                parent.document.getElementById("btn_conf_ronda").onclick = function() {{
+
+                parent.document.getElementById("btn_si_ronda").onclick = function() {{
+                    detenerAlarma();
                     div.remove();
+                }};
+
+                parent.document.getElementById("btn_no_ronda").onclick = function() {{
+                    parent.document.getElementById("contenedor_botones").style.display = "none";
+                    parent.document.getElementById("formulario_motivo").style.display = "block";
+                }};
+
+                parent.document.getElementById("btn_enviar_motivo").onclick = function() {{
+                    var motivoTxt = parent.document.getElementById("txt_motivo_no").value.trim();
+                    if (!motivoTxt) {{
+                        alert("Por favor, escriba el motivo por el cual no se realiza la recorrida.");
+                        return;
+                    }}
+                    detenerAlarma();
+                    fetch("?motivo_no_ronda=" + encodeURIComponent(motivoTxt) + "&obj=" + encodeURIComponent(objetivo) + "&vig=" + encodeURIComponent(vigilador) + "&hora=" + encodeURIComponent(horaActual));
+                    div.remove();
+                    alert("Justificación enviada correctamente a la central.");
                 }};
             }}
         }}
@@ -1009,7 +1055,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                     if sh_limpio:
                         horarios_previstos_lista.append(sh_limpio)
     
-    renderizar_alerta_recorrida_js(horarios_previstos_lista)
+    renderizar_alerta_recorrida_js(horarios_previstos_lista, obj_u, nombre)
 
     df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
     df_hoy = pd.DataFrame()
