@@ -475,7 +475,7 @@ def renderizar_alerta_recorrida_js(horarios_previstos, objetivo_actual, vigilado
         try:
             partes = h.split(":")
             dt_base = datetime.strptime(f"{partes[0]}:{partes[1]}", "%H:%M")
-            dt_menos_5 = dt_base - timedelta(minutes=5)
+            dt_menos_5 = dt_base - datetime.timedelta(minutes=5) if hasattr(datetime, 'timedelta') else dt_base - __import__('datetime').timedelta(minutes=5)
             horarios_alerta.append(dt_menos_5.strftime("%H:%M"))
         except:
             horarios_alerta.append(h)
@@ -532,13 +532,12 @@ def renderizar_alerta_recorrida_js(horarios_previstos, objetivo_actual, vigilado
         try {{
             desbloquearAudioCompleto();
             if(audioCtx) {{
-                // Tono dual suave y amigable (tipo campanita digital)
                 [0, 150].forEach(function(delay, index) {{
                     setTimeout(function() {{
                         var o = audioCtx.createOscillator();
                         var g = audioCtx.createGain();
                         o.type = "sine";
-                        o.frequency.value = index === 0 ? 880 : 1046.5; // Notas LA y DO (amigables)
+                        o.frequency.value = index === 0 ? 880 : 1046.5;
                         g.gain.value = 0.15;
                         o.connect(g);
                         g.connect(audioCtx.destination);
@@ -554,7 +553,7 @@ def renderizar_alerta_recorrida_js(horarios_previstos, objetivo_actual, vigilado
     function iniciarBucleSuave() {{
         if (intervaloAlarma) return;
         sonarBipSuave();
-        intervaloAlarma = setInterval(sonarBipSuave, 4000); // Cada 4 segundos un toque suave
+        intervaloAlarma = setInterval(sonarBipSuave, 4000);
     }}
 
     function detenerAlarma() {{
@@ -684,7 +683,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
 
     marcados = set()
     if not df_hoy.empty:
-        df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce'] == ronda]
+        df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
         marcados = set(col_texto(df_ronda, 'PUNTO').str.strip().str.upper())
 
     c_r1, c_r2 = st.columns(2)
