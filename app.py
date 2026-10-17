@@ -2928,7 +2928,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             turnos_vig_list = []
                             for _, f_row in df_pan_vig_c_turno.iterrows():
                                 fh_val_p = str(f_row.get('FECHA', ''))
-                                turnos_vig_list.append(determinar_turno_activo(fh_val_p))
+                                turnos_vig_list.append(determinar_turno_activo(f_val_p))
                             df_pan_vig_c_turno['TURNO VIGILADOR'] = turnos_vig_list
                             st.dataframe(df_pan_vig_c_turno.iloc[::-1], use_container_width=True, hide_index=True)
                         else:
