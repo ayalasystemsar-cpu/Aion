@@ -617,8 +617,6 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
-        
-        .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1474,6 +1472,14 @@ if st.session_state.rol_sel == "MONITOREO":
                 max_zoom=19,
                 tiles="OpenStreetMap"
             )
+            m_mon.get_root().header.add_child(Element("""
+            <style>
+            .leaflet-tile-pane {
+                filter: invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+            }
+            .leaflet-container { background: #0a0f1e !important; }
+            </style>
+            """))
             for _, r in df_mapa_filtrado_sup.iterrows():
                 obj_nombre = str(r['OBJETIVO']).strip().upper()
                 es_panico = obj_nombre in lista_objetivos_en_panico
