@@ -124,11 +124,13 @@ def obtener_mapeo_solapas():
         "CONTROL DE FLOTA": "CONTROL DE FLOTA",
         "CONTROL FLOTA": "CONTROL DE FLOTA",
         "SOLICITUDES DE ACCESO": "SOLICITUDES ACCESO",
+        "SOLICITUDES ACCESO": "SOLICITUDES ACCESO",
         "OBJETIVOS": "OBJETIVOS",
         "COMISARIAS": "COMISARIAS",
         "USUARIOS": "USUARIOS",
         "ALERTAS": "ALERTAS",
         "MENSAJERIA": "MENSAJERIA",
+        "NOTIFICACIONES_SUPERVISORES": "NOTIFICACIONES_SUPERVISORES",
         "PRESENTISMO": "PRESENTISMO",
         "VIGILADORES": "VIGILADORES",
         "PADRON VIGILADORES": "PADRON VIGILADORES",
@@ -140,8 +142,12 @@ def actualizar_celda(pestana, fila, columna, valor):
     try:
         gc = conectar_google()
         if gc:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
+            try:
+                hoja = sh.worksheet(nombre_hoja_real)
+            except:
+                hoja = sh.add_worksheet(title=nombre_hoja_real, rows="100", cols="10")
             hoja.update_acell(f"{columna}{fila}", valor)
             st.cache_data.clear()
             return True
@@ -153,8 +159,14 @@ def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
         if gc:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
+            try:
+                hoja = sh.worksheet(nombre_hoja_real)
+            except:
+                hoja = sh.add_worksheet(title=nombre_hoja_real, rows="100", cols="15")
+                if nombre_hoja_real == "NOTIFICACIONES_SUPERVISORES":
+                    hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
             hoja.append_row(datos_fila)
             st.cache_data.clear() 
             return True
@@ -168,8 +180,17 @@ def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
         try:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre_hoja_real)
+            try:
+                hoja = sh.worksheet(nombre_hoja_real)
+            except:
+                if pestana.upper().strip() == "NOTIFICACIONES_SUPERVISORES":
+                    hoja = sh.add_worksheet(title="NOTIFICACIONES_SUPERVISORES", rows="100", cols="15")
+                    hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
+                else:
+                    return pd.DataFrame()
+            
             todas_filas = hoja.get_all_values()
             if not todas_filas or len(todas_filas) == 0:
                 return pd.DataFrame()
@@ -593,6 +614,8 @@ def renderizar_reloj_fluido():
     st.metric(label="HORA LOCAL", value=hora_actual)
 
 def col_texto(df, col):
+    if df.empty or col not in df.columns:
+        return pd.Series(dtype=str)
     s = df[col]
     if isinstance(s, pd.DataFrame):
         s = s.iloc[:, 0]
@@ -616,7 +639,7 @@ def renderizar_mensajeria_global(rol_contexto):
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
         with col_b:
-            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES", "VIGILADOR"] + obtener_lista_supervisores_dinamica()
+            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + obtener_lista_supervisores_dinamica()
             destinatario = st.selectbox("PARA:", destinatarios_posibles)
             gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
 
@@ -638,36 +661,36 @@ def renderizar_mensajeria_global(rol_contexto):
             st.success("✅ MENSAJE ENVIADO")
         del st.session_state.mensaje_enviado
 
-    if not df_msg.empty:
-        if 'ASUNTO' in df_msg.columns:
-            for asunto, grupo in df_msg.groupby('ASUNTO'):
-                with st.expander(f"💬 Hilo: {asunto}"):
-                    for _, msg in grupo.iterrows():
-                        st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
-                    if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
-                        st.session_state.asunto_respuesta = asunto
-                        sincronizar_url_sesion()
-                        st.rerun()
+    if not df_msg.empty and 'ASUNTO' in df_msg.columns:
+        for asunto, grupo in df_msg.groupby('ASUNTO'):
+            with st.expander(f"💬 Hilo: {asunto}"):
+                for _, msg in grupo.iterrows():
+                    st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
+                if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
+                    st.session_state.asunto_respuesta = asunto
+                    sincronizar_url_sesion()
+                    st.rerun()
 
-def mostrar_notificaciones_supervisor():
-    df_n = leer_matriz_nube("MENSAJERIA")
-    if df_n.empty or not {'DESTINATARIO', 'ASUNTO', 'ESTADO'} <= set(df_n.columns):
+def mostrar_notificaciones_sidebar():
+    usuario_actual = str(st.session_state.get('user_sel', '')).strip().upper()
+    
+    df_notif = leer_matriz_nube("NOTIFICACIONES_SUPERVISORES")
+    if df_notif.empty or not {'SUPERVISOR', 'MENSAJE', 'ESTADO'} <= set(df_notif.columns):
         return
-    yo = str(st.session_state.user_sel).strip().upper()
-    pend = df_n[
-        (col_texto(df_n, 'DESTINATARIO').str.strip().str.upper() == yo) &
-        (col_texto(df_n, 'ASUNTO').str.strip().str.upper() == "ALTA DE VIGILADOR") &
-        (col_texto(df_n, 'ESTADO').str.strip().str.upper() == "PENDIENTE")
+
+    pend = df_notif[
+        (col_texto(df_notif, 'SUPERVISOR').str.strip().str.upper() == usuario_actual) &
+        (col_texto(df_notif, 'ESTADO').str.strip().str.upper() == "PENDIENTE")
     ]
-    if pend.empty:
-        return
-    st.markdown("---")
-    st.markdown(f"### 🔔 NOTIFICACIONES ({len(pend)})")
-    for idx_n, fila_n in pend.iterrows():
-        st.warning(f"**Informar al vigilador que ya puede ingresar.**\n\n{fila_n.get('MENSAJE', '')}")
-        if st.button("✔️ MARCAR COMO INFORMADO", key=f"btn_notif_{idx_n}", use_container_width=True):
-            if actualizar_celda("MENSAJERIA", idx_n + 2, "F", "LEÍDO"):
-                st.rerun()
+
+    if not pend.empty:
+        st.markdown("---")
+        st.markdown(f"### 🔔 NOTIFICACIONES DE ALTA ({len(pend)})")
+        for idx_n, fila_n in pend.iterrows():
+            st.warning(f"{fila_n.get('MENSAJE', '')}")
+            if st.button("✔️ LEÍDO / OK", key=f"btn_notif_{idx_n}", use_container_width=True):
+                if actualizar_celda("NOTIFICACIONES_SUPERVISORES", idx_n + 2, "D", "LEÍDO"):
+                    st.rerun()
 
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
@@ -722,7 +745,7 @@ font:12px sans-serif;text-align:center;pointer-events:none}
 </style></head><body>
 <div id="caja"><video id="v" playsinline muted autoplay></video><div id="msg"></div></div>
 <canvas id="c" style="display:none"></canvas>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.js"></script>
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
 function altura(){var w=Math.min(document.documentElement.clientWidth||window.innerWidth,340);
@@ -956,18 +979,20 @@ def mostrar_landing():
      
     nombre_vig_reg = ""
     obj_vig_reg = ""
+    legajo_vig_reg = ""
     with st.form("form_acceso_real"):
-        user = st.text_input("Usuario o Apellido del Supervisor (Vigilador: DNI)", key="u")
-        password = st.text_input("Contraseña (Vigilador: DNI)", type="password", key="p")
+        user = st.text_input("Usuario", key="u")
+        password = st.text_input("Contraseña", type="password", key="p")
         roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
-        rol_usuario = st.selectbox("Seleccione su Rol:", roles_registro, key="r")
+        rol_usuario = st.selectbox("Selección del Rol", roles_registro, key="r")
 
         if modo == "Crear Cuenta":
-            nombre_vig_reg = st.text_input("Apellido y nombre (solo vigiladores)", key="nv_reg")
+            nombre_vig_reg = st.text_input("Apellido y Nombre", key="nv_reg")
+            legajo_vig_reg = st.text_input("Número de Legajo", key="leg_reg")
             _df_obj_login = cargar_objetivos()
             _lista_obj_login = sorted(_df_obj_login['OBJETIVO'].astype(str).str.strip().str.upper().unique().tolist()) if not _df_obj_login.empty else []
             if _lista_obj_login:
-                obj_vig_reg = st.selectbox("Objetivo asignado (solo vigiladores)", _lista_obj_login, key="ov_reg")
+                obj_vig_reg = st.selectbox("Objetivo", _lista_obj_login, key="ov_reg")
 
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
          
@@ -1078,6 +1103,7 @@ def mostrar_landing():
                 dni_reg = "".join(ch for ch in user_limpio if ch.isdigit())
                 pass_reg = "".join(ch for ch in pass_limpio if ch.isdigit())
                 nombre_reg = nombre_vig_reg.strip().upper()
+                legajo_reg = legajo_vig_reg.strip().upper()
                 if not dni_reg or not nombre_reg or not obj_vig_reg:
                     st.warning("⚠️ Complete DNI, apellido y nombre, y seleccione su objetivo.")
                 elif pass_reg != dni_reg:
@@ -1089,8 +1115,8 @@ def mostrar_landing():
                              (dni_reg in col_texto(df_pad_reg, 'DNI').str.replace(r'\D', '', regex=True).tolist())
                     if ya_reg:
                         st.warning("⚠️ Este DNI ya se encuentra registrado. Si ya fue dado de alta, inicie sesión.")
-                    elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, "", "PENDIENTE", obj_vig_reg]):
-                        st.success("✅ Solicitud registrada. Quedará pendiente de aprobación por la Administración.")
+                    elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, legajo_reg, "PENDIENTE", obj_vig_reg]):
+                        st.success("✅ Solicitud registrada con legajo. Quedará pendiente de aprobación por la Administración.")
             else:
                 if user.strip() and password.strip():
                     exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
@@ -1157,6 +1183,8 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
                 sincronizar_url_sesion()
                 st.rerun()
 
+        mostrar_notificaciones_sidebar()
+
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
             st.session_state.usuario_logueado = False
@@ -1169,9 +1197,7 @@ else:
         st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
         st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
         
-        # Notificaciones de supervisor ubicadas antes de cerrar sesión
-        if st.session_state.rol_sel == "SUPERVISOR":
-            mostrar_notificaciones_supervisor()
+        mostrar_notificaciones_sidebar()
             
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
@@ -1257,11 +1283,11 @@ if st.session_state.rol_sel == "MONITOREO":
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
     total_nuevos = 0
-    if not df_msg.empty:
-        mask = ((df_msg['DESTINATARIO'] == "TODOS") | 
-                (df_msg['DESTINATARIO'] == "MONITOREO") | 
-                (df_msg['DESTINATARIO'] == nombre_user)) & \
-               (df_msg['ESTADO'] == "PENDIENTE")
+    if not df_msg.empty and 'DESTINATARIO' in df_msg.columns and 'ESTADO' in df_msg.columns:
+        mask = ((df_msg['DESTINATARIO'].str.strip().str.upper() == "TODOS") | 
+                (df_msg['DESTINATARIO'].str.strip().str.upper() == "MONITOREO") | 
+                (df_msg['DESTINATARIO'].str.strip().str.upper() == nombre_user)) & \
+               (df_msg['ESTADO'].str.strip().str.upper() == "PENDIENTE")
         total_nuevos = len(df_msg[mask])
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
@@ -1912,7 +1938,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
                 st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
 
-                ubicacion_gps = None  # PRUEBA: GPS desactivado
+                ubicacion_gps = None
                 en_rango_gps = True
                 distancia_actual_m = 0.0
                 precision_gps = 0.0
@@ -1940,7 +1966,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
                         if exito_registro:
                             try:
-                                # Se incluye el número de escaneo en el registro de la nube
                                 escribir_registro_nube("NOVEDADES GUARDIA", [
                                     obtener_hora_argentina(), 
                                     obj_select, 
@@ -1954,7 +1979,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                             except:
                                 pass
                                 
-                            # Se añade el número actual al mensaje de éxito
                             numero_intento = st.session_state.scan_n_sup + 1
                             if accion_str == "INICIO":
                                 st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) #{numero_intento} REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
@@ -2139,7 +2163,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         st.warning("⚠️ Autentíquese con sus credenciales de supervisor en la barra lateral.")
 
 # =========================================================================
-# ROL: VIGILADOR (FLUJO AUTOMATIZADO DE INGRESO, FOTO, RELEVO Y RECORRIDO)
+# ROL: VIGILADOR
 # =========================================================================
 elif st.session_state.rol_sel == "VIGILADOR":
     st.markdown('<div class="panel-novedad">', unsafe_allow_html=True)
@@ -2161,8 +2185,11 @@ elif st.session_state.rol_sel == "VIGILADOR":
 
     df_msg = leer_matriz_nube("MENSAJERIA")
     total_nuevos = 0
-    if not df_msg.empty:
-        mask = ((col_texto(df_msg, 'DESTINATARIO') == "TODOS") | (col_texto(df_msg, 'DESTINATARIO') == "VIGILADOR") | (col_texto(df_msg, 'DESTINATARIO') == nombre_vigilador_actual)) & (col_texto(df_msg, 'ESTADO') == "PENDIENTE")
+    if not df_msg.empty and 'DESTINATARIO' in df_msg.columns and 'ESTADO' in df_msg.columns:
+        mask = ((col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == "TODOS") | 
+                (col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == "VIGILADOR") | 
+                (col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == nombre_vigilador_actual)) & \
+               (col_texto(df_msg, 'ESTADO').str.strip().str.upper() == "PENDIENTE")
         total_nuevos = len(df_msg[mask])
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
@@ -2280,11 +2307,9 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     fecha_hoy = fecha_hora_arg.split(" ")[0]
                     hora_actual = fecha_hora_arg.split(" ")[1]
                      
-                    # 1. Registro automático de presentismo e ingreso
                     escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, legajo_vigilador_actual, nombre_vigilador_actual, v_obj_auto, "INGRESO", "OK"])
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "MARCACIÓN_INGRESO", "---", nombre_vigilador_actual, legajo_vigilador_actual, "PROCESADO", sup_responsable])
                      
-                    # 2. Registro automático de relevo de turno
                     saliente_fmt = vig_saliente_auto if vig_saliente_auto else "PERSONAL ANTERIOR"
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
                     escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
@@ -2331,10 +2356,10 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
     df_msg = leer_matriz_nube("MENSAJERIA")
     nombre_user = st.session_state.user_sel.upper()
-    total_nuevos = len(df_msg[((col_texto(df_msg, 'DESTINATARIO') == "TODOS") | 
-                            (col_texto(df_msg, 'DESTINATARIO') == st.session_state.rol_sel) | 
-                            (col_texto(df_msg, 'DESTINATARIO') == nombre_user)) & 
-                           (col_texto(df_msg, 'ESTADO') == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
+    total_nuevos = len(df_msg[((col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == "TODOS") | 
+                            (col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == st.session_state.rol_sel) | 
+                            (col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == nombre_user)) & 
+                           (col_texto(df_msg, 'ESTADO').str.strip().str.upper() == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
      
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
      
@@ -2790,11 +2815,9 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         st.markdown("### ⚙️ NÚCLEO MAESTRO: PANEL DE CONTROL DE ADMINISTRACIÓN")
         st.success("✅ Acceso autorizado al Núcleo Maestro Central.")
 
-        df_usr_m = leer_matriz_nube("USUARIOS")
         df_obj_m = cargar_objetivos()
         df_alt_m = leer_matriz_nube("ALERTAS")
          
-        total_usrs = len(df_usr_m) if not df_usr_m.empty else 0
         total_objs = len(df_obj_m) if not df_obj_m.empty else 0
         df_pan_vig_adm = df_alt_m[
             (col_texto(df_alt_m, 'TIPO').str.upper() == "PÁNICO") & 
@@ -2802,53 +2825,21 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
         ] if not df_alt_m.empty and 'TIPO' in df_alt_m.columns else pd.DataFrame()
         pend_sos = len(df_pan_vig_adm)
 
-        c_adm1, c_adm2, c_adm3 = st.columns(3)
-        c_adm1.metric("👥 TOTAL USUARIOS", total_usrs)
-        c_adm2.metric("🎯 OBJETIVOS ACTIVOS", total_objs)
-        c_adm3.metric("🚨 ALERTAS PENDIENTES", pend_sos)
+        c_adm1, c_adm2 = st.columns(2)
+        c_adm1.metric("🎯 OBJETIVOS ACTIVOS", total_objs)
+        c_adm2.metric("🚨 ALERTAS PENDIENTES", pend_sos)
 
         st.markdown("---")
 
-        t_adm_usr, t_adm_obj, t_adm_mantenimiento, t_adm_vig, t_adm_qr_rec, t_adm_probar_rec = st.tabs([
-            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO",
-            "🪪 PADRÓN DE VIGILADORES", "🧾 PUNTOS QR RECORRIDO", "🚶 PROBAR RECORRIDO QR"
+        # Pestañas reorganizadas según tus indicaciones exactas:
+        t_adm_vig, t_adm_probar_rec, t_adm_qr_rec, t_adm_obj, t_adm_mantenimiento = st.tabs([
+            "🪪 Padrón de Vigiladores", "🚶 Probar Recorrido QR", "🧾 Puntos QR Recorrido", 
+            "🎯 Gestión de Objetivos", "🛡️ Respaldo y Archivo Táctico"
         ])
-
-        with t_adm_usr:
-            st.markdown("#### 👤 SOLICITUDES DE ACCESO Y PADRÓN DE USUARIOS")
-            if not df_usr_m.empty:
-                st.dataframe(df_usr_m[['USUARIO', 'ROL', 'ESTADO']], use_container_width=True, hide_index=True)
-                pdf_usuarios = generar_pdf_reporte("PADRÓN GENERAL DE USUARIOS Y ACCESOS", df_usr_m[['USUARIO', 'ROL', 'ESTADO']])
-                st.download_button("📥 DESCARGAR PADRÓN DE USUARIOS (PDF)", data=pdf_usuarios, file_name=f"padron_usuarios_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_usuarios_admin")
-                 
-                st.markdown("---")
-                if 'ESTADO' in df_usr_m.columns:
-                    pendientes_u = df_usr_m[col_texto(df_usr_m, 'ESTADO') == "PENDIENTE"]
-                    if not pendientes_u.empty:
-                        usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", col_texto(pendientes_u, 'USUARIO').tolist(), key="sel_usr_aprobar")
-                        if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
-                            idx = df_usr_m[col_texto(df_usr_m, 'USUARIO') == usuario_a_aprobar].index[0]
-                            if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
-                                st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
-                                st.cache_data.clear()
-                                st.rerun()
-
-        with t_adm_obj:
-            st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
-            if not df_obj_m.empty:
-                st.dataframe(df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']], use_container_width=True, hide_index=True)
-                pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
-
-        with t_adm_mantenimiento:
-            st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
-            if not df_obj_m.empty:
-                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR']])
-                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
 
         with t_adm_vig:
             st.markdown("#### 🪪 PADRÓN DE VIGILADORES (LOGIN POR DNI)")
-            st.caption("El vigilador ingresa con su DNI como usuario y como contraseña. Solo pueden entrar los DNI cargados acá con estado ACTIVO.")
+            st.caption("El vigilador ingresa con su DNI como usuario y como contraseña. Acá podés dar de alta, aprobar o dar de baja registros.")
             df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
             if not df_pad_adm.empty:
                 cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO', 'OBJETIVO'] if c in df_pad_adm.columns]
@@ -2864,38 +2855,83 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                         i: f"{r.get('NOMBRE', '')} | DNI {r.get('DNI', '')} | {r.get('OBJETIVO', 'SIN OBJETIVO')}"
                         for i, r in pend_vig.iterrows()
                     }
-                    idx_pend = st.selectbox("Solicitud:", list(etiquetas_pend.keys()),
+                    idx_pend = st.selectbox("Solicitud a aprobar:", list(etiquetas_pend.keys()),
                                             format_func=lambda k: etiquetas_pend[k], key="sel_vig_pend")
                     legajo_asig = st.text_input("Legajo (opcional):", key="legajo_vig_pend").strip()
                     c_ap, c_re = st.columns(2)
+                    
+                    # --- BOTÓN DE ALTA / APROBACIÓN ---
                     if c_ap.button("✅ DAR DE ALTA", use_container_width=True, key="btn_aprobar_vig"):
                         fila_pend = df_pad_adm.loc[idx_pend]
                         nom_p = str(fila_pend.get('NOMBRE', '')).strip().upper()
                         dni_p = str(fila_pend.get('DNI', '')).strip()
                         obj_p = str(fila_pend.get('OBJETIVO', '')).strip().upper()
+                        
                         if actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "D", "ACTIVO"):
                             if legajo_asig:
                                 actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "C", legajo_asig)
+                            
                             sup_p = ""
                             if not df_objetivos.empty and obj_p:
                                 m_obj = df_objetivos[col_texto(df_objetivos, 'OBJETIVO').str.strip().str.upper() == obj_p]
                                 if not m_obj.empty:
                                     sup_p = str(m_obj['SUPERVISOR'].iloc[0]).strip().upper()
+
                             if sup_p:
-                                escribir_registro_nube("MENSAJERIA", [
-                                    obtener_hora_argentina(), "ADMINISTRACIÓN", sup_p,
-                                    "ALTA DE VIGILADOR",
-                                    f"SE INFORMA QUE EL VIGILADOR {nom_p} (DNI {dni_p}) FUE DADO DE ALTA EN EL OBJETIVO {obj_p}. SE SOLICITA COMUNICARLE QUE YA PUEDE INGRESAR A LA APLICACIÓN.",
-                                    "PENDIENTE", "VERDE"
+                                escribir_registro_nube("NOTIFICACIONES_SUPERVISORES", [
+                                    obtener_hora_argentina(), sup_p,
+                                    f"✅ Alta confirmada: El vigilador {nom_p} (DNI: {dni_p}) fue autorizado en el objetivo {obj_p}.",
+                                    "PENDIENTE"
                                 ])
-                                st.success(f"✅ ALTA CONFIRMADA: Vigilador {nom_p} habilitado en {obj_p}. Se notificó al supervisor {sup_p}.")
-                            else:
-                                st.warning(f"✅ Alta confirmada para {nom_p}, pero no se encontró supervisor asignado al objetivo '{obj_p}'.")
+
+                            st.success(f"✅ Vigilador de alta: Se aceptó al vigilador {nom_p}. Se le avisa al supervisor asignado ({sup_p if sup_p else 'N/A'}) que debe comunicarle su alta en el sistema.")
+                            st.cache_data.clear()
+                            st.rerun()
                         else:
-                            st.error("❌ No se pudo registrar el alta. Intente nuevamente.")
+                            st.error("❌ No se pudo registrar el alta.")
+                            
+                    # --- BOTÓN DE RECHAZO ---
                     if c_re.button("🚫 RECHAZAR", use_container_width=True, key="btn_rechazar_vig"):
                         if actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "D", "RECHAZADO"):
                             st.info("Solicitud rechazada.")
+                            st.cache_data.clear()
+                            st.rerun()
+
+                activos_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "ACTIVO"]
+                if not activos_vig.empty:
+                    st.markdown("##### 🗑️ GESTIÓN Y BAJA DE VIGILADORES ACTIVOS")
+                    etiquetas_activos = {
+                        i: f"{r.get('NOMBRE', '')} (DNI: {r.get('DNI', '')}) - Obj: {r.get('OBJETIVO', 'N/A')}"
+                        for i, r in activos_vig.iterrows()
+                    }
+                    idx_baja = st.selectbox("Seleccioná el vigilador a dar de baja:", list(etiquetas_activos.keys()),
+                                            format_func=lambda k: etiquetas_activos[k], key="sel_vig_baja")
+                                            
+                    # --- BOTÓN DE BAJA ---
+                    if st.button("🚫 DAR DE BAJA VIGILADOR", use_container_width=True, key="btn_ejecutar_baja_vig"):
+                        fila_baja_info = df_pad_adm.loc[idx_baja]
+                        nom_baja = str(fila_baja_info.get('NOMBRE', '')).strip().upper()
+                        obj_baja = str(fila_baja_info.get('OBJETIVO', '')).strip().upper()
+
+                        if actualizar_celda("PADRON VIGILADORES", idx_baja + 2, "D", "BAJA"):
+                            sup_baja = ""
+                            if not df_objetivos.empty and obj_baja:
+                                m_obj_b = df_objetivos[col_texto(df_objetivos, 'OBJETIVO').str.strip().str.upper() == obj_baja]
+                                if not m_obj_b.empty:
+                                    sup_baja = str(m_obj_b['SUPERVISOR'].iloc[0]).strip().upper()
+
+                            if sup_baja:
+                                escribir_registro_nube("NOTIFICACIONES_SUPERVISORES", [
+                                    obtener_hora_argentina(), sup_baja,
+                                    f"🚫 Baja procesada: El vigilador {nom_baja} del objetivo {obj_baja} ha sido dado de baja.",
+                                    "PENDIENTE"
+                                ])
+
+                            st.success(f"✅ Se dio de baja al vigilador {nom_baja}. Se notificó en la barra lateral del supervisor {sup_baja if sup_baja else 'N/A'}.")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al procesar la baja.")
 
             with st.form(key="form_alta_vigilador_padron", clear_on_submit=True):
                 col_pv_a, col_pv_b = st.columns(2)
@@ -2911,14 +2947,10 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                             st.warning("⚠️ Ese DNI ya está cargado en el padrón.")
                         elif escribir_registro_nube("PADRON VIGILADORES", [dni_limpio, nuevo_nombre_vig, nuevo_legajo_vig, "ACTIVO"]):
                             st.success(f"✅ Vigilador {nuevo_nombre_vig} habilitado.")
+                            st.cache_data.clear()
+                            st.rerun()
                     else:
                         st.warning("⚠️ Completá DNI y nombre.")
-
-        with t_adm_qr_rec:
-            renderizar_generador_qr_recorrido(
-                df_obj_m['OBJETIVO'].unique() if not df_obj_m.empty else [],
-                "adm"
-            )
 
         with t_adm_probar_rec:
             st.markdown("#### 🧪 MODO DE PRUEBA: RECORRIDO Y ESCÁNER QR")
@@ -2930,10 +2962,32 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             else:
                 st.warning("No hay objetivos cargados en el sistema para probar.")
 
+        with t_adm_qr_rec:
+            renderizar_generador_qr_recorrido(
+                df_obj_m['OBJETIVO'].unique() if not df_obj_m.empty else [],
+                "adm"
+            )
+
+        with t_adm_obj:
+            st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
+            if not df_obj_m.empty:
+                cols_obj_mostrar = [c for c in ['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR'] if c in df_obj_m.columns]
+                st.dataframe(df_obj_m[cols_obj_mostrar], use_container_width=True, hide_index=True)
+                pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[cols_obj_mostrar])
+                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
+            else:
+                st.info("No hay objetivos cargados.")
+
+        with t_adm_mantenimiento:
+            st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
+            if not df_obj_m.empty:
+                cols_obj_respaldo = [c for c in ['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR'] if c in df_obj_m.columns]
+                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[cols_obj_respaldo])
+                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
+
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.error("⚠️ Acceso restringido.")
-
 
 # --- INTEGRACIÓN DE AUDIO Y VIBRACIÓN GLOBAL ---
 components.html("""
