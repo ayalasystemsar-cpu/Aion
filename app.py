@@ -794,7 +794,7 @@ font:12px sans-serif;text-align:center;pointer-events:none}
 </style></head><body>
 <div id="caja"><video id="v" playsinline muted autoplay></video><div id="msg"></div></div>
 <canvas id="c" style="display:none"></canvas>
-<script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.js" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';document.head.appendChild(s);"></script>
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
 function altura(){var w=Math.min(document.documentElement.clientWidth||window.innerWidth,340);
