@@ -2841,6 +2841,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
             
             if not df_pad_adm.empty:
+                df_pad_adm.columns = [str(c).strip().upper() for c in df_pad_adm.columns]
                 cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO', 'OBJETIVO'] if c in df_pad_adm.columns]
                 st.dataframe(df_pad_adm[cols_pad], use_container_width=True, hide_index=True)
             else:
@@ -2849,7 +2850,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             if not df_pad_adm.empty and 'ESTADO' in df_pad_adm.columns:
                 st.markdown("---")
                 
-                # --- BOTÓN Y LEYENDA DE ALTA ---
+                # --- GESTIÓN DE ALTA ---
                 st.markdown("##### 🟢 GESTIÓN DE ALTA")
                 pend_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "PENDIENTE"]
                 
@@ -2891,7 +2892,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
                 st.markdown("---")
 
-                # --- BOTÓN Y LEYENDA DE BAJA ---
+                # --- GESTIÓN DE BAJA ---
                 st.markdown("##### 🔴 GESTIÓN DE BAJA")
                 activos_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "ACTIVO"]
                 
