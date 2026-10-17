@@ -155,6 +155,19 @@ def actualizar_celda(pestana, fila, columna, valor):
         print(f"Error actualizando celda en {pestana}: {e}")
         return False
 
+def actualizar_estado_usuario(fila_sheet, nuevo_estado):
+    try:
+        gc = conectar_google()
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("USUARIOS")
+        encabezados = [str(h).strip().upper() for h in hoja.row_values(1)]
+        col = encabezados.index("ESTADO") + 1
+        hoja.update_cell(fila_sheet, col, nuevo_estado)
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error actualizando estado de usuario: {e}")
+        return False
+
 def actualizar_estado_padron(fila_sheet, nuevo_estado):
     try:
         gc = conectar_google()
@@ -1134,8 +1147,7 @@ def mostrar_landing():
                         st.warning("⚠️ Tu cuenta existe pero está PENDIENTE de aprobación por el Administrador.")
                 else:
                     st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
-            elif modo == "Creار Cuenta" and rol_usuario == "VIGILADOR":
-                # Lógica existente o nueva de registro de vigilador si aplica
+            elif modo == "Crear Cuenta" and rol_usuario == "VIGILADOR":
                 pass
             else:
                 nombre_reg2 = nombre_vig_reg.strip().upper()
@@ -1144,8 +1156,8 @@ def mostrar_landing():
                     st.warning("⚠️ Complete usuario, contraseña, apellido y nombre, y número de legajo.")
                 else:
                     exito_reg = escribir_registro_nube("USUARIOS", [
-                        user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE",
-                        obtener_hora_argentina(), nombre_reg2, rol_usuario, "", legajo_reg2
+                        user.strip().upper(), password.strip(), nombre_reg2,
+                        legajo_reg2, rol_usuario, "PENDIENTE"
                     ])
                     if exito_reg:
                         st.success("✅ Solicitud de registro enviada con éxito. Inicie sesión una vez que el Administrador apruebe su cuenta.")
@@ -2785,7 +2797,8 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 element = t
                                 elementos.append(element)
                             else:
-                                elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+                                element = Paragraph("Sin registros en este periodo.", estilo_texto)
+                                elementos.append(element)
                             elementos.append(Spacer(1, 6))
 
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
@@ -2875,8 +2888,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         st.markdown("---")
 
-        t_adm_vig, t_adm_probar_rec, t_adm_qr_rec, t_adm_obj, t_adm_mantenimiento = st.tabs([
-            "🪪 Padrón de Vigiladores", "🚶 Probar Recorrido QR", "🧾 Puntos QR Recorrido", 
+        t_adm_vig, t_adm_usu, t_adm_probar_rec, t_adm_qr_rec, t_adm_obj, t_adm_mantenimiento = st.tabs([
+            "🪪 Padrón de Vigiladores", "👥 Cuentas de Usuarios", "🚶 Probar Recorrido QR", "🧾 Puntos QR Recorrido",
             "🎯 Gestión de Objetivos", "🛡️ Respaldo y Archivo Táctico"
         ])
 
@@ -2895,7 +2908,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             else:
                 st.info("El padrón todavía está vacío.")
 
-            # --- NORMALIZACIÓN DE COLUMNAS PARA EVITAR CUALQUIER FALLA EN LOS BOTONES DE ALTA Y BAJA ---
             if not df_pad_adm.empty:
                 df_pad_adm.columns = [str(c).strip().upper() for c in df_pad_adm.columns]
                 if 'ESTADO' in df_pad_adm.columns:
@@ -2905,7 +2917,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
                 st.markdown("---")
                 
-                # --- GESTIÓN DE ALTA ---
                 st.markdown("##### 🟢 GESTIÓN DE ALTA")
                 pend_vig = df_pad_adm[df_pad_adm['ESTADO'] == "PENDIENTE"]
                 
@@ -2948,7 +2959,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
                 st.markdown("---")
 
-                # --- GESTIÓN DE BAJA ---
                 st.markdown("##### 🔴 GESTIÓN DE BAJA")
                 activos_vig = df_pad_adm[df_pad_adm['ESTADO'] == "ACTIVO"]
                 
@@ -2987,6 +2997,71 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                             st.error("❌ No se pudo procesar la baja.")
                 else:
                     st.info("No hay vigiladores activos para dar de baja.")
+
+        with t_adm_usu:
+            st.markdown("#### 👥 CUENTAS DE MONITOREO, SUPERVISOR, JEFE DE OPERACIONES Y GERENCIA")
+
+            if st.session_state.get("msg_admin_usuarios"):
+                st.success(st.session_state.pop("msg_admin_usuarios"))
+
+            df_usu = leer_matriz_nube("USUARIOS")
+            if df_usu.empty or not {'USUARIO', 'ESTADO'} <= set(df_usu.columns):
+                st.info("No hay cuentas registradas en la hoja USUARIOS.")
+            else:
+                df_usu['ESTADO'] = col_texto(df_usu, 'ESTADO').str.strip().str.upper()
+                cols_ver = [c for c in ['USUARIO', 'APELLIDO Y NOMBRE', 'LEGAJO', 'ROL', 'ESTADO'] if c in df_usu.columns]
+                st.dataframe(df_usu[cols_ver], use_container_width=True, hide_index=True)
+
+                st.markdown("---")
+                st.markdown("##### 🟢 SOLICITUDES PENDIENTES")
+                pend_usu = df_usu[df_usu['ESTADO'] == "PENDIENTE"]
+                if not pend_usu.empty:
+                    etiquetas_usu = {
+                        i: f"{r.get('APELLIDO Y NOMBRE', '') or r.get('USUARIO', '')} | {r.get('ROL', '')} | Legajo {r.get('LEGAJO', '-')}"
+                        for i, r in pend_usu.iterrows()
+                    }
+                    idx_usu = st.selectbox("Seleccione solicitud:", list(etiquetas_usu.keys()),
+                                           format_func=lambda k: etiquetas_usu[k], key="sel_usu_pend")
+                    nom_usu = str(df_usu.loc[idx_usu].get('USUARIO', '')).strip().upper()
+                    rol_usu = str(df_usu.loc[idx_usu].get('ROL', '')).strip().upper()
+
+                    c_ap, c_re = st.columns(2)
+                    if c_ap.button("🟢 APROBAR CUENTA", use_container_width=True, key="btn_aprobar_usu"):
+                        if actualizar_estado_usuario(idx_usu + 2, "APROBADO"):
+                            st.session_state.msg_admin_usuarios = f"✅ CUENTA APROBADA: {nom_usu} ({rol_usu}) ya puede iniciar sesión."
+                            st.toast("✅ Cuenta aprobada.", icon="✅")
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo aprobar la cuenta.")
+                    if c_re.button("🔴 RECHAZAR CUENTA", use_container_width=True, key="btn_rechazar_usu"):
+                        if actualizar_estado_usuario(idx_usu + 2, "RECHAZADO"):
+                            st.session_state.msg_admin_usuarios = f"🔴 CUENTA RECHAZADA: {nom_usu} ({rol_usu})."
+                            st.toast("🔴 Cuenta rechazada.", icon="🔴")
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo rechazar la cuenta.")
+                else:
+                    st.info("No hay solicitudes pendientes.")
+
+                st.markdown("---")
+                st.markdown("##### 🚫 BAJA DE CUENTAS APROBADAS")
+                aprob_usu = df_usu[df_usu['ESTADO'] == "APROBADO"]
+                if not aprob_usu.empty:
+                    etiquetas_ap = {
+                        i: f"{r.get('USUARIO', '')} | {r.get('ROL', '')}"
+                        for i, r in aprob_usu.iterrows()
+                    }
+                    idx_baja_usu = st.selectbox("Seleccione cuenta:", list(etiquetas_ap.keys()),
+                                                format_func=lambda k: etiquetas_ap[k], key="sel_usu_baja")
+                    if st.button("🚫 DAR DE BAJA LA CUENTA", use_container_width=True, key="btn_baja_usu"):
+                        if actualizar_estado_usuario(idx_baja_usu + 2, "BAJA"):
+                            st.session_state.msg_admin_usuarios = f"🚫 BAJA GESTIONADA: {etiquetas_ap[idx_baja_usu]}."
+                            st.toast("🚫 Baja gestionada.", icon="🚫")
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo procesar la baja.")
+                else:
+                    st.info("No hay cuentas aprobadas.")
 
         with t_adm_probar_rec:
             st.markdown("#### 🧪 MODO DE PRUEBA: RECORRIDO Y ESCÁNER QR")
