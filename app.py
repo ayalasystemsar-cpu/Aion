@@ -1,4 +1,4 @@
-import streamlit as str_app
+import streamlit as st
 import datetime
 from datetime import datetime
 import pandas as pd
@@ -2764,7 +2764,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
                             if tot_v_cnt > 0:
                                 element_v = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
-                                elementos.append(element_v)
+                                elements.append(element_v)
                             elementos.append(Spacer(1, 4))
 
                             if not d_alt.empty:
@@ -2834,7 +2834,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         st.markdown("---")
 
-        # --- SE ORDENÓ EL MENÚ EXACTAMENTE COMO PEDISTE ---
+        # --- SE ORDENÓ EL MENÚ EXACTAMENTE COMO PEDISTE (SIN APROBACIÓN DE USUARIOS) ---
         t_adm_vig, t_adm_qr_rec, t_adm_probar_rec, t_adm_obj, t_adm_mantenimiento = st.tabs([
             "🪪 PADRÓN DE VIGILADORES", "🧾 PUNTOS QR RECORRIDO", "🚶 PROBAR RECORRIDO QR",
             "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO"
