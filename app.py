@@ -2834,7 +2834,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                         if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
                             idx = df_usr_m[col_texto(df_usr_m, 'USUARIO') == usuario_a_aprobar].index[0]
                             if actualizar_celda("USUARIOS", idx + 2, "D", "APROBADO"):
-                                st.success(f"✅ ¡Usuario {usuario_a_aprobar} autorizado correctamente!")
+                                st.success(f"✅ ¡Acceso aprobado para el usuario {usuario_a_aprobar} correctamente!")
                                 st.cache_data.clear()
                                 st.rerun()
 
@@ -2862,7 +2862,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 st.info("El padrón todavía está vacío.")
 
             if not df_pad_adm.empty and 'ESTADO' in df_pad_adm.columns:
-                # 1. Sección para aprobar solicitudes pendientes (Dar de alta)
                 pend_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "PENDIENTE"]
                 if not pend_vig.empty:
                     st.markdown("##### ⏳ SOLICITUDES DE ALTA PENDIENTES")
@@ -2894,7 +2893,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                 escribir_registro_nube("MENSAJERIA", [
                                     obtener_hora_argentina(), "ADMINISTRACIÓN", sup_p,
                                     "ALTA DE VIGILADOR",
-                                    f"Aviso al Supervisor: El vigilador {nom_p} fue aprobado para el objetivo {obj_p}. Ya puede ingresar.",
+                                    f"✅ Acceso aprobado: El vigilador {nom_p} fue aceptado y dado de alta en el objetivo {obj_p}.",
                                     "PENDIENTE", "VERDE"
                                 ])
                             escribir_registro_nube("MENSAJERIA", [
@@ -2903,7 +2902,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                 f"¡Bienvenido! Ya fuiste dado de alta en {obj_p}. Ya podés ingresar.",
                                 "PENDIENTE", "VERDE"
                             ])
-                            st.success(f"✅ ALTA CONFIRMADA: Vigilador {nom_p} habilitado en {obj_p}.")
+                            st.success(f"✅ ¡Alta confirmada y aceptada! Se aceptó al vigilador {nom_p} y se notificó al supervisor correspondiente ({sup_p if sup_p else 'N/A'}).")
                             st.cache_data.clear()
                             st.rerun()
                         else:
@@ -2914,7 +2913,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                             st.cache_data.clear()
                             st.rerun()
 
-                # 2. Sección para gestionar y dar de baja vigiladores activos
                 activos_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "ACTIVO"]
                 if not activos_vig.empty:
                     st.markdown("##### 🗑️ GESTIÓN Y BAJA DE VIGILADORES ACTIVOS")
@@ -2925,8 +2923,26 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                     idx_baja = st.selectbox("Seleccioná el vigilador a dar de baja:", list(etiquetas_activos.keys()),
                                             format_func=lambda k: etiquetas_activos[k], key="sel_vig_baja")
                     if st.button("🚫 DAR DE BAJA VIGILADOR", use_container_width=True, key="btn_ejecutar_baja_vig"):
+                        fila_baja_info = df_pad_adm.loc[idx_baja]
+                        nom_baja = str(fila_baja_info.get('NOMBRE', '')).strip().upper()
+                        obj_baja = str(fila_baja_info.get('OBJETIVO', '')).strip().upper()
+
                         if actualizar_celda("PADRON VIGILADORES", idx_baja + 2, "D", "BAJA"):
-                            st.success("✅ Vigilador dado de baja correctamente.")
+                            sup_baja = ""
+                            if not df_objetivos.empty and obj_baja:
+                                m_obj_b = df_objetivos[col_texto(df_objetivos, 'OBJETIVO').str.strip().str.upper() == obj_baja]
+                                if not m_obj_b.empty:
+                                    sup_baja = str(m_obj_b['SUPERVISOR'].iloc[0]).strip().upper()
+
+                            if sup_baja:
+                                escribir_registro_nube("MENSAJERIA", [
+                                    obtener_hora_argentina(), "ADMINISTRACIÓN", sup_baja,
+                                    "ALTA DE VIGILADOR",
+                                    f"🚫 Baja procesada: El vigilador {nom_baja} del objetivo {obj_baja} ha sido dado de baja.",
+                                    "PENDIENTE", "ROJA"
+                                ])
+
+                            st.success(f"✅ Se dio de baja al vigilador {nom_baja}. Se notificó al supervisor {sup_baja if sup_baja else 'N/A'}.")
                             st.cache_data.clear()
                             st.rerun()
                         else:
