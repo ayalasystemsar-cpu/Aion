@@ -617,6 +617,8 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
+        
+        .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1467,11 +1469,10 @@ if st.session_state.rol_sel == "MONITOREO":
                 zoom_inicial = 11
 
             m_mon = folium.Map(
-                location=centro_mapa, 
-                zoom_start=zoom_inicial, 
-                max_zoom=21,
-                tiles="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-                attr='© OpenStreetMap contributors © CARTO'
+                location=centro_mapa,
+                zoom_start=zoom_inicial,
+                max_zoom=19,
+                tiles="OpenStreetMap"
             )
             for _, r in df_mapa_filtrado_sup.iterrows():
                 obj_nombre = str(r['OBJETIVO']).strip().upper()
@@ -1530,12 +1531,6 @@ if st.session_state.rol_sel == "MONITOREO":
                     tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
                     icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
-             
-            capa_etiquetas = folium.TileLayer(
-                tiles="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
-                attr='© CARTO', name="Etiquetas", max_zoom=21, max_native_zoom=20, overlay=True, control=False
-            )
-            capa_etiquetas.add_to(m_mon)
              
             st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico")
         st.markdown('</div>', unsafe_allow_html=True)
