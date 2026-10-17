@@ -2841,25 +2841,17 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
             
             if not df_pad_adm.empty:
-                df_pad_adm.columns = [str(c).strip().upper() for c in df_pad_adm.columns]
                 cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO', 'OBJETIVO'] if c in df_pad_adm.columns]
                 st.dataframe(df_pad_adm[cols_pad], use_container_width=True, hide_index=True)
             else:
                 st.info("El padrón todavía está vacío.")
 
-            # --- NORMALIZACIÓN DE COLUMNAS PARA EVITAR CUALQUIER FALLA EN LOS BOTONES DE ALTA Y BAJA ---
-            if not df_pad_adm.empty:
-                df_pad_adm.columns = [str(c).strip().upper() for c in df_pad_adm.columns]
-                if 'ESTADO' in df_pad_adm.columns:
-                    df_pad_adm['ESTADO'] = df_pad_adm['ESTADO'].astype(str).str.strip().str.upper()
-                else:
-                    df_pad_adm['ESTADO'] = "PENDIENTE"
-
+            if not df_pad_adm.empty and 'ESTADO' in df_pad_adm.columns:
                 st.markdown("---")
                 
-                # --- GESTIÓN DE ALTA ---
+                # --- BOTÓN Y LEYENDA DE ALTA ---
                 st.markdown("##### 🟢 GESTIÓN DE ALTA")
-                pend_vig = df_pad_adm[df_pad_adm['ESTADO'] == "PENDIENTE"]
+                pend_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "PENDIENTE"]
                 
                 if not pend_vig.empty:
                     etiquetas_pend = {
@@ -2899,9 +2891,9 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
                 st.markdown("---")
 
-                # --- GESTIÓN DE BAJA ---
+                # --- BOTÓN Y LEYENDA DE BAJA ---
                 st.markdown("##### 🔴 GESTIÓN DE BAJA")
-                activos_vig = df_pad_adm[df_pad_adm['ESTADO'] == "ACTIVO"]
+                activos_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "ACTIVO"]
                 
                 if not activos_vig.empty:
                     etiquetas_activos = {
