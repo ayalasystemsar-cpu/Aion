@@ -2884,7 +2884,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                     "PENDIENTE"
                                 ])
 
-                            st.success(f"✅ Vigilador de alta: Se aceptó al vigilador {nom_p}. Se le avisa al supervisor asignado ({sup_p if sup_p else 'N/A'}) que debe comunicarle su alta en el sistema.")
+                            st.success(f"✅ Se ha dado de alta al vigilador {nom_p}. Se notificará al supervisor asignado ({sup_p if sup_p else 'N/A'}) para que le comunique su alta en el objetivo.")
                             st.cache_data.clear()
                             st.rerun()
                         else:
@@ -2892,8 +2892,25 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                             
                     # --- BOTÓN DE RECHAZO ---
                     if c_re.button("🚫 RECHAZAR", use_container_width=True, key="btn_rechazar_vig"):
+                        fila_pend = df_pad_adm.loc[idx_pend]
+                        nom_p = str(fila_pend.get('NOMBRE', '')).strip().upper()
+                        obj_p = str(fila_pend.get('OBJETIVO', '')).strip().upper()
+
                         if actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "D", "RECHAZADO"):
-                            st.info("Solicitud rechazada.")
+                            sup_p = ""
+                            if not df_objetivos.empty and obj_p:
+                                m_obj = df_objetivos[col_texto(df_objetivos, 'OBJETIVO').str.strip().str.upper() == obj_p]
+                                if not m_obj.empty:
+                                    sup_p = str(m_obj['SUPERVISOR'].iloc[0]).strip().upper()
+
+                            if sup_p:
+                                escribir_registro_nube("NOTIFICACIONES_SUPERVISORES", [
+                                    obtener_hora_argentina(), sup_p,
+                                    f"🚫 Solicitud rechazada: El alta del vigilador {nom_p} para el objetivo {obj_p} fue rechazada.",
+                                    "PENDIENTE"
+                                ])
+
+                            st.info(f"Se ha rechazado la solicitud del vigilador {nom_p}. Se notificó al supervisor {sup_p if sup_p else 'N/A'}.")
                             st.cache_data.clear()
                             st.rerun()
 
@@ -2923,11 +2940,11 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                             if sup_baja:
                                 escribir_registro_nube("NOTIFICACIONES_SUPERVISORES", [
                                     obtener_hora_argentina(), sup_baja,
-                                    f"🚫 Baja procesada: El vigilador {nom_baja} del objetivo {obj_baja} ha sido dado de baja.",
+                                    f"🚫 Baja procesada: El vigilador {nom_baja} del objetivo {obj_baja} ha sido dado de baja en el sistema.",
                                     "PENDIENTE"
                                 ])
 
-                            st.success(f"✅ Se dio de baja al vigilador {nom_baja}. Se notificó en la barra lateral del supervisor {sup_baja if sup_baja else 'N/A'}.")
+                            st.success(f"✅ Se dio de baja al vigilador {nom_baja}. Se ha notificado en la barra lateral del supervisor {sup_baja if sup_baja else 'N/A'}.")
                             st.cache_data.clear()
                             st.rerun()
                         else:
