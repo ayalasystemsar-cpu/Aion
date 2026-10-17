@@ -1488,16 +1488,17 @@ if st.session_state.rol_sel == "MONITOREO":
                 max_zoom=19,
                 tiles="OpenStreetMap"
             )
+
             m_mon.get_root().header.add_child(Element("""
             <style>
+            .leaflet-container { background: #000000 !important; }
+            .leaflet-tile-pane {
+                filter: invert(100%) hue-rotate(180deg) grayscale(60%) brightness(0.55) contrast(1.35);
+            }
             @keyframes pulse {
                 from { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,0,0,.8); }
                 to   { transform: scale(1.7); opacity: .35; box-shadow: 0 0 18px 8px rgba(255,0,0,.6); }
             }
-            .leaflet-tile-pane {
-                filter: invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9);
-            }
-            .leaflet-container { background: #0a0f1e !important; }
             </style>
             """))
 
