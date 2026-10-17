@@ -617,6 +617,7 @@ def aplicar_identidad_alfa():
             width: 100%; text-align: center; margin-top: 10px; transition: 0.3s;
         }
         .btn-google-maps:hover { background-color: #1a73e8 !important; color: white !important; }
+        [data-testid="stStatusWidget"] { display: none !important; }
         </style>
     """, unsafe_allow_html=True)
 
