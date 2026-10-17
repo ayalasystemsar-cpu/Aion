@@ -155,6 +155,19 @@ def actualizar_celda(pestana, fila, columna, valor):
         print(f"Error actualizando celda en {pestana}: {e}")
         return False
 
+def actualizar_estado_padron(fila_sheet, nuevo_estado):
+    try:
+        gc = conectar_google()
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("PADRON VIGILADORES")
+        encabezados = [str(h).strip().upper() for h in hoja.row_values(1)]
+        col = encabezados.index("ESTADO") + 1
+        hoja.update_cell(fila_sheet, col, nuevo_estado)
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error actualizando estado en padrón: {e}")
+        return False
+
 def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
@@ -2285,6 +2298,15 @@ elif st.session_state.rol_sel == "VIGILADOR":
      
     st.markdown("---")
      
+    if st.session_state.get("msg_ingreso_vig"):
+        st.success(st.session_state.pop("msg_ingreso_vig"))
+
+    if st.session_state.get("nav_vig_pendiente") == "RECORRIDO":
+        st.session_state.nav_vig_pendiente = None
+        default_tab_idx = 1
+    else:
+        default_tab_idx = 0
+
     tab_auto_ingreso, tab_recorrido, t_mensajeria = st.tabs(["🚀 INGRESO & RELEVO AUTOMÁTICO", "🚶 RECORRIDO QR", label_msg])
   
     with tab_auto_ingreso:
@@ -2314,7 +2336,9 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
                     escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
                      
-                    st.success(f"✅ ¡Ingreso, foto y relevo registrado con éxito para {nombre_vigilador_actual} en {v_obj_auto}!")
+                    st.session_state.msg_ingreso_vig = f"✅ ¡RELEVO EXITOSO! Ingreso y foto registrados para {nombre_vigilador_actual} en {v_obj_auto}. Ya podés hacer tus recorridos."
+                    st.session_state.nav_vig_pendiente = "RECORRIDO"
+                    st.toast("✅ ¡Relevo exitoso!", icon="✅")
                     st.rerun()
                 else:
                     st.error("⚠️ Es obligatorio tomar la foto con la cámara para confirmar el ingreso.")
@@ -2838,6 +2862,10 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         with t_adm_vig:
             st.markdown("#### 🪪 PADRÓN DE VIGILADORES")
+            
+            if st.session_state.get("msg_admin_padron"):
+                st.success(st.session_state.pop("msg_admin_padron"))
+
             df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
             
             if not df_pad_adm.empty:
@@ -2875,7 +2903,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                         dni_p = str(fila_pend.get('DNI', '')).strip()
                         obj_p = str(fila_pend.get('OBJETIVO', '')).strip().upper()
                         
-                        if actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "D", "ACTIVO"):
+                        if actualizar_estado_padron(idx_pend + 2, "ACTIVO"):
                             sup_p = ""
                             if not df_objetivos.empty and obj_p:
                                 m_obj = df_objetivos[col_texto(df_objetivos, 'OBJETIVO').str.strip().str.upper() == obj_p]
@@ -2889,7 +2917,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                     "PENDIENTE"
                                 ])
 
-                            st.success(f"✅ [ALTA CONFIRMADA] Se ha dado de alta al vigilador {nom_p}. Quedó habilitado y se envió el aviso correspondiente al supervisor ({sup_p if sup_p else 'N/A'}).")
+                            st.session_state.msg_admin_padron = f"✅ ALTA GESTIONADA: {nom_p} quedó habilitado. Se envió una notificación al supervisor ({sup_p if sup_p else 'N/A'})."
+                            st.toast("✅ Alta gestionada. Se envió la notificación al supervisor.", icon="✅")
                             st.cache_data.clear()
                             st.rerun()
                         else:
@@ -2916,7 +2945,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                         nom_baja = str(fila_baja_info.get('NOMBRE', '')).strip().upper()
                         obj_baja = str(fila_baja_info.get('OBJETIVO', '')).strip().upper()
 
-                        if actualizar_celda("PADRON VIGILADORES", idx_baja + 2, "D", "BAJA"):
+                        if actualizar_estado_padron(idx_baja + 2, "BAJA"):
                             sup_baja = ""
                             if not df_objetivos.empty and obj_baja:
                                 m_obj_b = df_objetivos[col_texto(df_objetivos, 'OBJETIVO').str.strip().str.upper() == obj_baja]
@@ -2930,7 +2959,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                     "PENDIENTE"
                                 ])
 
-                            st.success(f"🔴 [BAJA PROCESADA] Se dio de baja correctamente al vigilador {nom_baja}. Se procesó la notificación de salida para el supervisor ({sup_baja if sup_baja else 'N/A'}).")
+                            st.session_state.msg_admin_padron = f"🔴 BAJA GESTIONADA: {nom_baja} fue dado de baja. Se envió una notificación al supervisor ({sup_baja if sup_baja else 'N/A'})."
+                            st.toast("🔴 Baja gestionada. Se envió la notificación al supervisor.", icon="🔴")
                             st.cache_data.clear()
                             st.rerun()
                         else:
