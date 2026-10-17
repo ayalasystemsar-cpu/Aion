@@ -1489,11 +1489,12 @@ if st.session_state.rol_sel == "MONITOREO":
                 tiles="OpenStreetMap"
             )
 
+            # --- MAPA CON FONDO GRIS OSCURO EXACTO ---
             m_mon.get_root().header.add_child(Element("""
             <style>
-            .leaflet-container { background: #3a3a3a !important; }
+            .leaflet-container { background: #262626 !important; }
             .leaflet-tile-pane {
-                filter: invert(100%) hue-rotate(180deg) grayscale(100%) brightness(1.15) contrast(1.1);
+                filter: invert(100%) hue-rotate(180deg) grayscale(100%) brightness(0.8) contrast(1.25);
             }
             @keyframes pulse {
                 from { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,0,0,.8); }
