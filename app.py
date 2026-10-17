@@ -876,7 +876,7 @@ def renderizar_alerta_recorrida_js(horarios_previstos):
     if not horarios_previstos:
         return
     h_str_json = str(horarios_previstos).replace("'", '"')
-    componentes.html(f"""
+    components.html(f"""
     <div style="display:none;"></div>
     <script>
     var horarios = {h_str_json};
@@ -972,7 +972,6 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         for h_val in puntos['HORARIO'].dropna().tolist():
             s_h = str(h_val).strip()
             if s_h and s_h.lower() != 'nan':
-                # Soportamos tanto horarios separados por comas (ej. "15:00, 17:00") como simples
                 for sub_h in s_h.split(','):
                     sh_limpio = sub_h.strip()
                     if sh_limpio:
@@ -996,7 +995,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
 
     marcados = set()
     if not df_hoy.empty:
-        df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
+        df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce'] == ronda]
         marcados = set(col_texto(df_ronda, 'PUNTO').str.strip().str.upper())
 
     c_r1, c_r2 = st.columns(2)
