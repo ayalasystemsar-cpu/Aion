@@ -870,7 +870,76 @@ navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},wid
 def visor_qr(key):
     return _declarar_visor_qr("v6")(key=key, default=None)
 
-# --- 3.B RECORRIDOS CON QR (VIGILADORES) Y GENERADOR DE QR DE PUNTOS ---
+# --- 3.B RECORRIDOS CON QR (VIGILADORES) Y ALERTA SONORA DE HORARIOS ---
+def renderizar_alerta_recorrida_js(horarios_previstos):
+    """Componente JavaScript en segundo plano para revisar si la hora actual coincide con un horario programado."""
+    if not horarios_previstos:
+        return
+    h_str_json = str(horarios_previstos).replace("'", '"')
+    componentes.html(f"""
+    <div style="display:none;"></div>
+    <script>
+    var horarios = {h_str_json};
+    var audioCtx = null;
+
+    function activarAudio() {{
+        try {{
+            var AC = window.parent.AudioContext || window.parent.webkitAudioContext;
+            if (!audioCtx) audioCtx = new AC();
+            if (audioCtx.state === "suspended") audioCtx.resume();
+        }} catch(e){{}}
+    }}
+    document.addEventListener("click", activarAudio, {{once: true}});
+
+    function sonarAlarma() {{
+        try {{
+            activarAudio();
+            if(audioCtx) {{
+                var o = audioCtx.createOscillator();
+                var g = audioCtx.createGain();
+                o.type = "square";
+                o.frequency.value = 880;
+                g.gain.value = 0.5;
+                o.connect(g);
+                g.connect(audioCtx.destination);
+                o.start();
+                setTimeout(function(){{ o.stop(); }}, 400);
+            }}
+            if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+        }} catch(e){{}}
+    }}
+
+    setInterval(function() {{
+        var d = new Date();
+        var hh = String(d.getHours()).padStart(2, '0');
+        var mm = String(d.getMinutes()).padStart(2, '0');
+        var ss = String(d.getSeconds()).padStart(2, '0');
+        var horaActual = hh + ":" + mm;
+        
+        // Verificamos si coincide exactamente con el minuto de la recorrida programada (ss < 5 para evitar repeticiones continuas en el minuto)
+        if (horarios.includes(horaActual) && ss < 5) {{
+            sonarAlarma();
+            // Creamos un cartel emergente modal de alerta
+            var modalId = "modal_rec_" + horaActual.replace(":", "");
+            if (!parent.document.getElementById(modalId)) {{
+                var div = parent.document.createElement("div");
+                div.id = modalId;
+                div.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;";
+                div.innerHTML = '<div style="background:#1A1C23;border:3px solid #FF0000;border-radius:12px;padding:25px;max-width:360px;text-align:center;box-shadow:0 0 30px rgba(255,0,0,0.7);font-family:sans-serif;color:#FFF;">' +
+                    '<h2 style="color:#FF0000;margin-top:0;font-family:Orbitron,sans-serif;">🚨 ¡HORA DE RECORRIDA!</h2>' +
+                    '<p style="font-size:16px;margin:15px 0;">Comienza la ronda programada de las <b>' + horaActual + ' HS</b>.</p>' +
+                    '<button id="btn_conf_ronda" style="background:#00E5FF;color:#000;border:none;padding:12px 24px;font-weight:bold;font-size:14px;border-radius:6px;cursor:pointer;font-family:Orbitron,sans-serif;margin-top:10px;">¡ENTERADO / INICIAR!</button>' +
+                    '</div>';
+                parent.document.body.appendChild(div);
+                parent.document.getElementById("btn_conf_ronda").onclick = function() {{
+                    div.remove();
+                }};
+            }}
+        }}
+    }}, 2000);
+    </script>
+    """, height=0)
+
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     st.markdown("### 🚶 RECORRIDO CON MARCACIÓN QR")
 
@@ -899,6 +968,12 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         puntos['_ORD'] = pd.to_numeric(puntos['ORDEN'], errors='coerce')
         puntos = puntos.sort_values('_ORD')
     lista_puntos = [str(p).strip().upper() for p in puntos['PUNTO']]
+
+    # Extraemos los horarios previstos cargados en la tabla para activar la alerta sonora
+    horarios_previstos_lista = []
+    if 'HORARIO' in puntos.columns:
+        horarios_previstos_lista = [str(h).strip() for h in puntos['HORARIO'].dropna().tolist() if str(h).strip() and str(h).strip().lower() != 'nan']
+    renderizar_alerta_recorrida_js(horarios_previstos_lista)
 
     df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
     df_hoy = pd.DataFrame()
@@ -994,7 +1069,7 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
         st.session_state[f"{key_prefix}_msg_punto"] = ""
 
     if not existentes.empty:
-        cols_ver = [c for c in ['PUNTO', 'ORDEN'] if c in existentes.columns]
+        cols_ver = [c for c in ['PUNTO', 'ORDEN', 'HORARIO'] if c in existentes.columns]
         st.dataframe(existentes[cols_ver], use_container_width=True, hide_index=True)
     else:
         st.info("Este objetivo todavía no tiene puntos de control.")
@@ -1002,13 +1077,15 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
     with st.form(key=f"{key_prefix}_form_punto", clear_on_submit=True):
         nuevo_punto = st.text_input("NOMBRE DEL PUNTO (Ej: PORTÓN 1):").strip().upper()
         nuevo_orden = st.number_input("ORDEN EN EL RECORRIDO:", min_value=1, value=len(existentes) + 1, step=1)
-        if st.form_submit_button("➕ GUARDAR PUNTO"):
+        nuevo_horario = st.text_input("HORARIO PREVISTO (Ej: 22:00, 00:00, 02:00, 04:00):").strip()
+        
+        if st.form_submit_button("➕ GUARDAR PUNTO Y HORARIO"):
             if nuevo_punto:
                 ya_existe = (not existentes.empty) and (nuevo_punto in col_texto(existentes, 'PUNTO').str.strip().str.upper().tolist())
                 if ya_existe:
                     st.warning("⚠️ Ese punto ya existe en este objetivo.")
-                elif escribir_registro_nube("RECORRIDOS PUNTOS", [obj_u, nuevo_punto, int(nuevo_orden)]):
-                    st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Punto '{nuevo_punto}' guardado."
+                elif escribir_registro_nube("RECORRIDOS PUNTOS", [obj_u, nuevo_punto, int(nuevo_orden), nuevo_horario]):
+                    st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Punto '{nuevo_punto}' guardado con horario {nuevo_horario}."
                     st.rerun()
             else:
                 st.warning("⚠️ Ingresá el nombre del punto.")
@@ -1076,7 +1153,7 @@ def tabla_recorridas_vigiladores(objs_sup):
             for o, g in df_p.groupby('_OBJ'):
                 hs = [x for x in col_texto(g, 'HORARIO').str.strip() if x and x.lower() != 'nan']
                 if hs:
-                    previsto[o] = hs[0]
+                    previsto[o] = ", ".join(hs)
 
     filas = []
     for (fecha, obj, vig, ronda), g in df_r.groupby(['_FECHA', '_OBJ', '_VIG', '_RONDA']):
@@ -1088,7 +1165,7 @@ def tabla_recorridas_vigiladores(objs_sup):
             "OBJETIVO": obj,
             "VIGILADOR": vig,
             "RONDA": ronda,
-            "HORARIO PREVISTO": previsto.get(obj, "---"),
+            "HORARIO PREVISTO": previsto.get(obj, "22:00, 00:00, 02:00, 04:00"),
             "INICIÓ": g['_FH'].min().strftime('%H:%M:%S'),
             "FINALIZÓ": g['_FH'].max().strftime('%H:%M:%S') if completa else "---",
             "PUNTOS": f"{marcados}/{total}" if total else str(marcados),
@@ -2112,7 +2189,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     """, unsafe_allow_html=True)
 
                     codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}_{st.session_state.scan_n_sup}")
-                   
+                    st.caption(f"🔧 Lectura recibida: {codigo_qr_leido!r} | n={st.session_state.scan_n_sup}")
 
                     if st.session_state.ultimo_mensaje_qr:
                         st.success(st.session_state.ultimo_mensaje_qr)
@@ -2771,7 +2848,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         })
                         st.dataframe(df_resumen_jor_prev, use_container_width=True, hide_index=True)
                          
-                        st.markdown("##### 📍 Detalle de Escaneos QR y Permanencia")
+                        st.markdown("##### 📍 Detalle de Permanencia por Objetivo (Escaneos QR)")
                         if not df_tabla_permanencia.empty:
                             st.dataframe(df_tabla_permanencia, use_container_width=True, hide_index=True)
                         else:
