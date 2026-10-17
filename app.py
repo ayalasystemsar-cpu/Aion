@@ -870,42 +870,73 @@ navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},wid
 def visor_qr(key):
     return _declarar_visor_qr("v6")(key=key, default=None)
 
-# --- 3.B RECORRIDOS CON QR (VIGILADORES) Y ALERTA SONORA DE HORARIOS ---
+# --- 3.B RECORRIDOS CON QR (VIGILADORES) Y ALERTA SONORA DE HORARIOS MEJORADA ---
 def renderizar_alerta_recorrida_js(horarios_previstos):
-    """Componente JavaScript en segundo plano para revisar si la hora actual coincide con un horario programado."""
+    """Componente JavaScript con botón de activación forzada para saltar restricciones del navegador y mostrar alerta."""
     if not horarios_previstos:
         return
     h_str_json = str(horarios_previstos).replace("'", '"')
+    
+    # Inyectamos un botón flotante permanente en la pantalla del vigilador para desbloquear audio obligatoriamente
     components.html(f"""
-    <div style="display:none;"></div>
+    <div style="position:fixed;bottom:10px;right:10px;z-index:99999;font-family:sans-serif;">
+        <button id="btn_activar_alerta" style="background:#00E5FF;color:#000;border:2px solid #FFF;padding:10px 15px;font-weight:bold;font-size:12px;border-radius:8px;cursor:pointer;box-shadow:0 0 10px rgba(0,229,255,0.8);">🔊 ACTIVAR ALARMAS</button>
+    </div>
     <script>
     var horarios = {h_str_json};
     var audioCtx = null;
+    var activado = false;
 
-    function activarAudio() {{
+    function desbloquearAudioCompleto() {{
         try {{
             var AC = window.parent.AudioContext || window.parent.webkitAudioContext;
             if (!audioCtx) audioCtx = new AC();
             if (audioCtx.state === "suspended") audioCtx.resume();
+            
+            // Sonido de prueba corto al activar
+            var o = audioCtx.createOscillator();
+            var g = audioCtx.createGain();
+            o.type = "sine"; o.frequency.value = 600; g.gain.value = 0.2;
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); setTimeout(function(){{ o.stop(); }}, 100);
+
+            activado = true;
+            var btn = document.getElementById("btn_activar_alerta");
+            if(btn) {{
+                btn.style.background = "#39FF14";
+                btn.textContent = "🔊 ALARMAS ACTIVAS";
+                setTimeout(function(){{ btn.style.display = 'none'; }}, 3000);
+            }}
         }} catch(e){{}}
     }}
-    document.addEventListener("click", activarAudio, {{once: true}});
+
+    document.getElementById("btn_activar_alerta").onclick = desbloquearAudioCompleto;
+    ["touchstart", "click", "pointerdown"].forEach(function(ev) {{
+        parent.document.addEventListener(ev, function() {{
+            if(!activado) desbloquearAudioCompleto();
+        }}, {{once: true}});
+    }});
 
     function sonarAlarma() {{
         try {{
-            activarAudio();
+            desbloquearAudioCompleto();
             if(audioCtx) {{
-                var o = audioCtx.createOscillator();
-                var g = audioCtx.createGain();
-                o.type = "square";
-                o.frequency.value = 880;
-                g.gain.value = 0.5;
-                o.connect(g);
-                g.connect(audioCtx.destination);
-                o.start();
-                setTimeout(function(){{ o.stop(); }}, 400);
+                // Alarma intermitente de alta frecuencia
+                for(var i=0; i<3; i++) {{
+                    setTimeout(function() {{
+                        var o = audioCtx.createOscillator();
+                        var g = audioCtx.createGain();
+                        o.type = "square";
+                        o.frequency.value = 950;
+                        g.gain.value = 0.7;
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.start();
+                        setTimeout(function(){{ o.stop(); }}, 350);
+                    }}, i * 500);
+                }}
             }}
-            if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+            if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400]);
         }} catch(e){{}}
     }}
 
@@ -916,17 +947,18 @@ def renderizar_alerta_recorrida_js(horarios_previstos):
         var ss = String(d.getSeconds()).padStart(2, '0');
         var horaActual = hh + ":" + mm;
         
+        // Compara si la hora actual coincide con alguna de las programadas
         if (horarios.includes(horaActual) && ss < 5) {{
             sonarAlarma();
             var modalId = "modal_rec_" + horaActual.replace(":", "");
             if (!parent.document.getElementById(modalId)) {{
                 var div = parent.document.createElement("div");
                 div.id = modalId;
-                div.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;";
-                div.innerHTML = '<div style="background:#1A1C23;border:3px solid #FF0000;border-radius:12px;padding:25px;max-width:360px;text-align:center;box-shadow:0 0 30px rgba(255,0,0,0.7);font-family:sans-serif;color:#FFF;">' +
-                    '<h2 style="color:#FF0000;margin-top:0;font-family:Orbitron,sans-serif;">🚨 ¡HORA DE RECORRIDA!</h2>' +
-                    '<p style="font-size:16px;margin:15px 0;">Comienza la ronda programada de las <b>' + horaActual + ' HS</b>.</p>' +
-                    '<button id="btn_conf_ronda" style="background:#00E5FF;color:#000;border:none;padding:12px 24px;font-weight:bold;font-size:14px;border-radius:6px;cursor:pointer;font-family:Orbitron,sans-serif;margin-top:10px;">¡ENTERADO / INICIAR!</button>' +
+                div.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.9);z-index:999999;display:flex;align-items:center;justify-content:center;";
+                div.innerHTML = '<div style="background:#1A1C23;border:4px solid #FF0000;border-radius:14px;padding:30px;max-width:380px;text-align:center;box-shadow:0 0 40px rgba(255,0,0,0.9);font-family:sans-serif;color:#FFF;">' +
+                    '<h1 style="color:#FF0000;margin-top:0;font-family:Orbitron,sans-serif;font-size:22px;">🚨 ¡HORA DE RECORRIDA!</h1>' +
+                    '<p style="font-size:18px;margin:20px 0;">Comienza la ronda programada de las <b>' + horaActual + ' HS</b>.</p>' +
+                    '<button id="btn_conf_ronda" style="background:#00E5FF;color:#000;border:none;padding:14px 28px;font-weight:bold;font-size:15px;border-radius:8px;cursor:pointer;font-family:Orbitron,sans-serif;margin-top:10px;box-shadow:0 0 15px rgba(0,229,255,0.6);">¡ENTERADO / INICIAR!</button>' +
                     '</div>';
                 parent.document.body.appendChild(div);
                 parent.document.getElementById("btn_conf_ronda").onclick = function() {{
@@ -934,7 +966,7 @@ def renderizar_alerta_recorrida_js(horarios_previstos):
                 }};
             }}
         }}
-    }}, 2000);
+    }}, 1000);
     </script>
     """, height=0)
 
@@ -976,6 +1008,8 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                     sh_limpio = sub_h.strip()
                     if sh_limpio:
                         horarios_previstos_lista.append(sh_limpio)
+    
+    # Si no configuraron horarios todavía, ponemos un horario por defecto cercano o mantenemos la lista vacía
     renderizar_alerta_recorrida_js(horarios_previstos_lista)
 
     df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
