@@ -2847,12 +2847,19 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
             else:
                 st.info("El padrón todavía está vacío.")
 
-            if not df_pad_adm.empty and 'ESTADO' in df_pad_adm.columns:
+            # --- NORMALIZACIÓN DE COLUMNAS PARA EVITAR CUALQUIER FALLA EN LOS BOTONES DE ALTA Y BAJA ---
+            if not df_pad_adm.empty:
+                df_pad_adm.columns = [str(c).strip().upper() for c in df_pad_adm.columns]
+                if 'ESTADO' in df_pad_adm.columns:
+                    df_pad_adm['ESTADO'] = df_pad_adm['ESTADO'].astype(str).str.strip().str.upper()
+                else:
+                    df_pad_adm['ESTADO'] = "PENDIENTE"
+
                 st.markdown("---")
                 
                 # --- GESTIÓN DE ALTA ---
                 st.markdown("##### 🟢 GESTIÓN DE ALTA")
-                pend_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "PENDIENTE"]
+                pend_vig = df_pad_adm[df_pad_adm['ESTADO'] == "PENDIENTE"]
                 
                 if not pend_vig.empty:
                     etiquetas_pend = {
@@ -2894,7 +2901,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
                 # --- GESTIÓN DE BAJA ---
                 st.markdown("##### 🔴 GESTIÓN DE BAJA")
-                activos_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "ACTIVO"]
+                activos_vig = df_pad_adm[df_pad_adm['ESTADO'] == "ACTIVO"]
                 
                 if not activos_vig.empty:
                     etiquetas_activos = {
