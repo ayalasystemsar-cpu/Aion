@@ -2831,7 +2831,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         st.markdown("---")
 
-        # Pestañas reorganizadas según tus indicaciones exactas:
         t_adm_vig, t_adm_probar_rec, t_adm_qr_rec, t_adm_obj, t_adm_mantenimiento = st.tabs([
             "🪪 Padrón de Vigiladores", "🚶 Probar Recorrido QR", "🧾 Puntos QR Recorrido", 
             "🎯 Gestión de Objetivos", "🛡️ Respaldo y Archivo Táctico"
@@ -2860,7 +2859,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                     legajo_asig = st.text_input("Legajo (opcional):", key="legajo_vig_pend").strip()
                     c_ap, c_re = st.columns(2)
                     
-                    # --- BOTÓN DE ALTA / APROBACIÓN ---
                     if c_ap.button("✅ DAR DE ALTA", use_container_width=True, key="btn_aprobar_vig"):
                         fila_pend = df_pad_adm.loc[idx_pend]
                         nom_p = str(fila_pend.get('NOMBRE', '')).strip().upper()
@@ -2884,13 +2882,12 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                     "PENDIENTE"
                                 ])
 
-                            st.success(f"✅ Se ha dado de alta al vigilador {nom_p}. Se notificará al supervisor asignado ({sup_p if sup_p else 'N/A'}) para que le comunique su alta en el objetivo.")
+                            st.success(f"✅ [ALTA EXITOSA] Se ha dado de alta al vigilador {nom_p}. Quedó habilitado en el sistema y se notificó al supervisor asignado ({sup_p if sup_p else 'N/A'}).")
                             st.cache_data.clear()
                             st.rerun()
                         else:
                             st.error("❌ No se pudo registrar el alta.")
                             
-                    # --- BOTÓN DE RECHAZO ---
                     if c_re.button("🚫 RECHAZAR", use_container_width=True, key="btn_rechazar_vig"):
                         fila_pend = df_pad_adm.loc[idx_pend]
                         nom_p = str(fila_pend.get('NOMBRE', '')).strip().upper()
@@ -2924,7 +2921,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                     idx_baja = st.selectbox("Seleccioná el vigilador a dar de baja:", list(etiquetas_activos.keys()),
                                             format_func=lambda k: etiquetas_activos[k], key="sel_vig_baja")
                                             
-                    # --- BOTÓN DE BAJA ---
                     if st.button("🚫 DAR DE BAJA VIGILADOR", use_container_width=True, key="btn_ejecutar_baja_vig"):
                         fila_baja_info = df_pad_adm.loc[idx_baja]
                         nom_baja = str(fila_baja_info.get('NOMBRE', '')).strip().upper()
@@ -2944,7 +2940,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                     "PENDIENTE"
                                 ])
 
-                            st.success(f"✅ Se dio de baja al vigilador {nom_baja}. Se ha notificado en la barra lateral del supervisor {sup_baja if sup_baja else 'N/A'}.")
+                            st.success(f"✅ [BAJA PROCESADA] Se dio de baja exitosamente al vigilador {nom_baja}. Se ha notificado la novedad al supervisor {sup_baja if sup_baja else 'N/A'}.")
                             st.cache_data.clear()
                             st.rerun()
                         else:
@@ -2963,7 +2959,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                         if ya_cargado:
                             st.warning("⚠️ Ese DNI ya está cargado en el padrón.")
                         elif escribir_registro_nube("PADRON VIGILADORES", [dni_limpio, nuevo_nombre_vig, nuevo_legajo_vig, "ACTIVO"]):
-                            st.success(f"✅ Vigilador {nuevo_nombre_vig} habilitado.")
+                            st.success(f"✅ Vigilador {nuevo_nombre_vig} habilitado correctamente.")
                             st.cache_data.clear()
                             st.rerun()
                     else:
