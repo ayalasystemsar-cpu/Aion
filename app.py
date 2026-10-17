@@ -356,10 +356,30 @@ def obtener_grafo_zona(lat, lon):
         return None
 
 @st.cache_resource(show_spinner=False)
-def _declarar_visor_qr(version="v4"):
+def _declarar_visor_qr(version="v6"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_qr_{version}_")
+    js = ""
+    for url in [
+        "https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js",
+        "https://unpkg.com/jsqr@1.4.0/dist/jsQR.js",
+    ]:
+        try:
+            r = requests.get(url, timeout=10)
+            if r.ok and len(r.text) > 20000:
+                js = r.text
+                break
+        except Exception:
+            continue
+    if js:
+        with open(os.path.join(carpeta, "jsQR.js"), "w", encoding="utf-8") as f:
+            f.write(js)
+        tag = '<script src="jsQR.js"></script>'
+    else:
+        tag = '<script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.js"></script>'
+    html = _QR_HTML.replace("<!--JSQR_SCRIPT-->", tag)
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
-        f.write(_QR_HTML)
+        f.write(html)
     return components.declare_component(f"aion_visor_qr_{version}", path=carpeta)
 
 def verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, lat, lon):
@@ -781,7 +801,7 @@ def ejecutar_cierre_táctico():
         return True
     except: return False
 
-# --- COMPONENTE PERSONALIZADO VISOR QR CON v4 Y AUDIO DESBLOQUEADO ---
+# --- COMPONENTE PERSONALIZADO VISOR QR CON v6 Y AUDIO DESBLOQUEADO ---
 _QR_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -794,7 +814,7 @@ font:12px sans-serif;text-align:center;pointer-events:none}
 </style></head><body>
 <div id="caja"><video id="v" playsinline muted autoplay></video><div id="msg"></div></div>
 <canvas id="c" style="display:none"></canvas>
-<script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.js" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';document.head.appendChild(s);"></script>
+<!--JSQR_SCRIPT-->
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
 function altura(){var w=Math.min(document.documentElement.clientWidth||window.innerWidth,340);
@@ -848,7 +868,7 @@ navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},wid
 </script></body></html>"""
 
 def visor_qr(key):
-    return _declarar_visor_qr("v4")(key=key, default=None)
+    return _declarar_visor_qr("v6")(key=key, default=None)
 
 # --- 3.B RECORRIDOS CON QR (VIGILADORES) Y GENERADOR DE QR DE PUNTOS ---
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
@@ -1023,7 +1043,6 @@ def tabla_recorridas_vigiladores(objs_sup):
     if df_r.empty:
         return pd.DataFrame()
 
-    # Nombre y apellido del vigilador
     col_vig = next((c for c in ['VIGILADOR', 'NOMBRE', 'APELLIDO Y NOMBRE'] if c in df_r.columns), None)
     if col_vig:
         df_r['_VIG'] = col_texto(df_r, col_vig).str.strip().str.upper()
@@ -1047,7 +1066,6 @@ def tabla_recorridas_vigiladores(objs_sup):
         return pd.DataFrame()
     df_r['_FECHA'] = df_r['_FH'].dt.strftime('%Y-%m-%d')
 
-    # Total de puntos y horario previsto por objetivo
     total_ptos, previsto = {}, {}
     df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
     if not df_p.empty and {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
@@ -2460,7 +2478,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
                     escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
                      
-                    st.session_state.msg_ingreso_vig = f"✅ ¡RELEVO EXITOSO! Ingreso y foto registrados para {nombre_vigilador_actual} en {v_obj_auto}. Ya podés hacer tus recorridos."
+                    st.session_state.msg_ingreso_vig = f"✅ ¡RELEVO EXITOSO! Ingreso y foto registrados para {nombre_vigilador_actual} en {v_obj_auto}. Ya podés hacer tu recorridas."
                     st.session_state.nav_vig_pendiente = "RECORRIDO"
                     st.toast("✅ ¡Relevo exitoso!", icon="✅")
                     st.rerun()
