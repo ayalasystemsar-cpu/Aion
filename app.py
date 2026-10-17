@@ -728,7 +728,7 @@ font:12px sans-serif;text-align:center;pointer-events:none}
 </style></head><body>
 <div id="caja"><video id="v" playsinline muted autoplay></video><div id="msg"></div></div>
 <canvas id="c" style="display:none"></canvas>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsQR@1.4.0/dist/jsQR.js"></script>
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
 function altura(){var w=Math.min(document.documentElement.clientWidth||window.innerWidth,340);
@@ -962,6 +962,7 @@ def mostrar_landing():
      
     nombre_vig_reg = ""
     obj_vig_reg = ""
+    legajo_vig_reg = ""
     with st.form("form_acceso_real"):
         user = st.text_input("Usuario", key="u")
         password = st.text_input("Contraseña", type="password", key="p")
@@ -970,6 +971,7 @@ def mostrar_landing():
 
         if modo == "Crear Cuenta":
             nombre_vig_reg = st.text_input("Apellido y Nombre", key="nv_reg")
+            legajo_vig_reg = st.text_input("Número de Legajo", key="leg_reg")
             _df_obj_login = cargar_objetivos()
             _lista_obj_login = sorted(_df_obj_login['OBJETIVO'].astype(str).str.strip().str.upper().unique().tolist()) if not _df_obj_login.empty else []
             if _lista_obj_login:
@@ -1084,6 +1086,7 @@ def mostrar_landing():
                 dni_reg = "".join(ch for ch in user_limpio if ch.isdigit())
                 pass_reg = "".join(ch for ch in pass_limpio if ch.isdigit())
                 nombre_reg = nombre_vig_reg.strip().upper()
+                legajo_reg = legajo_vig_reg.strip().upper()
                 if not dni_reg or not nombre_reg or not obj_vig_reg:
                     st.warning("⚠️ Complete DNI, apellido y nombre, y seleccione su objetivo.")
                 elif pass_reg != dni_reg:
@@ -1095,8 +1098,8 @@ def mostrar_landing():
                              (dni_reg in col_texto(df_pad_reg, 'DNI').str.replace(r'\D', '', regex=True).tolist())
                     if ya_reg:
                         st.warning("⚠️ Este DNI ya se encuentra registrado. Si ya fue dado de alta, inicie sesión.")
-                    elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, "", "PENDIENTE", obj_vig_reg]):
-                        st.success("✅ Solicitud registrada. Quedará pendiente de aprobación por la Administración.")
+                    elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, legajo_reg, "PENDIENTE", obj_vig_reg]):
+                        st.success("✅ Solicitud registrada con legajo. Quedará pendiente de aprobación por la Administración.")
             else:
                 if user.strip() and password.strip():
                     exito_reg = escribir_registro_nube("USUARIOS", [user.strip().upper(), password.strip(), rol_usuario, "PENDIENTE"])
@@ -2850,7 +2853,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         with t_adm_vig:
             st.markdown("#### 🪪 PADRÓN DE VIGILADORES (LOGIN POR DNI)")
-            st.caption("El vigilador ingresa con su DNI como usuario y como contraseña. Solo pueden entrar los DNI cargados acá con estado ACTIVO.")
+            st.caption("El vigilador ingresa con su DNI como usuario y como contraseña. Acá podés dar de alta, aprobar o dar de baja registros.")
             df_pad_adm = leer_matriz_nube("PADRON VIGILADORES")
             if not df_pad_adm.empty:
                 cols_pad = [c for c in ['DNI', 'NOMBRE', 'LEGAJO', 'ESTADO', 'OBJETIVO'] if c in df_pad_adm.columns]
@@ -2859,6 +2862,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 st.info("El padrón todavía está vacío.")
 
             if not df_pad_adm.empty and 'ESTADO' in df_pad_adm.columns:
+                # 1. Sección para aprobar solicitudes pendientes (Dar de alta)
                 pend_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "PENDIENTE"]
                 if not pend_vig.empty:
                     st.markdown("##### ⏳ SOLICITUDES DE ALTA PENDIENTES")
@@ -2866,7 +2870,7 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                         i: f"{r.get('NOMBRE', '')} | DNI {r.get('DNI', '')} | {r.get('OBJETIVO', 'SIN OBJETIVO')}"
                         for i, r in pend_vig.iterrows()
                     }
-                    idx_pend = st.selectbox("Solicitud:", list(etiquetas_pend.keys()),
+                    idx_pend = st.selectbox("Solicitud a aprobar:", list(etiquetas_pend.keys()),
                                             format_func=lambda k: etiquetas_pend[k], key="sel_vig_pend")
                     legajo_asig = st.text_input("Legajo (opcional):", key="legajo_vig_pend").strip()
                     c_ap, c_re = st.columns(2)
@@ -2900,12 +2904,33 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                 "PENDIENTE", "VERDE"
                             ])
                             st.success(f"✅ ALTA CONFIRMADA: Vigilador {nom_p} habilitado en {obj_p}.")
+                            st.cache_data.clear()
                             st.rerun()
                         else:
-                            st.error("❌ No se pudo registrar el alta. Intente nuevamente.")
+                            st.error("❌ No se pudo registrar el alta.")
                     if c_re.button("🚫 RECHAZAR", use_container_width=True, key="btn_rechazar_vig"):
                         if actualizar_celda("PADRON VIGILADORES", idx_pend + 2, "D", "RECHAZADO"):
                             st.info("Solicitud rechazada.")
+                            st.cache_data.clear()
+                            st.rerun()
+
+                # 2. Sección para gestionar y dar de baja vigiladores activos
+                activos_vig = df_pad_adm[col_texto(df_pad_adm, 'ESTADO').str.strip().str.upper() == "ACTIVO"]
+                if not activos_vig.empty:
+                    st.markdown("##### 🗑️ GESTIÓN Y BAJA DE VIGILADORES ACTIVOS")
+                    etiquetas_activos = {
+                        i: f"{r.get('NOMBRE', '')} (DNI: {r.get('DNI', '')}) - Obj: {r.get('OBJETIVO', 'N/A')}"
+                        for i, r in activos_vig.iterrows()
+                    }
+                    idx_baja = st.selectbox("Seleccioná el vigilador a dar de baja:", list(etiquetas_activos.keys()),
+                                            format_func=lambda k: etiquetas_activos[k], key="sel_vig_baja")
+                    if st.button("🚫 DAR DE BAJA VIGILADOR", use_container_width=True, key="btn_ejecutar_baja_vig"):
+                        if actualizar_celda("PADRON VIGILADORES", idx_baja + 2, "D", "BAJA"):
+                            st.success("✅ Vigilador dado de baja correctamente.")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al procesar la baja.")
 
             with st.form(key="form_alta_vigilador_padron", clear_on_submit=True):
                 col_pv_a, col_pv_b = st.columns(2)
@@ -2921,6 +2946,8 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                             st.warning("⚠️ Ese DNI ya está cargado en el padrón.")
                         elif escribir_registro_nube("PADRON VIGILADORES", [dni_limpio, nuevo_nombre_vig, nuevo_legajo_vig, "ACTIVO"]):
                             st.success(f"✅ Vigilador {nuevo_nombre_vig} habilitado.")
+                            st.cache_data.clear()
+                            st.rerun()
                     else:
                         st.warning("⚠️ Completá DNI y nombre.")
 
