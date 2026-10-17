@@ -634,6 +634,21 @@ def col_texto(df, col):
         s = s.iloc[:, 0]
     return s.astype(str)
 
+def comisaria_mas_cercana(lat, lon, localidad, df_com):
+    df_f = df_com
+    if localidad and 'LOCALIDAD' in df_com.columns:
+        sub = df_com[col_texto(df_com, 'LOCALIDAD').str.strip().str.upper() == localidad]
+        if not sub.empty:
+            df_f = sub
+    mejor, dmin = None, float('inf')
+    for _, c in df_f.iterrows():
+        la1, lo1, la2, lo2 = map(math.radians, [lat, lon, c['LATITUD'], c['LONGITUD']])
+        a = math.sin((la2-la1)/2)**2 + math.cos(la1)*math.cos(la2)*math.sin((lo2-lo1)/2)**2
+        d = 6371 * 2 * math.asin(math.sqrt(a))
+        if d < dmin:
+            dmin, mejor = d, c
+    return mejor
+
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
@@ -1474,37 +1489,57 @@ if st.session_state.rol_sel == "MONITOREO":
             )
             m_mon.get_root().header.add_child(Element("""
             <style>
+            @keyframes pulse {
+                from { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,0,0,.8); }
+                to   { transform: scale(1.7); opacity: .35; box-shadow: 0 0 18px 8px rgba(255,0,0,.6); }
+            }
             .leaflet-tile-pane {
                 filter: invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9);
             }
             .leaflet-container { background: #0a0f1e !important; }
             </style>
             """))
+
+            df_com = cargar_datos_comisarias()
+            comisarias_en_panico = set()
+
             for _, r in df_mapa_filtrado_sup.iterrows():
                 obj_nombre = str(r['OBJETIVO']).strip().upper()
                 es_panico = obj_nombre in lista_objetivos_en_panico
                 es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
-                 
-                texto_tooltip = f"🎯 {obj_nombre}"
-                if es_panico:
-                    alerta_activa = df_emergencias[
-                        ((col_texto(df_emergencias, 'OBJETIVO').str.strip().str.upper() == obj_nombre)) & 
-                        (col_texto(df_emergencias, 'ESTADO').str.strip().str.upper() == 'PENDIENTE') & 
-                        (col_texto(df_emergencias, 'TIPO').str.strip().str.upper() == 'PÁNICO')
-                    ] if 'OBJETIVO' in df_emergencias.columns else pd.DataFrame()
-                    if not alerta_activa.empty:
-                        nombre_persona = alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')
-                        texto_tooltip = f"🚨 PÁNICO: {nombre_persona} | OBJ: {obj_nombre}"
 
-                if es_panico or es_el_seleccionado:
+                if es_panico:
+                    texto_tooltip = f"🚨 PÁNICO | OBJ: {obj_nombre}"
+                    if 'OBJETIVO' in df_emergencias.columns:
+                        alerta_activa = df_emergencias[
+                            (col_texto(df_emergencias, 'OBJETIVO').str.strip().str.upper() == obj_nombre) &
+                            (col_texto(df_emergencias, 'ESTADO').str.strip().str.upper() == 'PENDIENTE') &
+                            (col_texto(df_emergencias, 'TIPO').str.strip().str.upper() == 'PÁNICO')
+                        ]
+                        if not alerta_activa.empty:
+                            texto_tooltip = f"🚨 PÁNICO: {alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')} | OBJ: {obj_nombre}"
+
                     folium.Marker(
                         location=[r['LATITUD'], r['LONGITUD']],
                         tooltip=texto_tooltip,
                         icon=folium.DivIcon(
-                            icon_size=(30, 30),
-                            icon_anchor=(15, 15),
-                            html='''<div style="background-color: #FF0000; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; animation: pulse 1s infinite alternate;"></div>'''
+                            icon_size=(30, 30), icon_anchor=(15, 15),
+                            html='<div style="background-color:#FF0000;width:16px;height:16px;border-radius:50%;border:2px solid white;animation:pulse 0.8s infinite alternate;"></div>'
                         )
+                    ).add_to(m_mon)
+
+                    com = comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'], str(r.get('LOCALIDAD', '')).strip().upper(), df_com)
+                    if com is not None:
+                        comisarias_en_panico.add(com['COMISARIA'])
+                        ruta = obtener_ruta_calles_osrm(r['LATITUD'], r['LONGITUD'], com['LATITUD'], com['LONGITUD'])
+                        folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
+                        folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
+
+                elif es_el_seleccionado:
+                    folium.CircleMarker(
+                        location=[r['LATITUD'], r['LONGITUD']], radius=10, color="#FFFFFF",
+                        fill=True, fill_color="#00E5FF", fill_opacity=0.9,
+                        tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                 else:
                     folium.CircleMarker(
@@ -1512,33 +1547,18 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
 
-            df_com = cargar_datos_comisarias()
             for _, c in df_com.iterrows():
-                es_la_mas_cercana = (c['COMISARIA'] == comisaria_cercana_name)
-                if es_la_mas_cercana and obj_seleccionado != "MOSTRAR TODO":
-                    color_icono = "#FF9800"
-                    tamano_fuente = "26px"
-                    sufijo_tooltip = " 🌟 [MÁS CERCANA AL OBJETIVO]"
-                    com_lat, com_lon = c['LATITUD'], c['LONGITUD']
-                    coordenadas_ruta = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat, com_lon)
-                     
-                    if len(coordenadas_ruta) <= 2:
-                        coordenadas_ruta = [[lat_obj, lon_obj], [com_lat, com_lon]]
-
-                    folium.PolyLine(locations=coordenadas_ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
-                    folium.PolyLine(locations=coordenadas_ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
-                else:
-                    color_icono = "#0000FF"
-                    tamano_fuente = "20px"
-                    sufijo_tooltip = ""
-
+                en_panico = c['COMISARIA'] in comisarias_en_panico
+                color_icono = "#FFD600" if en_panico else "#0000FF"
+                tamano_fuente = "26px" if en_panico else "20px"
+                sufijo = " 🌟 [MÁS CERCANA AL PÁNICO]" if en_panico else ""
                 folium.Marker(
                     location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}{sufijo_tooltip}",
-                    icon=folium.DivIcon(html=f"""<div style="font-size: {tamano_fuente}; color: {color_icono}; text-shadow: 0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+                    tooltip=f"👮 {c['COMISARIA']}{sufijo}",
+                    icon=folium.DivIcon(html=f"""<div style="font-size:{tamano_fuente};color:{color_icono};text-shadow:0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
-             
-            st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico")
+
+            st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
         st.markdown('</div>', unsafe_allow_html=True)
 
     with t_mensajeria:
