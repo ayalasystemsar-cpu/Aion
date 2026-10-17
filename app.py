@@ -1148,7 +1148,23 @@ def mostrar_landing():
                 else:
                     st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
             elif modo == "Crear Cuenta" and rol_usuario == "VIGILADOR":
-                pass
+                dni_reg = "".join(ch for ch in user_limpio if ch.isdigit())
+                pass_reg = "".join(ch for ch in pass_limpio if ch.isdigit())
+                nombre_reg = nombre_vig_reg.strip().upper()
+                legajo_reg = legajo_vig_reg.strip().upper()
+                if not dni_reg or not nombre_reg or not obj_vig_reg:
+                    st.warning("⚠️ Complete DNI, apellido y nombre, y seleccione su objetivo.")
+                elif pass_reg != dni_reg:
+                    st.warning("⚠️ La contraseña debe coincidir con su DNI.")
+                else:
+                    st.cache_data.clear()
+                    df_pad_reg = leer_matriz_nube("PADRON VIGILADORES")
+                    ya_reg = (not df_pad_reg.empty) and ('DNI' in df_pad_reg.columns) and \
+                             (dni_reg in col_texto(df_pad_reg, 'DNI').str.replace(r'\D', '', regex=True).tolist())
+                    if ya_reg:
+                        st.warning("⚠️ Este DNI ya se encuentra registrado. Si ya fue dado de alta, inicie sesión.")
+                    elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, legajo_reg, "PENDIENTE", obj_vig_reg]):
+                        st.success("✅ Solicitud registrada con legajo. Quedará pendiente de aprobación por la Administración.")
             else:
                 nombre_reg2 = nombre_vig_reg.strip().upper()
                 legajo_reg2 = legajo_vig_reg.strip().upper()
