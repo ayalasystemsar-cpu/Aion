@@ -995,7 +995,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
 
     marcados = set()
     if not df_hoy.empty:
-        df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce'] == ronda]
+        df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
         marcados = set(col_texto(df_ronda, 'PUNTO').str.strip().str.upper())
 
     c_r1, c_r2 = st.columns(2)
@@ -3089,7 +3089,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         use_container_width=True
                     )
         else:
-            st.info("No hay registros activos de supervisores en el sistema todavía.")
+            st.info("No hay registros activos de supervisores in el sistema todavía.")
 
         if st.session_state.rol_sel == "GERENCIA":
             st.markdown("---")
