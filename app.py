@@ -916,10 +916,8 @@ def renderizar_alerta_recorrida_js(horarios_previstos):
         var ss = String(d.getSeconds()).padStart(2, '0');
         var horaActual = hh + ":" + mm;
         
-        // Verificamos si coincide exactamente con el minuto de la recorrida programada (ss < 5 para evitar repeticiones continuas en el minuto)
         if (horarios.includes(horaActual) && ss < 5) {{
             sonarAlarma();
-            // Creamos un cartel emergente modal de alerta
             var modalId = "modal_rec_" + horaActual.replace(":", "");
             if (!parent.document.getElementById(modalId)) {{
                 var div = parent.document.createElement("div");
@@ -969,10 +967,16 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         puntos = puntos.sort_values('_ORD')
     lista_puntos = [str(p).strip().upper() for p in puntos['PUNTO']]
 
-    # Extraemos los horarios previstos cargados en la tabla para activar la alerta sonora
     horarios_previstos_lista = []
     if 'HORARIO' in puntos.columns:
-        horarios_previstos_lista = [str(h).strip() for h in puntos['HORARIO'].dropna().tolist() if str(h).strip() and str(h).strip().lower() != 'nan']
+        for h_val in puntos['HORARIO'].dropna().tolist():
+            s_h = str(h_val).strip()
+            if s_h and s_h.lower() != 'nan':
+                # Soportamos tanto horarios separados por comas (ej. "15:00, 17:00") como simples
+                for sub_h in s_h.split(','):
+                    sh_limpio = sub_h.strip()
+                    if sh_limpio:
+                        horarios_previstos_lista.append(sh_limpio)
     renderizar_alerta_recorrida_js(horarios_previstos_lista)
 
     df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
@@ -1047,7 +1051,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                 st.rerun()
 
 def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
-    st.markdown("#### 🧾 PUNTOS DE RECORRIDO Y QR")
+    st.markdown("#### 🧾 CONFIGURACIÓN DE RONDAS Y HORARIOS ESPECÍFICOS")
     lista_objetivos = list(lista_objetivos)
     if len(lista_objetivos) == 0:
         st.info("No hay objetivos disponibles.")
@@ -1071,24 +1075,66 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
     if not existentes.empty:
         cols_ver = [c for c in ['PUNTO', 'ORDEN', 'HORARIO'] if c in existentes.columns]
         st.dataframe(existentes[cols_ver], use_container_width=True, hide_index=True)
-    else:
-        st.info("Este objetivo todavía no tiene puntos de control.")
-
-    with st.form(key=f"{key_prefix}_form_punto", clear_on_submit=True):
-        nuevo_punto = st.text_input("NOMBRE DEL PUNTO (Ej: PORTÓN 1):").strip().upper()
-        nuevo_orden = st.number_input("ORDEN EN EL RECORRIDO:", min_value=1, value=len(existentes) + 1, step=1)
-        nuevo_horario = st.text_input("HORARIO PREVISTO (Ej: 22:00, 00:00, 02:00, 04:00):").strip()
         
-        if st.form_submit_button("➕ GUARDAR PUNTO Y HORARIO"):
-            if nuevo_punto:
-                ya_existe = (not existentes.empty) and (nuevo_punto in col_texto(existentes, 'PUNTO').str.strip().str.upper().tolist())
-                if ya_existe:
-                    st.warning("⚠️ Ese punto ya existe en este objetivo.")
-                elif escribir_registro_nube("RECORRIDOS PUNTOS", [obj_u, nuevo_punto, int(nuevo_orden), nuevo_horario]):
-                    st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Punto '{nuevo_punto}' guardado con horario {nuevo_horario}."
-                    st.rerun()
-            else:
-                st.warning("⚠️ Ingresá el nombre del punto.")
+        st.markdown("##### ⏰ CONFIGURAR HORARIOS Y RONDAS")
+        with st.form(key=f"{key_prefix}_form_act_horario", clear_on_submit=True):
+            puntos_disponibles = col_texto(existentes, 'PUNTO').tolist()
+            punto_a_editar = st.selectbox("SELECCIONAR PUNTO A CONFIGURAR:", puntos_disponibles)
+            
+            st.markdown("Indicá los horarios previstos separados por coma (ej. `15:00, 17:00, 19:00, 21:00`). Cada hora representará una ronda programada.")
+            nuevo_horario_edit = st.text_input("HORARIOS DE RONDAS:", value="15:00, 17:00, 19:00, 21:00").strip()
+            
+            if st.form_submit_button("💾 GUARDAR HORARIOS Y RONDAS"):
+                if punto_a_editar:
+                    gc = conectar_google()
+                    if gc:
+                        sh = gc.open_by_key(ID_MAESTRO_DB)
+                        hoja_p = sh.worksheet("RECORRIDOS PUNTOS")
+                        filas_hoja = hoja_p.get_all_values()
+                        
+                        fila_encontrada = -1
+                        for idx_h, f_val in enumerate(filas_hoja[1:], start=2):
+                            if len(f_val) >= 2 and str(f_val[0]).strip().upper() == obj_u and str(f_val[1]).strip().upper() == str(punto_a_editar).strip().upper():
+                                fila_encontrada = idx_h
+                                break
+                        
+                        if fila_encontrada != -1:
+                            encabezados_h = [str(x).strip().upper() for x in filas_hoja[0]]
+                            if "HORARIO" in encabezados_h:
+                                col_idx = encabezados_h.index("HORARIO") + 1
+                                letra_col = gspread.utils.rowcol_to_a1(1, col_idx)[0]
+                                hoja_p.update_acell(f"{letra_col}{fila_encontrada}", nuevo_horario_edit)
+                                st.cache_data.clear()
+                                st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Horarios y rondas configurados para '{punto_a_editar}'."
+                                st.rerun()
+                            else:
+                                hoja_p.update_cell(fila_encontrada, 4, nuevo_horario_edit)
+                                st.cache_data.clear()
+                                st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Horarios y rondas configurados para '{punto_a_editar}'."
+                                st.rerun()
+                        else:
+                            st.error("No se encontró el punto en la planilla.")
+                else:
+                    st.warning("Seleccioná un punto.")
+    else:
+        st.info("Este objetivo todavía no tiene puntos de recorrido.")
+
+    with st.expander("➕ CREAR NUEVO PUNTO DE RECORRIDO"):
+        with st.form(key=f"{key_prefix}_form_punto", clear_on_submit=True):
+            nuevo_punto = st.text_input("NOMBRE DEL PUNTO (Ej: PORTÓN 1):").strip().upper()
+            nuevo_orden = st.number_input("ORDEN EN EL RECORRIDO:", min_value=1, value=len(existentes) + 1, step=1)
+            nuevo_horario = st.text_input("HORARIOS DE RONDAS (Ej: 15:00, 17:00, 19:00):", value="15:00, 17:00").strip()
+            
+            if st.form_submit_button("➕ GUARDAR NUEVO PUNTO"):
+                if nuevo_punto:
+                    ya_existe = (not existentes.empty) and (nuevo_punto in col_texto(existentes, 'PUNTO').str.strip().str.upper().tolist())
+                    if ya_existe:
+                        st.warning("⚠️ Ese punto ya existe en este objetivo. Usá la sección de arriba para configurar sus horarios.")
+                    elif escribir_registro_nube("RECORRIDOS PUNTOS", [obj_u, nuevo_punto, int(nuevo_orden), nuevo_horario]):
+                        st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Punto '{nuevo_punto}' guardado con éxito."
+                        st.rerun()
+                else:
+                    st.warning("⚠️ Ingresá el nombre del punto.")
 
     if not existentes.empty:
         st.markdown("##### 🖨️ GENERAR QR PARA IMPRIMIR")
@@ -1165,7 +1211,7 @@ def tabla_recorridas_vigiladores(objs_sup):
             "OBJETIVO": obj,
             "VIGILADOR": vig,
             "RONDA": ronda,
-            "HORARIO PREVISTO": previsto.get(obj, "22:00, 00:00, 02:00, 04:00"),
+            "HORARIO PREVISTO": previsto.get(obj, "15:00, 17:00, 19:00"),
             "INICIÓ": g['_FH'].min().strftime('%H:%M:%S'),
             "FINALIZÓ": g['_FH'].max().strftime('%H:%M:%S') if completa else "---",
             "PUNTOS": f"{marcados}/{total}" if total else str(marcados),
@@ -1675,7 +1721,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 tiles="OpenStreetMap"
             )
 
-            # --- MAPA CON FONDO GRIS OSCURO EXACTO ---
             m_mon.get_root().header.add_child(Element("""
             <style>
             .leaflet-container { background: #262626 !important; }
