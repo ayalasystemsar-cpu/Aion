@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as str_app
 import datetime
 from datetime import datetime
 import pandas as pd
@@ -2834,59 +2834,11 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
 
         st.markdown("---")
 
-        t_adm_usr, t_adm_obj, t_adm_mantenimiento, t_adm_vig, t_adm_qr_rec, t_adm_probar_rec = st.tabs([
-            "👥 APROBACIÓN DE USUARIOS", "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO",
-            "🪪 PADRÓN DE VIGILADORES", "🧾 PUNTOS QR RECORRIDO", "🚶 PROBAR RECORRIDO QR"
+        # --- SE ORDENÓ EL MENÚ EXACTAMENTE COMO PEDISTE ---
+        t_adm_vig, t_adm_qr_rec, t_adm_probar_rec, t_adm_obj, t_adm_mantenimiento = st.tabs([
+            "🪪 PADRÓN DE VIGILADORES", "🧾 PUNTOS QR RECORRIDO", "🚶 PROBAR RECORRIDO QR",
+            "🎯 GESTIÓN DE OBJETIVOS", "🛡️ RESPALDO Y ARCHIVO TÁCTICO"
         ])
-
-        with t_adm_usr:
-            st.markdown("#### 👤 SOLICITUDES DE ACCESO Y PADRÓN DE USUARIOS")
-            if not df_usr_m.empty:
-                cols_usr_mostrar = [c for c in ['USUARIO', 'ROL', 'ESTADO'] if c in df_usr_m.columns]
-                if not cols_usr_mostrar:
-                    cols_usr_mostrar = df_usr_m.columns.tolist()
-                st.dataframe(df_usr_m[cols_usr_mostrar], use_container_width=True, hide_index=True)
-                
-                pdf_usuarios = generar_pdf_reporte("PADRÓN GENERAL DE USUARIOS Y ACCESOS", df_usr_m[cols_usr_mostrar])
-                st.download_button("📥 DESCARGAR PADRÓN DE USUARIOS (PDF)", data=pdf_usuarios, file_name=f"padron_usuarios_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_usuarios_admin")
-                 
-                st.markdown("---")
-                col_estado_encontrada = next((c for c in ['ESTADO', 'STATUS'] if c in df_usr_m.columns), None)
-                col_usuario_encontrada = next((c for c in ['USUARIO', 'USER', 'NOMBRE'] if c in df_usr_m.columns), df_usr_m.columns[0])
-                
-                if col_estado_encontrada:
-                    pendientes_u = df_usr_m[col_texto(df_usr_m, col_estado_encontrada).str.strip().str.upper() == "PENDIENTE"]
-                    if not pendientes_u.empty:
-                        usuario_a_aprobar = st.selectbox("Seleccionar usuario para autorizar:", col_texto(pendientes_u, col_usuario_encontrada).tolist(), key="sel_usr_aprobar")
-                        if st.button("✅ DAR ACCESO Y APROBAR USUARIO", use_container_width=True):
-                            idx = df_usr_m[col_texto(df_usr_m, col_usuario_encontrada) == usuario_a_aprobar].index[0]
-                            # Detectar índice de columna ESTADO
-                            col_letra_estado = chr(65 + list(df_usr_m.columns).index(col_estado_encontrada))
-                            if actualizar_celda("USUARIOS", idx + 2, col_letra_estado, "APROBADO"):
-                                st.success(f"✅ ¡Acceso aprobado para el usuario {usuario_a_aprobar} correctamente!")
-                                st.cache_data.clear()
-                                st.rerun()
-                    else:
-                        st.info("No hay solicitudes de usuarios pendientes en este momento.")
-            else:
-                st.info("La solapa de usuarios se encuentra vacía o sin registros cargados.")
-
-        with t_adm_obj:
-            st.markdown("#### 📋 LISTADO GENERAL DE OBJETIVOS EN LA RED")
-            if not df_obj_m.empty:
-                cols_obj_mostrar = [c for c in ['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR'] if c in df_obj_m.columns]
-                st.dataframe(df_obj_m[cols_obj_mostrar], use_container_width=True, hide_index=True)
-                pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[cols_obj_mostrar])
-                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
-            else:
-                st.info("No hay objetivos cargados.")
-
-        with t_adm_mantenimiento:
-            st.markdown("#### 🛡️ RESPALDO Y CAJA FUERTE DIGITAL")
-            if not df_obj_m.empty:
-                cols_obj_respaldo = [c for c in ['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR'] if c in df_obj_m.columns]
-                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[cols_obj_respaldo])
-                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
 
         with t_adm_vig:
             st.markdown("#### 🪪 PADRÓN DE VIGILADORES (LOGIN POR DNI)")
@@ -2926,7 +2878,6 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                                 if not m_obj.empty:
                                     sup_p = str(m_obj['SUPERVISOR'].iloc[0]).strip().upper()
 
-                            # NOTIFICACIÓN DIRECTA A LA BARRA LATERAL DEL SUPERVISOR (EXCLUSIVA, SIN MENSAJERÍA GRAL)
                             if sup_p:
                                 escribir_registro_nube("NOTIFICACIONES_SUPERVISORES", [
                                     obtener_hora_argentina(), sup_p,
@@ -3013,6 +2964,23 @@ elif st.session_state.rol_sel == "ADMINISTRADOR":
                 renderizar_recorrido_vigilador(obj_test_elegido, st.session_state.user_sel, "99999999")
             else:
                 st.warning("No hay objetivos cargados en el sistema para probar.")
+
+        with t_adm_obj:
+            st.markdown("#### 🎯 GESTIÓN DE OBJETIVOS")
+            if not df_obj_m.empty:
+                cols_obj_mostrar = [c for c in ['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR'] if c in df_obj_m.columns]
+                st.dataframe(df_obj_m[cols_obj_mostrar], use_container_width=True, hide_index=True)
+                pdf_objetivos = generar_pdf_reporte("PADRÓN GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[cols_obj_mostrar])
+                st.download_button("📥 DESCARGAR PADRÓN DE OBJETIVOS (PDF)", data=pdf_objetivos, file_name=f"padron_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", key="dl_pdf_objetivos_admin")
+            else:
+                st.info("No hay objetivos cargados.")
+
+        with t_adm_mantenimiento:
+            st.markdown("#### 🛡️ RESPALDO Y ARCHIVO TÁCTICO")
+            if not df_obj_m.empty:
+                cols_obj_respaldo = [c for c in ['OBJETIVO', 'DIRECCION', 'LOCALIDAD', 'SUPERVISOR'] if c in df_obj_m.columns]
+                pdf_respaldo_objs = generar_pdf_reporte("RESPALDO GENERAL DE OBJETIVOS ACTIVOS", df_obj_m[cols_obj_respaldo])
+                st.download_button("📥 DESCARGAR RESPALDO DE OBJETIVOS (PDF)", data=pdf_respaldo_objs, file_name=f"respaldo_objetivos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf", mime="application/pdf", use_container_width=True, key="dl_pdf_mantenimiento_objetivos")
 
         st.markdown('</div>', unsafe_allow_html=True)
     else:
