@@ -1491,9 +1491,9 @@ if st.session_state.rol_sel == "MONITOREO":
 
             m_mon.get_root().header.add_child(Element("""
             <style>
-            .leaflet-container { background: #000000 !important; }
+            .leaflet-container { background: #3a3a3a !important; }
             .leaflet-tile-pane {
-                filter: invert(100%) hue-rotate(180deg) grayscale(60%) brightness(0.55) contrast(1.35);
+                filter: invert(100%) hue-rotate(180deg) grayscale(100%) brightness(1.15) contrast(1.1);
             }
             @keyframes pulse {
                 from { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,0,0,.8); }
