@@ -89,7 +89,7 @@ def sincronizar_url_sesion():
 # --- 3. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def conectar_google():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -201,7 +201,7 @@ def escribir_registro_nube(pestana, datos_fila):
         st.error(f"⚠️ Error técnico en nube ({pestana}): {e}")
         return False
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=30, show_spinner=False)
 def leer_matriz_nube(pestana):
     gc = conectar_google()
     if gc:
@@ -231,7 +231,7 @@ def leer_matriz_nube(pestana):
             return pd.DataFrame()
     return pd.DataFrame()
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, show_spinner=False)
 def cargar_datos_comisarias():
     df_nube = leer_matriz_nube("COMISARIAS")
     if not df_nube.empty and 'COMISARIA' in df_nube.columns:
@@ -332,7 +332,7 @@ def cargar_datos_comisarias():
     df_total = df_total.dropna(subset=['LATITUD', 'LONGITUD'])
     return df_total.reset_index(drop=True)
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=30, show_spinner=False)
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
@@ -347,6 +347,20 @@ def cargar_objetivos():
         df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
         return df 
     return pd.DataFrame()
+
+@st.cache_resource(show_spinner=False)
+def obtener_grafo_zona(lat, lon):
+    try:
+        return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
+    except:
+        return None
+
+@st.cache_resource(show_spinner=False)
+def _declarar_visor_qr(version="v4"):
+    carpeta = tempfile.mkdtemp(prefix=f"aion_qr_{version}_")
+    with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
+        f.write(_QR_HTML)
+    return components.declare_component(f"aion_visor_qr_{version}", path=carpeta)
 
 def verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, lat, lon):
     try:
@@ -447,13 +461,6 @@ def obtener_lista_supervisores_dinamica():
                 if s_limpio not in base:
                     base.append(s_limpio)
     return base
-
-@st.cache_resource
-def obtener_grafo_zona(lat, lon):
-    try:
-        return ox.graph_from_point((lat, lon), dist=5000, network_type='drive')
-    except:
-        return None
 
 def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
     try:
@@ -839,13 +846,6 @@ navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},wid
   },120);
 }).catch(function(){m.textContent="No se pudo abrir la cámara. Revisá el permiso del navegador.";});
 </script></body></html>"""
-
-@st.cache_resource
-def _declarar_visor_qr(version="v4"):
-    carpeta = tempfile.mkdtemp(prefix=f"aion_qr_{version}_")
-    with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
-        f.write(_QR_HTML)
-    return components.declare_component(f"aion_visor_qr_{version}", path=carpeta)
 
 def visor_qr(key):
     return _declarar_visor_qr("v4")(key=key, default=None)
