@@ -2112,7 +2112,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     """, unsafe_allow_html=True)
 
                     codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}_{st.session_state.scan_n_sup}")
-                    st.caption(f"🔧 Lectura recibida: {codigo_qr_leido!r} | n={st.session_state.scan_n_sup}")
+                   
 
                     if st.session_state.ultimo_mensaje_qr:
                         st.success(st.session_state.ultimo_mensaje_qr)
