@@ -1012,6 +1012,73 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
             key=f"{key_prefix}_dl_qr_{obj_u}_{pto_sel}"
         )
 
+def tabla_recorridas_vigiladores(objs_sup):
+    df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
+    if df_r.empty or len(objs_sup) == 0 or not {'FECHA_HORA', 'OBJETIVO', 'PUNTO', 'RONDA'} <= set(df_r.columns):
+        return pd.DataFrame()
+    df_r = df_r.loc[:, ~df_r.columns.duplicated()].copy()
+    objs = [str(o).strip().upper() for o in objs_sup]
+    df_r['_OBJ'] = col_texto(df_r, 'OBJETIVO').str.strip().str.upper()
+    df_r = df_r[df_r['_OBJ'].isin(objs)].copy()
+    if df_r.empty:
+        return pd.DataFrame()
+
+    # Nombre y apellido del vigilador
+    col_vig = next((c for c in ['VIGILADOR', 'NOMBRE', 'APELLIDO Y NOMBRE'] if c in df_r.columns), None)
+    if col_vig:
+        df_r['_VIG'] = col_texto(df_r, col_vig).str.strip().str.upper()
+    elif 'DNI' in df_r.columns:
+        df_r['_VIG'] = col_texto(df_r, 'DNI').str.replace(r'\D', '', regex=True)
+        df_pad = leer_matriz_nube("PADRON VIGILADORES")
+        if not df_pad.empty and {'DNI', 'NOMBRE'} <= set(df_pad.columns):
+            mapa = dict(zip(
+                col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True),
+                col_texto(df_pad, 'NOMBRE').str.strip().str.upper()
+            ))
+            df_r['_VIG'] = df_r['_VIG'].map(lambda d: mapa.get(d, d))
+    else:
+        df_r['_VIG'] = "---"
+
+    df_r['_PTO'] = col_texto(df_r, 'PUNTO').str.strip().str.upper()
+    df_r['_FH'] = pd.to_datetime(df_r['FECHA_HORA'], errors='coerce')
+    df_r['_RONDA'] = pd.to_numeric(df_r['RONDA'], errors='coerce').fillna(1).astype(int)
+    df_r = df_r.dropna(subset=['_FH'])
+    if df_r.empty:
+        return pd.DataFrame()
+    df_r['_FECHA'] = df_r['_FH'].dt.strftime('%Y-%m-%d')
+
+    # Total de puntos y horario previsto por objetivo
+    total_ptos, previsto = {}, {}
+    df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
+    if not df_p.empty and {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
+        df_p = df_p.loc[:, ~df_p.columns.duplicated()].copy()
+        df_p['_OBJ'] = col_texto(df_p, 'OBJETIVO').str.strip().str.upper()
+        total_ptos = df_p.groupby('_OBJ')['PUNTO'].nunique().to_dict()
+        if 'HORARIO' in df_p.columns:
+            for o, g in df_p.groupby('_OBJ'):
+                hs = [x for x in col_texto(g, 'HORARIO').str.strip() if x and x.lower() != 'nan']
+                if hs:
+                    previsto[o] = hs[0]
+
+    filas = []
+    for (fecha, obj, vig, ronda), g in df_r.groupby(['_FECHA', '_OBJ', '_VIG', '_RONDA']):
+        marcados = g['_PTO'].nunique()
+        total = total_ptos.get(obj, 0)
+        completa = total > 0 and marcados >= total
+        filas.append({
+            "FECHA": fecha,
+            "OBJETIVO": obj,
+            "VIGILADOR": vig,
+            "RONDA": ronda,
+            "HORARIO PREVISTO": previsto.get(obj, "---"),
+            "INICIÓ": g['_FH'].min().strftime('%H:%M:%S'),
+            "FINALIZÓ": g['_FH'].max().strftime('%H:%M:%S') if completa else "---",
+            "PUNTOS": f"{marcados}/{total}" if total else str(marcados),
+            "ESTADO": "✅ COMPLETA" if completa else "⏳ EN CURSO"
+        })
+    df_out = pd.DataFrame(filas)
+    return df_out.sort_values(['FECHA', 'INICIÓ'], ascending=False).reset_index(drop=True)
+
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -1700,6 +1767,15 @@ if st.session_state.rol_sel == "MONITOREO":
                             st.info("Este supervisor no tiene objetivos asignados.")
                     else:
                         st.info("No hay relevos de vigiladores registrados.")
+
+                    st.markdown("---")
+                    st.markdown("#### 🚶 Recorridas de Vigiladores")
+                    objs_rec_m = df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist() if not df_objetivos.empty else []
+                    df_rec_m = tabla_recorridas_vigiladores(objs_rec_m)
+                    if not df_rec_m.empty:
+                        st.dataframe(df_rec_m, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin recorridas registradas para los objetivos de este supervisor.")
 
                     st.markdown("---")
                     st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
@@ -2634,6 +2710,8 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         col_ov = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_aud.columns else df_vig_rel_aud.columns[2]
                         df_rel_filtrado = df_vig_rel_aud[col_texto(df_vig_rel_aud, col_ov).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
 
+                    df_rec_filtrado = tabla_recorridas_vigiladores(objs_del_sup)
+
                     df_pan_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty and 'TIPO' in df_alertas_aud.columns:
                         df_pan_op = df_alertas_aud[col_texto(df_alertas_aud, 'TIPO').str.strip().str.upper() == "PÁNICO"]
@@ -2693,6 +2771,12 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin relevos registrados.")
 
+                        st.markdown("##### 🚶 Recorridas de Vigiladores")
+                        if not df_rec_filtrado.empty:
+                            st.dataframe(df_rec_filtrado, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin recorridas registradas.")
+
                         st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
                         if not df_pan_sup_filtrado.empty:
                             st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
@@ -2731,7 +2815,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
 
-                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt):
+                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt, d_rec):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
                             buffer, 
@@ -2817,9 +2901,10 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 elementos.append(element)
                             elementos.append(Spacer(1, 6))
 
-                        agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
+                        agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia per Objetivo:", d_perm, [180, 180, 180, 204])
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
+                        agregar_tabla_pdf("Recorridas de Vigiladores:", d_rec, [70, 110, 130, 40, 80, 80, 80, 50, 104])
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                          
                         df_pvig_pdf = d_pvig.copy()
@@ -2853,7 +2938,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         sup_seleccionado_jefe, inicio_jornada_gen, fin_jornada_gen, total_horas_trabajadas,
                         df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, 
                         df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro,
-                        total_alertas_supervisor_j, total_alertas_vigilador_j
+                        total_alertas_supervisor_j, total_alertas_vigilador_j, df_rec_filtrado
                     )
 
                     st.download_button(
