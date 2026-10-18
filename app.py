@@ -12,6 +12,7 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
+import re
 import requests
 from branca.element import Element
 import qrcode
@@ -877,51 +878,105 @@ def visor_qr(key):
     return _declarar_visor_qr("v6")(key=key, default=None)
 
 # --- 3.B RECORRIDOS CON QR (VIGILADORES) Y ALERTA SONORA DE HORARIOS MEJORADA ---
+def _horarios_unicos(valores):
+    """Extrae horarios HH:MM únicos y ordenados de celdas como '19:23', '15:00, 17:00' o '19:23:00'."""
+    vistos = []
+    for v in valores:
+        for h, m in re.findall(r'(\d{1,2}):(\d{2})', str(v)):
+            if int(h) < 24 and int(m) < 60:
+                hm = f"{int(h):02d}:{m}"
+                if hm not in vistos:
+                    vistos.append(hm)
+    return sorted(vistos)
+
+
+def aplicar_horarios_objetivo(obj_u, texto_horarios):
+    """Escribe los mismos horarios en TODOS los puntos del objetivo."""
+    try:
+        gc = conectar_google()
+        if not gc:
+            return False
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("RECORRIDOS PUNTOS")
+        filas = hoja.get_all_values()
+        if not filas:
+            return False
+        enc = [str(x).strip().upper() for x in filas[0]]
+        col_idx = enc.index("HORARIO") + 1 if "HORARIO" in enc else 4
+        letra = re.sub(r'\d', '', gspread.utils.rowcol_to_a1(1, col_idx))
+        datos = []
+        for i, f in enumerate(filas[1:], start=2):
+            if len(f) >= 1 and str(f[0]).strip().upper() == obj_u:
+                datos.append({"range": f"{letra}{i}", "values": [[texto_horarios]]})
+        if not datos:
+            return False
+        hoja.batch_update(datos, value_input_option="RAW")
+        st.cache_data.clear()
+        return True
+    except Exception as ex:
+        print(f"Error aplicando horarios al objetivo: {ex}")
+        return False
+
+
 _ALERTA_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 html,body{margin:0;padding:0;background:transparent;font-family:sans-serif}
-#panel{background:#1A1C23;border:1px solid #00E5FF;border-radius:10px;padding:8px;text-align:center}
-#t{color:#00E5FF;font-weight:bold;font-size:12px;margin:0 0 6px}
-button{background:#00E5FF;color:#000;border:none;padding:8px 16px;font-weight:bold;border-radius:6px;cursor:pointer}
+#panel{box-sizing:border-box;background:#1A1C23;border:1px solid #00E5FF;border-radius:10px;padding:10px;text-align:center}
+#t{color:#00E5FF;font-weight:bold;font-size:13px;margin:0 0 8px}
+button{background:#00E5FF;color:#000;border:none;padding:9px 14px;font-weight:bold;font-size:13px;border-radius:6px;cursor:pointer;margin:2px}
 button.ok{background:#39FF14}
-#e{color:#39FF14;font-size:11px;margin:5px 0 0}
+button.sec{background:#2D313E;color:#E0E0E0}
+#e{color:#39FF14;font-size:12px;margin:8px 0 0;line-height:1.3}
+#h{color:#A0A5B5;font-size:11px;margin:4px 0 0;line-height:1.3}
 </style></head><body>
 <div id="panel"><p id="t">🔔 AVISO DE RECORRIDAS</p>
-<button id="b">🔊 ACTIVAR AVISO SONORO</button><p id="e"></p></div>
+<button id="b">🔊 ACTIVAR AVISO SONORO</button><button id="p" class="sec">🔔 PROBAR</button>
+<p id="e"></p><p id="h"></p></div>
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
 enviar("streamlit:componentReady",{apiVersion:1});
-enviar("streamlit:setFrameHeight",{height:80});
+function altura(){enviar("streamlit:setFrameHeight",{height:Math.max(document.getElementById("panel").offsetHeight+8,120)});}
+altura();window.addEventListener("resize",altura);
 
-var horarios=[], P=window.parent, PD=P.document, ctx=null, activo=false;
-var ultima="", pendiente=null, repeticiones=0, timerRepeat=null;
+var P=window.parent, PD=P.document, ctx=null;
+var horarios=[], clave="", pendiente=null, repeticiones=0, timerRepeat=null;
 
 window.addEventListener("message",function(ev){
   if(ev.data && ev.data.type==="streamlit:render"){
     var a=ev.data.args||{};
+    clave=String(a.clave||"");
     horarios=(a.horarios||[]).map(function(h){
       var p=String(h).trim().split(":");
       return p.length>=2 ? ("0"+p[0]).slice(-2)+":"+("0"+p[1]).slice(-2) : "";
     }).filter(Boolean);
+    document.getElementById("h").textContent=horarios.length
+      ? "Rondas: "+horarios.join(" · ")+" (el aviso sale 5 min antes)"
+      : "Este objetivo no tiene horarios cargados.";
+    ui(); altura();
   }
 });
 
+function ui(){
+  var ok=ctx&&ctx.state==="running";
+  var b=document.getElementById("b"), e=document.getElementById("e");
+  if(ok){b.className="ok";b.textContent="🔊 SONIDO ACTIVO";e.style.color="#39FF14";e.textContent="✅ Sonido activo. Vas a recibir el aviso 5 minutos antes de cada recorrida.";}
+  else{b.className="";b.textContent="🔊 ACTIVAR AVISO SONORO";e.style.color="#FFD600";e.textContent="⚠️ Tocá el botón para activar el sonido. El cartel aparece igual.";}
+  altura();
+}
+
 function audio(){
   try{
-    var AC=P.AudioContext||P.webkitAudioContext;
-    if(!ctx) ctx=new AC();
-    if(ctx.state==="suspended") ctx.resume();
-    activo=true;
-    document.getElementById("b").className="ok";
-    document.getElementById("b").textContent="🔊 AVISO ACTIVO";
-    document.getElementById("e").textContent="✅ Vas a recibir el aviso 5 minutos antes de cada recorrida";
-  }catch(e){}
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!ctx){ctx=new AC();ctx.onstatechange=ui;}
+    if(ctx.state!=="running"&&ctx.resume){ctx.resume().then(ui).catch(ui);}
+    ui();
+  }catch(e){document.getElementById("e").textContent="No se pudo iniciar el audio en este navegador.";}
 }
-document.getElementById("b").onclick=function(){audio();campana();};
 ["touchstart","click","pointerdown"].forEach(function(n){
-  PD.addEventListener(n,function(){ if(!activo) audio(); },{once:true,passive:true});
+  PD.addEventListener(n,function(){ if(!ctx||ctx.state!=="running") audio(); },{passive:true});
 });
+document.getElementById("b").onclick=function(){audio();setTimeout(campana,150);};
+document.getElementById("p").onclick=function(){audio();setTimeout(function(){mostrar("PRUEBA");},150);};
 
 function nota(t0,f,dur){
   var o=ctx.createOscillator(), g=ctx.createGain();
@@ -934,12 +989,22 @@ function nota(t0,f,dur){
 }
 function campana(){
   try{
-    if(!ctx) return;
+    if(!ctx) audio();
     if(ctx.state==="suspended") ctx.resume();
-    var t=ctx.currentTime;
+    var t=ctx.currentTime+0.05;
     [523.25,659.25,783.99,1046.5].forEach(function(f,i){nota(t+i*0.28,f,0.9);});
     if(navigator.vibrate) navigator.vibrate([200,120,200]);
   }catch(e){}
+}
+
+function hoy(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function llave(h){return "aion_rec_"+clave+"_"+hoy()+"_"+h;}
+function respondido(h){try{return localStorage.getItem(llave(h))==="1";}catch(e){return false;}}
+function marcar(h){try{localStorage.setItem(llave(h),"1");}catch(e){}}
+function minutosHasta(h){
+  var p=h.split(":"), t=new Date();
+  t.setHours(parseInt(p[0],10),parseInt(p[1],10),0,0);
+  return (t.getTime()-Date.now())/60000;
 }
 
 function cerrar(){
@@ -948,22 +1013,32 @@ function cerrar(){
   if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
 }
 function responder(hora,resp,motivo){
-  enviar("streamlit:setComponentValue",{
-    value:{id:hora+"_"+Date.now(),hora:hora,respuesta:resp,motivo:motivo||""},
-    dataType:"json"
-  });
+  if(hora!=="PRUEBA"){
+    marcar(hora);
+    enviar("streamlit:setComponentValue",{
+      value:{id:hora+"_"+Date.now(),hora:hora,respuesta:resp,motivo:motivo||""},
+      dataType:"json"
+    });
+  }
   cerrar();
 }
 
 function mostrar(hora){
   if(PD.getElementById("aion_modal_rec")) return;
   pendiente=hora;
+  var texto;
+  if(hora==="PRUEBA"){
+    texto='Esto es una <b>prueba</b> del aviso.<br><b>¿Realizás la recorrida?</b>';
+  }else{
+    var m=Math.ceil(minutosHasta(hora));
+    texto='Tu recorrida de las <b>'+hora+' hs</b> '+(m<=0?'es <b>ahora</b>.':'es en <b>'+m+' min</b>.')+'<br><b>¿Realizás la recorrida?</b>';
+  }
   var d=PD.createElement("div");
   d.id="aion_modal_rec";
   d.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;font-family:sans-serif";
   d.innerHTML='<div style="background:#1A1C23;border:2px solid #00E5FF;border-radius:14px;padding:24px;max-width:380px;width:100%;text-align:center;color:#FFF;box-shadow:0 0 30px rgba(0,229,255,.5)">'+
     '<h2 style="color:#00E5FF;margin:0 0 10px;font-size:20px">🔔 Aviso de recorrida</h2>'+
-    '<p style="font-size:16px;margin:0 0 16px">Tu recorrida de las <b>'+hora+' hs</b> es en 5 minutos.<br><b>¿Realizás la recorrida?</b></p>'+
+    '<p style="font-size:16px;margin:0 0 16px;line-height:1.4">'+texto+'</p>'+
     '<div id="aion_botones"><button id="aion_si" style="background:#39FF14;color:#000;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;margin:4px">SÍ</button>'+
     '<button id="aion_no" style="background:#FF5252;color:#fff;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;margin:4px">NO</button></div>'+
     '<div id="aion_motivo" style="display:none;margin-top:10px">'+
@@ -991,17 +1066,19 @@ function mostrar(hora){
   },60000);
 }
 
-// El cartel aparece 5 minutos ANTES de cada horario previsto
+// El cartel aparece desde 5 minutos ANTES de cada horario y hasta que el vigilador responda
 setInterval(function(){
-  var d=new Date(Date.now()+5*60*1000);
-  var h=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
-  if(horarios.indexOf(h)>-1 && h!==ultima){ultima=h; mostrar(h);}
+  if(PD.getElementById("aion_modal_rec")) return;
+  for(var i=0;i<horarios.length;i++){
+    var h=horarios[i], m=minutosHasta(h);
+    if(m<=5 && m>-1 && !respondido(h)){mostrar(h);break;}
+  }
 },1000);
 </script></body></html>"""
 
 
 @st.cache_resource(show_spinner=False)
-def _declarar_alerta_recorrida(version="v1"):
+def _declarar_alerta_recorrida(version="v2"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_ALERTA_HTML)
@@ -1031,10 +1108,8 @@ def registrar_respuesta_recorrida(obj, nombre, dni, evento):
 
 
 def renderizar_alerta_recorrida_js(horarios_previstos, obj_u, nombre, dni):
-    horarios = sorted(set(str(h).strip() for h in horarios_previstos if str(h).strip()))
-    if not horarios:
-        return
-    evento = _declarar_alerta_recorrida("v1")(horarios=horarios, key=f"alerta_rec_{obj_u}", default=None)
+    horarios = _horarios_unicos(horarios_previstos)
+    evento = _declarar_alerta_recorrida("v2")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
     if evento and evento.get("id") != st.session_state.get("ultimo_evento_alerta"):
         st.session_state.ultimo_evento_alerta = evento.get("id")
         if registrar_respuesta_recorrida(obj_u, nombre, dni, evento):
@@ -1075,14 +1150,8 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
 
     horarios_previstos_lista = []
     if 'HORARIO' in puntos.columns:
-        for h_val in puntos['HORARIO'].dropna().tolist():
-            s_h = str(h_val).strip()
-            if s_h and s_h.lower() != 'nan':
-                for sub_h in s_h.split(','):
-                    sh_limpio = sub_h.strip()
-                    if sh_limpio:
-                        horarios_previstos_lista.append(sh_limpio)
-    
+        horarios_previstos_lista = _horarios_unicos(puntos['HORARIO'].dropna().tolist())
+
     renderizar_alerta_recorrida_js(horarios_previstos_lista, obj_u, nombre, dni)
 
     df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
@@ -1174,6 +1243,8 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
             existentes['_ORD'] = pd.to_numeric(existentes['ORDEN'], errors='coerce')
             existentes = existentes.sort_values('_ORD')
 
+    horarios_actuales = _horarios_unicos(existentes['HORARIO'].tolist()) if (not existentes.empty and 'HORARIO' in existentes.columns) else []
+
     if st.session_state.get(f"{key_prefix}_msg_punto"):
         st.success(st.session_state[f"{key_prefix}_msg_punto"])
         st.session_state[f"{key_prefix}_msg_punto"] = ""
@@ -1182,46 +1253,19 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
         cols_ver = [c for c in ['PUNTO', 'ORDEN', 'HORARIO'] if c in existentes.columns]
         st.dataframe(existentes[cols_ver], use_container_width=True, hide_index=True)
         
-        st.markdown("##### ⏰ CONFIGURAR HORARIOS Y RONDAS")
-        with st.form(key=f"{key_prefix}_form_act_horario", clear_on_submit=True):
-            puntos_disponibles = col_texto(existentes, 'PUNTO').tolist()
-            punto_a_editar = st.selectbox("SELECCIONAR PUNTO A CONFIGURAR:", puntos_disponibles)
-            
-            st.markdown("Indicá los horarios previstos separados por coma (ej. `15:00, 17:00, 19:00, 21:00`). Cada hora representará una ronda programada.")
-            nuevo_horario_edit = st.text_input("HORARIOS DE RONDAS:", value="15:00, 17:00, 19:00, 21:00").strip()
-            
-            if st.form_submit_button("💾 GUARDAR HORARIOS Y RONDAS"):
-                if punto_a_editar:
-                    gc = conectar_google()
-                    if gc:
-                        sh = gc.open_by_key(ID_MAESTRO_DB)
-                        hoja_p = sh.worksheet("RECORRIDOS PUNTOS")
-                        filas_hoja = hoja_p.get_all_values()
-                        
-                        fila_encontrada = -1
-                        for idx_h, f_val in enumerate(filas_hoja[1:], start=2):
-                            if len(f_val) >= 2 and str(f_val[0]).strip().upper() == obj_u and str(f_val[1]).strip().upper() == str(punto_a_editar).strip().upper():
-                                fila_encontrada = idx_h
-                                break
-                        
-                        if fila_encontrada != -1:
-                            encabezados_h = [str(x).strip().upper() for x in filas_hoja[0]]
-                            if "HORARIO" in encabezados_h:
-                                col_idx = encabezados_h.index("HORARIO") + 1
-                                letra_col = gspread.utils.rowcol_to_a1(1, col_idx)[0]
-                                hoja_p.update_acell(f"{letra_col}{fila_encontrada}", nuevo_horario_edit)
-                                st.cache_data.clear()
-                                st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Horarios y rondas configurados para '{punto_a_editar}'."
-                                st.rerun()
-                            else:
-                                hoja_p.update_cell(fila_encontrada, 4, nuevo_horario_edit)
-                                st.cache_data.clear()
-                                st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Horarios y rondas configurados para '{punto_a_editar}'."
-                                st.rerun()
-                        else:
-                            st.error("No se encontró el punto en la planilla.")
+        st.markdown("##### ⏰ HORARIOS DE RONDAS PARA TODO EL OBJETIVO")
+        with st.form(key=f"{key_prefix}_form_act_horario_{obj_u}", clear_on_submit=False):
+            st.markdown("Indicá los horarios separados por coma (ej. `15:00, 17:00, 19:00, 21:00`). Se aplican a **todos los puntos** del objetivo. Cada hora es una ronda y el vigilador recibe el aviso 5 minutos antes.")
+            nuevo_horario_edit = st.text_input("HORARIOS DE RONDAS:", value=", ".join(horarios_actuales) or "15:00, 17:00, 19:00, 21:00").strip()
+            if st.form_submit_button("💾 GUARDAR HORARIOS PARA TODO EL OBJETIVO"):
+                nuevos_h = _horarios_unicos([nuevo_horario_edit])
+                if not nuevos_h:
+                    st.warning("⚠️ Ingresá al menos un horario válido (ej. 15:00).")
+                elif aplicar_horarios_objetivo(obj_u, ", ".join(nuevos_h)):
+                    st.session_state[f"{key_prefix}_msg_punto"] = f"✅ Horarios {', '.join(nuevos_h)} aplicados a todos los puntos de '{obj_u}'."
+                    st.rerun()
                 else:
-                    st.warning("Seleccioná un punto.")
+                    st.error("❌ No se pudieron guardar los horarios. Revisá la hoja RECORRIDOS PUNTOS.")
     else:
         st.info("Este objetivo todavía no tiene puntos de recorrido.")
 
@@ -1229,7 +1273,7 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
         with st.form(key=f"{key_prefix}_form_punto", clear_on_submit=True):
             nuevo_punto = st.text_input("NOMBRE DEL PUNTO (Ej: PORTÓN 1):").strip().upper()
             nuevo_orden = st.number_input("ORDEN EN EL RECORRIDO:", min_value=1, value=len(existentes) + 1, step=1)
-            nuevo_horario = st.text_input("HORARIOS DE RONDAS (Ej: 15:00, 17:00, 19:00):", value="15:00, 17:00").strip()
+            nuevo_horario = st.text_input("HORARIOS DE RONDAS (Ej: 15:00, 17:00, 19:00):", value=", ".join(horarios_actuales) or "15:00, 17:00").strip()
             
             if st.form_submit_button("➕ GUARDAR NUEVO PUNTO"):
                 if nuevo_punto:
@@ -1303,7 +1347,7 @@ def tabla_recorridas_vigiladores(objs_sup):
         total_ptos = df_p.groupby('_OBJ')['PUNTO'].nunique().to_dict()
         if 'HORARIO' in df_p.columns:
             for o, g in df_p.groupby('_OBJ'):
-                hs = [x for x in col_texto(g, 'HORARIO').str.strip() if x and x.lower() != 'nan']
+                hs = _horarios_unicos(col_texto(g, 'HORARIO').tolist())
                 if hs:
                     previsto[o] = ", ".join(hs)
 
