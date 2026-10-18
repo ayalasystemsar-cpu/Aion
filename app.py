@@ -77,14 +77,20 @@ if 'admin_autenticado' not in st.session_state:
 if 'ultimo_mensaje_qr' not in st.session_state: 
     st.session_state.ultimo_mensaje_qr = ""
 
+if 'obj_actual_vig' not in st.session_state and query_params.get("obj"):
+    st.session_state.obj_actual_vig = query_params.get("obj")
+
 def sincronizar_url_sesion():
-    st.query_params.update({
+    params = {
         "logueado": "true" if st.session_state.usuario_logueado else "false",
         "rol": st.session_state.rol_sel,
         "user": st.session_state.user_sel,
         "sup_auth": "true" if st.session_state.sup_autenticado else "false",
         "admin_auth": "true" if st.session_state.admin_autenticado else "false"
-    })
+    }
+    if st.session_state.get("obj_actual_vig"):
+        params["obj"] = st.session_state.obj_actual_vig
+    st.query_params.update(params)
 
 # --- 3. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
@@ -871,109 +877,177 @@ def visor_qr(key):
     return _declarar_visor_qr("v6")(key=key, default=None)
 
 # --- 3.B RECORRIDOS CON QR (VIGILADORES) Y ALERTA SONORA DE HORARIOS MEJORADA ---
-def renderizar_alerta_recorrida_js(horarios_previstos):
-    """Componente robusto con inyección directa en el DOM principal para forzar la alerta y el modal emergente."""
-    if not horarios_previstos:
+_ALERTA_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html,body{margin:0;padding:0;background:transparent;font-family:sans-serif}
+#panel{background:#1A1C23;border:1px solid #00E5FF;border-radius:10px;padding:8px;text-align:center}
+#t{color:#00E5FF;font-weight:bold;font-size:12px;margin:0 0 6px}
+button{background:#00E5FF;color:#000;border:none;padding:8px 16px;font-weight:bold;border-radius:6px;cursor:pointer}
+button.ok{background:#39FF14}
+#e{color:#39FF14;font-size:11px;margin:5px 0 0}
+</style></head><body>
+<div id="panel"><p id="t">🔔 AVISO DE RECORRIDAS</p>
+<button id="b">🔊 ACTIVAR AVISO SONORO</button><p id="e"></p></div>
+<script>
+function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
+enviar("streamlit:componentReady",{apiVersion:1});
+enviar("streamlit:setFrameHeight",{height:80});
+
+var horarios=[], P=window.parent, PD=P.document, ctx=null, activo=false;
+var ultima="", pendiente=null, repeticiones=0, timerRepeat=null;
+
+window.addEventListener("message",function(ev){
+  if(ev.data && ev.data.type==="streamlit:render"){
+    var a=ev.data.args||{};
+    horarios=(a.horarios||[]).map(function(h){
+      var p=String(h).trim().split(":");
+      return p.length>=2 ? ("0"+p[0]).slice(-2)+":"+("0"+p[1]).slice(-2) : "";
+    }).filter(Boolean);
+  }
+});
+
+function audio(){
+  try{
+    var AC=P.AudioContext||P.webkitAudioContext;
+    if(!ctx) ctx=new AC();
+    if(ctx.state==="suspended") ctx.resume();
+    activo=true;
+    document.getElementById("b").className="ok";
+    document.getElementById("b").textContent="🔊 AVISO ACTIVO";
+    document.getElementById("e").textContent="✅ Vas a recibir el aviso 5 minutos antes de cada recorrida";
+  }catch(e){}
+}
+document.getElementById("b").onclick=function(){audio();campana();};
+["touchstart","click","pointerdown"].forEach(function(n){
+  PD.addEventListener(n,function(){ if(!activo) audio(); },{once:true,passive:true});
+});
+
+function nota(t0,f,dur){
+  var o=ctx.createOscillator(), g=ctx.createGain();
+  o.type="sine"; o.frequency.value=f;
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(0.15,t0+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t0); o.stop(t0+dur+0.05);
+}
+function campana(){
+  try{
+    if(!ctx) return;
+    if(ctx.state==="suspended") ctx.resume();
+    var t=ctx.currentTime;
+    [523.25,659.25,783.99,1046.5].forEach(function(f,i){nota(t+i*0.28,f,0.9);});
+    if(navigator.vibrate) navigator.vibrate([200,120,200]);
+  }catch(e){}
+}
+
+function cerrar(){
+  var m=PD.getElementById("aion_modal_rec"); if(m) m.remove();
+  pendiente=null; repeticiones=0;
+  if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
+}
+function responder(hora,resp,motivo){
+  enviar("streamlit:setComponentValue",{
+    value:{id:hora+"_"+Date.now(),hora:hora,respuesta:resp,motivo:motivo||""},
+    dataType:"json"
+  });
+  cerrar();
+}
+
+function mostrar(hora){
+  if(PD.getElementById("aion_modal_rec")) return;
+  pendiente=hora;
+  var d=PD.createElement("div");
+  d.id="aion_modal_rec";
+  d.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;font-family:sans-serif";
+  d.innerHTML='<div style="background:#1A1C23;border:2px solid #00E5FF;border-radius:14px;padding:24px;max-width:380px;width:100%;text-align:center;color:#FFF;box-shadow:0 0 30px rgba(0,229,255,.5)">'+
+    '<h2 style="color:#00E5FF;margin:0 0 10px;font-size:20px">🔔 Aviso de recorrida</h2>'+
+    '<p style="font-size:16px;margin:0 0 16px">Tu recorrida de las <b>'+hora+' hs</b> es en 5 minutos.<br><b>¿Realizás la recorrida?</b></p>'+
+    '<div id="aion_botones"><button id="aion_si" style="background:#39FF14;color:#000;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;margin:4px">SÍ</button>'+
+    '<button id="aion_no" style="background:#FF5252;color:#fff;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;margin:4px">NO</button></div>'+
+    '<div id="aion_motivo" style="display:none;margin-top:10px">'+
+    '<select id="aion_sel" style="width:100%;padding:10px;border-radius:6px;font-size:14px;margin-bottom:8px">'+
+    '<option>Atendiendo una novedad en el objetivo</option><option>Atendiendo una visita o ingreso</option>'+
+    '<option>Falta de personal</option><option>Problema de salud</option><option>Otro</option></select>'+
+    '<input id="aion_txt" placeholder="Detalle (opcional)" style="width:100%;box-sizing:border-box;padding:10px;border-radius:6px;font-size:14px;margin-bottom:8px">'+
+    '<button id="aion_env" style="background:#00E5FF;color:#000;border:none;padding:12px;font-weight:bold;font-size:14px;border-radius:8px;width:100%">ENVIAR MOTIVO</button></div>'+
+    '</div>';
+  PD.body.appendChild(d);
+  PD.getElementById("aion_si").onclick=function(){responder(hora,"SI","");};
+  PD.getElementById("aion_no").onclick=function(){
+    PD.getElementById("aion_botones").style.display="none";
+    PD.getElementById("aion_motivo").style.display="block";
+  };
+  PD.getElementById("aion_env").onclick=function(){
+    var mot=PD.getElementById("aion_sel").value;
+    var det=PD.getElementById("aion_txt").value.trim();
+    responder(hora,"NO",det?mot+" - "+det:mot);
+  };
+  campana();
+  timerRepeat=setInterval(function(){
+    if(pendiente && repeticiones<2){repeticiones++; campana();}
+    else if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
+  },60000);
+}
+
+// El cartel aparece 5 minutos ANTES de cada horario previsto
+setInterval(function(){
+  var d=new Date(Date.now()+5*60*1000);
+  var h=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
+  if(horarios.indexOf(h)>-1 && h!==ultima){ultima=h; mostrar(h);}
+},1000);
+</script></body></html>"""
+
+
+@st.cache_resource(show_spinner=False)
+def _declarar_alerta_recorrida(version="v1"):
+    carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
+    with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
+        f.write(_ALERTA_HTML)
+    return components.declare_component(f"aion_alerta_rec_{version}", path=carpeta)
+
+
+def registrar_respuesta_recorrida(obj, nombre, dni, evento):
+    try:
+        gc = conectar_google()
+        if not gc:
+            return False
+        sh = gc.open_by_key(ID_MAESTRO_DB)
+        try:
+            hoja = sh.worksheet("RESPUESTAS RECORRIDAS")
+        except Exception:
+            hoja = sh.add_worksheet(title="RESPUESTAS RECORRIDAS", rows="100", cols="10")
+            hoja.append_row(["FECHA_HORA", "OBJETIVO", "VIGILADOR", "DNI", "HORARIO", "RESPUESTA", "MOTIVO"])
+        hoja.append_row([
+            obtener_hora_argentina(), obj, str(nombre).upper(), str(dni),
+            evento.get("hora", ""), evento.get("respuesta", ""), str(evento.get("motivo", "")).upper()
+        ])
+        st.cache_data.clear()
+        return True
+    except Exception as ex:
+        print(f"Error guardando respuesta de recorrida: {ex}")
+        return False
+
+
+def renderizar_alerta_recorrida_js(horarios_previstos, obj_u, nombre, dni):
+    horarios = sorted(set(str(h).strip() for h in horarios_previstos if str(h).strip()))
+    if not horarios:
         return
-    h_str_json = str(horarios_previstos).replace("'", '"')
-    
-    # Inyectamos el componente a altura completa (o flotante permanente) para ejecutar el bucle en el navegador principal
-    components.html(f"""
-    <div style="background:#1A1C23;border:2px solid #00E5FF;border-radius:10px;padding:12px;text-align:center;font-family:sans-serif;margin-bottom:10px;box-shadow:0 0 15px rgba(0,229,255,0.3);">
-        <p style="color:#00E5FF;font-weight:bold;font-size:13px;margin:0 0 8px 0;">🛡️ SISTEMA DE ALARMAS Y HORARIOS</p>
-        <button id="btn_activar_alerta" style="background:#00E5FF;color:#000;border:none;padding:10px 20px;font-weight:bold;font-size:13px;border-radius:6px;cursor:pointer;box-shadow:0 0 10px rgba(0,229,255,0.8);">🔊 ACTIVAR ALARMAS Y CARTEL EMERGENTE</button>
-        <p id="estado_audio" style="color:#39FF14;font-size:11px;margin:6px 0 0 0;font-weight:bold;"></p>
-    </div>
-    <script>
-    var horarios = {h_str_json};
-    var audioCtx = null;
-    var activado = false;
+    evento = _declarar_alerta_recorrida("v1")(horarios=horarios, key=f"alerta_rec_{obj_u}", default=None)
+    if evento and evento.get("id") != st.session_state.get("ultimo_evento_alerta"):
+        st.session_state.ultimo_evento_alerta = evento.get("id")
+        if registrar_respuesta_recorrida(obj_u, nombre, dni, evento):
+            if evento.get("respuesta") == "SI":
+                st.toast("✅ Respuesta registrada. ¡Buena recorrida!", icon="✅")
+            else:
+                st.toast("📝 Motivo registrado.", icon="📝")
 
-    function desbloquearAudioCompleto() {{
-        try {{
-            var AC = window.parent.AudioContext || window.parent.webkitAudioContext;
-            if (!audioCtx) audioCtx = new AC();
-            if (audioCtx.state === "suspended") audioCtx.resume();
-            
-            var o = audioCtx.createOscillator();
-            var g = audioCtx.createGain();
-            o.type = "sine"; o.frequency.value = 800; g.gain.value = 0.3;
-            o.connect(g); g.connect(audioCtx.destination);
-            o.start(); setTimeout(function(){{ o.stop(); }}, 150);
-
-            activado = true;
-            var st = document.getElementById("estado_audio");
-            if(st) st.textContent = "✅ Alarmas y alertas emergentes listas y activas";
-            var btn = document.getElementById("btn_activar_alerta");
-            if(btn) {{
-                btn.style.background = "#39FF14";
-                btn.textContent = "🔊 ALARMAS Y CARTEL ACTIVOS";
-            }}
-        }} catch(e){{}}
-    }}
-
-    document.getElementById("btn_activar_alerta").onclick = desbloquearAudioCompleto;
-    ["touchstart", "click", "pointerdown"].forEach(function(ev) {{
-        parent.document.addEventListener(ev, function() {{
-            if(!activado) desbloquearAudioCompleto();
-        }}, {{once: true}});
-    }});
-
-    function sonarAlarma() {{
-        try {{
-            desbloquearAudioCompleto();
-            if(audioCtx) {{
-                for(var i=0; i<4; i++) {{
-                    setTimeout(function() {{
-                        var o = audioCtx.createOscillator();
-                        var g = audioCtx.createGain();
-                        o.type = "square";
-                        o.frequency.value = 1000;
-                        g.gain.value = 0.8;
-                        o.connect(g);
-                        g.connect(audioCtx.destination);
-                        o.start();
-                        setTimeout(function(){{ o.stop(); }}, 300);
-                    }}, i * 450);
-                }}
-            }}
-            if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400, 200, 400]);
-        }} catch(e){{}}
-    }}
-
-    setInterval(function() {{
-        var d = new Date();
-        var hh = String(d.getHours()).padStart(2, '0');
-        var mm = String(d.getMinutes()).padStart(2, '0');
-        var ss = String(d.getSeconds()).padStart(2, '0');
-        var horaActual = hh + ":" + mm;
-        
-        if (horarios.includes(horaActual) && ss < 6) {{
-            sonarAlarma();
-            var modalId = "modal_rec_" + horaActual.replace(":", "");
-            if (!parent.document.getElementById(modalId)) {{
-                var div = parent.document.createElement("div");
-                div.id = modalId;
-                div.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.92);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;";
-                div.innerHTML = '<div style="background:#1A1C23;border:4px solid #FF0000;border-radius:14px;padding:30px;max-width:400px;width:100%;text-align:center;box-shadow:0 0 50px rgba(255,0,0,0.95);font-family:sans-serif;color:#FFF;">' +
-                    '<h1 style="color:#FF0000;margin-top:0;font-family:Orbitron,sans-serif;font-size:24px;">🚨 ¡HORA DE RECORRIDA!</h1>' +
-                    '<p style="font-size:18px;margin:20px 0;line-height:1.4;">Comienza la ronda programada de las <b>' + horaActual + ' HS</b>.<br><br>Diríjase al punto de control y escanee el código QR.</p>' +
-                    '<button id="btn_conf_ronda" style="background:#00E5FF;color:#000;border:none;padding:14px 28px;font-weight:bold;font-size:16px;border-radius:8px;cursor:pointer;font-family:Orbitron,sans-serif;margin-top:10px;box-shadow:0 0 20px rgba(0,229,255,0.7);width:100%;">¡ENTERADO / INICIAR!</button>' +
-                    '</div>';
-                parent.document.body.appendChild(div);
-                parent.document.getElementById("btn_conf_ronda").onclick = function() {{
-                    div.remove();
-                }};
-            }}
-        }}
-    }}, 1000);
-    </script>
-    """, height=120)
 
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     st.markdown("### 🚶 RECORRIDO CON MARCACIÓN QR")
 
-    if not dni and st.session_state.get('rol_sel') == "ADMINISTRADOR":
+    if not dni and (st.session_state.get('rol_sel') == "ADMINISTRADOR" or st.session_state.get('admin_autenticado')):
         dni = "99999999"
 
     if not dni:
@@ -1009,7 +1083,7 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                     if sh_limpio:
                         horarios_previstos_lista.append(sh_limpio)
     
-    renderizar_alerta_recorrida_js(horarios_previstos_lista)
+    renderizar_alerta_recorrida_js(horarios_previstos_lista, obj_u, nombre, dni)
 
     df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
     df_hoy = pd.DataFrame()
@@ -2489,6 +2563,15 @@ elif st.session_state.rol_sel == "VIGILADOR":
      
     dni_vigilador_actual = st.session_state.get("dni_vigilador", "")
     if not dni_vigilador_actual:
+        df_pad_rec = leer_matriz_nube("PADRON VIGILADORES")
+        if not df_pad_rec.empty and {'DNI', 'NOMBRE'} <= set(df_pad_rec.columns):
+            m_rec = df_pad_rec[col_texto(df_pad_rec, 'NOMBRE').str.strip().str.upper() == nombre_vigilador_actual]
+            if not m_rec.empty:
+                dni_vigilador_actual = "".join(ch for ch in str(m_rec.iloc[0]['DNI']) if ch.isdigit())
+                st.session_state.dni_vigilador = dni_vigilador_actual
+                st.session_state.legajo_vigilador = str(m_rec.iloc[0].get('LEGAJO', '')).strip()
+                legajo_vigilador_actual = st.session_state.legajo_vigilador
+    if not dni_vigilador_actual:
         dni_vigilador_actual = "".join(ch for ch in str(st.session_state.get("user_sel", "")) if ch.isdigit())
         st.session_state.dni_vigilador = dni_vigilador_actual
 
@@ -2597,13 +2680,20 @@ elif st.session_state.rol_sel == "VIGILADOR":
     if st.session_state.get("msg_ingreso_vig"):
         st.success(st.session_state.pop("msg_ingreso_vig"))
 
+    tab_auto_ingreso, tab_recorrido, t_mensajeria = st.tabs(["🚀 INGRESO & RELEVO AUTOMÁTICO", "🚶 RECORRIDO QR", label_msg])
+
     if st.session_state.get("nav_vig_pendiente") == "RECORRIDO":
         st.session_state.nav_vig_pendiente = None
-        default_tab_idx = 1
-    else:
-        default_tab_idx = 0
-
-    tab_auto_ingreso, tab_recorrido, t_mensajeria = st.tabs(["🚀 INGRESO & RELEVO AUTOMÁTICO", "🚶 RECORRIDO QR", label_msg])
+        components.html("""
+        <script>
+        setTimeout(function(){
+          var tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+          for (var i = 0; i < tabs.length; i++) {
+            if (tabs[i].innerText.indexOf("RECORRIDO QR") > -1) { tabs[i].click(); break; }
+          }
+        }, 400);
+        </script>
+        """, height=0)
   
     with tab_auto_ingreso:
         st.markdown(f"### ⚡ ACCESO Y VALIDACIÓN: **{nombre_vigilador_actual}**")
@@ -2619,6 +2709,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
             if confirmar_ingreso:
                 if img_facial_auto is not None and v_obj_auto:
                     st.session_state.obj_actual_vig = v_obj_auto
+                    sincronizar_url_sesion()
                     sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_auto]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                      
                     fecha_hora_arg = obtener_hora_argentina()
