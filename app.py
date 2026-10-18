@@ -927,19 +927,20 @@ button{background:#00E5FF;color:#000;border:none;padding:9px 14px;font-weight:bo
 button.ok{background:#39FF14}
 button.sec{background:#2D313E;color:#E0E0E0}
 #e{color:#39FF14;font-size:12px;margin:8px 0 0;line-height:1.3}
+#w{color:#39FF14;font-size:11px;margin:4px 0 0;line-height:1.3}
 #h{color:#A0A5B5;font-size:11px;margin:4px 0 0;line-height:1.3}
 </style></head><body>
 <div id="panel"><p id="t">🔔 AVISO DE RECORRIDAS</p>
 <button id="b">🔊 ACTIVAR AVISO SONORO</button><button id="p" class="sec">🔔 PROBAR</button>
-<p id="e"></p><p id="h"></p></div>
+<p id="e"></p><p id="w"></p><p id="h"></p></div>
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
 enviar("streamlit:componentReady",{apiVersion:1});
 function altura(){enviar("streamlit:setFrameHeight",{height:Math.max(document.getElementById("panel").offsetHeight+8,120)});}
 altura();window.addEventListener("resize",altura);
 
-var P=window.parent, PD=P.document, ctx=null;
-var horarios=[], clave="", pendiente=null, repeticiones=0, timerRepeat=null;
+var P=window.parent, PD=P.document, ctx=null, wl=null;
+var horarios=[], clave="", pendiente=null, tipoModal=null, repeticiones=0, timerRepeat=null, avisadoAhora={};
 
 window.addEventListener("message",function(ev){
   if(ev.data && ev.data.type==="streamlit:render"){
@@ -950,7 +951,7 @@ window.addEventListener("message",function(ev){
       return p.length>=2 ? ("0"+p[0]).slice(-2)+":"+("0"+p[1]).slice(-2) : "";
     }).filter(Boolean);
     document.getElementById("h").textContent=horarios.length
-      ? "Rondas: "+horarios.join(" · ")+" (el aviso sale 5 min antes)"
+      ? "Rondas: "+horarios.join(" · ")+" (aviso 5 min antes y a la hora)"
       : "Este objetivo no tiene horarios cargados.";
     ui(); altura();
   }
@@ -958,9 +959,10 @@ window.addEventListener("message",function(ev){
 
 function ui(){
   var ok=ctx&&ctx.state==="running";
-  var b=document.getElementById("b"), e=document.getElementById("e");
-  if(ok){b.className="ok";b.textContent="🔊 SONIDO ACTIVO";e.style.color="#39FF14";e.textContent="✅ Sonido activo. Vas a recibir el aviso 5 minutos antes de cada recorrida.";}
+  var b=document.getElementById("b"), e=document.getElementById("e"), w=document.getElementById("w");
+  if(ok){b.className="ok";b.textContent="🔊 SONIDO ACTIVO";e.style.color="#39FF14";e.textContent="✅ Sonido activo. Vas a recibir el aviso 5 minutos antes y a la hora de cada recorrida.";}
   else{b.className="";b.textContent="🔊 ACTIVAR AVISO SONORO";e.style.color="#FFD600";e.textContent="⚠️ Tocá el botón para activar el sonido. El cartel aparece igual.";}
+  w.textContent=wl?"📱 La pantalla se mantiene encendida mientras esta pantalla esté abierta. Si bloqueás el celular, el aviso no suena.":"";
   altura();
 }
 
@@ -972,11 +974,25 @@ function audio(){
     ui();
   }catch(e){document.getElementById("e").textContent="No se pudo iniciar el audio en este navegador.";}
 }
-["touchstart","click","pointerdown"].forEach(function(n){
-  PD.addEventListener(n,function(){ if(!ctx||ctx.state!=="running") audio(); },{passive:true});
+
+// Mantiene la pantalla encendida (si el navegador lo permite) para que el aviso pueda sonar
+function pantalla(){
+  try{
+    if(!P.navigator.wakeLock||wl) return;
+    P.navigator.wakeLock.request("screen").then(function(l){
+      wl=l; l.addEventListener("release",function(){wl=null;ui();}); ui();
+    }).catch(function(){});
+  }catch(e){}
+}
+PD.addEventListener("visibilitychange",function(){
+  if(PD.visibilityState==="visible"){ if(!wl) pantalla(); if(ctx&&ctx.state!=="running") audio(); }
 });
-document.getElementById("b").onclick=function(){audio();setTimeout(campana,150);};
-document.getElementById("p").onclick=function(){audio();setTimeout(function(){mostrar("PRUEBA");},150);};
+
+["touchstart","click","pointerdown"].forEach(function(n){
+  PD.addEventListener(n,function(){ if(!ctx||ctx.state!=="running") audio(); if(!wl) pantalla(); },{passive:true});
+});
+document.getElementById("b").onclick=function(){audio();pantalla();setTimeout(campana,150);};
+document.getElementById("p").onclick=function(){audio();pantalla();setTimeout(function(){mostrar("PRUEBA");},150);};
 
 function nota(t0,f,dur){
   var o=ctx.createOscillator(), g=ctx.createGain();
@@ -999,8 +1015,10 @@ function campana(){
 
 function hoy(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
 function llave(h){return "aion_rec_"+clave+"_"+hoy()+"_"+h;}
-function respondido(h){try{return localStorage.getItem(llave(h))==="1";}catch(e){return false;}}
-function marcar(h){try{localStorage.setItem(llave(h),"1");}catch(e){}}
+function respuestaDe(h){try{return localStorage.getItem(llave(h));}catch(e){return null;}}
+function marcar(h,r){try{localStorage.setItem(llave(h),r);}catch(e){}}
+function ahoraHecho(h){try{return localStorage.getItem(llave(h)+"_ahora")==="1";}catch(e){return false;}}
+function marcarAhora(h){try{localStorage.setItem(llave(h)+"_ahora","1");}catch(e){}}
 function minutosHasta(h){
   var p=h.split(":"), t=new Date();
   t.setHours(parseInt(p[0],10),parseInt(p[1],10),0,0);
@@ -1009,12 +1027,12 @@ function minutosHasta(h){
 
 function cerrar(){
   var m=PD.getElementById("aion_modal_rec"); if(m) m.remove();
-  pendiente=null; repeticiones=0;
+  pendiente=null; tipoModal=null; repeticiones=0;
   if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
 }
 function responder(hora,resp,motivo){
   if(hora!=="PRUEBA"){
-    marcar(hora);
+    marcar(hora,resp);
     enviar("streamlit:setComponentValue",{
       value:{id:hora+"_"+Date.now(),hora:hora,respuesta:resp,motivo:motivo||""},
       dataType:"json"
@@ -1023,22 +1041,38 @@ function responder(hora,resp,motivo){
   cerrar();
 }
 
-function mostrar(hora){
-  if(PD.getElementById("aion_modal_rec")) return;
-  pendiente=hora;
-  var texto;
-  if(hora==="PRUEBA"){
-    texto='Esto es una <b>prueba</b> del aviso.<br><b>¿Realizás la recorrida?</b>';
-  }else{
-    var m=Math.ceil(minutosHasta(hora));
-    texto='Tu recorrida de las <b>'+hora+' hs</b> '+(m<=0?'es <b>ahora</b>.':'es en <b>'+m+' min</b>.')+'<br><b>¿Realizás la recorrida?</b>';
-  }
+function textoAviso(h){
+  if(h==="PRUEBA") return 'Esto es una <b>prueba</b> del aviso.<br><b>¿Realizás la recorrida?</b>';
+  var m=minutosHasta(h), cuando;
+  if(m>0) cuando='es en <b>'+Math.ceil(m)+' min</b>.';
+  else if(m>-1) cuando='es <b>ahora</b>.';
+  else cuando='era hace <b>'+Math.round(-m)+' min</b>.';
+  return 'Tu recorrida de las <b>'+h+' hs</b> '+cuando+'<br><b>¿Realizás la recorrida?</b>';
+}
+
+function crearModal(html,borde){
   var d=PD.createElement("div");
   d.id="aion_modal_rec";
   d.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;font-family:sans-serif";
-  d.innerHTML='<div style="background:#1A1C23;border:2px solid #00E5FF;border-radius:14px;padding:24px;max-width:380px;width:100%;text-align:center;color:#FFF;box-shadow:0 0 30px rgba(0,229,255,.5)">'+
+  d.innerHTML='<div style="background:#1A1C23;border:2px solid '+borde+';border-radius:14px;padding:24px;max-width:380px;width:100%;text-align:center;color:#FFF;box-shadow:0 0 30px rgba(0,229,255,.5)">'+html+'</div>';
+  PD.body.appendChild(d);
+}
+
+function repetir(ms,max){
+  repeticiones=0;
+  timerRepeat=setInterval(function(){
+    if(pendiente && repeticiones<max){repeticiones++; campana();}
+    else if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
+  },ms);
+}
+
+// Aviso previo / recorrida pendiente: pregunta SÍ / NO
+function mostrar(hora){
+  if(PD.getElementById("aion_modal_rec")) return;
+  pendiente=hora; tipoModal="aviso";
+  crearModal(
     '<h2 style="color:#00E5FF;margin:0 0 10px;font-size:20px">🔔 Aviso de recorrida</h2>'+
-    '<p style="font-size:16px;margin:0 0 16px;line-height:1.4">'+texto+'</p>'+
+    '<p id="aion_txt_p" style="font-size:16px;margin:0 0 16px;line-height:1.4">'+textoAviso(hora)+'</p>'+
     '<div id="aion_botones"><button id="aion_si" style="background:#39FF14;color:#000;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;margin:4px">SÍ</button>'+
     '<button id="aion_no" style="background:#FF5252;color:#fff;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;margin:4px">NO</button></div>'+
     '<div id="aion_motivo" style="display:none;margin-top:10px">'+
@@ -1046,9 +1080,8 @@ function mostrar(hora){
     '<option>Atendiendo una novedad en el objetivo</option><option>Atendiendo una visita o ingreso</option>'+
     '<option>Falta de personal</option><option>Problema de salud</option><option>Otro</option></select>'+
     '<input id="aion_txt" placeholder="Detalle (opcional)" style="width:100%;box-sizing:border-box;padding:10px;border-radius:6px;font-size:14px;margin-bottom:8px">'+
-    '<button id="aion_env" style="background:#00E5FF;color:#000;border:none;padding:12px;font-weight:bold;font-size:14px;border-radius:8px;width:100%">ENVIAR MOTIVO</button></div>'+
-    '</div>';
-  PD.body.appendChild(d);
+    '<button id="aion_env" style="background:#00E5FF;color:#000;border:none;padding:12px;font-weight:bold;font-size:14px;border-radius:8px;width:100%">ENVIAR MOTIVO</button></div>',
+    "#00E5FF");
   PD.getElementById("aion_si").onclick=function(){responder(hora,"SI","");};
   PD.getElementById("aion_no").onclick=function(){
     PD.getElementById("aion_botones").style.display="none";
@@ -1060,25 +1093,48 @@ function mostrar(hora){
     responder(hora,"NO",det?mot+" - "+det:mot);
   };
   campana();
-  timerRepeat=setInterval(function(){
-    if(pendiente && repeticiones<2){repeticiones++; campana();}
-    else if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
-  },60000);
+  repetir(60000,2);
 }
 
-// El cartel aparece desde 5 minutos ANTES de cada horario y hasta que el vigilador responda
-setInterval(function(){
+// A la hora exacta (si dijo SÍ): recordatorio de que empieza la recorrida
+function mostrarHora(hora){
   if(PD.getElementById("aion_modal_rec")) return;
-  for(var i=0;i<horarios.length;i++){
-    var h=horarios[i], m=minutosHasta(h);
-    if(m<=5 && m>-1 && !respondido(h)){mostrar(h);break;}
+  pendiente=hora; tipoModal="hora";
+  crearModal(
+    '<h2 style="color:#39FF14;margin:0 0 10px;font-size:20px">🚶 ¡Es hora de la recorrida!</h2>'+
+    '<p style="font-size:16px;margin:0 0 16px;line-height:1.4">Ronda de las <b>'+hora+' hs</b>.<br>Recorré el objetivo y escaneá el QR de cada punto de control.</p>'+
+    '<button id="aion_ent" style="background:#39FF14;color:#000;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;width:100%">ENTENDIDO, INICIO</button>',
+    "#39FF14");
+  PD.getElementById("aion_ent").onclick=function(){marcarAhora(hora);cerrar();};
+  campana();
+  repetir(45000,3);
+}
+
+setInterval(function(){
+  var modal=PD.getElementById("aion_modal_rec");
+  var i,h,m,r;
+  // Si el aviso previo sigue sin responder cuando llega la hora, se actualiza el texto y suena de nuevo
+  for(i=0;i<horarios.length;i++){
+    h=horarios[i]; m=minutosHasta(h);
+    if(modal && tipoModal==="aviso" && pendiente===h && m<=0 && !avisadoAhora[h]){
+      avisadoAhora[h]=true;
+      var tp=PD.getElementById("aion_txt_p"); if(tp) tp.innerHTML=textoAviso(h);
+      campana();
+      return;
+    }
+  }
+  if(modal) return;
+  for(i=0;i<horarios.length;i++){
+    h=horarios[i]; m=minutosHasta(h); r=respuestaDe(h);
+    if(r==="SI" && m<=0 && m>-5 && !ahoraHecho(h)){mostrarHora(h);return;}
+    if(r===null && m<=5 && m>-30){mostrar(h);return;}
   }
 },1000);
 </script></body></html>"""
 
 
 @st.cache_resource(show_spinner=False)
-def _declarar_alerta_recorrida(version="v2"):
+def _declarar_alerta_recorrida(version="v3"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_ALERTA_HTML)
@@ -1109,7 +1165,7 @@ def registrar_respuesta_recorrida(obj, nombre, dni, evento):
 
 def renderizar_alerta_recorrida_js(horarios_previstos, obj_u, nombre, dni):
     horarios = _horarios_unicos(horarios_previstos)
-    evento = _declarar_alerta_recorrida("v2")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
+    evento = _declarar_alerta_recorrida("v3")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
     if evento and evento.get("id") != st.session_state.get("ultimo_evento_alerta"):
         st.session_state.ultimo_evento_alerta = evento.get("id")
         if registrar_respuesta_recorrida(obj_u, nombre, dni, evento):
