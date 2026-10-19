@@ -1,4 +1,3 @@
-
 import streamlit as st
 import datetime
 from datetime import datetime
@@ -1630,29 +1629,90 @@ def _leer_mes(pestana, periodo, min_cols):
     df = pd.concat(partes, ignore_index=True).drop_duplicates()
     return df[df[0].str.startswith(periodo)].reset_index(drop=True)
 
+HORAS_TURNO = 12        # horas que se cuentan por cada turno de ingreso
+HORAS_MAX_MES = 200     # límite mensual de horas por vigilador (ajustar según convenio)
+MAX_DIAS_SEGUIDOS = 6   # más de estos días seguidos sin descanso = franco cortado
+
+def estadistica_vigiladores(periodo, pres, obj_a_sup, personal):
+    """Por supervisor y vigilador: turnos, horas, días seguidos, francos cortados y exceso de horas.
+    Sale de los INGRESOS que cada vigilador marca en la app (hoja PRESENTISMO)."""
+    reg = {}
+    if not pres.empty:
+        ing = pres[pres[5].str.upper() == "INGRESO"]
+        for _, f in ing.iterrows():
+            sup = obj_a_sup.get(f[4].upper())
+            if not sup:
+                continue
+            try:
+                dia = int(f[0][8:10])
+            except Exception:
+                continue
+            minutos = _hora_a_min(f[1])
+            turno = "D" if (minutos is not None and 360 <= minutos < 1080) else "N"
+            d = reg.setdefault((sup, f[3].upper()), {"dias": set(), "turnos": set()})
+            d["dias"].add(dia)
+            d["turnos"].add((dia, turno))
+    res = {}
+    for s in set([k[0] for k in reg] + list(personal.keys())):
+        nombres = set(n for (sp, n) in reg if sp == s)
+        if s in personal:
+            nombres |= set(personal[s]["VIGILADOR"].tolist())
+        filas = []
+        for n in sorted(nombres):
+            d = reg.get((s, n), {"dias": set(), "turnos": set()})
+            dias = sorted(d["dias"])
+            corridas, largo, previo = [], 0, None
+            for x in dias:
+                largo = largo + 1 if previo is not None and x == previo + 1 else 1
+                if previo is not None and x != previo + 1:
+                    corridas.append(largo_ant)
+                largo_ant = largo
+                previo = x
+            if dias:
+                corridas.append(largo_ant)
+            horas = len(d["turnos"]) * HORAS_TURNO
+            filas.append({
+                "VIGILADOR": n, "DÍAS": len(dias), "TURNOS": len(d["turnos"]), "HORAS": horas,
+                "MÁX. DÍAS SEGUIDOS": max(corridas) if corridas else 0,
+                "FRANCOS CORTADOS": sum(1 for c in corridas if c > MAX_DIAS_SEGUIDOS),
+                "EXCESO HS": max(0, horas - HORAS_MAX_MES),
+            })
+        res[s] = pd.DataFrame(filas).sort_values("HORAS", ascending=False).reset_index(drop=True) if filas else pd.DataFrame(
+            columns=["VIGILADOR", "DÍAS", "TURNOS", "HORAS", "MÁX. DÍAS SEGUIDOS", "FRANCOS CORTADOS", "EXCESO HS"])
+    return res
+
 def relevamiento_mes(periodo):
+    anio, mes = map(int, periodo.split("-"))
     df_o = cargar_objetivos()
     jor = _leer_mes("JORNADA SUPERVISORES", periodo, 5)
     qr = _leer_mes("REGISTRO QR SUPERVISORES", periodo, 4)
     flo = _leer_mes("CONTROL DE FLOTA", periodo, 10)
     ale = _leer_mes("ALERTAS", periodo, 6)
     nov = _leer_mes("NOVEDADES GUARDIA", periodo, 5)
+    pres = _leer_mes("PRESENTISMO", periodo, 6)
     personal = planificacion_mes(periodo)
-    filas, detalle = [], {}
+    obj_a_sup = dict(zip(col_texto(df_o, 'OBJETIVO').str.strip().str.upper(), col_texto(df_o, 'SUPERVISOR').str.strip().str.upper())) if not df_o.empty else {}
+    vigs = estadistica_vigiladores(periodo, pres, obj_a_sup, personal)
+    filas, detalle, actividad = [], {}, {}
 
     for s in _supervisores_con_objetivos():
         m_sup = col_texto(df_o, 'SUPERVISOR').str.strip().str.upper() == s
         objs = col_texto(df_o, 'OBJETIVO').str.strip().str.upper()[m_sup].unique().tolist()
+        dias_act = set()
 
         # Jornada (inicio / cierre)
         dias_j, horas_j = 0, 0.0
-        if not jor.empty:
-            sj = jor[jor[1].str.upper() == s]
-            for _, g in sj.groupby(sj[0].str[:10]):
+        sj = jor[jor[1].str.upper() == s] if not jor.empty else pd.DataFrame()
+        if not sj.empty:
+            for fecha, g in sj.groupby(sj[0].str[:10]):
                 ini = [m for m in g[g[3].str.upper() == "INICIO"][4].map(_hora_a_min) if m is not None]
                 fin = [m for m in g[g[3].str.upper() == "FIN"][4].map(_hora_a_min) if m is not None]
                 if ini:
                     dias_j += 1
+                    try:
+                        dias_act.add(int(str(fecha)[8:10]))
+                    except Exception:
+                        pass
                 if ini and fin and max(fin) >= min(ini):
                     horas_j += (max(fin) - min(ini)) / 60.0
 
@@ -1660,8 +1720,14 @@ def relevamiento_mes(periodo):
         sq = pd.DataFrame()
         if not qr.empty:
             sq = qr[qr[3].str.upper() == s].copy()
+        if not sq.empty:
             sq["_F"], sq["_O"], sq["_A"] = sq[0].str[:10], sq[1].str.upper(), sq[2].str.upper()
             sq["_M"] = sq[0].map(_hora_a_min)
+            for f in sq[sq["_A"] == "INICIO"]["_F"]:
+                try:
+                    dias_act.add(int(str(f)[8:10]))
+                except Exception:
+                    pass
         det, visitas, visitados, perms_all = [], 0, 0, []
         for o in objs:
             n_vis, perms = 0, []
@@ -1682,15 +1748,16 @@ def relevamiento_mes(periodo):
                 "ESTADO": "✅ VISITADO" if n_vis > 0 else "❌ SIN VISITA",
             })
         detalle[s] = pd.DataFrame(det)
+        actividad[s] = dias_act
 
-        # Flota
+        # Flota (con suma en Python: una tabla vacía no debe romper el cálculo)
         km, monto, actas, revisar = 0.0, 0.0, 0, 0
         if not flo.empty:
             sf = flo[flo[1].str.upper() == s]
             actas = len(sf)
-            km = float(sf[5].map(_num_ar).sum())
-            monto = float(sf[7].map(_num_ar).sum())
-            revisar = int(sf[9].str.upper().str.contains("REVISAR").sum())
+            km = sum(_num_ar(v) for v in sf[5])
+            monto = sum(_num_ar(v) for v in sf[7])
+            revisar = sum(1 for v in sf[9] if "REVISAR" in str(v).upper())
 
         # Pánicos (propios y de vigiladores de sus objetivos)
         panicos = 0
@@ -1718,9 +1785,14 @@ def relevamiento_mes(periodo):
         c_art = int((pv["ESTADO"] == "ART").sum()) if pv is not None else 0
         c_vac = int((pv["ESTADO"] == "VACACIONES").sum()) if pv is not None else 0
 
+        vd = vigs.get(s)
+        hs_vig = int(vd["HORAS"].sum()) if vd is not None and not vd.empty else 0
+        n_exc = int((vd["EXCESO HS"] > 0).sum()) if vd is not None and not vd.empty else 0
+        n_fc = int(vd["FRANCOS CORTADOS"].sum()) if vd is not None and not vd.empty else 0
         filas.append({
             "SUPERVISOR": s, "OBJETIVOS": len(objs), "VIGILADORES": n_vig,
-            "DÍAS JORNADA": dias_j, "HORAS": round(horas_j, 1),
+            "HS VIGILADORES": hs_vig, "EXCEDIDOS": n_exc, "FRANCOS CORTADOS": n_fc,
+            "DÍAS ACTIVOS": len(dias_act), "DÍAS JORNADA": dias_j, "HORAS": round(horas_j, 1),
             "VISITAS QR": visitas, "OBJ. VISITADOS": visitados,
             "COBERTURA %": round(100 * visitados / len(objs)) if objs else 0,
             "PERMANENCIA PROM. (MIN)": round(sum(perms_all) / len(perms_all)) if perms_all else 0,
@@ -1728,7 +1800,94 @@ def relevamiento_mes(periodo):
             "PÁNICOS": panicos, "NOVEDADES": novs, "RONDAS COMPLETAS": rondas,
             "LICENCIA": c_lic, "ART": c_art, "VACACIONES": c_vac,
         })
-    return pd.DataFrame(filas), detalle, personal
+    return pd.DataFrame(filas), detalle, personal, actividad, vigs
+
+def _tarjeta_supervisor_html(r, actividad, anio, mes, vig_df=None):
+    """Tarjeta delicada por supervisor: barras finas, datos clave, tira de actividad del mes y personal a cargo."""
+    import html as _h
+    ndias = calendar.monthrange(anio, mes)[1]
+    objs, vis, cob = int(r["OBJETIVOS"]), int(r["OBJ. VISITADOS"]), int(r["COBERTURA %"])
+    dact = len(actividad)
+    pct_dias = round(100 * dact / ndias) if ndias else 0
+    n = int(r["VIGILADORES"])
+    lic, art, vac = int(r["LICENCIA"]), int(r["ART"]), int(r["VACACIONES"])
+    sin = max(0, n - lic - art - vac)
+
+    def barra(titulo, valor, pct, color):
+        pct = max(0, min(100, pct))
+        return ('<div style="margin:9px 0 3px;display:flex;justify-content:space-between;font-size:11px;color:#8B95A8;letter-spacing:.4px;">'
+                '<span>' + titulo + '</span><span style="color:#CBD5E1;">' + valor + '</span></div>'
+                '<div style="background:#1F2430;border-radius:3px;height:4px;overflow:hidden;">'
+                '<div style="background:' + color + ';height:100%;width:' + str(pct) + '%;opacity:.85;"></div></div>')
+
+    def dato(etiqueta, valor):
+        return ('<div style="flex:1;min-width:56px;text-align:center;">'
+                '<div style="font-size:15px;color:#E2E8F0;font-family:Orbitron,sans-serif;">' + str(valor) + '</div>'
+                '<div style="font-size:9.5px;color:#7C869A;letter-spacing:.5px;text-transform:uppercase;">' + etiqueta + '</div></div>')
+
+    celdas = ""
+    for d in range(1, ndias + 1):
+        activo = d in actividad
+        finde = calendar.weekday(anio, mes, d) >= 5
+        fondo = "#4DB6AC" if activo else "#1F2430"
+        borde = "1px solid #3A4152" if (finde and not activo) else "1px solid transparent"
+        celdas += ('<span title="Día ' + str(d) + '" style="display:inline-block;width:9px;height:9px;margin:1px;'
+                   'border-radius:2px;background:' + fondo + ';border:' + borde + ';"></span>')
+
+    def seg(cant, color):
+        ancho = (100.0 * cant / n) if n else 0
+        return '<div style="background:' + color + ';width:' + ("%.1f" % ancho) + '%;height:100%;"></div>'
+
+    franja = seg(sin, "#3B6B55") + seg(lic, "#C96B6B") + seg(art, "#D49A52") + seg(vac, "#9A74B5")
+    leyenda = ('<span style="color:#7FB8A0;">● ' + str(sin) + ' sin novedad</span> &nbsp; '
+               '<span style="color:#D98A8A;">● ' + str(lic) + ' licencia</span> &nbsp; '
+               '<span style="color:#E0AE74;">● ' + str(art) + ' ART</span> &nbsp; '
+               '<span style="color:#B596CC;">● ' + str(vac) + ' vacaciones</span>')
+
+    datos = (dato("Visitas QR", r["VISITAS QR"]) + dato("Horas", r["HORAS"]) + dato("Km", r["KM"]) +
+             dato("Pánicos", r["PÁNICOS"]) + dato("Novedades", r["NOVEDADES"]) + dato("Rondas", r["RONDAS COMPLETAS"]))
+
+
+    # Vigiladores del mes: horas, exceso y francos cortados
+    vig_html = ""
+    if vig_df is not None and not vig_df.empty:
+        filas_v = ""
+        for _, v in vig_df.iterrows():
+            horas, exc, fc = int(v["HORAS"]), int(v["EXCESO HS"]), int(v["FRANCOS CORTADOS"])
+            ancho = max(0, min(100, 100.0 * horas / HORAS_MAX_MES)) if HORAS_MAX_MES else 0
+            color = "#D9776F" if exc > 0 else ("#E0A458" if horas >= 0.9 * HORAS_MAX_MES else "#4DB6AC")
+            chips = ""
+            if fc > 0:
+                chips += ('<span style="border:1px solid #5BC0CE;color:#7FD6E0;border-radius:8px;padding:0 6px;font-size:9.5px;margin-left:6px;">'
+                          '✂ franco cortado · ' + str(int(v["MÁX. DÍAS SEGUIDOS"])) + ' días seguidos</span>')
+            if exc > 0:
+                chips += ('<span style="border:1px solid #D9776F;color:#E89A93;border-radius:8px;padding:0 6px;font-size:9.5px;margin-left:6px;">'
+                          '⚠ +' + str(exc) + ' hs</span>')
+            filas_v += ('<div style="margin:7px 0 0;">'
+                        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#CBD5E1;">'
+                        '<span>' + _h.escape(str(v["VIGILADOR"])) + chips + '</span>'
+                        '<span style="color:#9AA3B5;">' + str(horas) + ' hs · ' + str(int(v["DÍAS"])) + ' d</span></div>'
+                        '<div style="background:#1F2430;border-radius:3px;height:3px;overflow:hidden;margin-top:3px;">'
+                        '<div style="background:' + color + ';height:100%;width:' + ("%.1f" % ancho) + '%;opacity:.85;"></div></div></div>')
+        tot_h, n_exc, n_fc = int(vig_df["HORAS"].sum()), int((vig_df["EXCESO HS"] > 0).sum()), int(vig_df["FRANCOS CORTADOS"].sum())
+        vig_html = ('<div style="font-size:11px;color:#7C869A;margin:14px 0 2px;">Vigiladores del mes · límite ' + str(HORAS_MAX_MES) + ' hs</div>'
+                    '<div style="font-size:11px;color:#9AA3B5;">' + str(tot_h) + ' hs en total · '
+                    '<span style="color:#E89A93;">' + str(n_exc) + ' excedidos</span> · '
+                    '<span style="color:#7FD6E0;">' + str(n_fc) + ' con franco cortado</span></div>' + filas_v)
+
+    return ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-radius:10px;padding:12px 14px;margin:10px 0 4px;">'
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;">'
+            '<span style="font-family:Orbitron,sans-serif;font-size:13px;color:#7FD6E0;letter-spacing:1px;">🛡️ ' + _h.escape(str(r["SUPERVISOR"])) + '</span>'
+            '<span style="font-size:11px;color:#7C869A;">' + str(objs) + (' objetivo' if objs == 1 else ' objetivos') + ' · ' + str(n) + (' vigilador' if n == 1 else ' vigiladores') + '</span></div>'
+            + barra("Objetivos visitados", str(vis) + "/" + str(objs) + " · " + str(cob) + "%", cob, "#5BC0CE")
+            + barra("Días con actividad", str(dact) + "/" + str(ndias) + " · " + str(pct_dias) + "%", pct_dias, "#4DB6AC")
+            + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin:14px 0 6px;">' + datos + '</div>'
+            '<div style="font-size:11px;color:#7C869A;margin:8px 0 2px;">Actividad del mes</div>'
+            '<div style="line-height:0;">' + celdas + '</div>'
+            '<div style="font-size:11px;color:#7C869A;margin:12px 0 4px;">Personal a cargo</div>'
+            '<div style="display:flex;height:5px;border-radius:3px;overflow:hidden;background:#1F2430;">' + franja + '</div>'
+            '<div style="font-size:10.5px;margin-top:5px;">' + leyenda + '</div>'
+            + vig_html + '</div>')
 
 def renderizar_relevamiento_mensual(key_prefix="rel"):
     st.markdown("### 📊 RELEVAMIENTO MENSUAL DE SUPERVISORES")
@@ -1742,64 +1901,49 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
     if st.session_state.get(f"{key_prefix}_msg"):
         st.success(st.session_state.pop(f"{key_prefix}_msg"))
 
-    comp, detalle, personal = relevamiento_mes(periodo)
+    comp, detalle, personal, actividad, vigs = relevamiento_mes(periodo)
     if comp.empty:
         st.info("No hay supervisores con objetivos asignados para mostrar.")
     else:
-        a1, a2, a3 = st.columns(3)
-        a1.metric("🛡️ SUPERVISORES", len(comp))
-        a2.metric("📱 VISITAS QR", int(comp["VISITAS QR"].sum()))
-        a3.metric("🎯 COBERTURA PROM.", f"{int(round(comp['COBERTURA %'].mean()))}%")
-        b1, b2, b3 = st.columns(3)
-        b1.metric("⏱️ HORAS JORNADA", round(float(comp["HORAS"].sum()), 1))
-        b2.metric("🚗 KM RECORRIDOS", round(float(comp["KM"].sum()), 1))
-        b3.metric("🚨 PÁNICOS", int(comp["PÁNICOS"].sum()))
+        sup_sel = st.selectbox("SUPERVISOR:", ["TODOS"] + comp["SUPERVISOR"].tolist(), key=f"{key_prefix}_sup")
+        vista = comp if sup_sel == "TODOS" else comp[comp["SUPERVISOR"] == sup_sel]
 
-        st.markdown("##### 📋 COMPARATIVO DE TODOS LOS SUPERVISORES")
-        st.dataframe(comp, use_container_width=True, hide_index=True)
-        cols_pdf = ["SUPERVISOR", "OBJETIVOS", "VIGILADORES", "DÍAS JORNADA", "HORAS", "VISITAS QR", "COBERTURA %",
-                    "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES"]
+        a1, a2, a3 = st.columns(3)
+        a1.metric("🛡️ SUPERVISORES", len(vista))
+        a2.metric("📱 VISITAS QR", int(vista["VISITAS QR"].sum()))
+        a3.metric("🎯 COBERTURA PROM.", f"{int(round(vista['COBERTURA %'].mean()))}%")
+
+        b1, b2, b3 = st.columns(3)
+        b1.metric("⏱️ HS VIGILADORES", int(vista["HS VIGILADORES"].sum()))
+        b2.metric("⚠️ EXCEDIDOS", int(vista["EXCEDIDOS"].sum()))
+        b3.metric("✂️ FRANCOS CORTADOS", int(vista["FRANCOS CORTADOS"].sum()))
+
+        st.markdown("##### 🛡️ POR SUPERVISOR")
+        for _, r in vista.iterrows():
+            s = r["SUPERVISOR"]
+            st.markdown(_tarjeta_supervisor_html(r, actividad.get(s, set()), anio, mes, vigs.get(s)), unsafe_allow_html=True)
+            with st.expander("Ver detalle de objetivos y personal"):
+                if s in vigs and not vigs[s].empty:
+                    st.markdown("**Horas por vigilador**")
+                    st.dataframe(vigs[s], use_container_width=True, hide_index=True)
+                st.markdown("**Objetivos**")
+                st.dataframe(detalle[s], use_container_width=True, hide_index=True)
+                if s in personal:
+                    st.markdown(f"**Vigiladores a cargo ({r['VIGILADORES']})**")
+                    st.markdown(leyenda_planificacion_html(), unsafe_allow_html=True)
+                    st.markdown(grilla_planificacion_html(personal[s], anio, mes), unsafe_allow_html=True)
+
+        with st.expander("📋 COMPARATIVO DE TODOS LOS SUPERVISORES"):
+            st.dataframe(vista, use_container_width=True, hide_index=True)
+        cols_pdf = ["SUPERVISOR", "OBJETIVOS", "VIGILADORES", "DÍAS ACTIVOS", "HORAS", "VISITAS QR", "COBERTURA %",
+                    "HS VIGILADORES", "EXCEDIDOS", "FRANCOS CORTADOS", "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES"]
         try:
-            pdf_rel = generar_pdf_reporte(f"RELEVAMIENTO MENSUAL DE SUPERVISORES - {MESES_ES[mes - 1]} {anio}", comp[cols_pdf])
+            pdf_rel = generar_pdf_reporte(f"RELEVAMIENTO MENSUAL DE SUPERVISORES - {MESES_ES[mes - 1]} {anio}", vista[cols_pdf])
             st.download_button("📥 DESCARGAR RELEVAMIENTO (PDF)", data=pdf_rel,
                                file_name=f"relevamiento_supervisores_{periodo}.pdf", mime="application/pdf",
                                use_container_width=True, key=f"{key_prefix}_pdf")
         except Exception as e:
             print(f"Error generando PDF de relevamiento: {e}")
-
-        st.markdown("##### 🎯 COBERTURA DE OBJETIVOS VISITADOS (%)")
-        st.bar_chart(comp.set_index("SUPERVISOR")["COBERTURA %"])
-        st.markdown("##### ⏱️ HORAS DE JORNADA")
-        st.bar_chart(comp.set_index("SUPERVISOR")["HORAS"])
-        st.markdown("##### 📱 VISITAS QR A OBJETIVOS")
-        st.bar_chart(comp.set_index("SUPERVISOR")["VISITAS QR"])
-        st.markdown("##### 🚗 KILÓMETROS RECORRIDOS")
-        st.bar_chart(comp.set_index("SUPERVISOR")["KM"])
-
-        st.markdown("##### 👥 PERSONAL A CARGO: LICENCIA, ART Y VACACIONES")
-        pers = pd.DataFrame([
-            {"SUPERVISOR": s, "SIN NOVEDAD": int((d["ESTADO"] == "SIN NOVEDAD").sum()),
-             "LICENCIA": int((d["ESTADO"] == "LICENCIA").sum()),
-             "ART": int((d["ESTADO"] == "ART").sum()),
-             "VACACIONES": int((d["ESTADO"] == "VACACIONES").sum())}
-            for s, d in personal.items()
-        ])
-        if not pers.empty:
-            st.bar_chart(pers.set_index("SUPERVISOR"), color=["#2E7D32", "#EF5350", "#FF9800", "#AB47BC"])
-
-        st.markdown("##### 🛡️ DETALLE POR SUPERVISOR")
-        for _, r in comp.iterrows():
-            s = r["SUPERVISOR"]
-            with st.expander(f"🛡️ {s} · cobertura {r['COBERTURA %']}% · {r['VISITAS QR']} visitas"):
-                st.caption(
-                    f"⏱️ {r['DÍAS JORNADA']} días de jornada ({r['HORAS']} hs) · 🚗 {r['KM']} km · 🚨 {r['PÁNICOS']} pánicos · "
-                    f"📝 {r['NOVEDADES']} novedades · 🚶 {r['RONDAS COMPLETAS']} rondas completas de vigiladores")
-                st.markdown("**Objetivos**")
-                st.dataframe(detalle[s], use_container_width=True, hide_index=True)
-                if s in personal:
-                    st.markdown(f"**Vigiladores a cargo ({r['VIGILADORES']})** · 🟥 {r['LICENCIA']} licencia · 🟧 {r['ART']} ART · 🟪 {r['VACACIONES']} vacaciones")
-                    st.markdown(leyenda_planificacion_html(), unsafe_allow_html=True)
-                    st.markdown(grilla_planificacion_html(personal[s], anio, mes), unsafe_allow_html=True)
 
     with st.expander("➕ REGISTRAR NOVEDAD DE PERSONAL (licencia, ART, vacaciones)"):
         formulario_novedad_personal(key_prefix)
@@ -3986,4 +4130,3 @@ function bip() {
 }
 </script>
 """, height=0)
-     
