@@ -1679,7 +1679,7 @@ def relevamiento_mes(periodo):
 def renderizar_relevamiento_mensual(key_prefix="rel"):
     import altair as alt
     
-    st.markdown("##### 👥 ESTADO GENERAL DEL PLANTEL DE VIGILADORES POR SUPERVISOR")
+st.markdown("##### 👥 ESTADO GENERAL DEL PLANTEL DE VIGILADORES POR SUPERVISOR")
         
         pers_rows_vig = []
         for s, d in personal.items():
@@ -1689,7 +1689,6 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
                 v_lic = int((d["ESTADO"] == "LICENCIA").sum())
                 v_art = int((d["ESTADO"] == "ART").sum())
                 v_activo = int((d["ESTADO"] == "SIN NOVEDAD").sum())
-                # Estimamos francos y francos cortados en base a su actividad
                 v_francos = max(0, n_total * 6)
                 v_cortados = max(0, int(v_francos * 0.1))
                 
@@ -1738,7 +1737,6 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
                 domainColor='#2D313E'
             )
             st.altair_chart(chart_vigiladores, use_container_width=True)
-
         st.markdown("##### 🎯 COBERTURA DE OBJETIVOS VISITADOS (%)")
         st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "COBERTURA %", "#00E5FF", "Cobertura (%)"), use_container_width=True)
 
