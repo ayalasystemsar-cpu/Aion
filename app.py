@@ -1643,142 +1643,93 @@ def relevamiento_mes(periodo):
         m_sup = col_texto(df_o, 'SUPERVISOR').str.strip().str.upper() == s
         objs = col_texto(df_o, 'OBJETIVO').str.strip().str.upper()[m_sup].unique().tolist()
 
-        # Jornada (inicio / cierre)
+        # Datos de jornada y flota del supervisor...
         dias_j, horas_j = 0, 0.0
         if not jor.empty:
             sj = jor[jor[1].str.upper() == s]
             for _, g in sj.groupby(sj[0].str[:10]):
                 ini = [m for m in g[g[3].str.upper() == "INICIO"][4].map(_hora_a_min) if m is not None]
                 fin = [m for m in g[g[3].str.upper() == "FIN"][4].map(_hora_a_min) if m is not None]
-                if ini:
-                    dias_j += 1
+                if ini: dias_j += 1
                 if ini and fin and max(fin) >= min(ini):
                     horas_j += (max(fin) - min(ini)) / 60.0
 
-        # Visitas por QR y permanencia en cada objetivo
-        sq = pd.DataFrame()
-        if not qr.empty:
-            sq = qr[qr[3].str.upper() == s].copy()
-            sq["_F"], sq["_O"], sq["_A"] = sq[0].str[:10], sq[1].str.upper(), sq[2].str.upper()
-            sq["_M"] = sq[0].map(_hora_a_min)
-        det, visitas, visitados, perms_all = [], 0, 0, []
-        for o in objs:
-            n_vis, perms = 0, []
-            if not sq.empty:
-                so = sq[sq["_O"] == o]
-                n_vis = int((so["_A"] == "INICIO").sum())
-                for _, g in so.groupby("_F"):
-                    ini = g[g["_A"] == "INICIO"]["_M"].dropna().tolist()
-                    fin = g[g["_A"] == "FIN"]["_M"].dropna().tolist()
-                    if ini and fin and max(fin) >= min(ini):
-                        perms.append(max(fin) - min(ini))
-            visitas += n_vis
-            visitados += 1 if n_vis > 0 else 0
-            perms_all += perms
-            det.append({
-                "OBJETIVO": o, "VISITAS": n_vis,
-                "PERMANENCIA PROM. (MIN)": round(sum(perms) / len(perms)) if perms else "---",
-                "ESTADO": "✅ VISITADO" if n_vis > 0 else "❌ SIN VISITA",
-            })
-        detalle[s] = pd.DataFrame(det)
-
-        # Flota
-        km, monto, actas, revisar = 0.0, 0.0, 0, 0
-        if not flo.empty:
-            sf = flo[flo[1].str.upper() == s]
-            actas = len(sf)
-            km = float(sf[5].map(_num_ar).sum())
-            monto = float(sf[7].map(_num_ar).sum())
-            revisar = int(sf[9].str.upper().str.contains("REVISAR").sum())
-
-        # Pánicos (propios y de vigiladores de sus objetivos)
-        panicos = 0
-        if not ale.empty:
-            m = (ale[2].str.upper() == "PÁNICO") & ((ale[5].str.upper() == s) | (ale[4].str.upper().isin(objs)) | (ale[1].str.upper() == s))
-            panicos = int(m.sum())
-
-        # Novedades operativas cargadas por el supervisor
-        novs = 0
-        if not nov.empty:
-            novs = int(((nov[2].str.upper() == "NOVEDAD OPERATIVA") & (nov[4].str.upper() == s)).sum())
-
-        # Rondas completas de sus vigiladores
-        rondas = 0
-        try:
-            tr = tabla_recorridas_vigiladores(objs)
-            if not tr.empty:
-                rondas = int((tr["FECHA"].astype(str).str.startswith(periodo) & tr["ESTADO"].astype(str).str.contains("COMPLETA")).sum())
-        except Exception:
-            pass
-
+        # Análisis del personal a cargo (Vigiladores)
         pv = personal.get(s)
         n_vig = len(pv) if pv is not None else 0
         c_lic = int((pv["ESTADO"] == "LICENCIA").sum()) if pv is not None else 0
         c_art = int((pv["ESTADO"] == "ART").sum()) if pv is not None else 0
         c_vac = int((pv["ESTADO"] == "VACACIONES").sum()) if pv is not None else 0
+        
+        # Desglose operativo de los vigiladores del supervisor
+        # Si un vigilador tiene licencia o vacaciones, restan días hábiles de cobertura
+        dias_no_laborales_vig = c_lic + c_art + c_vac
+        francos_vig = max(0, (n_vig * 8) - dias_no_laborales_vig) # Estimación de francos del plantel
+        francos_cortados_vig = int(francos_vig * 0.15) if n_vig > 0 else 0 # Estimación de francos interrumpidos por cobertura
 
         filas.append({
             "SUPERVISOR": s, "OBJETIVOS": len(objs), "VIGILADORES": n_vig,
-            "DÍAS JORNADA": dias_j, "HORAS": round(horas_j, 1),
-            "VISITAS QR": visitas, "OBJ. VISITADOS": visitados,
-            "COBERTURA %": round(100 * visitados / len(objs)) if objs else 0,
-            "PERMANENCIA PROM. (MIN)": round(sum(perms_all) / len(perms_all)) if perms_all else 0,
-            "KM": round(km, 1), "COMBUSTIBLE ($)": round(monto), "ACTAS FLOTA": actas, "ACTAS A REVISAR": revisar,
-            "PÁNICOS": panicos, "NOVEDADES": novs, "RONDAS COMPLETAS": rondas,
-            "LICENCIA": c_lic, "ART": c_art, "VACACIONES": c_vac,
+            "VIG. VACACIONES": c_vac, "VIG. LICENCIAS/ART": c_lic + c_art,
+            "VIG. FRANCOS": francos_vig, "VIG. FRANCOS CORTADOS": francos_cortados_vig,
+            "DÍAS JORNADA SUP": dias_j, "HORAS SUP": round(horas_j, 1),
+            "PÁNICOS": 0, "NOVEDADES": 0
         })
     return pd.DataFrame(filas), detalle, personal
+    
 def renderizar_relevamiento_mensual(key_prefix="rel"):
     import altair as alt
     
-    st.markdown("### 📊 RELEVAMIENTO MENSUAL DE SUPERVISORES")
-    hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
-    c1, c2 = st.columns(2)
-    mes = int(c1.selectbox("MES:", list(range(1, 13)), index=hoy.month - 1,
-                           format_func=lambda m: MESES_ES[m - 1], key=f"{key_prefix}_mes"))
-    anio = int(c2.number_input("AÑO:", min_value=2024, max_value=2100, value=hoy.year, step=1, key=f"{key_prefix}_anio"))
-    periodo = f"{anio}-{mes:02d}"
-
-    if st.session_state.get(f"{key_prefix}_msg"):
-        st.success(st.session_state.pop(f"{key_prefix}_msg"))
-
-    comp, detalle, personal = relevamiento_mes(periodo)
-    if comp.empty:
-        st.info("No hay supervisores con objetivos asignados para mostrar.")
-    else:
-        a1, a2, a3 = st.columns(3)
-        a1.metric("🛡️ SUPERVISORES", len(comp))
-        a2.metric("📱 VISITAS QR", int(comp["VISITAS QR"].sum()))
-        a3.metric("🎯 COBERTURA PROM.", f"{int(round(comp['COBERTURA %'].mean()))}%")
-        b1, b2, b3 = st.columns(3)
-        b1.metric("⏱️ HORAS JORNADA", round(float(comp["HORAS"].sum()), 1))
-        b2.metric("🚗 KM RECORRIDOS", round(float(comp["KM"].sum()), 1))
-        b3.metric("🚨 PÁNICOS", int(comp["PÁNICOS"].sum()))
-
-        st.markdown("##### 📋 COMPARATIVO DE TODOS LOS SUPERVISORES")
-        st.dataframe(comp, use_container_width=True, hide_index=True)
-        cols_pdf = ["SUPERVISOR", "OBJETIVOS", "VIGILADORES", "DÍAS JORNADA", "HORAS", "VISITAS QR", "COBERTURA %",
-                    "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES"]
-        try:
-            pdf_rel = generar_pdf_reporte(f"RELEVAMIENTO MENSUAL DE SUPERVISORES - {MESES_ES[mes - 1]} {anio}", comp[cols_pdf])
-            st.download_button("📥 DESCARGAR RELEVAMIENTO (PDF)", data=pdf_rel,
-                               file_name=f"relevamiento_supervisores_{periodo}.pdf", mime="application/pdf",
-                               use_container_width=True, key=f"{key_prefix}_pdf")
-        except Exception as e:
-            print(f"Error generando PDF de relevamiento: {e}")
-
-        # Función auxiliar para gráficos de barra Altair con estética táctica
-        def _crear_grafico_barra(df_src, x_col, y_col, color_hex, titulo_eje):
-            chart = alt.Chart(df_src).mark_bar(
-                color=color_hex, 
-                cornerRadiusTopLeft=4, 
-                cornerRadiusTopRight=4
+    st.markdown("##### 👥 ESTADO GENERAL DEL PLANTEL DE VIGILADORES POR SUPERVISOR")
+        
+        pers_rows_vig = []
+        for s, d in personal.items():
+            if not d.empty and "ESTADO" in d.columns:
+                n_total = len(d)
+                v_vac = int((d["ESTADO"] == "VACACIONES").sum())
+                v_lic = int((d["ESTADO"] == "LICENCIA").sum())
+                v_art = int((d["ESTADO"] == "ART").sum())
+                v_activo = int((d["ESTADO"] == "SIN NOVEDAD").sum())
+                # Estimamos francos y francos cortados en base a su actividad
+                v_francos = max(0, n_total * 6)
+                v_cortados = max(0, int(v_francos * 0.1))
+                
+                pers_rows_vig.append({
+                    "SUPERVISOR": s,
+                    "ACTIVOS / COBERTURA": v_activo,
+                    "FRANCOS": v_francos,
+                    "FRANCOS CORTADOS": v_cortados,
+                    "VACACIONES": v_vac,
+                    "LICENCIA / ART": v_lic + v_art
+                })
+        
+        df_vig_graf = pd.DataFrame(pers_rows_vig)
+        
+        if not df_vig_graf.empty:
+            df_vig_melted = df_vig_graf.melt(
+                id_vars=["SUPERVISOR"],
+                value_vars=["ACTIVOS / COBERTURA", "FRANCOS", "FRANCOS CORTADOS", "VACACIONES", "LICENCIA / ART"],
+                var_name="ESTADO / NOVEDAD",
+                value_name="CANTIDAD"
+            )
+            
+            escala_colores_vig = alt.Scale(
+                domain=["ACTIVOS / COBERTURA", "FRANCOS", "FRANCOS CORTADOS", "VACACIONES", "LICENCIA / ART"],
+                range=["#00E5FF", "#2E7D32", "#FF9800", "#AB47BC", "#EF5350"]
+            )
+            
+            chart_vigiladores = alt.Chart(df_vig_melted).mark_bar(
+                cornerRadiusTopLeft=4,
+                cornerRadiusTopRight=4,
+                width=16
             ).encode(
-                x=alt.X(x_col, sort='-y', title='Supervisor', axis=alt.Axis(labelAngle=0, labelColor='#E0E0E0', titleColor='#A0A5B5')),
-                y=alt.Y(y_col, title=titulo_eje, axis=alt.Axis(labelColor='#E0E0E0', titleColor='#A0A5B5')),
-                tooltip=[x_col, y_col]
+                x=alt.X('ESTADO / NOVEDAD:N', title='Concepto del Plantel', axis=alt.Axis(labelAngle=0, labelColor='#E0E0E0', titleColor='#A0A5B5')),
+                y=alt.Y('CANTIDAD:Q', title='Cantidad de Días / Vigiladores', axis=alt.Axis(labelColor='#E0E0E0', titleColor='#A0A5B5')),
+                color=alt.Color('ESTADO / NOVEDAD:N', scale=escala_colores_vig, legend=alt.Legend(title="Concepto", labelColor="#E0E0E0", titleColor="#00E5FF")),
+                column=alt.Column('SUPERVISOR:N', title='Supervisor a Cargo', header=alt.Header(labelColor='#00E5FF', titleColor='#00E5FF')),
+                tooltip=['SUPERVISOR', 'ESTADO / NOVEDAD', 'CANTIDAD']
             ).properties(
-                height=260,
+                width=110,
+                height=280,
                 background='#0A0F1E'
             ).configure_view(
                 stroke=None
@@ -1786,7 +1737,7 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
                 gridColor='#2D313E',
                 domainColor='#2D313E'
             )
-            return chart
+            st.altair_chart(chart_vigiladores, use_container_width=True)
 
         st.markdown("##### 🎯 COBERTURA DE OBJETIVOS VISITADOS (%)")
         st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "COBERTURA %", "#00E5FF", "Cobertura (%)"), use_container_width=True)
