@@ -1728,8 +1728,9 @@ def relevamiento_mes(periodo):
             "LICENCIA": c_lic, "ART": c_art, "VACACIONES": c_vac,
         })
     return pd.DataFrame(filas), detalle, personal
-
 def renderizar_relevamiento_mensual(key_prefix="rel"):
+    import altair as alt
+    
     st.markdown("### 📊 RELEVAMIENTO MENSUAL DE SUPERVISORES")
     hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
     c1, c2 = st.columns(2)
@@ -1766,25 +1767,86 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
         except Exception as e:
             print(f"Error generando PDF de relevamiento: {e}")
 
+        # Función auxiliar para gráficos de barra Altair con estética táctica
+        def _crear_grafico_barra(df_src, x_col, y_col, color_hex, titulo_eje):
+            chart = alt.Chart(df_src).mark_bar(
+                color=color_hex, 
+                cornerRadiusTopLeft=4, 
+                cornerRadiusTopRight=4
+            ).encode(
+                x=alt.X(x_col, sort='-y', title='Supervisor', axis=alt.Axis(labelAngle=0, labelColor='#E0E0E0', titleColor='#A0A5B5')),
+                y=alt.Y(y_col, title=titulo_eje, axis=alt.Axis(labelColor='#E0E0E0', titleColor='#A0A5B5')),
+                tooltip=[x_col, y_col]
+            ).properties(
+                height=260,
+                background='#0A0F1E'
+            ).configure_view(
+                stroke=None
+            ).configure_axis(
+                gridColor='#2D313E',
+                domainColor='#2D313E'
+            )
+            return chart
+
         st.markdown("##### 🎯 COBERTURA DE OBJETIVOS VISITADOS (%)")
-        st.bar_chart(comp.set_index("SUPERVISOR")["COBERTURA %"])
+        st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "COBERTURA %", "#00E5FF", "Cobertura (%)"), use_container_width=True)
+
         st.markdown("##### ⏱️ HORAS DE JORNADA")
-        st.bar_chart(comp.set_index("SUPERVISOR")["HORAS"])
+        st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "HORAS", "#00B0FF", "Horas Totales"), use_container_width=True)
+
         st.markdown("##### 📱 VISITAS QR A OBJETIVOS")
-        st.bar_chart(comp.set_index("SUPERVISOR")["VISITAS QR"])
+        st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "VISITAS QR", "#00E676", "Cantidad de Visitas"), use_container_width=True)
+
         st.markdown("##### 🚗 KILÓMETROS RECORRIDOS")
-        st.bar_chart(comp.set_index("SUPERVISOR")["KM"])
+        st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "KM", "#FFEA00", "Kilómetros"), use_container_width=True)
 
         st.markdown("##### 👥 PERSONAL A CARGO: LICENCIA, ART Y VACACIONES")
-        pers = pd.DataFrame([
-            {"SUPERVISOR": s, "SIN NOVEDAD": int((d["ESTADO"] == "SIN NOVEDAD").sum()),
-             "LICENCIA": int((d["ESTADO"] == "LICENCIA").sum()),
-             "ART": int((d["ESTADO"] == "ART").sum()),
-             "VACACIONES": int((d["ESTADO"] == "VACACIONES").sum())}
-            for s, d in personal.items()
-        ])
+        pers_rows = []
+        for s, d in personal.items():
+            if not d.empty and "ESTADO" in d.columns:
+                pers_rows.append({
+                    "SUPERVISOR": s,
+                    "SIN NOVEDAD": int((d["ESTADO"] == "SIN NOVEDAD").sum()),
+                    "LICENCIA": int((d["ESTADO"] == "LICENCIA").sum()),
+                    "ART": int((d["ESTADO"] == "ART").sum()),
+                    "VACACIONES": int((d["ESTADO"] == "VACACIONES").sum())
+                })
+        pers = pd.DataFrame(pers_rows)
+
         if not pers.empty:
-            st.bar_chart(pers.set_index("SUPERVISOR"), color=["#2E7D32", "#EF5350", "#FF9800", "#AB47BC"])
+            pers_melted = pers.melt(
+                id_vars=["SUPERVISOR"], 
+                value_vars=["SIN NOVEDAD", "LICENCIA", "ART", "VACACIONES"],
+                var_name="ESTADO", 
+                value_name="CANTIDAD"
+            )
+            
+            color_scale = alt.Scale(
+                domain=["SIN NOVEDAD", "LICENCIA", "ART", "VACACIONES"],
+                range=["#2E7D32", "#EF5350", "#FF9800", "#AB47BC"]
+            )
+            
+            chart_pers = alt.Chart(pers_melted).mark_bar(
+                cornerRadiusTopLeft=3, 
+                cornerRadiusTopRight=3
+            ).encode(
+                x=alt.X('SUPERVISOR:N', title='Supervisor', axis=alt.Axis(labelAngle=0, labelColor='#E0E0E0', titleColor='#A0A5B5')),
+                y=alt.Y('CANTIDAD:Q', title='Cantidad de Vigiladores', axis=alt.Axis(labelColor='#E0E0E0', titleColor='#A0A5B5')),
+                color=alt.Color('ESTADO:N', scale=color_scale, title='Estado'),
+                tooltip=['SUPERVISOR', 'ESTADO', 'CANTIDAD']
+            ).properties(
+                height=280,
+                background='#0A0F1E'
+            ).configure_view(
+                stroke=None
+            ).configure_axis(
+                gridColor='#2D313E',
+                domainColor='#2D313E'
+            ).configure_legend(
+                labelColor='#E0E0E0',
+                titleColor='#00E5FF'
+            )
+            st.altair_chart(chart_pers, use_container_width=True)
 
         st.markdown("##### 🛡️ DETALLE POR SUPERVISOR")
         for _, r in comp.iterrows():
