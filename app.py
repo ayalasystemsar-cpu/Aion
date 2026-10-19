@@ -1679,7 +1679,75 @@ def relevamiento_mes(periodo):
 def renderizar_relevamiento_mensual(key_prefix="rel"):
     import altair as alt
     
-st.markdown("##### 👥 ESTADO GENERAL DEL PLANTEL DE VIGILADORES POR SUPERVISOR")
+    st.markdown("### 📊 RELEVAMIENTO MENSUAL DE SUPERVISORES")
+    hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
+    c1, c2 = st.columns(2)
+    mes = int(c1.selectbox("MES:", list(range(1, 13)), index=hoy.month - 1,
+                           format_func=lambda m: MESES_ES[m - 1], key=f"{key_prefix}_mes"))
+    anio = int(c2.number_input("AÑO:", min_value=2024, max_value=2100, value=hoy.year, step=1, key=f"{key_prefix}_anio"))
+    periodo = f"{anio}-{mes:02d}"
+
+    if st.session_state.get(f"{key_prefix}_msg"):
+        st.success(st.session_state.pop(f"{key_prefix}_msg"))
+
+    comp, detalle, personal = relevamiento_mes(periodo)
+    if comp.empty:
+        st.info("No hay supervisores con objetivos asignados para mostrar.")
+    else:
+        a1, a2, a3 = st.columns(3)
+        a1.metric("🛡️ SUPERVISORES", len(comp))
+        a2.metric("📱 VISITAS QR", int(comp["VISITAS QR"].sum()))
+        a3.metric("🎯 COBERTURA PROM.", f"{int(round(comp['COBERTURA %'].mean()))}%")
+        b1, b2, b3 = st.columns(3)
+        b1.metric("⏱️ HORAS JORNADA", round(float(comp["HORAS"].sum()), 1))
+        b2.metric("🚗 KM RECORRIDOS", round(float(comp["KM"].sum()), 1))
+        b3.metric("🚨 PÁNICOS", int(comp["PÁNICOS"].sum()))
+
+        st.markdown("##### 📋 COMPARATIVO DE TODOS LOS SUPERVISORES")
+        st.dataframe(comp, use_container_width=True, hide_index=True)
+        cols_pdf = ["SUPERVISOR", "OBJETIVOS", "VIGILADORES", "DÍAS JORNADA", "HORAS", "VISITAS QR", "COBERTURA %",
+                    "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES"]
+        try:
+            pdf_rel = generar_pdf_reporte(f"RELEVAMIENTO MENSUAL DE SUPERVISORES - {MESES_ES[mes - 1]} {anio}", comp[cols_pdf])
+            st.download_button("📥 DESCARGAR RELEVAMIENTO (PDF)", data=pdf_rel,
+                               file_name=f"relevamiento_supervisores_{periodo}.pdf", mime="application/pdf",
+                               use_container_width=True, key=f"{key_prefix}_pdf")
+        except Exception as e:
+            print(f"Error generando PDF de relevamiento: {e}")
+
+        def _crear_grafico_barra(df_src, x_col, y_col, color_hex, titulo_eje):
+            chart = alt.Chart(df_src).mark_bar(
+                color=color_hex, 
+                cornerRadiusTopLeft=4, 
+                cornerRadiusTopRight=4
+            ).encode(
+                x=alt.X(x_col, sort='-y', title='Supervisor', axis=alt.Axis(labelAngle=0, labelColor='#E0E0E0', titleColor='#A0A5B5')),
+                y=alt.Y(y_col, title=titulo_eje, axis=alt.Axis(labelColor='#E0E0E0', titleColor='#A0A5B5')),
+                tooltip=[x_col, y_col]
+            ).properties(
+                height=260,
+                background='#0A0F1E'
+            ).configure_view(
+                stroke=None
+            ).configure_axis(
+                gridColor='#2D313E',
+                domainColor='#2D313E'
+            )
+            return chart
+
+        st.markdown("##### 🎯 COBERTURA DE OBJETIVOS VISITADOS (%)")
+        st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "COBERTURA %", "#00E5FF", "Cobertura (%)"), use_container_width=True)
+
+        st.markdown("##### ⏱️ HORAS DE JORNADA")
+        st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "HORAS", "#00B0FF", "Horas Totales"), use_container_width=True)
+
+        st.markdown("##### 📱 VISITAS QR A OBJETIVOS")
+        st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "VISITAS QR", "#00E676", "Cantidad de Visitas"), use_container_width=True)
+
+        st.markdown("##### 🚗 KILÓMETROS RECORRIDOS")
+        st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "KM", "#FFEA00", "Kilómetros"), use_container_width=True)
+
+        st.markdown("##### 👥 ESTADO GENERAL DEL PLANTEL DE VIGILADORES POR SUPERVISOR")
         
         pers_rows_vig = []
         for s, d in personal.items():
@@ -1737,6 +1805,23 @@ st.markdown("##### 👥 ESTADO GENERAL DEL PLANTEL DE VIGILADORES POR SUPERVISOR
                 domainColor='#2D313E'
             )
             st.altair_chart(chart_vigiladores, use_container_width=True)
+
+        st.markdown("##### 🛡️ DETALLE POR SUPERVISOR")
+        for _, r in comp.iterrows():
+            s = r["SUPERVISOR"]
+            with st.expander(f"🛡️ {s} · cobertura {r['COBERTURA %']}% · {r['VISITAS QR']} visitas"):
+                st.caption(
+                    f"⏱️ {r['DÍAS JORNADA']} días de jornada ({r['HORAS']} hs) · 🚗 {r['KM']} km · 🚨 {r['PÁNICOS']} pánicos · "
+                    f"📝 {r['NOVEDADES']} novedades · 🚶 {r['RONDAS COMPLETAS']} rondas completas de vigiladores")
+                st.markdown("**Objetivos**")
+                st.dataframe(detalle[s], use_container_width=True, hide_index=True)
+                if s in personal:
+                    st.markdown(f"**Vigiladores a cargo ({r['VIGILADORES']})** · 🟥 {r['LICENCIA']} licencia · 🟧 {r['ART']} ART · 🟪 {r['VACACIONES']} vacaciones")
+                    st.markdown(leyenda_planificacion_html(), unsafe_allow_html=True)
+                    st.markdown(grilla_planificacion_html(personal[s], anio, mes), unsafe_allow_html=True)
+
+    with st.expander("➕ REGISTRAR NOVEDAD DE PERSONAL (licencia, ART, vacaciones)"):
+        formulario_novedad_personal(key_prefix)
         st.markdown("##### 🎯 COBERTURA DE OBJETIVOS VISITADOS (%)")
         st.altair_chart(_crear_grafico_barra(comp, "SUPERVISOR", "COBERTURA %", "#00E5FF", "Cobertura (%)"), use_container_width=True)
 
