@@ -12,6 +12,7 @@ import folium
 from folium.plugins import AntPath
 from streamlit_folium import st_folium
 import math
+import calendar
 import re
 import requests
 from branca.element import Element
@@ -182,6 +183,8 @@ def actualizar_estado_padron(fila_sheet, nuevo_estado):
         encabezados = [str(h).strip().upper() for h in hoja.row_values(1)]
         col = encabezados.index("ESTADO") + 1
         hoja.update_cell(fila_sheet, col, nuevo_estado)
+        if nuevo_estado == "BAJA" and "FECHA_BAJA" in encabezados:
+            hoja.update_cell(fila_sheet, encabezados.index("FECHA_BAJA") + 1, obtener_hora_argentina().split(" ")[0])
         st.cache_data.clear()
         return True
     except Exception as e:
@@ -1426,6 +1429,274 @@ def tabla_recorridas_vigiladores(objs_sup):
     df_out = pd.DataFrame(filas)
     return df_out.sort_values(['FECHA', 'INICIÓ'], ascending=False).reset_index(drop=True)
 
+# --- 3.C CUADRANTE DE SERVICIOS Y ESTADÍSTICAS DE PERSONAL ---
+HORAS_MAX_MES = 200  # ajustar según convenio
+
+CUADRANTE_CODIGOS = {
+    "D":  ("DIURNO 06-18", 12, "#FFD54F", "#000"),
+    "N":  ("NOCTURNO 18-06", 12, "#5C6BC0", "#FFF"),
+    "F":  ("FRANCO", 0, "#66BB6A", "#000"),
+    "FC": ("FRANCO CORTADO", 6, "#26C6DA", "#000"),
+    "V":  ("VACACIONES", 0, "#AB47BC", "#FFF"),
+    "L":  ("LICENCIA", 0, "#EF5350", "#FFF"),
+    "A":  ("AUSENTE / FALTA", 0, "#8D6E63", "#FFF"),
+}
+MESES_ES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO",
+            "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+LETRAS_DIA = ["L", "M", "M", "J", "V", "S", "D"]
+
+def vigiladores_de_supervisor(sup):
+    vacio = pd.DataFrame(columns=["OBJETIVO", "VIGILADOR", "DNI"])
+    df_o = cargar_objetivos()
+    df_p = leer_matriz_nube("PADRON VIGILADORES")
+    if df_o.empty or df_p.empty or 'SUPERVISOR' not in df_o.columns or not {'DNI', 'NOMBRE', 'OBJETIVO'} <= set(df_p.columns):
+        return vacio
+    m_sup = col_texto(df_o, 'SUPERVISOR').str.strip().str.upper() == str(sup).strip().upper()
+    objs = col_texto(df_o, 'OBJETIVO').str.strip().str.upper()[m_sup].tolist()
+    df_p = df_p.copy()
+    df_p['_OBJ'] = col_texto(df_p, 'OBJETIVO').str.strip().str.upper()
+    if 'ESTADO' in df_p.columns:
+        df_p = df_p[col_texto(df_p, 'ESTADO').str.strip().str.upper() == "ACTIVO"]
+    df_p = df_p[df_p['_OBJ'].isin(objs)]
+    if df_p.empty:
+        return vacio
+    return pd.DataFrame({
+        "OBJETIVO": df_p['_OBJ'].values,
+        "VIGILADOR": col_texto(df_p, 'NOMBRE').str.strip().str.upper().values,
+        "DNI": col_texto(df_p, 'DNI').str.replace(r'\D', '', regex=True).values,
+    }).sort_values(["OBJETIVO", "VIGILADOR"]).reset_index(drop=True)
+
+def cargar_cuadrante(periodo, sup=None):
+    df = leer_matriz_nube("PLANIFICACION")
+    if df.empty or not {'PERIODO', 'SUPERVISOR'} <= set(df.columns):
+        return pd.DataFrame()
+    df = df[col_texto(df, 'PERIODO').str.strip() == periodo]
+    if sup:
+        df = df[col_texto(df, 'SUPERVISOR').str.strip().str.upper() == str(sup).strip().upper()]
+    return df.reset_index(drop=True)
+
+def guardar_cuadrante(periodo, sup, df_edit, dias):
+    try:
+        gc = conectar_google()
+        if not gc:
+            return False
+        sh = gc.open_by_key(ID_MAESTRO_DB)
+        encabezado = ["PERIODO", "SUPERVISOR", "OBJETIVO", "VIGILADOR", "DNI"] + [str(d) for d in range(1, 32)]
+        try:
+            hoja = sh.worksheet("PLANIFICACION")
+        except Exception:
+            hoja = sh.add_worksheet(title="PLANIFICACION", rows="300", cols="40")
+            hoja.append_row(encabezado)
+        actuales = hoja.get_all_values() or [encabezado]
+        resto = [f for f in actuales[1:]
+                 if not (len(f) > 1 and f[0].strip() == periodo and f[1].strip().upper() == str(sup).strip().upper())]
+        nuevas = []
+        for _, r in df_edit.iterrows():
+            codigos = []
+            for d in range(1, 32):
+                v = str(r.get(str(d), "")).strip().upper() if str(d) in dias else ""
+                codigos.append("" if v == "-" else v)
+            nuevas.append([periodo, str(sup).strip().upper(), r["OBJETIVO"], r["VIGILADOR"], str(r["DNI"])] + codigos)
+        todo = [encabezado] + resto + nuevas
+        hoja.resize(rows=max(len(todo) + 50, hoja.row_count), cols=max(36, hoja.col_count))
+        hoja.clear()
+        hoja.update(todo)
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error guardando cuadrante: {e}")
+        return False
+
+def resumen_cuadrante(df, dias):
+    filas = []
+    for _, r in df.iterrows():
+        cods = [str(r.get(d, "")).strip().upper() for d in dias]
+        horas = sum(CUADRANTE_CODIGOS[c][1] for c in cods if c in CUADRANTE_CODIGOS)
+        filas.append({
+            "OBJETIVO": r["OBJETIVO"], "VIGILADOR": r["VIGILADOR"],
+            "DÍAS TRAB.": sum(c in ("D", "N") for c in cods),
+            "FRANCOS": cods.count("F"),
+            "FR. CORTADOS": cods.count("FC"),
+            "FALTAS": cods.count("A"),
+            "HORAS": horas,
+            "EXCESO HS": max(0, horas - HORAS_MAX_MES),
+            "SIN CARGAR": sum(c in ("", "-") for c in cods),
+        })
+    return pd.DataFrame(filas)
+
+def grilla_cuadrante_html(df, dias, anio, mes):
+    import html as _h
+    cab = "".join(
+        f'<th style="padding:2px 4px;font-size:10px;color:{"#FF8A80" if calendar.weekday(anio, mes, int(d)) >= 5 else "#A0A5B5"};">'
+        f'{LETRAS_DIA[calendar.weekday(anio, mes, int(d))]}<br>{d}</th>' for d in dias)
+    filas = ""
+    for _, r in df.iterrows():
+        celdas = ""
+        for d in dias:
+            c = str(r.get(d, "")).strip().upper()
+            if c in CUADRANTE_CODIGOS:
+                _, _, bg, fg = CUADRANTE_CODIGOS[c]
+                celdas += f'<td style="background:{bg};color:{fg};text-align:center;font-size:10px;font-weight:bold;padding:3px 2px;border:1px solid #0A0F1E;">{c}</td>'
+            else:
+                celdas += '<td style="background:#1A1C23;border:1px solid #0A0F1E;"></td>'
+        filas += (f'<tr><td style="padding:3px 8px;font-size:11px;white-space:nowrap;color:#E0E0E0;position:sticky;left:0;background:#0A0F1E;">'
+                  f'{_h.escape(str(r["VIGILADOR"]))}</td>{celdas}</tr>')
+    leyenda = "".join(
+        f'<span style="background:{v[2]};color:{v[3]};padding:2px 8px;border-radius:4px;font-size:11px;margin-right:6px;display:inline-block;margin-bottom:4px;">{k} = {v[0]}</span>'
+        for k, v in CUADRANTE_CODIGOS.items())
+    return (f'<div style="margin-bottom:6px;">{leyenda}</div>'
+            f'<div style="overflow-x:auto;"><table style="border-collapse:collapse;"><tr><th></th>{cab}</tr>{filas}</table></div>')
+
+def vista_cuadrante(periodo, sup=None, key_prefix="cu"):
+    df = cargar_cuadrante(periodo, sup)
+    if df.empty:
+        st.info("Todavía no hay cuadrante cargado para este período.")
+        return
+    anio, mes = map(int, periodo.split("-"))
+    dias = [str(d) for d in range(1, calendar.monthrange(anio, mes)[1] + 1)]
+    for d in dias:
+        if d not in df.columns:
+            df[d] = ""
+    for s in sorted(col_texto(df, 'SUPERVISOR').str.strip().str.upper().unique()):
+        sub = df[col_texto(df, 'SUPERVISOR').str.strip().str.upper() == s]
+        st.markdown(f"#### 🛡️ SUPERVISOR: {s}")
+        st.markdown(grilla_cuadrante_html(sub, dias, anio, mes), unsafe_allow_html=True)
+        res = resumen_cuadrante(sub, dias)
+        m1, m2, m3 = st.columns(3)
+        m1.metric("⏱️ HORAS TOTALES", int(res["HORAS"].sum()))
+        m2.metric("🟢 FRANCOS", int(res["FRANCOS"].sum()))
+        m3.metric("🔹 FR. CORTADOS", int(res["FR. CORTADOS"].sum()))
+        st.dataframe(res, use_container_width=True, hide_index=True)
+        st.bar_chart(res.set_index("VIGILADOR")["HORAS"])
+        st.markdown("---")
+
+def editor_cuadrante(periodo, sup, key_prefix="cu"):
+    anio, mes = map(int, periodo.split("-"))
+    dias = [str(d) for d in range(1, calendar.monthrange(anio, mes)[1] + 1)]
+    base = vigiladores_de_supervisor(sup)
+    if base.empty:
+        st.info("No hay vigiladores activos en tus objetivos para planificar.")
+        return
+    guardado = cargar_cuadrante(periodo, sup)
+    filas = []
+    for _, v in base.iterrows():
+        fila = {"OBJETIVO": v["OBJETIVO"], "VIGILADOR": v["VIGILADOR"], "DNI": v["DNI"]}
+        previo = guardado[col_texto(guardado, 'DNI') == v["DNI"]] if not guardado.empty and 'DNI' in guardado.columns else pd.DataFrame()
+        for d in dias:
+            val = str(previo.iloc[0][d]).strip().upper() if not previo.empty and d in previo.columns else ""
+            fila[d] = val if val else "-"
+        filas.append(fila)
+    cfg = {d: st.column_config.SelectboxColumn(d, options=["-"] + list(CUADRANTE_CODIGOS.keys()), width="small") for d in dias}
+    editado = st.data_editor(pd.DataFrame(filas), column_config=cfg,
+                             disabled=["OBJETIVO", "VIGILADOR", "DNI"], hide_index=True,
+                             use_container_width=True, key=f"{key_prefix}_editor_{periodo}")
+    st.dataframe(resumen_cuadrante(editado, dias), use_container_width=True, hide_index=True)
+    if st.button("💾 GUARDAR CUADRANTE", use_container_width=True, key=f"{key_prefix}_guardar_{periodo}"):
+        if guardar_cuadrante(periodo, sup, editado, dias):
+            st.success("✅ Cuadrante guardado. Ya lo ve Jefe de Operaciones y Gerencia.")
+        else:
+            st.error("❌ No se pudo guardar. Revisá la conexión con Google Sheets.")
+
+def contar_bajas_supervisor(sup, periodo):
+    df_o = cargar_objetivos()
+    df_p = leer_matriz_nube("PADRON VIGILADORES")
+    if df_o.empty or df_p.empty or 'SUPERVISOR' not in df_o.columns or not {'OBJETIVO', 'ESTADO'} <= set(df_p.columns):
+        return 0, False
+    m_sup = col_texto(df_o, 'SUPERVISOR').str.strip().str.upper() == str(sup).strip().upper()
+    objs = col_texto(df_o, 'OBJETIVO').str.strip().str.upper()[m_sup].tolist()
+    bajas = df_p[(col_texto(df_p, 'OBJETIVO').str.strip().str.upper().isin(objs)) &
+                 (col_texto(df_p, 'ESTADO').str.strip().str.upper() == "BAJA")]
+    if 'FECHA_BAJA' in bajas.columns:
+        return int(col_texto(bajas, 'FECHA_BAJA').str.strip().str.startswith(periodo).sum()), True
+    return len(bajas), False
+
+def estadisticas_cuadrante(periodo, sup=None):
+    df = cargar_cuadrante(periodo, sup)
+    if df.empty:
+        st.info("Todavía no hay cuadrante cargado para este período.")
+        return
+    anio, mes = map(int, periodo.split("-"))
+    dias = [str(d) for d in range(1, calendar.monthrange(anio, mes)[1] + 1)]
+    for d in dias:
+        if d not in df.columns:
+            df[d] = ""
+
+    partes, filas_sup, hay_fecha_baja = [], [], True
+    for s in sorted(col_texto(df, 'SUPERVISOR').str.strip().str.upper().unique()):
+        sub = df[col_texto(df, 'SUPERVISOR').str.strip().str.upper() == s]
+        res = resumen_cuadrante(sub, dias)
+        res.insert(0, "SUPERVISOR", s)
+        partes.append(res)
+        bajas, mensual = contar_bajas_supervisor(s, periodo)
+        hay_fecha_baja = hay_fecha_baja and mensual
+        filas_sup.append({
+            "SUPERVISOR": s, "VIGILADORES": len(res), "HORAS": int(res["HORAS"].sum()),
+            "EXCEDIDOS": int((res["EXCESO HS"] > 0).sum()),
+            "FR. CORTADOS": int(res["FR. CORTADOS"].sum()),
+            "FALTAS": int(res["FALTAS"].sum()), "BAJAS": bajas,
+            "SIN CARGAR": int(res["SIN CARGAR"].sum()),
+        })
+    total = pd.concat(partes, ignore_index=True)
+    df_sup = pd.DataFrame(filas_sup)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("⏱️ HORAS TOTALES", int(total["HORAS"].sum()))
+    c2.metric("⚠️ EXCEDIDOS", int((total["EXCESO HS"] > 0).sum()))
+    c3.metric("🔹 FR. CORTADOS", int(total["FR. CORTADOS"].sum()))
+    c4, c5, c6 = st.columns(3)
+    c4.metric("❌ FALTAS", int(total["FALTAS"].sum()))
+    c5.metric("🚫 BAJAS", int(df_sup["BAJAS"].sum()))
+    c6.metric("📏 LÍMITE HS/MES", HORAS_MAX_MES)
+    if not hay_fecha_baja:
+        st.caption("ℹ️ El padrón no guarda fecha de baja: las bajas mostradas son el total acumulado, no solo las del mes.")
+
+    for _, r in total[total["EXCESO HS"] > 0].sort_values("EXCESO HS", ascending=False).iterrows():
+        st.warning(f"⚠️ {r['VIGILADOR']} ({r['SUPERVISOR']}) trabajó {r['HORAS']} hs: {r['EXCESO HS']} hs sobre el límite.")
+
+    st.markdown("##### 👷 DETALLE POR VIGILADOR")
+    det = total.copy()
+    det["ESTADO"] = det["EXCESO HS"].map(lambda x: "⚠️ EXCEDIDO" if x > 0 else "✅ EN LÍMITE")
+    st.dataframe(
+        det[["SUPERVISOR", "OBJETIVO", "VIGILADOR", "HORAS", "EXCESO HS", "ESTADO", "FR. CORTADOS", "FALTAS", "FRANCOS", "SIN CARGAR"]]
+        .sort_values("HORAS", ascending=False),
+        use_container_width=True, hide_index=True)
+    st.bar_chart(total.set_index("VIGILADOR")["HORAS"])
+
+    st.markdown("##### 🛡️ RESUMEN POR SUPERVISOR")
+    st.dataframe(df_sup, use_container_width=True, hide_index=True)
+    st.bar_chart(df_sup.set_index("SUPERVISOR")[["FALTAS", "FR. CORTADOS", "BAJAS", "EXCEDIDOS"]])
+
+def _selector_periodo(key_prefix):
+    hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
+    c1, c2 = st.columns(2)
+    mes = c1.selectbox("MES:", list(range(1, 13)), index=hoy.month - 1,
+                       format_func=lambda m: MESES_ES[m - 1], key=f"{key_prefix}_mes")
+    anio = c2.number_input("AÑO:", min_value=2024, max_value=2100, value=hoy.year, step=1, key=f"{key_prefix}_anio")
+    return f"{int(anio)}-{int(mes):02d}"
+
+def renderizar_cuadrante_servicios(supervisor_fijo=None, editar=False, key_prefix="cu"):
+    st.markdown("### 📅 CUADRANTE DE SERVICIOS")
+    periodo = _selector_periodo(key_prefix)
+    if supervisor_fijo:
+        sup = supervisor_fijo
+    else:
+        elegido = st.selectbox("SUPERVISOR:", ["TODOS"] + LISTA_SUPS_TACTICOS, key=f"{key_prefix}_sup")
+        sup = None if elegido == "TODOS" else elegido
+    if editar and sup:
+        t_v, t_c = st.tabs(["📊 VISTA", "✏️ CARGA"])
+        with t_v:
+            vista_cuadrante(periodo, sup, key_prefix)
+        with t_c:
+            editor_cuadrante(periodo, sup, key_prefix)
+    else:
+        vista_cuadrante(periodo, sup, key_prefix)
+
+def renderizar_estadisticas_servicios(key_prefix="est"):
+    st.markdown("### 📈 ESTADÍSTICAS DE PERSONAL")
+    periodo = _selector_periodo(key_prefix)
+    elegido = st.selectbox("SUPERVISOR:", ["TODOS"] + LISTA_SUPS_TACTICOS, key=f"{key_prefix}_sup")
+    estadisticas_cuadrante(periodo, None if elegido == "TODOS" else elegido)
+
 def mostrar_landing():
     aplicar_identidad_alfa()
     st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
@@ -1672,6 +1943,15 @@ else:
             st.query_params.clear()
             st.rerun()
 
+if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
+    with st.sidebar:
+        st.markdown("---")
+        st.radio("SECCIÓN:", [
+            "📋 COMANDO",
+            "📅 CUADRANTE DE SERVICIOS",
+            "📈 ESTADÍSTICAS DE PERSONAL"
+        ], key="radio_seccion_jefe")
+
 st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
 
 st.markdown(f"""
@@ -1690,6 +1970,15 @@ titulos = {
     "ADMINISTRADOR": "⚙️ NÚCLEO MAESTRO: AION-YAROKU"
 }
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
+
+if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
+    _seccion_jefe = st.session_state.get("radio_seccion_jefe")
+    if _seccion_jefe == "📅 CUADRANTE DE SERVICIOS":
+        renderizar_cuadrante_servicios(key_prefix="jefe")
+        st.stop()
+    elif _seccion_jefe == "📈 ESTADÍSTICAS DE PERSONAL":
+        renderizar_estadisticas_servicios(key_prefix="jefe_est")
+        st.stop()
 
 # =========================================================================
 # ROL: MONITOREO
@@ -2323,8 +2612,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 </div>
             """, unsafe_allow_html=True)
 
-        t_vis_qr, t_nuevo_obj, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
+        t_vis_qr, t_nuevo_obj, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup, t_cuadrante_sup = st.tabs([
+            "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS", "📅 CUADRANTE"
         ])
          
         with t_vis_qr:
@@ -2629,6 +2918,9 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         with t_mensajeria_sup:
             renderizar_mensajeria_global("SUPERVISOR")
          
+        with t_cuadrante_sup:
+            renderizar_cuadrante_servicios(supervisor_fijo=sup_activo_normalizado, editar=True, key_prefix="sup")
+
         with t_pres_sup:
             st.markdown(f"#### 📱 MIS ESCANEOS QR REGISTRADOS EN CAMPO")
             df_qr_sup_base = leer_matriz_nube("REGISTRO QR SUPERVISORES")
