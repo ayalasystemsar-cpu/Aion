@@ -750,24 +750,34 @@ def renderizar_mensajeria_global(rol_contexto):
 
 def mostrar_notificaciones_sidebar():
     usuario_actual = str(st.session_state.get('user_sel', '')).strip().upper()
-    
+    rol_actual = str(st.session_state.get('rol_sel', '')).strip().upper()
+    destinos = {usuario_actual}
+    if rol_actual in ("JEFE DE OPERACIONES", "GERENCIA"):
+        destinos.add(rol_actual)
+
     df_notif = leer_matriz_nube("NOTIFICACIONES_SUPERVISORES")
     if df_notif.empty or not {'SUPERVISOR', 'MENSAJE', 'ESTADO'} <= set(df_notif.columns):
         return
 
     pend = df_notif[
-        (col_texto(df_notif, 'SUPERVISOR').str.strip().str.upper() == usuario_actual) &
+        (col_texto(df_notif, 'SUPERVISOR').str.strip().str.upper().isin(destinos)) &
         (col_texto(df_notif, 'ESTADO').str.strip().str.upper() == "PENDIENTE")
     ]
 
     if not pend.empty:
         st.markdown("---")
-        st.markdown(f"### 🔔 NOTIFICACIONES DE ALTA ({len(pend)})")
-        for idx_n, fila_n in pend.iterrows():
+        st.markdown(f"### 🔔 NOTIFICACIONES ({len(pend)})")
+        if len(pend) > 1:
+            if st.button("✔️ MARCAR TODAS COMO LEÍDAS", key="btn_notif_todas", use_container_width=True):
+                if marcar_notificaciones_leidas(list(pend.index)):
+                    st.rerun()
+        for idx_n, fila_n in pend.iloc[::-1].head(8).iterrows():
             st.warning(f"{fila_n.get('MENSAJE', '')}")
             if st.button("✔️ LEÍDO / OK", key=f"btn_notif_{idx_n}", use_container_width=True):
                 if actualizar_celda("NOTIFICACIONES_SUPERVISORES", idx_n + 2, "D", "LEÍDO"):
                     st.rerun()
+        if len(pend) > 8:
+            st.caption(f"y {len(pend) - 8} notificaciones más (las más viejas).")
 
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
@@ -1434,8 +1444,11 @@ TIPOS_NOVEDAD_PERSONAL = {
     "VACACIONES": ("V",   "#AB47BC", "#FFF"),
     "AUSENTE":    ("A",   "#F4D03F", "#000"),
     "FRANCO":     ("F",   "#5C9BD5", "#FFF"),
+    "PRÉSTAMO":   ("P",   "#26A69A", "#FFF"),
 }
-PRIORIDAD_NOVEDAD = ["LICENCIA", "ART", "VACACIONES", "AUSENTE", "FRANCO"]
+PRIORIDAD_NOVEDAD = ["LICENCIA", "ART", "VACACIONES", "AUSENTE", "FRANCO", "PRÉSTAMO"]
+# El préstamo no se carga como novedad suelta: sale de la hoja PRESTAMOS VIGILADORES.
+TIPOS_REGISTRABLES = [t for t in TIPOS_NOVEDAD_PERSONAL if t != "PRÉSTAMO"]
 MESES_ES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO",
             "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
 LETRAS_DIA = ["L", "M", "M", "J", "V", "S", "D"]
@@ -1498,11 +1511,14 @@ def registrar_novedad_personal(dni, vigilador, objetivo, supervisor, tipo, desde
         except Exception:
             hoja = sh.add_worksheet(title="NOVEDADES PERSONAL", rows="200", cols="12")
             hoja.append_row(["FECHA_REGISTRO", "DNI", "VIGILADOR", "OBJETIVO", "SUPERVISOR", "TIPO",
-                             "DESDE", "HASTA", "OBSERVACION", "REGISTRADO_POR"])
+                             "DESDE", "HASTA", "OBSERVACION", "REGISTRADO_POR", "MODIFICADO_POR", "FECHA_MODIFICACION"])
         hoja.append_row([obtener_hora_argentina(), str(dni), vigilador, objetivo, supervisor, tipo,
                          desde.strftime("%Y-%m-%d"), hasta.strftime("%Y-%m-%d"),
                          str(obs).strip().upper(), str(st.session_state.get("user_sel", "")).upper()])
         st.cache_data.clear()
+        notificar_novedad("📝 " + str(st.session_state.get("user_sel", "")).upper() + " registró " + str(tipo) + " a " + str(vigilador) +
+                          " (" + str(objetivo) + ") del " + desde.strftime("%d/%m/%Y") + " al " + hasta.strftime("%d/%m/%Y") +
+                          (" · " + str(obs).strip().upper() if str(obs).strip() else ""))
         return True
     except Exception as e:
         print(f"Error registrando novedad de personal: {e}")
@@ -1513,6 +1529,9 @@ def planificacion_mes(periodo):
     primero = pd.Timestamp(anio, mes, 1)
     ultimo = pd.Timestamp(anio, mes, calendar.monthrange(anio, mes)[1])
     nov = cargar_novedades_personal()
+    prest = _prestamos_como_novedades()
+    if not prest.empty:
+        nov = prest if nov.empty else pd.concat([nov, prest], ignore_index=True)
     resultado = {}
     for s in _supervisores_con_objetivos():
         vig = vigiladores_de_supervisor(s)
@@ -1539,7 +1558,7 @@ def planificacion_mes(periodo):
                 "OBJETIVO": v["OBJETIVO"], "VIGILADOR": v["VIGILADOR"], "DNI": v["DNI"],
                 "ESTADO": estado, "DÍAS LICENCIA": dias["LICENCIA"],
                 "DÍAS ART": dias["ART"], "DÍAS VACACIONES": dias["VACACIONES"],
-                "DÍAS AUSENTE": dias["AUSENTE"], "DÍAS FRANCO": dias["FRANCO"],
+                "DÍAS AUSENTE": dias["AUSENTE"], "DÍAS FRANCO": dias["FRANCO"], "DÍAS PRÉSTAMO": dias["PRÉSTAMO"],
                 "MAPA": mapa,
             })
         resultado[s] = pd.DataFrame(filas)
@@ -1571,35 +1590,701 @@ def leyenda_planificacion_html():
         chips += f'<span style="background:{bg};color:{fg};padding:2px 8px;border-radius:4px;font-size:11px;margin-right:6px;display:inline-block;margin-bottom:4px;">{letra} = {nombre}</span>'
     return f'<div style="margin-bottom:8px;">{chips}</div>'
 
-def formulario_novedad_personal(key_prefix):
-    frames = []
-    for s in _supervisores_con_objetivos():
-        v = vigiladores_de_supervisor(s)
-        if not v.empty:
-            frames.append(v.assign(SUPERVISOR=s))
-    if not frames:
-        st.info("No hay vigiladores activos para registrar novedades.")
+# --- GESTIÓN DE NOVEDADES DEL PERSONAL (VISTA SUPERVISOR) ---
+def _hoja_novedades_personal():
+    gc = conectar_google()
+    if not gc:
+        return None
+    try:
+        return gc.open_by_key(ID_MAESTRO_DB).worksheet("NOVEDADES PERSONAL")
+    except Exception:
+        return None
+
+def _ubicar_fila_novedad(hoja, fecha_reg, dni):
+    """Busca en vivo la fila de la novedad (por fecha de registro + DNI) para no tocar una fila equivocada.
+    Devuelve (nº de fila, encabezados, valores de la fila)."""
+    filas = hoja.get_all_values()
+    if not filas:
+        return None, [], []
+    enc = [str(h).strip().upper() for h in filas[0]]
+    if "FECHA_REGISTRO" not in enc or "DNI" not in enc:
+        return None, enc, []
+    i_f, i_d = enc.index("FECHA_REGISTRO"), enc.index("DNI")
+    for n, f in enumerate(filas[1:], start=2):
+        if len(f) > max(i_f, i_d) and f[i_f].strip() == str(fecha_reg).strip() and re.sub(r"\D", "", f[i_d]) == str(dni):
+            return n, enc, f
+    return None, enc, []
+
+def _asegurar_columna(hoja, enc, nombre):
+    """Devuelve el nº de columna (desde 1); si no existe la crea al final con ese encabezado."""
+    if nombre in enc:
+        return enc.index(nombre) + 1
+    col = len(enc) + 1
+    if hoja.col_count < col:
+        hoja.add_cols(col - hoja.col_count)
+    hoja.update_cell(1, col, nombre)
+    enc.append(nombre)
+    return col
+
+COLS_HISTORIAL_NOVEDADES = ["FECHA_HORA", "USUARIO", "ACCION", "VIGILADOR", "DNI", "OBJETIVO",
+                            "TIPO_ANTES", "DESDE_ANTES", "HASTA_ANTES", "OBS_ANTES",
+                            "TIPO_DESPUES", "DESDE_DESPUES", "HASTA_DESPUES", "OBS_DESPUES"]
+
+def _registrar_historial_novedad(accion, antes, despues=None):
+    """Deja constancia de quién, cuándo y qué cambió (hoja HISTORIAL NOVEDADES PERSONAL)."""
+    try:
+        gc = conectar_google()
+        if not gc:
+            return
+        sh = gc.open_by_key(ID_MAESTRO_DB)
+        try:
+            hoja = sh.worksheet("HISTORIAL NOVEDADES PERSONAL")
+        except Exception:
+            hoja = sh.add_worksheet(title="HISTORIAL NOVEDADES PERSONAL", rows="500", cols=str(len(COLS_HISTORIAL_NOVEDADES)))
+            hoja.append_row(COLS_HISTORIAL_NOVEDADES, value_input_option="RAW")
+        d = despues or {}
+        hoja.append_row([
+            obtener_hora_argentina(), str(st.session_state.get("user_sel", "")).upper(), accion,
+            antes.get("VIGILADOR", ""), re.sub(r"\D", "", str(antes.get("DNI", ""))), antes.get("OBJETIVO", ""),
+            antes.get("TIPO", ""), antes.get("DESDE", ""), antes.get("HASTA", ""), antes.get("OBSERVACION", ""),
+            d.get("TIPO", ""), d.get("DESDE", ""), d.get("HASTA", ""), d.get("OBSERVACION", ""),
+        ], value_input_option="RAW")
+        st.cache_data.clear()
+    except Exception as e:
+        print(f"Error guardando historial de novedades: {e}")
+
+def modificar_novedad_personal(fecha_reg, dni, tipo, desde, hasta, obs):
+    try:
+        hoja = _hoja_novedades_personal()
+        if hoja is None:
+            return False
+        fila, enc, vals = _ubicar_fila_novedad(hoja, fecha_reg, dni)
+        if not fila:
+            return False
+        antes = {c: (vals[i] if i < len(vals) else "") for i, c in enumerate(enc)}
+        nuevos = {"TIPO": tipo, "DESDE": desde.strftime("%Y-%m-%d"), "HASTA": hasta.strftime("%Y-%m-%d"),
+                  "OBSERVACION": str(obs).strip().upper()}
+        for col, val in nuevos.items():
+            if col in enc:
+                hoja.update_cell(fila, enc.index(col) + 1, val)
+        c_por = _asegurar_columna(hoja, enc, "MODIFICADO_POR")
+        c_fec = _asegurar_columna(hoja, enc, "FECHA_MODIFICACION")
+        hoja.update_cell(fila, c_por, str(st.session_state.get("user_sel", "")).upper())
+        hoja.update_cell(fila, c_fec, obtener_hora_argentina())
+        _registrar_historial_novedad("MODIFICACIÓN", antes, nuevos)
+        notificar_novedad("✏️ " + str(st.session_state.get("user_sel", "")).upper() + " modificó la novedad de " + str(antes.get("VIGILADOR", "")) +
+                          " (" + str(antes.get("OBJETIVO", "")) + "): era " + str(antes.get("TIPO", "")) + ", ahora " + str(tipo) +
+                          " del " + desde.strftime("%d/%m/%Y") + " al " + hasta.strftime("%d/%m/%Y"))
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error modificando novedad de personal: {e}")
+        return False
+
+def eliminar_novedad_personal(fecha_reg, dni):
+    try:
+        hoja = _hoja_novedades_personal()
+        if hoja is None:
+            return False
+        fila, enc, vals = _ubicar_fila_novedad(hoja, fecha_reg, dni)
+        if not fila:
+            return False
+        antes = {c: (vals[i] if i < len(vals) else "") for i, c in enumerate(enc)}
+        _registrar_historial_novedad("ELIMINACIÓN", antes)
+        hoja.delete_rows(fila)
+        notificar_novedad("🗑️ " + str(st.session_state.get("user_sel", "")).upper() + " eliminó la novedad " + str(antes.get("TIPO", "")) + " de " +
+                          str(antes.get("VIGILADOR", "")) + " (" + str(antes.get("OBJETIVO", "")) + ")")
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error eliminando novedad de personal: {e}")
+        return False
+
+def _fmt_fecha_hora(v):
+    s = str(v).strip()
+    if not s or s.upper() == "NAN":
+        return ""
+    d = pd.to_datetime(s, dayfirst=not re.match(r"\d{4}-", s), errors="coerce")
+    return s if pd.isna(d) else d.strftime("%d/%m/%Y %H:%M")
+
+def _fmt_fecha(v):
+    s = str(v).strip()
+    if not s or s.upper() == "NAN":
+        return ""
+    d = pd.to_datetime(s, dayfirst=not re.match(r"\d{4}-", s), errors="coerce")
+    return s if pd.isna(d) else d.strftime("%d/%m/%Y")
+
+def _tarjeta_novedad_html(n):
+    import html as _h
+    letra, bg, fg = TIPOS_NOVEDAD_PERSONAL.get(n["_TIPO"], ("?", "#555555", "#FFFFFF"))
+    dias = int((n["_HASTA"] - n["_DESDE"]).days) + 1
+    obs = str(n.get("OBSERVACION", "") or "").strip()
+    obs_html = ('<div style="font-size:11px;color:#9AA3B5;margin-top:3px;">📝 ' + _h.escape(obs) + '</div>') if obs else ""
+    reg_por = str(n.get("REGISTRADO_POR", "") or "").strip()
+    reg_fec = _fmt_fecha_hora(n.get("FECHA_REGISTRO", ""))
+    mod_por = str(n.get("MODIFICADO_POR", "") or "").strip()
+    mod_fec = _fmt_fecha_hora(n.get("FECHA_MODIFICACION", ""))
+    pie = ""
+    if reg_por or reg_fec:
+        pie += ('<div style="font-size:10px;color:#6B7487;margin-top:4px;">📌 Registrada por ' + _h.escape(reg_por or "---") +
+                (' · ' + reg_fec if reg_fec else '') + '</div>')
+    if mod_por or mod_fec:
+        pie += ('<div style="font-size:10px;color:#E0A458;margin-top:2px;">✏️ Modificada por ' + _h.escape(mod_por or "---") +
+                (' · ' + mod_fec if mod_fec else '') + '</div>')
+    return ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-left:4px solid ' + bg + ';border-radius:8px;padding:8px 12px;margin:6px 0 2px;">'
+            '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
+            '<span style="font-size:12px;color:#E2E8F0;">' + _h.escape(str(n.get("VIGILADOR", ""))) + '</span>'
+            '<span style="background:' + bg + ';color:' + fg + ';padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:bold;">' + letra + ' · ' + _h.escape(str(n["_TIPO"])) + '</span></div>'
+            '<div style="font-size:11px;color:#7C869A;margin-top:3px;">🎯 ' + _h.escape(str(n.get("OBJETIVO", ""))) +
+            ' · 📅 ' + n["_DESDE"].strftime("%d/%m/%Y") + ' al ' + n["_HASTA"].strftime("%d/%m/%Y") +
+            ' (' + str(dias) + (' día' if dias == 1 else ' días') + ')</div>' + obs_html + pie + '</div>')
+
+def _historial_cambios_html(dnis, limite=30):
+    """Últimos cambios (modificaciones y eliminaciones) sobre las novedades de estos vigiladores."""
+    import html as _h
+    h = leer_matriz_nube("HISTORIAL NOVEDADES PERSONAL")
+    if h.empty or "DNI" not in h.columns:
+        return ""
+    h = h[h["DNI"].astype(str).str.replace(r"\D", "", regex=True).isin(dnis)]
+    if h.empty:
+        return ""
+    def resumen(r, sufijo):
+        tipo = str(r.get("TIPO_" + sufijo, "") or "").strip()
+        if not tipo:
+            return ""
+        txt = tipo + " · " + _fmt_fecha(r.get("DESDE_" + sufijo, "")) + " al " + _fmt_fecha(r.get("HASTA_" + sufijo, ""))
+        obs = str(r.get("OBS_" + sufijo, "") or "").strip()
+        return txt + (" · " + obs if obs else "")
+    out = ""
+    for _, r in h.iloc[::-1].head(limite).iterrows():
+        elim = str(r.get("ACCION", "")).upper().startswith("ELIM")
+        icono, color = ("🗑️", "#D9776F") if elim else ("✏️", "#E0A458")
+        antes, despues = resumen(r, "ANTES"), resumen(r, "DESPUES")
+        detalle = '<div style="font-size:11px;color:#9AA3B5;margin-top:3px;">Antes: ' + _h.escape(antes) + '</div>'
+        if elim:
+            detalle = '<div style="font-size:11px;color:#9AA3B5;margin-top:3px;">Se eliminó: ' + _h.escape(antes) + '</div>'
+        elif despues:
+            detalle += '<div style="font-size:11px;color:#CBD5E1;margin-top:2px;">Después: ' + _h.escape(despues) + '</div>'
+        out += ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-left:4px solid ' + color + ';border-radius:8px;padding:8px 12px;margin:6px 0;">'
+                '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
+                '<span style="font-size:12px;color:#E2E8F0;">' + icono + ' ' + _h.escape(str(r.get("VIGILADOR", ""))) + '</span>'
+                '<span style="font-size:10.5px;color:#7C869A;">' + _fmt_fecha_hora(r.get("FECHA_HORA", "")) + '</span></div>'
+                '<div style="font-size:11px;color:' + color + ';margin-top:2px;">' + ("Eliminada" if elim else "Modificada") +
+                ' por <b>' + _h.escape(str(r.get("USUARIO", "") or "---")) + '</b></div>' + detalle + '</div>')
+    return out
+
+# --- DATOS DEL VIGILADOR (objetivo y baja) DESDE LA VISTA SUPERVISOR ---
+COLS_HISTORIAL_VIG = ["FECHA_HORA", "USUARIO", "SUPERVISOR", "ACCION", "VIGILADOR", "DNI",
+                      "OBJETIVO_ANTES", "OBJETIVO_DESPUES", "MOTIVO"]
+
+def _hoja_padron():
+    gc = conectar_google()
+    if not gc:
+        return None
+    try:
+        return gc.open_by_key(ID_MAESTRO_DB).worksheet("PADRON VIGILADORES")
+    except Exception:
+        return None
+
+def _ubicar_fila_padron(hoja, dni):
+    """Fila del padrón por DNI (si hay más de una, prefiere la ACTIVA). Devuelve (fila, encabezados, valores)."""
+    filas = hoja.get_all_values()
+    if not filas:
+        return None, [], []
+    enc = [str(h).strip().upper() for h in filas[0]]
+    if "DNI" not in enc:
+        return None, enc, []
+    i_d = enc.index("DNI")
+    i_e = enc.index("ESTADO") if "ESTADO" in enc else None
+    hallados = [(n, f) for n, f in enumerate(filas[1:], start=2) if len(f) > i_d and re.sub(r"\D", "", f[i_d]) == str(dni)]
+    if not hallados:
+        return None, enc, []
+    for n, f in hallados:
+        if i_e is not None and len(f) > i_e and f[i_e].strip().upper() == "ACTIVO":
+            return n, enc, f
+    return hallados[0][0], enc, hallados[0][1]
+
+def _registrar_historial_vigilador(accion, sup, dni, nombre, obj_antes, obj_despues="", motivo=""):
+    """Deja constancia de quién, cuándo y qué cambió (hoja HISTORIAL VIGILADORES)."""
+    try:
+        gc = conectar_google()
+        if not gc:
+            return
+        sh = gc.open_by_key(ID_MAESTRO_DB)
+        try:
+            hoja = sh.worksheet("HISTORIAL VIGILADORES")
+        except Exception:
+            hoja = sh.add_worksheet(title="HISTORIAL VIGILADORES", rows="500", cols=str(len(COLS_HISTORIAL_VIG)))
+            hoja.append_row(COLS_HISTORIAL_VIG, value_input_option="RAW")
+        hoja.append_row([obtener_hora_argentina(), str(st.session_state.get("user_sel", "")).upper(), str(sup).upper(),
+                         accion, nombre, re.sub(r"\D", "", str(dni)), obj_antes, obj_despues, str(motivo).strip().upper()],
+                        value_input_option="RAW")
+        st.cache_data.clear()
+    except Exception as e:
+        print(f"Error guardando historial de vigiladores: {e}")
+
+def cambiar_objetivo_vigilador(sup, dni, nuevo_obj, objetivos_permitidos):
+    """El supervisor mueve a un vigilador suyo a otro objetivo suyo."""
+    try:
+        nuevo_obj = str(nuevo_obj).strip().upper()
+        hoja = _hoja_padron()
+        if hoja is None or nuevo_obj not in objetivos_permitidos:
+            return False
+        fila, enc, vals = _ubicar_fila_padron(hoja, dni)
+        if not fila or "OBJETIVO" not in enc:
+            return False
+        i_o = enc.index("OBJETIVO")
+        obj_antes = vals[i_o].strip().upper() if len(vals) > i_o else ""
+        if obj_antes not in objetivos_permitidos:
+            return False
+        nombre = vals[enc.index("NOMBRE")].strip().upper() if "NOMBRE" in enc and len(vals) > enc.index("NOMBRE") else ""
+        hoja.update_cell(fila, i_o + 1, nuevo_obj)
+        _registrar_historial_vigilador("CAMBIO DE OBJETIVO", sup, dni, nombre, obj_antes, nuevo_obj)
+        notificar_novedad("🔁 " + str(sup) + " cambió de objetivo a " + nombre + ": de " + obj_antes + " a " + nuevo_obj)
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error cambiando objetivo del vigilador: {e}")
+        return False
+
+def dar_baja_vigilador(sup, dni, motivo, objetivos_permitidos):
+    """El supervisor da de baja a un vigilador suyo (ESTADO = BAJA), con motivo."""
+    try:
+        hoja = _hoja_padron()
+        if hoja is None:
+            return False
+        fila, enc, vals = _ubicar_fila_padron(hoja, dni)
+        if not fila or "ESTADO" not in enc or "OBJETIVO" not in enc:
+            return False
+        i_o = enc.index("OBJETIVO")
+        obj_antes = vals[i_o].strip().upper() if len(vals) > i_o else ""
+        if obj_antes not in objetivos_permitidos:
+            return False
+        nombre = vals[enc.index("NOMBRE")].strip().upper() if "NOMBRE" in enc and len(vals) > enc.index("NOMBRE") else ""
+        hoja.update_cell(fila, enc.index("ESTADO") + 1, "BAJA")
+        _registrar_historial_vigilador("BAJA", sup, dni, nombre, obj_antes, "", motivo)
+        notificar_novedad("🔴 " + str(sup) + " dio de baja a " + nombre + " (" + obj_antes + ")" +
+                          (" · Motivo: " + str(motivo).strip().upper() if str(motivo).strip() else ""))
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error dando de baja al vigilador: {e}")
+        return False
+
+def _historial_vigiladores_html(sup, limite=30):
+    """Cambios de objetivo, bajas y préstamos hechos por este supervisor."""
+    import html as _h
+    h = leer_matriz_nube("HISTORIAL VIGILADORES")
+    if h.empty or "SUPERVISOR" not in h.columns:
+        return ""
+    h = h[h["SUPERVISOR"].astype(str).str.strip().str.upper() == str(sup).strip().upper()]
+    if h.empty:
+        return ""
+    out = ""
+    for _, r in h.iloc[::-1].head(limite).iterrows():
+        accion = str(r.get("ACCION", "")).strip().upper()
+        antes = str(r.get("OBJETIVO_ANTES", "") or "").strip()
+        despues = str(r.get("OBJETIVO_DESPUES", "") or "").strip()
+        motivo = str(r.get("MOTIVO", "") or "").strip()
+        extra = (' · Motivo: ' + _h.escape(motivo)) if motivo else ''
+        if accion.startswith("BAJA"):
+            icono, color = "🔴", "#D9776F"
+            detalle = 'Dado de baja del objetivo ' + _h.escape(antes) + extra
+        elif accion.startswith("PRÉSTAMO") or accion.startswith("PRESTAMO"):
+            icono, color = "🤝", "#26A69A"
+            detalle = 'Prestado a ' + _h.escape(despues) + ' (desde ' + _h.escape(antes) + ')' + extra
+        elif accion.startswith("ANULACIÓN") or accion.startswith("ANULACION"):
+            icono, color = "↩️", "#7C869A"
+            detalle = 'Préstamo anulado: ' + _h.escape(despues) + ' (de ' + _h.escape(antes) + ')'
+        else:
+            icono, color = "🔁", "#5BC0CE"
+            detalle = 'Pasó de ' + _h.escape(antes) + ' a ' + _h.escape(despues)
+        out += ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-left:4px solid ' + color + ';border-radius:8px;padding:8px 12px;margin:6px 0;">'
+                '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
+                '<span style="font-size:12px;color:#E2E8F0;">' + icono + ' ' + _h.escape(str(r.get("VIGILADOR", ""))) + '</span>'
+                '<span style="font-size:10.5px;color:#7C869A;">' + _fmt_fecha_hora(r.get("FECHA_HORA", "")) + '</span></div>'
+                '<div style="font-size:11px;color:' + color + ';margin-top:2px;">' + _h.escape(accion.capitalize()) +
+                ' por <b>' + _h.escape(str(r.get("USUARIO", "") or "---")) + '</b></div>'
+                '<div style="font-size:11px;color:#9AA3B5;margin-top:3px;">' + detalle + '</div></div>')
+    return out
+
+# --- AVISOS AUTOMÁTICOS (Jefe de Operaciones y Gerencia reciben todo) ---
+DESTINOS_AVISO_PERSONAL = ["JEFE DE OPERACIONES", "GERENCIA"]
+
+def notificar_novedad(mensaje, extra=None):
+    """Aviso en la campanita (barra lateral) de Jefe de Operaciones, Gerencia y, si corresponde, otros usuarios."""
+    try:
+        gc = conectar_google()
+        if not gc:
+            return
+        sh = gc.open_by_key(ID_MAESTRO_DB)
+        try:
+            hoja = sh.worksheet("NOTIFICACIONES_SUPERVISORES")
+        except Exception:
+            hoja = sh.add_worksheet(title="NOTIFICACIONES_SUPERVISORES", rows="100", cols="15")
+            hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
+        destinos = []
+        for d in list(DESTINOS_AVISO_PERSONAL) + [str(x) for x in (extra or [])]:
+            d = d.strip().upper()
+            if d and d not in destinos:
+                destinos.append(d)
+        fecha = obtener_hora_argentina()
+        hoja.append_rows([[fecha, d, str(mensaje), "PENDIENTE"] for d in destinos], value_input_option="RAW")
+        st.cache_data.clear()
+    except Exception as e:
+        print(f"Error enviando aviso de novedad: {e}")
+
+def marcar_notificaciones_leidas(indices):
+    """Marca como LEÍDO varias notificaciones de una sola vez (indices = posición en el DataFrame)."""
+    try:
+        gc = conectar_google()
+        if not gc or not len(indices):
+            return False
+        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("NOTIFICACIONES_SUPERVISORES")
+        hoja.batch_update([{"range": "D" + str(int(i) + 2), "values": [["LEÍDO"]]} for i in indices])
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error marcando notificaciones: {e}")
+        return False
+
+# --- PRÉSTAMOS DE VIGILADORES ENTRE SUPERVISORES ---
+COLS_PRESTAMOS = ["FECHA_REGISTRO", "DNI", "VIGILADOR", "OBJETIVO_ORIGEN", "SUPERVISOR_ORIGEN", "SUPERVISOR_DESTINO",
+                  "OBJETIVO_DESTINO", "DESDE", "HASTA", "MOTIVO", "REGISTRADO_POR", "ESTADO", "ANULADO_POR", "FECHA_ANULACION"]
+
+def _hoja_prestamos(crear=False):
+    gc = conectar_google()
+    if not gc:
+        return None
+    sh = gc.open_by_key(ID_MAESTRO_DB)
+    try:
+        return sh.worksheet("PRESTAMOS VIGILADORES")
+    except Exception:
+        if not crear:
+            return None
+        hoja = sh.add_worksheet(title="PRESTAMOS VIGILADORES", rows="300", cols=str(len(COLS_PRESTAMOS)))
+        hoja.append_row(COLS_PRESTAMOS, value_input_option="RAW")
+        return hoja
+
+def cargar_prestamos():
+    df = leer_matriz_nube("PRESTAMOS VIGILADORES")
+    if df.empty or not {"DNI", "DESDE", "HASTA", "ESTADO", "SUPERVISOR_ORIGEN", "SUPERVISOR_DESTINO"} <= set(df.columns):
+        return pd.DataFrame()
+    df = df.copy()
+    df["_DNI"] = col_texto(df, "DNI").str.replace(r"\D", "", regex=True)
+    df["_ORIG"] = col_texto(df, "SUPERVISOR_ORIGEN").str.strip().str.upper()
+    df["_DEST"] = col_texto(df, "SUPERVISOR_DESTINO").str.strip().str.upper()
+    df["_ESTADO"] = col_texto(df, "ESTADO").str.strip().str.upper()
+    df["_DESDE"] = df["DESDE"].map(_fecha_a_dt)
+    df["_HASTA"] = df["HASTA"].map(_fecha_a_dt)
+    return df.dropna(subset=["_DESDE", "_HASTA"]).reset_index(drop=True)
+
+def _prestamos_como_novedades():
+    """Los préstamos no anulados, con el mismo formato que las novedades, para pintarlos en la grilla (P)."""
+    pr = cargar_prestamos()
+    if pr.empty:
+        return pd.DataFrame()
+    pr = pr[pr["_ESTADO"] != "ANULADO"]
+    if pr.empty:
+        return pd.DataFrame()
+    return pd.DataFrame({"_DNI": pr["_DNI"].values, "_TIPO": "PRÉSTAMO", "_DESDE": pr["_DESDE"].values, "_HASTA": pr["_HASTA"].values})
+
+def registrar_prestamo(dni, vigilador, obj_origen, sup_origen, sup_destino, obj_destino, desde, hasta, motivo):
+    try:
+        hoja = _hoja_prestamos(crear=True)
+        if hoja is None:
+            return False
+        hoja.append_row([obtener_hora_argentina(), str(dni), vigilador, obj_origen, sup_origen, sup_destino, obj_destino,
+                         desde.strftime("%Y-%m-%d"), hasta.strftime("%Y-%m-%d"), str(motivo).strip().upper(),
+                         str(st.session_state.get("user_sel", "")).upper(), "VIGENTE", "", ""], value_input_option="RAW")
+        destino_txt = sup_destino + ((" · " + obj_destino) if obj_destino else "")
+        _registrar_historial_vigilador("PRÉSTAMO", sup_origen, dni, vigilador, obj_origen, destino_txt, motivo)
+        notificar_novedad("🤝 " + str(sup_origen) + " prestó a " + str(vigilador) + " (" + str(obj_origen) + ") a " + destino_txt +
+                          " del " + desde.strftime("%d/%m/%Y") + " al " + hasta.strftime("%d/%m/%Y") +
+                          ((" · Motivo: " + str(motivo).strip().upper()) if str(motivo).strip() else ""), extra=[sup_destino])
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error registrando préstamo: {e}")
+        return False
+
+def anular_prestamo(fecha_reg, dni, sup):
+    """Anula un préstamo vigente (solo lo puede hacer el supervisor que lo otorgó). Queda constancia de quién y cuándo."""
+    try:
+        hoja = _hoja_prestamos()
+        if hoja is None:
+            return False
+        filas = hoja.get_all_values()
+        if not filas:
+            return False
+        enc = [str(h).strip().upper() for h in filas[0]]
+        if any(c not in enc for c in ("FECHA_REGISTRO", "DNI", "SUPERVISOR_ORIGEN", "ESTADO")):
+            return False
+        ix = {c: enc.index(c) for c in enc}
+        def valor(f, c):
+            return f[ix[c]].strip() if c in ix and len(f) > ix[c] else ""
+        for n, f in enumerate(filas[1:], start=2):
+            if (valor(f, "FECHA_REGISTRO") == str(fecha_reg).strip() and re.sub(r"\D", "", valor(f, "DNI")) == str(dni)
+                    and valor(f, "SUPERVISOR_ORIGEN").upper() == str(sup).strip().upper() and valor(f, "ESTADO").upper() != "ANULADO"):
+                hoja.update_cell(n, ix["ESTADO"] + 1, "ANULADO")
+                c_por = _asegurar_columna(hoja, enc, "ANULADO_POR")
+                c_fec = _asegurar_columna(hoja, enc, "FECHA_ANULACION")
+                hoja.update_cell(n, c_por, str(st.session_state.get("user_sel", "")).upper())
+                hoja.update_cell(n, c_fec, obtener_hora_argentina())
+                vig, obj_o, dest, obj_d = valor(f, "VIGILADOR"), valor(f, "OBJETIVO_ORIGEN"), valor(f, "SUPERVISOR_DESTINO"), valor(f, "OBJETIVO_DESTINO")
+                destino_txt = dest + ((" · " + obj_d) if obj_d else "")
+                _registrar_historial_vigilador("ANULACIÓN DE PRÉSTAMO", sup, dni, vig, obj_o, destino_txt)
+                notificar_novedad("↩️ " + str(sup) + " anuló el préstamo de " + vig + " (" + obj_o + ") a " + destino_txt, extra=[dest])
+                st.cache_data.clear()
+                return True
+        return False
+    except Exception as e:
+        print(f"Error anulando préstamo: {e}")
+        return False
+
+def _tarjeta_prestamo_html(p, hoy):
+    import html as _h
+    if p["_ESTADO"] == "ANULADO":
+        etiqueta, color = "ANULADO", "#7C869A"
+    elif p["_HASTA"] < hoy:
+        etiqueta, color = "FINALIZADO", "#7C869A"
+    elif p["_DESDE"] > hoy:
+        etiqueta, color = "PROGRAMADO", "#5BC0CE"
+    else:
+        etiqueta, color = "EN CURSO", "#26A69A"
+    obj_o = str(p.get("OBJETIVO_ORIGEN", "") or "").strip()
+    obj_d = str(p.get("OBJETIVO_DESTINO", "") or "").strip()
+    motivo = str(p.get("MOTIVO", "") or "").strip()
+    por = str(p.get("REGISTRADO_POR", "") or "").strip()
+    fec = _fmt_fecha_hora(p.get("FECHA_REGISTRO", ""))
+    anul = str(p.get("ANULADO_POR", "") or "").strip()
+    fec_anul = _fmt_fecha_hora(p.get("FECHA_ANULACION", ""))
+    dias = int((p["_HASTA"] - p["_DESDE"]).days) + 1
+    pie = '<div style="font-size:10px;color:#6B7487;margin-top:4px;">📌 Registrado por ' + _h.escape(por or "---") + (' · ' + fec if fec else '') + '</div>'
+    if anul or fec_anul:
+        pie += '<div style="font-size:10px;color:#E0A458;margin-top:2px;">↩️ Anulado por ' + _h.escape(anul or "---") + (' · ' + fec_anul if fec_anul else '') + '</div>'
+    return ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-left:4px solid ' + color + ';border-radius:8px;padding:8px 12px;margin:6px 0 2px;">'
+            '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
+            '<span style="font-size:12px;color:#E2E8F0;">🤝 ' + _h.escape(str(p.get("VIGILADOR", ""))) + '</span>'
+            '<span style="border:1px solid ' + color + ';color:' + color + ';border-radius:8px;padding:0 8px;font-size:10px;">' + etiqueta + '</span></div>'
+            '<div style="font-size:11px;color:#9AA3B5;margin-top:3px;">De <b style="color:#CBD5E1;">' + _h.escape(p["_ORIG"]) + '</b>' +
+            (' (' + _h.escape(obj_o) + ')' if obj_o else '') + ' → <b style="color:#CBD5E1;">' + _h.escape(p["_DEST"]) + '</b>' +
+            (' · ' + _h.escape(obj_d) if obj_d else '') + '</div>'
+            '<div style="font-size:11px;color:#7C869A;margin-top:3px;">📅 ' + p["_DESDE"].strftime("%d/%m/%Y") + ' al ' + p["_HASTA"].strftime("%d/%m/%Y") +
+            ' (' + str(dias) + (' día' if dias == 1 else ' días') + ')' + (' · 📝 ' + _h.escape(motivo) if motivo else '') + '</div>' + pie + '</div>')
+
+def renderizar_personal_supervisor(sup, key_prefix="psup"):
+    """Pantalla del supervisor: ve a sus vigiladores y registra, modifica o elimina sus novedades."""
+    sup = str(sup).strip().upper()
+    st.markdown("### 👥 MI PERSONAL")
+    if st.session_state.get(f"{key_prefix}_msg"):
+        st.success(st.session_state.pop(f"{key_prefix}_msg"))
+
+    vig = vigiladores_de_supervisor(sup)
+    if vig.empty:
+        st.info("No tenés vigiladores activos a cargo en tus objetivos.")
         return
-    todos = pd.concat(frames, ignore_index=True)
-    etiquetas = {i: f"{r['VIGILADOR']} | {r['OBJETIVO']} | SUP: {r['SUPERVISOR']}" for i, r in todos.iterrows()}
-    hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires")).date()
-    with st.form(key=f"{key_prefix}_form_novedad", clear_on_submit=True):
-        idx = st.selectbox("VIGILADOR:", list(etiquetas.keys()), format_func=lambda k: etiquetas[k])
-        tipo = st.selectbox("TIPO DE NOVEDAD:", list(TIPOS_NOVEDAD_PERSONAL.keys()))
-        c1, c2 = st.columns(2)
-        desde = c1.date_input("DESDE:", value=hoy)
-        hasta = c2.date_input("HASTA:", value=hoy)
-        obs = st.text_input("OBSERVACIÓN (opcional):")
-        if st.form_submit_button("💾 REGISTRAR NOVEDAD", use_container_width=True):
-            if hasta < desde:
-                st.warning("⚠️ La fecha HASTA no puede ser anterior a DESDE.")
+    dnis = set(vig["DNI"].tolist())
+    hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
+
+    # --- Panorama gráfico del mes ---
+    c1, c2 = st.columns(2)
+    mes = int(c1.selectbox("MES:", list(range(1, 13)), index=hoy.month - 1,
+                           format_func=lambda m: MESES_ES[m - 1], key=f"{key_prefix}_mes"))
+    anio = int(c2.number_input("AÑO:", min_value=2024, max_value=2100, value=hoy.year, step=1, key=f"{key_prefix}_anio"))
+    periodo = f"{anio}-{mes:02d}"
+    pm = planificacion_mes(periodo).get(sup)
+    if pm is not None and not pm.empty:
+        st.markdown(f"**Mis vigiladores ({len(pm)}) · {MESES_ES[mes - 1]} {anio}**")
+        st.markdown(leyenda_planificacion_html(), unsafe_allow_html=True)
+        st.markdown(grilla_planificacion_html(pm, anio, mes), unsafe_allow_html=True)
+
+    # --- Registrar novedad ---
+    st.markdown("---")
+    etiquetas = {i: f"{r['VIGILADOR']} | {r['OBJETIVO']}" for i, r in vig.iterrows()}
+    with st.expander("➕ REGISTRAR NOVEDAD DE PERSONAL", expanded=True):
+        with st.form(key=f"{key_prefix}_form_nueva", clear_on_submit=True):
+            idx = st.selectbox("VIGILADOR:", list(etiquetas.keys()), format_func=lambda k: etiquetas[k])
+            tipo = st.selectbox("TIPO DE NOVEDAD:", TIPOS_REGISTRABLES)
+            f1, f2 = st.columns(2)
+            desde = f1.date_input("DESDE:", value=hoy.date())
+            hasta = f2.date_input("HASTA:", value=hoy.date())
+            obs = st.text_input("OBSERVACIÓN (opcional):")
+            if st.form_submit_button("💾 REGISTRAR NOVEDAD", use_container_width=True):
+                if hasta < desde:
+                    st.warning("⚠️ La fecha HASTA no puede ser anterior a DESDE.")
+                else:
+                    r = vig.loc[idx]
+                    if registrar_novedad_personal(r["DNI"], r["VIGILADOR"], r["OBJETIVO"], sup, tipo, desde, hasta, obs):
+                        st.session_state[f"{key_prefix}_msg"] = f"✅ Registrado: {r['VIGILADOR']} - {tipo} ({desde} a {hasta})."
+                        st.rerun()
+                    else:
+                        st.error("❌ No se pudo registrar. Revisá la conexión con Google Sheets.")
+
+    # --- Datos del vigilador: cambiar objetivo / dar de baja ---
+    df_o_sup = cargar_objetivos()
+    mis_objs = []
+    if not df_o_sup.empty and 'SUPERVISOR' in df_o_sup.columns:
+        m_o = col_texto(df_o_sup, 'SUPERVISOR').str.strip().str.upper() == sup
+        mis_objs = sorted(set(col_texto(df_o_sup, 'OBJETIVO').str.strip().str.upper()[m_o]) - {"", "NAN"})
+    with st.expander("🧑‍✈️ DATOS DEL VIGILADOR (cambiar objetivo / dar de baja)"):
+        idx_v = st.selectbox("VIGILADOR:", list(etiquetas.keys()), format_func=lambda k: etiquetas[k], key=f"{key_prefix}_dv_sel")
+        rv = vig.loc[idx_v]
+        dni_v = str(rv["DNI"])
+        st.markdown('<div style="font-size:12px;color:#CBD5E1;margin:4px 0 8px;">🎯 Objetivo actual: <b>' + str(rv["OBJETIVO"]) + '</b></div>', unsafe_allow_html=True)
+
+        st.markdown("**🔁 Cambiar de objetivo**")
+        otros = [o for o in mis_objs if o != str(rv["OBJETIVO"]).strip().upper()]
+        if otros:
+            with st.form(key=f"{key_prefix}_form_obj_{dni_v}"):
+                nuevo_obj = st.selectbox("NUEVO OBJETIVO (entre los tuyos):", otros)
+                if st.form_submit_button("💾 CAMBIAR OBJETIVO", use_container_width=True):
+                    if cambiar_objetivo_vigilador(sup, dni_v, nuevo_obj, mis_objs):
+                        st.session_state[f"{key_prefix}_msg"] = f"✅ {rv['VIGILADOR']} pasó de {rv['OBJETIVO']} a {nuevo_obj}."
+                        st.rerun()
+                    else:
+                        st.error("❌ No se pudo cambiar el objetivo. Revisá la conexión con Google Sheets.")
+        else:
+            st.caption("No tenés otro objetivo a cargo para mover a este vigilador.")
+
+        st.markdown("**🤝 Prestar a otro supervisor**")
+        otros_sups = [x for x in _supervisores_con_objetivos() if x != sup]
+        if otros_sups:
+            sup_dest = st.selectbox("SUPERVISOR QUE LO RECIBE:", otros_sups, key=f"{key_prefix}_prest_sup_{dni_v}")
+            objs_dest = []
+            if not df_o_sup.empty and 'SUPERVISOR' in df_o_sup.columns:
+                m_d = col_texto(df_o_sup, 'SUPERVISOR').str.strip().str.upper() == sup_dest
+                objs_dest = sorted(set(col_texto(df_o_sup, 'OBJETIVO').str.strip().str.upper()[m_d]) - {"", "NAN"})
+            with st.form(key=f"{key_prefix}_form_prest_{dni_v}", clear_on_submit=True):
+                obj_dest = st.selectbox("OBJETIVO DE DESTINO (opcional):", ["(SIN ESPECIFICAR)"] + objs_dest)
+                p1, p2 = st.columns(2)
+                p_desde = p1.date_input("DESDE:", value=hoy.date())
+                p_hasta = p2.date_input("HASTA:", value=hoy.date())
+                p_motivo = st.text_input("MOTIVO (opcional):")
+                if st.form_submit_button("🤝 REGISTRAR PRÉSTAMO", use_container_width=True):
+                    pr_ex = cargar_prestamos()
+                    choca = (not pr_ex.empty) and bool(((pr_ex["_DNI"] == dni_v) & (pr_ex["_ESTADO"] != "ANULADO") &
+                                                      (pr_ex["_DESDE"] <= pd.Timestamp(p_hasta)) & (pr_ex["_HASTA"] >= pd.Timestamp(p_desde))).any())
+                    if p_hasta < p_desde:
+                        st.warning("⚠️ La fecha HASTA no puede ser anterior a DESDE.")
+                    elif choca:
+                        st.warning("⚠️ Este vigilador ya tiene un préstamo en esas fechas. Anulá el anterior o cambiá las fechas.")
+                    elif registrar_prestamo(dni_v, rv["VIGILADOR"], rv["OBJETIVO"], sup, sup_dest,
+                                            "" if obj_dest == "(SIN ESPECIFICAR)" else obj_dest, p_desde, p_hasta, p_motivo):
+                        st.session_state[f"{key_prefix}_msg"] = f"🤝 {rv['VIGILADOR']} fue prestado a {sup_dest} del {p_desde.strftime('%d/%m/%Y')} al {p_hasta.strftime('%d/%m/%Y')}."
+                        st.rerun()
+                    else:
+                        st.error("❌ No se pudo registrar el préstamo. Revisá la conexión con Google Sheets.")
+        else:
+            st.caption("No hay otros supervisores con objetivos para prestarle el vigilador.")
+
+        st.markdown("**🔴 Dar de baja**")
+        motivo_baja = st.text_input("MOTIVO DE LA BAJA:", key=f"{key_prefix}_baja_motivo_{dni_v}")
+        conf_baja = st.checkbox("Confirmo que quiero dar de baja a este vigilador", key=f"{key_prefix}_baja_conf_{dni_v}")
+        if st.button("🔴 DAR DE BAJA AL VIGILADOR", key=f"{key_prefix}_baja_btn_{dni_v}",
+                     disabled=not (conf_baja and motivo_baja.strip()), use_container_width=True):
+            if dar_baja_vigilador(sup, dni_v, motivo_baja, mis_objs):
+                st.session_state[f"{key_prefix}_msg"] = f"🔴 {rv['VIGILADOR']} fue dado de baja."
+                st.rerun()
             else:
-                r = todos.loc[idx]
-                if registrar_novedad_personal(r["DNI"], r["VIGILADOR"], r["OBJETIVO"], r["SUPERVISOR"], tipo, desde, hasta, obs):
-                    st.session_state[f"{key_prefix}_msg"] = f"✅ Registrado: {r['VIGILADOR']} - {tipo} ({desde} a {hasta})."
+                st.error("❌ No se pudo dar de baja. Revisá la conexión con Google Sheets.")
+
+    # --- Préstamos enviados y recibidos ---
+    pr_all = cargar_prestamos()
+    pr_mios = pr_all[(pr_all["_ORIG"] == sup) | (pr_all["_DEST"] == sup)] if not pr_all.empty else pd.DataFrame()
+    with st.expander("🤝 PRÉSTAMOS DE VIGILADORES (enviados y recibidos)"):
+        if pr_mios.empty:
+            st.caption("Todavía no hay préstamos registrados.")
+        else:
+            hoy_ts = pd.Timestamp(hoy.year, hoy.month, hoy.day)
+            pr_mios = pr_mios.sort_values("_DESDE", ascending=False)
+            enviados = pr_mios[pr_mios["_ORIG"] == sup]
+            recibidos = pr_mios[pr_mios["_DEST"] == sup]
+            st.markdown("**Que yo presté**")
+            if enviados.empty:
+                st.caption("No prestaste vigiladores.")
+            for k, (_, pr) in enumerate(enviados.iterrows()):
+                st.markdown(_tarjeta_prestamo_html(pr, hoy_ts), unsafe_allow_html=True)
+                if pr["_ESTADO"] != "ANULADO" and pr["_HASTA"] >= hoy_ts:
+                    clave_p = key_prefix + "_pa_" + str(k) + "_" + re.sub(r"\W", "", str(pr.get("FECHA_REGISTRO", "")) + str(pr["_DNI"]))
+                    conf_p = st.checkbox("Confirmo que quiero anular este préstamo", key=clave_p + "_conf")
+                    if st.button("↩️ ANULAR PRÉSTAMO", key=clave_p + "_btn", disabled=not conf_p, use_container_width=True):
+                        if anular_prestamo(str(pr.get("FECHA_REGISTRO", "")).strip(), str(pr["_DNI"]), sup):
+                            st.session_state[f"{key_prefix}_msg"] = f"↩️ Préstamo anulado: {pr.get('VIGILADOR', '')}."
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo anular. Revisá la conexión o que el préstamo siga vigente.")
+            st.markdown("**Que me prestaron**")
+            if recibidos.empty:
+                st.caption("No te prestaron vigiladores.")
+            for _, pr in recibidos.iterrows():
+                st.markdown(_tarjeta_prestamo_html(pr, hoy_ts), unsafe_allow_html=True)
+
+    # --- Historial de cambios (quién y cuándo) ---
+    with st.expander("🕘 HISTORIAL DE CAMBIOS (quién cambió qué y cuándo)"):
+        hist_html = _historial_cambios_html(dnis)
+        hist_vig_html = _historial_vigiladores_html(sup)
+        if hist_html:
+            st.markdown("**Novedades modificadas o eliminadas**")
+            st.markdown(hist_html, unsafe_allow_html=True)
+        if hist_vig_html:
+            st.markdown("**Cambios de objetivo y bajas de vigiladores**")
+            st.markdown(hist_vig_html, unsafe_allow_html=True)
+        if not hist_html and not hist_vig_html:
+            st.caption("Todavía no hay cambios registrados.")
+
+    # --- Novedades registradas (modificar / eliminar) ---
+    st.markdown("#### 🗂️ NOVEDADES REGISTRADAS")
+    nov = cargar_novedades_personal()
+    if nov.empty:
+        st.info("Todavía no hay novedades registradas.")
+        return
+    nov = nov[nov["_DNI"].isin(dnis)].copy()
+    f1, f2 = st.columns([2, 1])
+    nombres = ["TODOS"] + sorted(set(vig["VIGILADOR"].tolist()))
+    filtro_vig = f1.selectbox("VIGILADOR:", nombres, key=f"{key_prefix}_filtro_vig")
+    ver_todo = f2.checkbox("Ver todo el historial", value=False, key=f"{key_prefix}_hist")
+    if filtro_vig != "TODOS":
+        dni_f = set(vig.loc[vig["VIGILADOR"] == filtro_vig, "DNI"].tolist())
+        nov = nov[nov["_DNI"].isin(dni_f)]
+    if not ver_todo:
+        primero = pd.Timestamp(anio, mes, 1)
+        ultimo = pd.Timestamp(anio, mes, calendar.monthrange(anio, mes)[1])
+        nov = nov[(nov["_DESDE"] <= ultimo) & (nov["_HASTA"] >= primero)]
+    nov = nov.sort_values("_DESDE", ascending=False)
+    if nov.empty:
+        st.info("No hay novedades para este filtro.")
+        return
+
+    tipos = list(TIPOS_REGISTRABLES)
+    for k, (_, n) in enumerate(nov.iterrows()):
+        st.markdown(_tarjeta_novedad_html(n), unsafe_allow_html=True)
+        fecha_reg = str(n.get("FECHA_REGISTRO", "")).strip()
+        dni = str(n["_DNI"])
+        sufijo_clave = re.sub(r"\W", "", fecha_reg + dni)
+        clave = key_prefix + "_" + str(k) + "_" + sufijo_clave
+        with st.expander("✏️ Modificar o eliminar"):
+            with st.form(key=f"{clave}_form"):
+                m_tipo = st.selectbox("TIPO:", tipos, index=tipos.index(n["_TIPO"]) if n["_TIPO"] in tipos else 0)
+                m1, m2 = st.columns(2)
+                m_desde = m1.date_input("DESDE:", value=n["_DESDE"].date())
+                m_hasta = m2.date_input("HASTA:", value=n["_HASTA"].date())
+                m_obs = st.text_input("OBSERVACIÓN:", value=str(n.get("OBSERVACION", "")))
+                if st.form_submit_button("💾 GUARDAR CAMBIOS", use_container_width=True):
+                    if m_hasta < m_desde:
+                        st.warning("⚠️ La fecha HASTA no puede ser anterior a DESDE.")
+                    elif modificar_novedad_personal(fecha_reg, dni, m_tipo, m_desde, m_hasta, m_obs):
+                        st.session_state[f"{key_prefix}_msg"] = f"✅ Modificado: {n.get('VIGILADOR', '')} - {m_tipo}."
+                        st.rerun()
+                    else:
+                        st.error("❌ No se pudo modificar. Revisá la conexión o que la novedad siga existiendo.")
+            confirmar = st.checkbox("Confirmo que quiero eliminar esta novedad", key=f"{clave}_conf")
+            if st.button("🗑️ ELIMINAR NOVEDAD", key=f"{clave}_del", disabled=not confirmar, use_container_width=True):
+                if eliminar_novedad_personal(fecha_reg, dni):
+                    st.session_state[f"{key_prefix}_msg"] = f"🗑️ Eliminada: {n.get('VIGILADOR', '')} - {n['_TIPO']}."
                     st.rerun()
                 else:
-                    st.error("❌ No se pudo registrar. Revisá la conexión con Google Sheets.")
+                    st.error("❌ No se pudo eliminar. Revisá la conexión o que la novedad siga existiendo.")
 
 
 def _hora_a_min(s):
@@ -1791,6 +2476,7 @@ def relevamiento_mes(periodo):
         c_vac = int((pv["ESTADO"] == "VACACIONES").sum()) if pv is not None else 0
         c_aus = int((pv["ESTADO"] == "AUSENTE").sum()) if pv is not None else 0
         c_fra = int((pv["ESTADO"] == "FRANCO").sum()) if pv is not None else 0
+        c_pre = int((pv["ESTADO"] == "PRÉSTAMO").sum()) if pv is not None else 0
 
         vd = vigs.get(s)
         hs_vig = int(vd["HORAS"].sum()) if vd is not None and not vd.empty else 0
@@ -1806,7 +2492,7 @@ def relevamiento_mes(periodo):
             "KM": round(km, 1), "COMBUSTIBLE ($)": round(monto), "ACTAS FLOTA": actas, "ACTAS A REVISAR": revisar,
             "PÁNICOS": panicos, "NOVEDADES": novs, "RONDAS COMPLETAS": rondas,
             "LICENCIA": c_lic, "ART": c_art, "VACACIONES": c_vac,
-            "AUSENTE": c_aus, "FRANCO": c_fra,
+            "AUSENTE": c_aus, "FRANCO": c_fra, "PRÉSTAMO": c_pre,
         })
     return pd.DataFrame(filas), detalle, personal, actividad, vigs
 
@@ -1819,8 +2505,8 @@ def _tarjeta_supervisor_html(r, actividad, anio, mes, vig_df=None):
     pct_dias = round(100 * dact / ndias) if ndias else 0
     n = int(r["VIGILADORES"])
     lic, art, vac = int(r["LICENCIA"]), int(r["ART"]), int(r["VACACIONES"])
-    aus, fra = int(r["AUSENTE"]), int(r["FRANCO"])
-    sin = max(0, n - lic - art - vac - aus - fra)
+    aus, fra, pre = int(r["AUSENTE"]), int(r["FRANCO"]), int(r["PRÉSTAMO"])
+    sin = max(0, n - lic - art - vac - aus - fra - pre)
 
     def barra(titulo, valor, pct, color):
         pct = max(0, min(100, pct))
@@ -1847,13 +2533,14 @@ def _tarjeta_supervisor_html(r, actividad, anio, mes, vig_df=None):
         ancho = (100.0 * cant / n) if n else 0
         return '<div style="background:' + color + ';width:' + ("%.1f" % ancho) + '%;height:100%;"></div>'
 
-    franja = seg(sin, "#3B6B55") + seg(lic, "#C96B6B") + seg(art, "#D49A52") + seg(vac, "#9A74B5") + seg(aus, "#D4B93C") + seg(fra, "#5B8DB8")
+    franja = seg(sin, "#3B6B55") + seg(lic, "#C96B6B") + seg(art, "#D49A52") + seg(vac, "#9A74B5") + seg(aus, "#D4B93C") + seg(fra, "#5B8DB8") + seg(pre, "#2E8F87")
     leyenda = ('<span style="color:#7FB8A0;">● ' + str(sin) + ' sin novedad</span> &nbsp; '
                '<span style="color:#D98A8A;">● ' + str(lic) + ' licencia</span> &nbsp; '
                '<span style="color:#E0AE74;">● ' + str(art) + ' ART</span> &nbsp; '
                '<span style="color:#B596CC;">● ' + str(vac) + ' vacaciones</span> &nbsp; '
                '<span style="color:#E3CB5E;">● ' + str(aus) + ' ausentes</span> &nbsp; '
-               '<span style="color:#7FB0DC;">● ' + str(fra) + ' francos</span>')
+               '<span style="color:#7FB0DC;">● ' + str(fra) + ' francos</span> &nbsp; '
+               '<span style="color:#5CC4B8;">● ' + str(pre) + ' prestados</span>')
 
     datos = (dato("Visitas QR", r["VISITAS QR"]) + dato("Horas", r["HORAS"]) + dato("Km", r["KM"]) +
              dato("Pánicos", r["PÁNICOS"]) + dato("Novedades", r["NOVEDADES"]) + dato("Rondas", r["RONDAS COMPLETAS"]))
@@ -2003,11 +2690,11 @@ def _comparativo_supervisores_html(vista):
     ]
     # Personal a cargo: barra apilada por supervisor
     seg_def = [("sin novedad", "#3B6B55"), ("licencia", "#C96B6B"), ("ART", "#D49A52"),
-               ("vacaciones", "#9A74B5"), ("ausentes", "#D4B93C"), ("francos", "#5B8DB8")]
+               ("vacaciones", "#9A74B5"), ("ausentes", "#D4B93C"), ("francos", "#5B8DB8"), ("prestados", "#2E8F87")]
     filas_p = ""
     for _, r in vista.iterrows():
         n = int(r["VIGILADORES"])
-        cants = [int(r["LICENCIA"]), int(r["ART"]), int(r["VACACIONES"]), int(r["AUSENTE"]), int(r["FRANCO"])]
+        cants = [int(r["LICENCIA"]), int(r["ART"]), int(r["VACACIONES"]), int(r["AUSENTE"]), int(r["FRANCO"]), int(r["PRÉSTAMO"])]
         cants = [max(0, n - sum(cants))] + cants
         barra = "".join('<div title="' + nm + ': ' + str(c) + '" style="background:' + col + ';width:' + ("%.1f" % (100.0 * c / n if n else 0)) + '%;height:100%;"></div>'
                         for (nm, col), c in zip(seg_def, cants))
@@ -2051,9 +2738,10 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
         b2.metric("⚠️ EXCEDIDOS", int(vista["EXCEDIDOS"].sum()))
         b3.metric("✂️ FRANCOS CORTADOS", int(vista["FRANCOS CORTADOS"].sum()))
 
-        c1m, c2m = st.columns(2)
+        c1m, c2m, c3m = st.columns(3)
         c1m.metric("🚫 AUSENTES (vigiladores)", int(vista["AUSENTE"].sum()))
         c2m.metric("🛌 EN FRANCO (vigiladores)", int(vista["FRANCO"].sum()))
+        c3m.metric("🤝 PRESTADOS (vigiladores)", int(vista["PRÉSTAMO"].sum()))
 
         st.markdown("##### 🛡️ POR SUPERVISOR")
         for _, r in vista.iterrows():
@@ -2073,7 +2761,7 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
         with st.expander("📋 COMPARATIVO DE TODOS LOS SUPERVISORES"):
             st.markdown(_comparativo_supervisores_html(vista), unsafe_allow_html=True)
         cols_pdf = ["SUPERVISOR", "OBJETIVOS", "VIGILADORES", "DÍAS ACTIVOS", "HORAS", "VISITAS QR", "COBERTURA %",
-                    "HS VIGILADORES", "EXCEDIDOS", "FRANCOS CORTADOS", "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES", "AUSENTE", "FRANCO"]
+                    "HS VIGILADORES", "EXCEDIDOS", "FRANCOS CORTADOS", "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES", "AUSENTE", "FRANCO", "PRÉSTAMO"]
         try:
             pdf_rel = generar_pdf_reporte(f"RELEVAMIENTO MENSUAL DE SUPERVISORES - {MESES_ES[mes - 1]} {anio}", vista[cols_pdf])
             st.download_button("📥 DESCARGAR RELEVAMIENTO (PDF)", data=pdf_rel,
@@ -2081,9 +2769,6 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
                                use_container_width=True, key=f"{key_prefix}_pdf")
         except Exception as e:
             print(f"Error generando PDF de relevamiento: {e}")
-
-    with st.expander("➕ REGISTRAR NOVEDAD DE PERSONAL (licencia, ART, vacaciones, ausente, franco)"):
-        formulario_novedad_personal(key_prefix)
 
 def mostrar_boton_planificacion():
     if st.session_state.get("rol_sel") not in ["JEFE DE OPERACIONES", "GERENCIA"]:
@@ -2093,6 +2778,16 @@ def mostrar_boton_planificacion():
     if st.button("⬅️ VOLVER AL COMANDO" if en_rel else "📊 RELEVAMIENTO MENSUAL",
                  use_container_width=True, key="btn_planificacion_sidebar"):
         st.session_state.ver_planificacion = not en_rel
+        st.rerun()
+
+def mostrar_boton_personal_supervisor():
+    if st.session_state.get("rol_sel") != "SUPERVISOR" or not st.session_state.get("sup_autenticado"):
+        return
+    st.markdown("---")
+    activo = st.session_state.get("ver_personal_sup", False)
+    if st.button("⬅️ VOLVER A MI ESTACIÓN" if activo else "👥 MI PERSONAL",
+                 use_container_width=True, key="btn_personal_sup_sidebar"):
+        st.session_state.ver_personal_sup = not activo
         st.rerun()
 
 def mostrar_landing():
@@ -2321,9 +3016,11 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
 
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
+        mostrar_boton_personal_supervisor()
 
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
+            st.session_state.ver_personal_sup = False
             st.session_state.usuario_logueado = False
             st.query_params.clear()
             st.rerun()
@@ -2336,9 +3033,11 @@ else:
         
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
+        mostrar_boton_personal_supervisor()
             
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
+            st.session_state.ver_personal_sup = False
             st.session_state.usuario_logueado = False
             st.query_params.clear()
             st.rerun()
@@ -2364,6 +3063,11 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"] and st.session_state.get("ver_planificacion", False):
     renderizar_relevamiento_mensual(key_prefix="rel")
+    st.stop()
+
+if (st.session_state.rol_sel == "SUPERVISOR" and st.session_state.get("sup_autenticado")
+        and st.session_state.get("ver_personal_sup", False)):
+    renderizar_personal_supervisor(st.session_state.user_sel)
     st.stop()
 
 # =========================================================================
