@@ -1898,6 +1898,121 @@ def _tarjeta_supervisor_html(r, actividad, anio, mes, vig_df=None):
             '<div style="font-size:10.5px;margin-top:5px;">' + leyenda + '</div>'
             + vig_html + '</div>')
 
+# --- BLOQUES GRÁFICOS DEL RELEVAMIENTO (reemplazan a las tablas) ---
+def _num_seguro(v):
+    try:
+        return float(v)
+    except Exception:
+        return None
+
+def _fila_barra_html(etiqueta, valor_txt, pct, color, chips=""):
+    pct = max(0.0, min(100.0, pct))
+    return ('<div style="margin:8px 0 0;">'
+            '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#CBD5E1;">'
+            '<span>' + etiqueta + chips + '</span><span style="color:#9AA3B5;white-space:nowrap;">' + valor_txt + '</span></div>'
+            '<div style="background:#1F2430;border-radius:3px;height:5px;overflow:hidden;margin-top:3px;">'
+            '<div style="background:' + color + ';height:100%;width:' + ("%.1f" % pct) + '%;opacity:.85;"></div></div></div>')
+
+def _detalle_vigiladores_html(vig_df):
+    """Horas y días seguidos por vigilador, en barras (sin tabla)."""
+    import html as _h
+    if vig_df is None or vig_df.empty:
+        return '<div style="font-size:11px;color:#7C869A;">Sin ingresos registrados en el mes.</div>'
+    filas = ""
+    for _, v in vig_df.iterrows():
+        horas, exc, fc = int(v["HORAS"]), int(v["EXCESO HS"]), int(v["FRANCOS CORTADOS"])
+        seguidos = int(v["MÁX. DÍAS SEGUIDOS"])
+        pct_h = 100.0 * horas / HORAS_MAX_MES if HORAS_MAX_MES else 0
+        color_h = "#D9776F" if exc > 0 else ("#E0A458" if horas >= 0.9 * HORAS_MAX_MES else "#4DB6AC")
+        pct_s = 100.0 * seguidos / MAX_DIAS_SEGUIDOS if MAX_DIAS_SEGUIDOS else 0
+        color_s = "#5BC0CE" if seguidos > MAX_DIAS_SEGUIDOS else "#6C7A99"
+        chips = ""
+        if exc > 0:
+            chips += ('<span style="border:1px solid #D9776F;color:#E89A93;border-radius:8px;padding:0 6px;font-size:9.5px;margin-left:6px;">⚠ +' + str(exc) + ' hs</span>')
+        if fc > 0:
+            chips += ('<span style="border:1px solid #5BC0CE;color:#7FD6E0;border-radius:8px;padding:0 6px;font-size:9.5px;margin-left:6px;">✂ franco cortado</span>')
+        filas += ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-radius:8px;padding:8px 12px;margin:6px 0;">'
+                  '<div style="font-size:12px;color:#E2E8F0;">' + _h.escape(str(v["VIGILADOR"])) + chips + '</div>'
+                  + _fila_barra_html("Horas", str(horas) + " / " + str(HORAS_MAX_MES) + " hs", pct_h, color_h)
+                  + _fila_barra_html("Días seguidos (máx.)", str(seguidos) + " d · " + str(int(v["DÍAS"])) + " días · " + str(int(v["TURNOS"])) + " turnos", pct_s, color_s)
+                  + '</div>')
+    return filas
+
+def _detalle_objetivos_html(det_df):
+    """Visitas y permanencia por objetivo, en barras (sin tabla)."""
+    import html as _h
+    if det_df is None or det_df.empty:
+        return '<div style="font-size:11px;color:#7C869A;">Sin objetivos asignados.</div>'
+    max_vis = max([int(x) for x in det_df["VISITAS"]] + [1])
+    perms = [_num_seguro(x) for x in det_df["PERMANENCIA PROM. (MIN)"]]
+    max_perm = max([x for x in perms if x is not None] + [1])
+    filas = ""
+    for (_, o), perm in zip(det_df.iterrows(), perms):
+        vis = int(o["VISITAS"])
+        ok = vis > 0
+        chip = ('<span style="border:1px solid ' + ("#4DB6AC" if ok else "#D9776F") + ';color:' + ("#7FD6C0" if ok else "#E89A93") +
+                ';border-radius:8px;padding:0 6px;font-size:9.5px;margin-left:6px;">' + ("✔ visitado" if ok else "✖ sin visita") + '</span>')
+        perm_txt = (str(int(round(perm))) + " min") if perm is not None else "sin dato"
+        perm_pct = (100.0 * perm / max_perm) if perm is not None else 0
+        filas += ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-radius:8px;padding:8px 12px;margin:6px 0;">'
+                  '<div style="font-size:12px;color:#E2E8F0;">🎯 ' + _h.escape(str(o["OBJETIVO"])) + chip + '</div>'
+                  + _fila_barra_html("Visitas QR", str(vis), 100.0 * vis / max_vis, "#5BC0CE" if ok else "#3A4152")
+                  + _fila_barra_html("Permanencia promedio", perm_txt, perm_pct, "#4DB6AC")
+                  + '</div>')
+    return filas
+
+def _bloque_comparativo_html(titulo, items, color, escala=None, sufijo=""):
+    import html as _h
+    vals = [v for _, v in items]
+    tope = escala if escala else max(vals + [1])
+    filas = ""
+    for nombre, v in items:
+        txt = ("%g" % v) + sufijo
+        filas += _fila_barra_html(_h.escape(str(nombre)), txt, 100.0 * v / tope if tope else 0, color)
+    return ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-radius:10px;padding:10px 14px;">'
+            '<div style="font-family:Orbitron,sans-serif;font-size:11px;color:#7FD6E0;letter-spacing:.8px;">' + titulo + '</div>' + filas + '</div>')
+
+def _comparativo_supervisores_html(vista):
+    """Comparativo de todos los supervisores en barras (sin tabla)."""
+    import html as _h
+    if vista is None or vista.empty:
+        return ""
+    def items(col):
+        return [(r["SUPERVISOR"], float(r[col])) for _, r in vista.iterrows()]
+    bloques = [
+        _bloque_comparativo_html("🎯 COBERTURA DE OBJETIVOS", items("COBERTURA %"), "#5BC0CE", 100, "%"),
+        _bloque_comparativo_html("📱 VISITAS QR", items("VISITAS QR"), "#4DB6AC"),
+        _bloque_comparativo_html("📅 DÍAS ACTIVOS", items("DÍAS ACTIVOS"), "#6C9BD2"),
+        _bloque_comparativo_html("⏱️ HORAS DE JORNADA", items("HORAS"), "#8E9BE0", None, " hs"),
+        _bloque_comparativo_html("👷 HS DE VIGILADORES", items("HS VIGILADORES"), "#E0A458", None, " hs"),
+        _bloque_comparativo_html("🚗 KM RECORRIDOS", items("KM"), "#7FB8A0", None, " km"),
+        _bloque_comparativo_html("🚨 PÁNICOS", items("PÁNICOS"), "#D9776F"),
+        _bloque_comparativo_html("📝 NOVEDADES", items("NOVEDADES"), "#B596CC"),
+        _bloque_comparativo_html("🔁 RONDAS COMPLETAS", items("RONDAS COMPLETAS"), "#5BC0CE"),
+        _bloque_comparativo_html("⚠️ VIGILADORES EXCEDIDOS", items("EXCEDIDOS"), "#D9776F"),
+        _bloque_comparativo_html("✂️ FRANCOS CORTADOS", items("FRANCOS CORTADOS"), "#7FD6E0"),
+    ]
+    # Personal a cargo: barra apilada por supervisor
+    seg_def = [("sin novedad", "#3B6B55"), ("licencia", "#C96B6B"), ("ART", "#D49A52"),
+               ("vacaciones", "#9A74B5"), ("ausentes", "#D4B93C"), ("francos", "#5B8DB8")]
+    filas_p = ""
+    for _, r in vista.iterrows():
+        n = int(r["VIGILADORES"])
+        cants = [int(r["LICENCIA"]), int(r["ART"]), int(r["VACACIONES"]), int(r["AUSENTE"]), int(r["FRANCO"])]
+        cants = [max(0, n - sum(cants))] + cants
+        barra = "".join('<div title="' + nm + ': ' + str(c) + '" style="background:' + col + ';width:' + ("%.1f" % (100.0 * c / n if n else 0)) + '%;height:100%;"></div>'
+                        for (nm, col), c in zip(seg_def, cants))
+        detalle_txt = " · ".join(str(c) + " " + nm for (nm, _), c in zip(seg_def, cants) if c > 0) or "sin personal"
+        filas_p += ('<div style="margin:8px 0 0;"><div style="display:flex;justify-content:space-between;font-size:11px;color:#CBD5E1;">'
+                    '<span>' + _h.escape(str(r["SUPERVISOR"])) + '</span><span style="color:#9AA3B5;">' + str(n) + ' vig.</span></div>'
+                    '<div style="display:flex;background:#1F2430;border-radius:3px;height:7px;overflow:hidden;margin-top:3px;">' + barra + '</div>'
+                    '<div style="font-size:10px;color:#7C869A;margin-top:2px;">' + detalle_txt + '</div></div>')
+    leyenda = "".join('<span style="color:' + col + ';margin-right:10px;font-size:10px;">● ' + nm + '</span>' for nm, col in seg_def)
+    bloques.append('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-radius:10px;padding:10px 14px;">'
+                   '<div style="font-family:Orbitron,sans-serif;font-size:11px;color:#7FD6E0;letter-spacing:.8px;">👥 PERSONAL A CARGO</div>'
+                   '<div style="margin-top:4px;">' + leyenda + '</div>' + filas_p + '</div>')
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;">' + "".join(bloques) + '</div>'
+
 def renderizar_relevamiento_mensual(key_prefix="rel"):
     st.markdown("### 📊 RELEVAMIENTO MENSUAL DE SUPERVISORES")
     hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
@@ -1938,16 +2053,16 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
             with st.expander("Ver detalle de objetivos y personal"):
                 if s in vigs and not vigs[s].empty:
                     st.markdown("**Horas por vigilador**")
-                    st.dataframe(vigs[s], use_container_width=True, hide_index=True)
+                    st.markdown(_detalle_vigiladores_html(vigs[s]), unsafe_allow_html=True)
                 st.markdown("**Objetivos**")
-                st.dataframe(detalle[s], use_container_width=True, hide_index=True)
+                st.markdown(_detalle_objetivos_html(detalle[s]), unsafe_allow_html=True)
                 if s in personal:
                     st.markdown(f"**Vigiladores a cargo ({r['VIGILADORES']})**")
                     st.markdown(leyenda_planificacion_html(), unsafe_allow_html=True)
                     st.markdown(grilla_planificacion_html(personal[s], anio, mes), unsafe_allow_html=True)
 
         with st.expander("📋 COMPARATIVO DE TODOS LOS SUPERVISORES"):
-            st.dataframe(vista, use_container_width=True, hide_index=True)
+            st.markdown(_comparativo_supervisores_html(vista), unsafe_allow_html=True)
         cols_pdf = ["SUPERVISOR", "OBJETIVOS", "VIGILADORES", "DÍAS ACTIVOS", "HORAS", "VISITAS QR", "COBERTURA %",
                     "HS VIGILADORES", "EXCEDIDOS", "FRANCOS CORTADOS", "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES", "AUSENTE", "FRANCO"]
         try:
