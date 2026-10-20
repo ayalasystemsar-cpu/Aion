@@ -1676,12 +1676,14 @@ def estadistica_vigiladores(periodo, pres, obj_a_sup, personal):
             horas = len(d["turnos"]) * HORAS_TURNO
             filas.append({
                 "VIGILADOR": n, "DÍAS": len(dias), "TURNOS": len(d["turnos"]), "HORAS": horas,
+                "TURNOS DIURNOS": sum(1 for (_, t) in d["turnos"] if t == "D"),
+                "TURNOS NOCTURNOS": sum(1 for (_, t) in d["turnos"] if t == "N"),
                 "MÁX. DÍAS SEGUIDOS": max(corridas) if corridas else 0,
                 "FRANCOS CORTADOS": sum(1 for c in corridas if c > MAX_DIAS_SEGUIDOS),
                 "EXCESO HS": max(0, horas - HORAS_MAX_MES),
             })
         res[s] = pd.DataFrame(filas).sort_values("HORAS", ascending=False).reset_index(drop=True) if filas else pd.DataFrame(
-            columns=["VIGILADOR", "DÍAS", "TURNOS", "HORAS", "MÁX. DÍAS SEGUIDOS", "FRANCOS CORTADOS", "EXCESO HS"])
+            columns=["VIGILADOR", "DÍAS", "TURNOS", "HORAS", "TURNOS DIURNOS", "TURNOS NOCTURNOS", "MÁX. DÍAS SEGUIDOS", "FRANCOS CORTADOS", "EXCESO HS"])
     return res
 
 def relevamiento_mes(periodo):
@@ -1931,11 +1933,18 @@ def _detalle_vigiladores_html(vig_df):
             chips += ('<span style="border:1px solid #D9776F;color:#E89A93;border-radius:8px;padding:0 6px;font-size:9.5px;margin-left:6px;">⚠ +' + str(exc) + ' hs</span>')
         if fc > 0:
             chips += ('<span style="border:1px solid #5BC0CE;color:#7FD6E0;border-radius:8px;padding:0 6px;font-size:9.5px;margin-left:6px;">✂ franco cortado</span>')
+        n_dia, n_noc = int(v["TURNOS DIURNOS"]), int(v["TURNOS NOCTURNOS"])
+        n_dias, n_turnos = int(v["DÍAS"]), int(v["TURNOS"])
+        turnos_html = ('<div style="margin-top:7px;font-size:11px;color:#9AA3B5;">'
+                       'Trabajó <b style="color:#E2E8F0;">' + str(n_dias) + (' día' if n_dias == 1 else ' días') + '</b> del mes · '
+                       '<b style="color:#E2E8F0;">' + str(n_turnos) + (' turno' if n_turnos == 1 else ' turnos') + '</b>: '
+                       '<span style="border:1px solid #E0C060;color:#F0D98A;border-radius:8px;padding:0 6px;font-size:10px;margin-left:2px;">☀️ ' + str(n_dia) + ' diurno' + ('' if n_dia == 1 else 's') + '</span> '
+                       '<span style="border:1px solid #8E9BE0;color:#B8C1F0;border-radius:8px;padding:0 6px;font-size:10px;">🌙 ' + str(n_noc) + ' nocturno' + ('' if n_noc == 1 else 's') + '</span></div>')
         filas += ('<div style="background:rgba(22,27,34,.55);border:1px solid #2A3040;border-radius:8px;padding:8px 12px;margin:6px 0;">'
                   '<div style="font-size:12px;color:#E2E8F0;">' + _h.escape(str(v["VIGILADOR"])) + chips + '</div>'
-                  + _fila_barra_html("Horas", str(horas) + " / " + str(HORAS_MAX_MES) + " hs", pct_h, color_h)
-                  + _fila_barra_html("Días seguidos (máx.)", str(seguidos) + " d · " + str(int(v["DÍAS"])) + " días · " + str(int(v["TURNOS"])) + " turnos", pct_s, color_s)
-                  + '</div>')
+                  + _fila_barra_html("Horas trabajadas", str(horas) + " hs de " + str(HORAS_MAX_MES) + " permitidas", pct_h, color_h)
+                  + _fila_barra_html("Más días seguidos sin descanso", str(seguidos) + (" día" if seguidos == 1 else " días") + " (límite " + str(MAX_DIAS_SEGUIDOS) + ")", pct_s, color_s)
+                  + turnos_html + '</div>')
     return filas
 
 def _detalle_objetivos_html(det_df):
