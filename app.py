@@ -780,6 +780,65 @@ def mostrar_notificaciones_sidebar():
         if len(pend) > 8:
             st.caption(f"y {len(pend) - 8} notificaciones más (las más viejas).")
 
+# --- TURNO DEL VIGILADOR (INGRESO -> RECORRIDAS -> FINALIZAR) Y RONDAS JUSTIFICADAS ---
+HORAS_MAX_BLOQUEO_TURNO = 18  # si pasaron más horas desde el ingreso, el turno se considera vencido y no traba el cierre de sesión
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _ultimo_mov_presentismo(nombre):
+    gc = conectar_google()
+    if not gc:
+        return None
+    try:
+        filas = gc.open_by_key(ID_MAESTRO_DB).worksheet("PRESENTISMO").get_all_values()
+    except Exception:
+        return None
+    nombre = str(nombre).strip().upper()
+    for f in reversed(filas):
+        if len(f) >= 6 and str(f[3]).strip().upper() == nombre and str(f[5]).strip().upper() in ("INGRESO", "EGRESO"):
+            return {"tipo": str(f[5]).strip().upper(), "fecha": str(f[0]).strip(),
+                    "hora": str(f[1]).strip(), "objetivo": str(f[4]).strip()}
+    return None
+
+def _nombre_vigilador_sesion():
+    return str(st.session_state.get("v_nombre_completo", st.session_state.get("user_sel", ""))).strip().upper()
+
+def vigilador_turno_activo():
+    """True si el vigilador marcó INGRESO y todavía no marcó EGRESO (turno en curso)."""
+    if st.session_state.get("rol_sel") != "VIGILADOR":
+        return False
+    if st.session_state.get("turno_vig_activo") is not None:
+        return bool(st.session_state.turno_vig_activo)
+    ult = _ultimo_mov_presentismo(_nombre_vigilador_sesion())
+    activo = False
+    if ult and ult["tipo"] == "INGRESO":
+        try:
+            t0 = datetime.strptime(f"{ult['fecha']} {ult['hora'][:8]}", "%Y-%m-%d %H:%M:%S")
+            ahora = datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+            activo = (ahora - t0).total_seconds() < HORAS_MAX_BLOQUEO_TURNO * 3600
+        except Exception:
+            activo = False
+        if activo and ult["objetivo"]:
+            st.session_state.obj_actual_vig = ult["objetivo"]
+    st.session_state.turno_vig_activo = activo
+    return activo
+
+def _rondas_justificadas_hoy(obj_u, dni, horarios, hoy):
+    """{número de ronda: motivo} de las rondas del día que el vigilador respondió NO / justificó.
+    La ronda 1 es el primer horario del día, la 2 el segundo, etc."""
+    saltadas = {}
+    df = leer_matriz_nube("RESPUESTAS RECORRIDAS")
+    if df.empty or not {'FECHA_HORA', 'OBJETIVO', 'DNI', 'HORARIO', 'RESPUESTA'} <= set(df.columns):
+        return saltadas
+    m = ((col_texto(df, 'OBJETIVO').str.strip().str.upper() == obj_u) &
+         (col_texto(df, 'DNI').str.strip() == str(dni).strip()) &
+         col_texto(df, 'FECHA_HORA').str.contains(hoy, regex=False) &
+         (col_texto(df, 'RESPUESTA').str.strip().str.upper() == "NO"))
+    for _, f in df[m].iterrows():
+        hs = _horarios_unicos([f['HORARIO']])
+        if hs and hs[0] in horarios:
+            saltadas[horarios.index(hs[0]) + 1] = str(f.get('MOTIVO', '')).strip()
+    return saltadas
+
 # --- CALENDARIO EDITABLE (BARRA LATERAL, TODOS LOS PERFILES) ---
 _CAL_COLS = ["ID", "FECHA", "TITULO", "DETALLE", "CREADO_POR", "ULTIMA_MODIFICACION"]
 _MESES_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -1103,6 +1162,7 @@ function altura(){enviar("streamlit:setFrameHeight",{height:Math.max(document.ge
 altura();window.addEventListener("resize",altura);
 
 var P=window.parent, PD=P.document, ctx=null, wl=null;
+var ESPERA_MIN=2;
 var horarios=[], clave="", pendiente=null, tipoModal=null, repeticiones=0, timerRepeat=null, avisadoAhora={};
 
 window.addEventListener("message",function(ev){
@@ -1182,6 +1242,8 @@ function respuestaDe(h){try{return localStorage.getItem(llave(h));}catch(e){retu
 function marcar(h,r){try{localStorage.setItem(llave(h),r);}catch(e){}}
 function ahoraHecho(h){try{return localStorage.getItem(llave(h)+"_ahora")==="1";}catch(e){return false;}}
 function marcarAhora(h){try{localStorage.setItem(llave(h)+"_ahora","1");}catch(e){}}
+function horaVista(h){try{return localStorage.getItem(llave(h)+"_hv")==="1";}catch(e){return false;}}
+function marcarHoraVista(h){try{localStorage.setItem(llave(h)+"_hv","1");}catch(e){}}
 function avisoVisto(h){try{return localStorage.getItem(llave(h)+"_visto")==="1";}catch(e){return false;}}
 function marcarVisto(h){try{localStorage.setItem(llave(h)+"_visto","1");}catch(e){}}
 function minutosHasta(h){
@@ -1257,14 +1319,37 @@ function mostrar(hora){
 function mostrarHora(hora){
   if(PD.getElementById("aion_modal_rec")) return;
   pendiente=hora; tipoModal="hora";
-  marcarAhora(hora);
+  marcarHoraVista(hora);
   crearModal(
     '<h2 style="color:#39FF14;margin:0 0 10px;font-size:20px">🚶 ¡Es hora de la recorrida!</h2>'+
     '<p style="font-size:16px;margin:0 0 16px;line-height:1.4">Ronda de las <b>'+hora+' hs</b>.<br>Recorré el objetivo y escaneá el QR de cada punto de control.</p>'+
+    '<p style="font-size:12px;color:#FFD600;margin:0 0 12px">Confirmá en '+ESPERA_MIN+' min o la recorrida se bloquea y tendrás que justificarla.</p>'+
     '<button id="aion_ent" style="background:#39FF14;color:#000;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;width:100%">ENTENDIDO, INICIO</button>',
     "#39FF14");
   PD.getElementById("aion_ent").onclick=function(){marcarAhora(hora);cerrar();};
   campana();
+}
+
+// Si no confirmó el aviso de la hora: la recorrida queda bloqueada hasta que justifique
+function mostrarBloqueo(hora){
+  if(PD.getElementById("aion_modal_rec")) return;
+  pendiente=hora; tipoModal="bloqueo";
+  crearModal(
+    '<h2 style="color:#FF5252;margin:0 0 10px;font-size:20px">⛔ Recorrida bloqueada</h2>'+
+    '<p style="font-size:15px;margin:0 0 14px;line-height:1.4">No confirmaste el aviso de la recorrida de las <b>'+hora+' hs</b>.<br>Esa recorrida quedó bloqueada. <b>Justificá por qué no la realizaste.</b></p>'+
+    '<select id="aion_sel_b" style="width:100%;padding:10px;border-radius:6px;font-size:14px;margin-bottom:8px">'+
+    '<option>No escuché el aviso</option><option>Atendiendo una novedad en el objetivo</option><option>Atendiendo una visita o ingreso</option>'+
+    '<option>Falta de personal</option><option>Problema de salud</option><option>Otro</option></select>'+
+    '<input id="aion_txt_b" placeholder="Detalle (obligatorio)" style="width:100%;box-sizing:border-box;padding:10px;border-radius:6px;font-size:14px;margin-bottom:8px">'+
+    '<p id="aion_err_b" style="color:#FF5252;font-size:12px;margin:0 0 8px;display:none">Escribí el detalle para poder enviar.</p>'+
+    '<button id="aion_env_b" style="background:#FF5252;color:#fff;border:none;padding:12px;font-weight:bold;font-size:14px;border-radius:8px;width:100%">ENVIAR JUSTIFICACIÓN</button>',
+    "#FF5252");
+  PD.getElementById("aion_env_b").onclick=function(){
+    var mot=PD.getElementById("aion_sel_b").value;
+    var det=PD.getElementById("aion_txt_b").value.trim();
+    if(det.length<3){PD.getElementById("aion_err_b").style.display="block";return;}
+    responder(hora,"NO","SIN CONFIRMAR AVISO - "+mot+" - "+det);
+  };
 }
 
 setInterval(function(){
@@ -1278,11 +1363,17 @@ setInterval(function(){
       var tp=PD.getElementById("aion_txt_p"); if(tp) tp.innerHTML=textoAviso(h);
       return;
     }
+    // Dijo SÍ, no confirmó el cartel de la hora y pasó el plazo: se bloquea la recorrida
+    if(respuestaDe(h)==="SI" && !ahoraHecho(h) && m<=-ESPERA_MIN){
+      if(modal && tipoModal==="bloqueo") return;
+      if(modal) cerrar();
+      mostrarBloqueo(h); return;
+    }
   }
   if(modal) return;
   for(i=0;i<horarios.length;i++){
     h=horarios[i]; m=minutosHasta(h); r=respuestaDe(h);
-    if(r==="SI" && m<=0 && m>-5 && !ahoraHecho(h)){mostrarHora(h);return;}
+    if(r==="SI" && m<=0 && m>-ESPERA_MIN && !ahoraHecho(h) && !horaVista(h)){mostrarHora(h);return;}
     if(r===null && !avisoVisto(h) && m<=5 && m>-30){mostrar(h);return;}
   }
 },1000);
@@ -1379,6 +1470,9 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     ronda_planilla = int(rondas.max()) if not rondas.empty else 1
     key_ronda = f"ronda_vig_{obj_u}_{hoy}"
     ronda = max(ronda_planilla, st.session_state.get(key_ronda, 1))
+    saltadas = _rondas_justificadas_hoy(obj_u, dni, horarios_previstos_lista, hoy)
+    while ronda in saltadas:
+        ronda += 1
     st.session_state[key_ronda] = ronda
 
     marcados = set()
@@ -1389,6 +1483,11 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     c_r1, c_r2 = st.columns(2)
     c_r1.metric("🔁 RONDA", ronda)
     c_r2.metric("✅ PUNTOS", f"{len(marcados)} / {len(lista_puntos)}")
+    if ronda <= len(horarios_previstos_lista):
+        st.caption(f"🕒 Esta ronda corresponde al horario de las {horarios_previstos_lista[ronda - 1]} hs.")
+    for n_s in sorted(saltadas):
+        if n_s <= len(horarios_previstos_lista):
+            st.caption(f"⛔ Ronda de las {horarios_previstos_lista[n_s - 1]} hs: no realizada ({saltadas[n_s] or 'sin motivo'}).")
     st.progress(min(1.0, len(marcados) / len(lista_puntos)))
 
     for p in lista_puntos:
@@ -3168,6 +3267,7 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
             st.session_state.ver_personal_sup = False
             st.session_state.usuario_logueado = False
+            st.session_state.pop("turno_vig_activo", None)
             st.query_params.clear()
             st.rerun()
 else:
@@ -3183,9 +3283,13 @@ else:
         mostrar_calendario_sidebar()
             
         st.markdown("---")
-        if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
+        if vigilador_turno_activo():
+            st.warning("🔒 Tenés un turno en curso. Para cerrar sesión primero finalizá tu turno en la solapa 🏁 FINALIZAR TURNO.")
+            st.button("🚪 CERRAR SESIÓN", use_container_width=True, disabled=True, key="btn_logout_bloqueado")
+        elif st.button("🚪 CERRAR SESIÓN", use_container_width=True):
             st.session_state.ver_personal_sup = False
             st.session_state.usuario_logueado = False
+            st.session_state.pop("turno_vig_activo", None)
             st.query_params.clear()
             st.rerun()
 
@@ -4306,7 +4410,13 @@ elif st.session_state.rol_sel == "VIGILADOR":
     if st.session_state.get("msg_ingreso_vig"):
         st.success(st.session_state.pop("msg_ingreso_vig"))
 
-    tab_auto_ingreso, tab_recorrido, t_mensajeria = st.tabs(["🚀 INGRESO & RELEVO AUTOMÁTICO", "🚶 RECORRIDO QR", label_msg])
+    turno_activo = vigilador_turno_activo()
+    if turno_activo:
+        tab_recorrido, tab_fin_turno, t_mensajeria = st.tabs(["🚶 RECORRIDO QR", "🏁 FINALIZAR TURNO", label_msg])
+        tab_auto_ingreso = None
+    else:
+        tab_auto_ingreso, t_mensajeria = st.tabs(["🚀 INGRESO & RELEVO AUTOMÁTICO", label_msg])
+        tab_recorrido = tab_fin_turno = None
 
     if st.session_state.get("nav_vig_pendiente") == "RECORRIDO":
         st.session_state.nav_vig_pendiente = None
@@ -4321,47 +4431,75 @@ elif st.session_state.rol_sel == "VIGILADOR":
         </script>
         """, height=0)
   
-    with tab_auto_ingreso:
-        st.markdown(f"### ⚡ ACCESO Y VALIDACIÓN: **{nombre_vigilador_actual}**")
-        st.info("ℹ️ Al confirmar el objetivo y tomar la foto, el sistema registrará tu fichaje de ingreso, generará el relevo automático y te habilitará el módulo de recorridas.")
+    if tab_auto_ingreso is not None:
+        with tab_auto_ingreso:
+            st.markdown(f"### ⚡ ACCESO Y VALIDACIÓN: **{nombre_vigilador_actual}**")
+            st.info("ℹ️ Al confirmar el objetivo y tomar la foto, el sistema registrará tu fichaje de ingreso, generará el relevo automático y te habilitará el módulo de recorridas.")
 
-        with st.form(key="form_ingreso_automatico_vigilador", clear_on_submit=False):
-            v_obj_auto = st.selectbox("SELECCIONAR OBJETIVO DE TURNO:", opciones_globales_obj)
-            vig_saliente_auto = st.text_input("VIGILADOR SALIENTE (A QUIÉN RELEVAS):", value="").upper().strip()
-            img_facial_auto = st.camera_input("📸 FOTO OBLIGATORIA DE VERIFICACIÓN (RECONOCIMIENTO FACIAL)")
+            with st.form(key="form_ingreso_automatico_vigilador", clear_on_submit=False):
+                v_obj_auto = st.selectbox("SELECCIONAR OBJETIVO DE TURNO:", opciones_globales_obj)
+                vig_saliente_auto = st.text_input("VIGILADOR SALIENTE (A QUIÉN RELEVAS):", value="").upper().strip()
+                img_facial_auto = st.camera_input("📸 FOTO OBLIGATORIA DE VERIFICACIÓN (RECONOCIMIENTO FACIAL)")
              
-            confirmar_ingreso = st.form_submit_button("🚀 CONFIRMAR INGRESO, FOTO Y RELEVO")
+                confirmar_ingreso = st.form_submit_button("🚀 CONFIRMAR INGRESO, FOTO Y RELEVO")
              
-            if confirmar_ingreso:
-                if img_facial_auto is not None and v_obj_auto:
-                    st.session_state.obj_actual_vig = v_obj_auto
-                    sincronizar_url_sesion()
-                    sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_auto]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
+                if confirmar_ingreso:
+                    if img_facial_auto is not None and v_obj_auto:
+                        st.session_state.obj_actual_vig = v_obj_auto
+                        sincronizar_url_sesion()
+                        sup_responsable = df_objetivos[df_objetivos['OBJETIVO'] == v_obj_auto]['SUPERVISOR'].iloc[0] if not df_objetivos.empty else "N/A"
                      
-                    fecha_hora_arg = obtener_hora_argentina()
-                    fecha_hoy = fecha_hora_arg.split(" ")[0]
-                    hora_actual = fecha_hora_arg.split(" ")[1]
+                        fecha_hora_arg = obtener_hora_argentina()
+                        fecha_hoy = fecha_hora_arg.split(" ")[0]
+                        hora_actual = fecha_hora_arg.split(" ")[1]
                      
-                    escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, legajo_vigilador_actual, nombre_vigilador_actual, v_obj_auto, "INGRESO", "OK"])
-                    escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "MARCACIÓN_INGRESO", "---", nombre_vigilador_actual, legajo_vigilador_actual, "PROCESADO", sup_responsable])
+                        escribir_registro_nube("PRESENTISMO", [fecha_hoy, hora_actual, legajo_vigilador_actual, nombre_vigilador_actual, v_obj_auto, "INGRESO", "OK"])
+                        escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "MARCACIÓN_INGRESO", "---", nombre_vigilador_actual, legajo_vigilador_actual, "PROCESADO", sup_responsable])
                      
-                    saliente_fmt = vig_saliente_auto if vig_saliente_auto else "PERSONAL ANTERIOR"
-                    escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
-                    escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
+                        saliente_fmt = vig_saliente_auto if vig_saliente_auto else "PERSONAL ANTERIOR"
+                        escribir_registro_nube("NOVEDADES GUARDIA", [fecha_hora_arg, v_obj_auto, "RELEVO DE TURNO", saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, "PROCESADO", sup_responsable])
+                        escribir_registro_nube("VIGILADORES", [fecha_hoy, hora_actual, v_obj_auto, saliente_fmt, nombre_vigilador_actual, dni_vigilador_actual, sup_responsable, "RELEVO_AUTOMATICO"])
                      
-                    st.session_state.msg_ingreso_vig = f"✅ ¡RELEVO EXITOSO! Ingreso y foto registrados para {nombre_vigilador_actual} en {v_obj_auto}. Ya podés hacer tu recorridas."
-                    st.session_state.nav_vig_pendiente = "RECORRIDO"
-                    st.toast("✅ ¡Relevo exitoso!", icon="✅")
+                        st.session_state.turno_vig_activo = True
+                        st.session_state.msg_ingreso_vig = f"✅ ¡RELEVO EXITOSO! Ingreso y foto registrados para {nombre_vigilador_actual} en {v_obj_auto}. Ya podés hacer tu recorridas."
+                        st.session_state.nav_vig_pendiente = "RECORRIDO"
+                        st.toast("✅ ¡Relevo exitoso!", icon="✅")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ Es obligatorio tomar la foto con la cámara para confirmar el ingreso.")
+
+    if tab_recorrido is not None:
+        with tab_recorrido:
+            renderizar_recorrido_vigilador(
+                st.session_state.get("obj_actual_vig", ""),
+                nombre_vigilador_actual,
+                dni_vigilador_actual
+            )
+
+    if tab_fin_turno is not None:
+        with tab_fin_turno:
+            st.markdown(f"### 🏁 FINALIZAR TURNO: **{nombre_vigilador_actual}**")
+            ult_mov = _ultimo_mov_presentismo(nombre_vigilador_actual)
+            obj_turno = (ult_mov or {}).get("objetivo") or st.session_state.get("obj_actual_vig", "")
+            if ult_mov and ult_mov["tipo"] == "INGRESO":
+                st.info(f"ℹ️ Turno iniciado el {ult_mov['fecha']} a las {ult_mov['hora'][:5]} hs en {ult_mov['objetivo']}.")
+            st.warning("⚠️ Mientras tu turno esté en curso no podés cerrar sesión. Al finalizar se registra tu egreso.")
+            conf_fin = st.checkbox("Confirmo que terminé mi turno y entregué el puesto.", key="chk_fin_turno")
+            if st.button("🏁 FINALIZAR TURNO Y REGISTRAR EGRESO", use_container_width=True, disabled=not conf_fin, key="btn_fin_turno"):
+                sup_fin = "N/A"
+                if not df_objetivos.empty:
+                    f_sup = df_objetivos[df_objetivos['OBJETIVO'] == obj_turno]
+                    if not f_sup.empty:
+                        sup_fin = f_sup['SUPERVISOR'].iloc[0]
+                fh_fin = obtener_hora_argentina()
+                if escribir_registro_nube("PRESENTISMO", [fh_fin.split(" ")[0], fh_fin.split(" ")[1], legajo_vigilador_actual, nombre_vigilador_actual, obj_turno, "EGRESO", "OK"]):
+                    escribir_registro_nube("NOVEDADES GUARDIA", [fh_fin, obj_turno, "MARCACIÓN_EGRESO", "---", nombre_vigilador_actual, legajo_vigilador_actual, "PROCESADO", sup_fin])
+                    st.session_state.turno_vig_activo = False
+                    st.session_state.msg_ingreso_vig = f"🏁 Turno finalizado. Egreso registrado para {nombre_vigilador_actual}. Ya podés cerrar sesión."
+                    st.toast("🏁 Turno finalizado", icon="🏁")
                     st.rerun()
                 else:
-                    st.error("⚠️ Es obligatorio tomar la foto con la cámara para confirmar el ingreso.")
-
-    with tab_recorrido:
-        renderizar_recorrido_vigilador(
-            st.session_state.get("obj_actual_vig", ""),
-            nombre_vigilador_actual,
-            dni_vigilador_actual
-        )
+                    st.error("❌ No se pudo registrar el egreso. Probá de nuevo.")
 
     with t_mensajeria:
         renderizar_mensajeria_global("VIGILADOR")
