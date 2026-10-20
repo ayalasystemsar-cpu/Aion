@@ -1153,7 +1153,7 @@ button.sec{background:#2D313E;color:#E0E0E0}
 #h{color:#A0A5B5;font-size:11px;margin:4px 0 0;line-height:1.3}
 </style></head><body>
 <div id="panel"><p id="t">🔔 AVISO DE RECORRIDAS</p>
-<button id="b">🔊 ACTIVAR AVISO SONORO</button><button id="p" class="sec">🔔 PROBAR</button>
+<button id="b">🔊 ACTIVAR AVISO SONORO</button>
 <p id="e"></p><p id="w"></p><p id="h"></p></div>
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
@@ -1215,7 +1215,6 @@ PD.addEventListener("visibilitychange",function(){
   PD.addEventListener(n,function(){ if(!ctx||ctx.state!=="running") audio(); if(!wl) pantalla(); },{passive:true});
 });
 document.getElementById("b").onclick=function(){audio();pantalla();setTimeout(campana,150);};
-document.getElementById("p").onclick=function(){audio();pantalla();setTimeout(function(){mostrar("PRUEBA");},150);};
 
 function nota(t0,f,dur){
   var o=ctx.createOscillator(), g=ctx.createGain();
@@ -1230,9 +1229,18 @@ function campana(){
   try{
     if(!ctx) audio();
     if(ctx.state==="suspended") ctx.resume();
+    // Campanita suave pero clara: dos notas ("ding-dong") que se apagan solas, una sola vez (~1,6 s)
     var t=ctx.currentTime+0.05;
-    [523.25,659.25,783.99,1046.5].forEach(function(f,i){nota(t+i*0.28,f,0.9);});
-    if(navigator.vibrate) navigator.vibrate([200,120,200]);
+    [[880,0],[660,0.4]].forEach(function(n){
+      var o=ctx.createOscillator(), g=ctx.createGain(), t0=t+n[1];
+      o.type="triangle"; o.frequency.value=n[0];
+      g.gain.setValueAtTime(0.0001,t0);
+      g.gain.exponentialRampToValueAtTime(0.35,t0+0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+1.1);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0); o.stop(t0+1.15);
+    });
+    if(navigator.vibrate) navigator.vibrate(150);
   }catch(e){}
 }
 
@@ -1381,7 +1389,7 @@ setInterval(function(){
 
 
 @st.cache_resource(show_spinner=False)
-def _declarar_alerta_recorrida(version="v4"):
+def _declarar_alerta_recorrida(version="v6"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_ALERTA_HTML)
@@ -1412,7 +1420,7 @@ def registrar_respuesta_recorrida(obj, nombre, dni, evento):
 
 def renderizar_alerta_recorrida_js(horarios_previstos, obj_u, nombre, dni):
     horarios = _horarios_unicos(horarios_previstos)
-    evento = _declarar_alerta_recorrida("v4")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
+    evento = _declarar_alerta_recorrida("v6")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
     if evento and evento.get("id") != st.session_state.get("ultimo_evento_alerta"):
         st.session_state.ultimo_evento_alerta = evento.get("id")
         if registrar_respuesta_recorrida(obj_u, nombre, dni, evento):
