@@ -124,7 +124,6 @@ def determinar_turno_activo(hora_str):
     except:
         return "DIURNO (06:00 - 18:00)"
 
-
 def obtener_mapeo_solapas():
     return {
         "NOVEDADES GUARDIA": "NOVEDADES GUARDIA",
@@ -145,9 +144,9 @@ def obtener_mapeo_solapas():
         "PADRON VIGILADORES": "PADRON VIGILADORES",
         "RECORRIDOS PUNTOS": "RECORRIDOS PUNTOS",
         "REGISTRO RECORRIDOS": "REGISTRO RECORRIDOS",
-        "CALENDARIO TERMINALES": "CALENDARIO TERMINALES",          # <-- NUEVO
-        "JUSTIFICACIONES RECORRIDAS": "JUSTIFICACIONES RECORRIDAS" # <-- NUEVO
+        "CALENDARIO": "CALENDARIO"
     }
+
 def actualizar_celda(pestana, fila, columna, valor):
     try:
         gc = conectar_google()
@@ -781,6 +780,157 @@ def mostrar_notificaciones_sidebar():
         if len(pend) > 8:
             st.caption(f"y {len(pend) - 8} notificaciones más (las más viejas).")
 
+# --- CALENDARIO EDITABLE (BARRA LATERAL, TODOS LOS PERFILES) ---
+_CAL_COLS = ["ID", "FECHA", "TITULO", "DETALLE", "CREADO_POR", "ULTIMA_MODIFICACION"]
+_MESES_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+
+def _hoja_calendario():
+    gc = conectar_google()
+    if not gc:
+        return None
+    sh = gc.open_by_key(ID_MAESTRO_DB)
+    try:
+        return sh.worksheet("CALENDARIO")
+    except Exception:
+        hoja = sh.add_worksheet(title="CALENDARIO", rows="500", cols="8")
+        hoja.append_row(_CAL_COLS)
+        return hoja
+
+def _cal_firma():
+    return str(st.session_state.get("user_sel", "")).strip().upper() + " · " + obtener_hora_argentina()[:16]
+
+def _cal_guardar(fecha, titulo, detalle, id_evento=None):
+    try:
+        hoja = _hoja_calendario()
+        if hoja is None:
+            return False
+        firma = _cal_firma()
+        if not id_evento:
+            nuevo_id = str(int(datetime.now().timestamp() * 1000))
+            hoja.append_row([nuevo_id, fecha.strftime("%Y-%m-%d"), titulo, detalle, firma, firma])
+        else:
+            fila = hoja.col_values(1).index(str(id_evento)) + 1
+            hoja.update(f"B{fila}:F{fila}", [[fecha.strftime("%Y-%m-%d"), titulo, detalle,
+                                              hoja.cell(fila, 5).value or firma, firma]])
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error guardando evento de calendario: {e}")
+        return False
+
+def _cal_borrar(id_evento):
+    try:
+        hoja = _hoja_calendario()
+        if hoja is None:
+            return False
+        fila = hoja.col_values(1).index(str(id_evento)) + 1
+        hoja.delete_rows(fila)
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        print(f"Error borrando evento de calendario: {e}")
+        return False
+
+def mostrar_calendario_sidebar():
+    hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires")).date()
+    if "cal_anio" not in st.session_state:
+        st.session_state.cal_anio = hoy.year
+        st.session_state.cal_mes = hoy.month
+    if "cal_edit_id" not in st.session_state:
+        st.session_state.cal_edit_id = None
+
+    st.markdown("---")
+    with st.expander("📅 CALENDARIO", expanded=False):
+        anio, mes = st.session_state.cal_anio, st.session_state.cal_mes
+
+        c_prev, c_tit, c_next = st.columns([1, 3, 1])
+        if c_prev.button("◀", key="cal_prev", use_container_width=True):
+            st.session_state.cal_mes = 12 if mes == 1 else mes - 1
+            st.session_state.cal_anio = anio - 1 if mes == 1 else anio
+            st.rerun()
+        c_tit.markdown(f"<div style='text-align:center;font-weight:bold;color:#00E5FF;padding-top:6px;'>{_MESES_ES[mes - 1]} {anio}</div>", unsafe_allow_html=True)
+        if c_next.button("▶", key="cal_next", use_container_width=True):
+            st.session_state.cal_mes = 1 if mes == 12 else mes + 1
+            st.session_state.cal_anio = anio + 1 if mes == 12 else anio
+            st.rerun()
+
+        df_cal = leer_matriz_nube("CALENDARIO")
+        if df_cal.empty or not set(_CAL_COLS) <= set(df_cal.columns):
+            df_cal = pd.DataFrame(columns=_CAL_COLS)
+        df_cal = df_cal.copy()
+        df_cal["_F"] = pd.to_datetime(df_cal["FECHA"], errors="coerce")
+        df_mes = df_cal[(df_cal["_F"].dt.year == anio) & (df_cal["_F"].dt.month == mes)].sort_values("_F")
+        dias_con_evento = set(df_mes["_F"].dt.day.tolist())
+
+        filas_html = ""
+        for semana in calendar.monthcalendar(anio, mes):
+            celdas = ""
+            for d in semana:
+                if d == 0:
+                    celdas += "<td></td>"
+                    continue
+                estilo = "text-align:center;padding:3px 0;font-size:12px;color:#E0E0E0;"
+                if d in dias_con_evento:
+                    estilo += "background:#00E5FF;color:#000;font-weight:bold;border-radius:4px;"
+                if (anio, mes, d) == (hoy.year, hoy.month, hoy.day):
+                    estilo += "outline:2px solid #39FF14;border-radius:4px;"
+                celdas += f"<td style='{estilo}'>{d}</td>"
+            filas_html += f"<tr>{celdas}</tr>"
+        cab = "".join(f"<th style='font-size:11px;color:#A0A5B5;text-align:center;'>{x}</th>" for x in ["L", "M", "M", "J", "V", "S", "D"])
+        st.markdown(f"<table style='width:100%;border-collapse:separate;border-spacing:2px;'><tr>{cab}</tr>{filas_html}</table>", unsafe_allow_html=True)
+
+        st.markdown("**📌 Eventos del mes**")
+        if df_mes.empty:
+            st.caption("Sin eventos este mes.")
+        for idx_e, ev in df_mes.iterrows():
+            id_e = str(ev.get("ID", ""))
+            st.markdown(f"**{ev['_F'].strftime('%d/%m')}** · {ev.get('TITULO', '')}")
+            if str(ev.get("DETALLE", "")).strip():
+                st.caption(str(ev.get("DETALLE", "")))
+            st.caption(f"Creó: {ev.get('CREADO_POR', '')} | Modificó: {ev.get('ULTIMA_MODIFICACION', '')}")
+            c_ed, c_del = st.columns(2)
+            if c_ed.button("✏️", key=f"cal_ed_{id_e}", use_container_width=True):
+                st.session_state.cal_edit_id = id_e
+                st.rerun()
+            if c_del.button("🗑️", key=f"cal_del_{id_e}", use_container_width=True):
+                if _cal_borrar(id_e):
+                    if st.session_state.cal_edit_id == id_e:
+                        st.session_state.cal_edit_id = None
+                    st.rerun()
+                else:
+                    st.error("❌ No se pudo borrar el evento.")
+
+        st.markdown("---")
+        id_edit = st.session_state.cal_edit_id
+        ev_edit = None
+        if id_edit:
+            m = df_cal[df_cal["ID"].astype(str) == str(id_edit)]
+            if m.empty:
+                st.session_state.cal_edit_id = None
+                id_edit = None
+            else:
+                ev_edit = m.iloc[0]
+
+        st.markdown("**✏️ EDITAR EVENTO**" if id_edit else "**➕ NUEVO EVENTO**")
+        sufijo = str(id_edit or "nuevo")
+        f_def = ev_edit["_F"].date() if (ev_edit is not None and pd.notna(ev_edit["_F"])) else hoy
+        f_ev = st.date_input("FECHA:", value=f_def, format="DD/MM/YYYY", key=f"cal_f_{sufijo}")
+        t_ev = st.text_input("TÍTULO:", value=str(ev_edit["TITULO"]) if ev_edit is not None else "", key=f"cal_t_{sufijo}")
+        d_ev = st.text_area("DETALLE:", value=str(ev_edit["DETALLE"]) if ev_edit is not None else "", height=70, key=f"cal_d_{sufijo}")
+        c_ok, c_can = st.columns(2)
+        if c_ok.button("💾 GUARDAR", key=f"cal_ok_{sufijo}", use_container_width=True):
+            if not t_ev.strip():
+                st.warning("⚠️ Escribí un título.")
+            elif _cal_guardar(f_ev, t_ev.strip(), d_ev.strip(), id_edit):
+                st.session_state.cal_edit_id = None
+                st.session_state.cal_anio, st.session_state.cal_mes = f_ev.year, f_ev.month
+                st.rerun()
+            else:
+                st.error("❌ No se pudo guardar el evento.")
+        if id_edit and c_can.button("✖️ CANCELAR", key=f"cal_can_{sufijo}", use_container_width=True):
+            st.session_state.cal_edit_id = None
+            st.rerun()
+
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
@@ -938,20 +1088,22 @@ html,body{margin:0;padding:0;background:transparent;font-family:sans-serif}
 #t{color:#00E5FF;font-weight:bold;font-size:13px;margin:0 0 8px}
 button{background:#00E5FF;color:#000;border:none;padding:9px 14px;font-weight:bold;font-size:13px;border-radius:6px;cursor:pointer;margin:2px}
 button.ok{background:#39FF14}
+button.sec{background:#2D313E;color:#E0E0E0}
 #e{color:#39FF14;font-size:12px;margin:8px 0 0;line-height:1.3}
+#w{color:#39FF14;font-size:11px;margin:4px 0 0;line-height:1.3}
 #h{color:#A0A5B5;font-size:11px;margin:4px 0 0;line-height:1.3}
 </style></head><body>
 <div id="panel"><p id="t">🔔 AVISO DE RECORRIDAS</p>
 <button id="b">🔊 ACTIVAR AVISO SONORO</button>
-<p id="e"></p><p id="h"></p></div>
+<p id="e"></p><p id="w"></p><p id="h"></p></div>
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
 enviar("streamlit:componentReady",{apiVersion:1});
-function altura(){enviar("streamlit:setFrameHeight",{height:Math.max(document.getElementById("panel").offsetHeight+8,100)});}
+function altura(){enviar("streamlit:setFrameHeight",{height:Math.max(document.getElementById("panel").offsetHeight+8,120)});}
 altura();window.addEventListener("resize",altura);
 
 var P=window.parent, PD=P.document, ctx=null, wl=null;
-var horarios=[], clave="", pendiente=null, repeticiones=0, timerRepeat=null;
+var horarios=[], clave="", pendiente=null, tipoModal=null, repeticiones=0, timerRepeat=null, avisadoAhora={};
 
 window.addEventListener("message",function(ev){
   if(ev.data && ev.data.type==="streamlit:render"){
@@ -962,7 +1114,7 @@ window.addEventListener("message",function(ev){
       return p.length>=2 ? ("0"+p[0]).slice(-2)+":"+("0"+p[1]).slice(-2) : "";
     }).filter(Boolean);
     document.getElementById("h").textContent=horarios.length
-      ? "Rondas: "+horarios.join(" · ")+" (Aviso 5 min antes y a la hora)"
+      ? "Rondas: "+horarios.join(" · ")+" (aviso 5 min antes y a la hora)"
       : "Este objetivo no tiene horarios cargados.";
     ui(); altura();
   }
@@ -970,9 +1122,10 @@ window.addEventListener("message",function(ev){
 
 function ui(){
   var ok=ctx&&ctx.state==="running";
-  var b=document.getElementById("b"), e=document.getElementById("e");
-  if(ok){b.className="ok";b.textContent="🔊 SONIDO ACTIVO";e.style.color="#39FF14";e.textContent="✅ Sonido activo. El aviso suena 3 veces si no respondes.";}
-  else{b.className="";b.textContent="🔊 ACTIVAR AVISO SONORO";e.style.color="#FFD600";e.textContent="⚠️ Tocá para activar el audio.";}
+  var b=document.getElementById("b"), e=document.getElementById("e"), w=document.getElementById("w");
+  if(ok){b.className="ok";b.textContent="🔊 SONIDO ACTIVO";e.style.color="#39FF14";e.textContent="✅ Sonido activo. Vas a recibir el aviso 5 minutos antes y a la hora de cada recorrida.";}
+  else{b.className="";b.textContent="🔊 ACTIVAR AVISO SONORO";e.style.color="#FFD600";e.textContent="⚠️ Tocá el botón para activar el sonido. El cartel aparece igual.";}
+  w.textContent=wl?"📱 La pantalla se mantiene encendida mientras esta pantalla esté abierta. Si bloqueás el celular, el aviso no suena.":"";
   altura();
 }
 
@@ -982,10 +1135,26 @@ function audio(){
     if(!ctx){ctx=new AC();ctx.onstatechange=ui;}
     if(ctx.state!=="running"&&ctx.resume){ctx.resume().then(ui).catch(ui);}
     ui();
-  }catch(e){}
+  }catch(e){document.getElementById("e").textContent="No se pudo iniciar el audio en este navegador.";}
 }
 
-document.getElementById("b").onclick=function(){audio();setTimeout(campana,150);};
+// Mantiene la pantalla encendida (si el navegador lo permite) para que el aviso pueda sonar
+function pantalla(){
+  try{
+    if(!P.navigator.wakeLock||wl) return;
+    P.navigator.wakeLock.request("screen").then(function(l){
+      wl=l; l.addEventListener("release",function(){wl=null;ui();}); ui();
+    }).catch(function(){});
+  }catch(e){}
+}
+PD.addEventListener("visibilitychange",function(){
+  if(PD.visibilityState==="visible"){ if(!wl) pantalla(); if(ctx&&ctx.state!=="running") audio(); }
+});
+
+["touchstart","click","pointerdown"].forEach(function(n){
+  PD.addEventListener(n,function(){ if(!ctx||ctx.state!=="running") audio(); if(!wl) pantalla(); },{passive:true});
+});
+document.getElementById("b").onclick=function(){audio();pantalla();setTimeout(campana,150);};
 
 function nota(t0,f,dur){
   var o=ctx.createOscillator(), g=ctx.createGain();
@@ -1006,6 +1175,12 @@ function campana(){
   }catch(e){}
 }
 
+function hoy(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function llave(h){return "aion_rec_"+clave+"_"+hoy()+"_"+h;}
+function respuestaDe(h){try{return localStorage.getItem(llave(h));}catch(e){return null;}}
+function marcar(h,r){try{localStorage.setItem(llave(h),r);}catch(e){}}
+function ahoraHecho(h){try{return localStorage.getItem(llave(h)+"_ahora")==="1";}catch(e){return false;}}
+function marcarAhora(h){try{localStorage.setItem(llave(h)+"_ahora","1");}catch(e){}}
 function minutosHasta(h){
   var p=h.split(":"), t=new Date();
   t.setHours(parseInt(p[0],10),parseInt(p[1],10),0,0);
@@ -1014,53 +1189,59 @@ function minutosHasta(h){
 
 function cerrar(){
   var m=PD.getElementById("aion_modal_rec"); if(m) m.remove();
-  pendiente=null; repeticiones=0;
+  pendiente=null; tipoModal=null; repeticiones=0;
   if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
 }
-
 function responder(hora,resp,motivo){
-  enviar("streamlit:setComponentValue",{
-    value:{id:hora+"_"+Date.now(),hora:hora,respuesta:resp,motivo:motivo||""},
-    dataType:"json"
-  });
+  if(hora!=="PRUEBA"){
+    marcar(hora,resp);
+    enviar("streamlit:setComponentValue",{
+      value:{id:hora+"_"+Date.now(),hora:hora,respuesta:resp,motivo:motivo||""},
+      dataType:"json"
+    });
+  }
   cerrar();
+}
+
+function textoAviso(h){
+  if(h==="PRUEBA") return 'Esto es una <b>prueba</b> del aviso.<br><b>¿Realizás la recorrida?</b>';
+  var m=minutosHasta(h), cuando;
+  if(m>0) cuando='es en <b>'+Math.ceil(m)+' min</b>.';
+  else if(m>-1) cuando='es <b>ahora</b>.';
+  else cuando='era hace <b>'+Math.round(-m)+' min</b>.';
+  return 'Tu recorrida de las <b>'+h+' hs</b> '+cuando+'<br><b>¿Realizás la recorrida?</b>';
 }
 
 function crearModal(html,borde){
   var d=PD.createElement("div");
   d.id="aion_modal_rec";
-  d.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;font-family:sans-serif";
+  d.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;font-family:sans-serif";
   d.innerHTML='<div style="background:#1A1C23;border:2px solid '+borde+';border-radius:14px;padding:24px;max-width:380px;width:100%;text-align:center;color:#FFF;box-shadow:0 0 30px rgba(0,229,255,.5)">'+html+'</div>';
   PD.body.appendChild(d);
 }
 
-function repetir3Veces(hora){
-  repeticiones=1;
-  campana();
+function repetir(ms,max){
+  repeticiones=0;
   timerRepeat=setInterval(function(){
-    if(pendiente && repeticiones<3){
-      repeticiones++;
-      campana();
-    } else if(repeticiones>=3){
-      clearInterval(timerRepeat); timerRepeat=null;
-      responder(hora, "BLOQUEADO_TIMEOUT", "Se emitió la alerta 3 veces sin respuesta del vigilador.");
-    }
-  }, 30000);
+    if(pendiente && repeticiones<max){repeticiones++; campana();}
+    else if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
+  },ms);
 }
 
+// Aviso previo / recorrida pendiente: pregunta SÍ / NO
 function mostrar(hora){
   if(PD.getElementById("aion_modal_rec")) return;
-  pendiente=hora;
+  pendiente=hora; tipoModal="aviso";
   crearModal(
-    '<h2 style="color:#00E5FF;margin:0 0 10px;font-size:20px">🔔 AVISO DE RECORRIDA</h2>'+
-    '<p style="font-size:16px;margin:0 0 16px;line-height:1.4">Recorrida de las <b>'+hora+' hs</b>.<br><b>¿Vas a realizar la recorrida?</b></p>'+
+    '<h2 style="color:#00E5FF;margin:0 0 10px;font-size:20px">🔔 Aviso de recorrida</h2>'+
+    '<p id="aion_txt_p" style="font-size:16px;margin:0 0 16px;line-height:1.4">'+textoAviso(hora)+'</p>'+
     '<div id="aion_botones"><button id="aion_si" style="background:#39FF14;color:#000;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;margin:4px">SÍ</button>'+
     '<button id="aion_no" style="background:#FF5252;color:#fff;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;margin:4px">NO</button></div>'+
     '<div id="aion_motivo" style="display:none;margin-top:10px">'+
     '<select id="aion_sel" style="width:100%;padding:10px;border-radius:6px;font-size:14px;margin-bottom:8px">'+
-    '<option>Novedad en el puesto</option><option>Atendiendo ingreso</option>'+
-    '<option>Problema de salud</option><option>Otro motivo</option></select>'+
-    '<input id="aion_txt" placeholder="Detalle obligatorio" style="width:100%;box-sizing:border-box;padding:10px;border-radius:6px;font-size:14px;margin-bottom:8px">'+
+    '<option>Atendiendo una novedad en el objetivo</option><option>Atendiendo una visita o ingreso</option>'+
+    '<option>Falta de personal</option><option>Problema de salud</option><option>Otro</option></select>'+
+    '<input id="aion_txt" placeholder="Detalle (opcional)" style="width:100%;box-sizing:border-box;padding:10px;border-radius:6px;font-size:14px;margin-bottom:8px">'+
     '<button id="aion_env" style="background:#00E5FF;color:#000;border:none;padding:12px;font-weight:bold;font-size:14px;border-radius:8px;width:100%">ENVIAR MOTIVO</button></div>',
     "#00E5FF");
   PD.getElementById("aion_si").onclick=function(){responder(hora,"SI","");};
@@ -1073,20 +1254,49 @@ function mostrar(hora){
     var det=PD.getElementById("aion_txt").value.trim();
     responder(hora,"NO",det?mot+" - "+det:mot);
   };
-  repetir3Veces(hora);
+  campana();
+  repetir(60000,2);
+}
+
+// A la hora exacta (si dijo SÍ): recordatorio de que empieza la recorrida
+function mostrarHora(hora){
+  if(PD.getElementById("aion_modal_rec")) return;
+  pendiente=hora; tipoModal="hora";
+  crearModal(
+    '<h2 style="color:#39FF14;margin:0 0 10px;font-size:20px">🚶 ¡Es hora de la recorrida!</h2>'+
+    '<p style="font-size:16px;margin:0 0 16px;line-height:1.4">Ronda de las <b>'+hora+' hs</b>.<br>Recorré el objetivo y escaneá el QR de cada punto de control.</p>'+
+    '<button id="aion_ent" style="background:#39FF14;color:#000;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;width:100%">ENTENDIDO, INICIO</button>',
+    "#39FF14");
+  PD.getElementById("aion_ent").onclick=function(){marcarAhora(hora);cerrar();};
+  campana();
+  repetir(45000,3);
 }
 
 setInterval(function(){
-  if(PD.getElementById("aion_modal_rec")) return;
-  for(var i=0;i<horarios.length;i++){
-    var h=horarios[i], m=minutosHasta(h);
-    if(m<=5 && m>-20){mostrar(h);return;}
+  var modal=PD.getElementById("aion_modal_rec");
+  var i,h,m,r;
+  // Si el aviso previo sigue sin responder cuando llega la hora, se actualiza el texto y suena de nuevo
+  for(i=0;i<horarios.length;i++){
+    h=horarios[i]; m=minutosHasta(h);
+    if(modal && tipoModal==="aviso" && pendiente===h && m<=0 && !avisadoAhora[h]){
+      avisadoAhora[h]=true;
+      var tp=PD.getElementById("aion_txt_p"); if(tp) tp.innerHTML=textoAviso(h);
+      campana();
+      return;
+    }
+  }
+  if(modal) return;
+  for(i=0;i<horarios.length;i++){
+    h=horarios[i]; m=minutosHasta(h); r=respuestaDe(h);
+    if(r==="SI" && m<=0 && m>-5 && !ahoraHecho(h)){mostrarHora(h);return;}
+    if(r===null && m<=5 && m>-30){mostrar(h);return;}
   }
 },1000);
 </script></body></html>"""
 
+
 @st.cache_resource(show_spinner=False)
-def _declarar_alerta_recorrida(version="v5"):
+def _declarar_alerta_recorrida(version="v3"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_ALERTA_HTML)
@@ -2958,6 +3168,7 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
         mostrar_boton_personal_supervisor()
+        mostrar_calendario_sidebar()
 
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
@@ -2975,6 +3186,7 @@ else:
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
         mostrar_boton_personal_supervisor()
+        mostrar_calendario_sidebar()
             
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
@@ -4912,3 +5124,5 @@ function bip() {
 }
 </script>
 """, height=0)
+
+                     
