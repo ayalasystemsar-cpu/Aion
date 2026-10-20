@@ -574,12 +574,12 @@ def generar_pdf_reporte(titulo_reporte, df_datos):
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8.5),
+            ('FONTSIZE', (0, 0), (-1, 0), 8.5 if len(columnas) <= 14 else 5.5),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('FONTSIZE', (0, 1), (-1, -1), 8 if len(columnas) <= 14 else 6.5),
             ('TOPPADDING', (0, 1), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
         ]))
@@ -1432,8 +1432,10 @@ TIPOS_NOVEDAD_PERSONAL = {
     "LICENCIA":   ("L",   "#EF5350", "#FFF"),
     "ART":        ("ART", "#FF9800", "#000"),
     "VACACIONES": ("V",   "#AB47BC", "#FFF"),
+    "AUSENTE":    ("A",   "#F4D03F", "#000"),
+    "FRANCO":     ("F",   "#5C9BD5", "#FFF"),
 }
-PRIORIDAD_NOVEDAD = ["LICENCIA", "ART", "VACACIONES"]
+PRIORIDAD_NOVEDAD = ["LICENCIA", "ART", "VACACIONES", "AUSENTE", "FRANCO"]
 MESES_ES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO",
             "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
 LETRAS_DIA = ["L", "M", "M", "J", "V", "S", "D"]
@@ -1537,6 +1539,7 @@ def planificacion_mes(periodo):
                 "OBJETIVO": v["OBJETIVO"], "VIGILADOR": v["VIGILADOR"], "DNI": v["DNI"],
                 "ESTADO": estado, "DÍAS LICENCIA": dias["LICENCIA"],
                 "DÍAS ART": dias["ART"], "DÍAS VACACIONES": dias["VACACIONES"],
+                "DÍAS AUSENTE": dias["AUSENTE"], "DÍAS FRANCO": dias["FRANCO"],
                 "MAPA": mapa,
             })
         resultado[s] = pd.DataFrame(filas)
@@ -1784,6 +1787,8 @@ def relevamiento_mes(periodo):
         c_lic = int((pv["ESTADO"] == "LICENCIA").sum()) if pv is not None else 0
         c_art = int((pv["ESTADO"] == "ART").sum()) if pv is not None else 0
         c_vac = int((pv["ESTADO"] == "VACACIONES").sum()) if pv is not None else 0
+        c_aus = int((pv["ESTADO"] == "AUSENTE").sum()) if pv is not None else 0
+        c_fra = int((pv["ESTADO"] == "FRANCO").sum()) if pv is not None else 0
 
         vd = vigs.get(s)
         hs_vig = int(vd["HORAS"].sum()) if vd is not None and not vd.empty else 0
@@ -1799,6 +1804,7 @@ def relevamiento_mes(periodo):
             "KM": round(km, 1), "COMBUSTIBLE ($)": round(monto), "ACTAS FLOTA": actas, "ACTAS A REVISAR": revisar,
             "PÁNICOS": panicos, "NOVEDADES": novs, "RONDAS COMPLETAS": rondas,
             "LICENCIA": c_lic, "ART": c_art, "VACACIONES": c_vac,
+            "AUSENTE": c_aus, "FRANCO": c_fra,
         })
     return pd.DataFrame(filas), detalle, personal, actividad, vigs
 
@@ -1811,7 +1817,8 @@ def _tarjeta_supervisor_html(r, actividad, anio, mes, vig_df=None):
     pct_dias = round(100 * dact / ndias) if ndias else 0
     n = int(r["VIGILADORES"])
     lic, art, vac = int(r["LICENCIA"]), int(r["ART"]), int(r["VACACIONES"])
-    sin = max(0, n - lic - art - vac)
+    aus, fra = int(r["AUSENTE"]), int(r["FRANCO"])
+    sin = max(0, n - lic - art - vac - aus - fra)
 
     def barra(titulo, valor, pct, color):
         pct = max(0, min(100, pct))
@@ -1838,11 +1845,13 @@ def _tarjeta_supervisor_html(r, actividad, anio, mes, vig_df=None):
         ancho = (100.0 * cant / n) if n else 0
         return '<div style="background:' + color + ';width:' + ("%.1f" % ancho) + '%;height:100%;"></div>'
 
-    franja = seg(sin, "#3B6B55") + seg(lic, "#C96B6B") + seg(art, "#D49A52") + seg(vac, "#9A74B5")
+    franja = seg(sin, "#3B6B55") + seg(lic, "#C96B6B") + seg(art, "#D49A52") + seg(vac, "#9A74B5") + seg(aus, "#D4B93C") + seg(fra, "#5B8DB8")
     leyenda = ('<span style="color:#7FB8A0;">● ' + str(sin) + ' sin novedad</span> &nbsp; '
                '<span style="color:#D98A8A;">● ' + str(lic) + ' licencia</span> &nbsp; '
                '<span style="color:#E0AE74;">● ' + str(art) + ' ART</span> &nbsp; '
-               '<span style="color:#B596CC;">● ' + str(vac) + ' vacaciones</span>')
+               '<span style="color:#B596CC;">● ' + str(vac) + ' vacaciones</span> &nbsp; '
+               '<span style="color:#E3CB5E;">● ' + str(aus) + ' ausentes</span> &nbsp; '
+               '<span style="color:#7FB0DC;">● ' + str(fra) + ' francos</span>')
 
     datos = (dato("Visitas QR", r["VISITAS QR"]) + dato("Horas", r["HORAS"]) + dato("Km", r["KM"]) +
              dato("Pánicos", r["PÁNICOS"]) + dato("Novedades", r["NOVEDADES"]) + dato("Rondas", r["RONDAS COMPLETAS"]))
@@ -1918,6 +1927,10 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
         b2.metric("⚠️ EXCEDIDOS", int(vista["EXCEDIDOS"].sum()))
         b3.metric("✂️ FRANCOS CORTADOS", int(vista["FRANCOS CORTADOS"].sum()))
 
+        c1m, c2m = st.columns(2)
+        c1m.metric("🚫 AUSENTES (vigiladores)", int(vista["AUSENTE"].sum()))
+        c2m.metric("🛌 EN FRANCO (vigiladores)", int(vista["FRANCO"].sum()))
+
         st.markdown("##### 🛡️ POR SUPERVISOR")
         for _, r in vista.iterrows():
             s = r["SUPERVISOR"]
@@ -1936,7 +1949,7 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
         with st.expander("📋 COMPARATIVO DE TODOS LOS SUPERVISORES"):
             st.dataframe(vista, use_container_width=True, hide_index=True)
         cols_pdf = ["SUPERVISOR", "OBJETIVOS", "VIGILADORES", "DÍAS ACTIVOS", "HORAS", "VISITAS QR", "COBERTURA %",
-                    "HS VIGILADORES", "EXCEDIDOS", "FRANCOS CORTADOS", "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES"]
+                    "HS VIGILADORES", "EXCEDIDOS", "FRANCOS CORTADOS", "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES", "AUSENTE", "FRANCO"]
         try:
             pdf_rel = generar_pdf_reporte(f"RELEVAMIENTO MENSUAL DE SUPERVISORES - {MESES_ES[mes - 1]} {anio}", vista[cols_pdf])
             st.download_button("📥 DESCARGAR RELEVAMIENTO (PDF)", data=pdf_rel,
@@ -1945,7 +1958,7 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
         except Exception as e:
             print(f"Error generando PDF de relevamiento: {e}")
 
-    with st.expander("➕ REGISTRAR NOVEDAD DE PERSONAL (licencia, ART, vacaciones)"):
+    with st.expander("➕ REGISTRAR NOVEDAD DE PERSONAL (licencia, ART, vacaciones, ausente, franco)"):
         formulario_novedad_personal(key_prefix)
 
 def mostrar_boton_planificacion():
@@ -4130,4 +4143,3 @@ function bip() {
 }
 </script>
 """, height=0)
-
