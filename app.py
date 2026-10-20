@@ -124,6 +124,7 @@ def determinar_turno_activo(hora_str):
     except:
         return "DIURNO (06:00 - 18:00)"
 
+
 def obtener_mapeo_solapas():
     return {
         "NOVEDADES GUARDIA": "NOVEDADES GUARDIA",
@@ -143,9 +144,10 @@ def obtener_mapeo_solapas():
         "VIGILADORES": "VIGILADORES",
         "PADRON VIGILADORES": "PADRON VIGILADORES",
         "RECORRIDOS PUNTOS": "RECORRIDOS PUNTOS",
-        "REGISTRO RECORRIDOS": "REGISTRO RECORRIDOS"
+        "REGISTRO RECORRIDOS": "REGISTRO RECORRIDOS",
+        "CALENDARIO TERMINALES": "CALENDARIO TERMINALES",          # <-- NUEVO
+        "JUSTIFICACIONES RECORRIDAS": "JUSTIFICACIONES RECORRIDAS" # <-- NUEVO
     }
-
 def actualizar_celda(pestana, fila, columna, valor):
     try:
         gc = conectar_google()
