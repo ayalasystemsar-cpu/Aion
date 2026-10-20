@@ -3,7 +3,7 @@ import datetime
 from datetime import datetime
 import pandas as pd
 import pytz
-import gspread lo
+import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
 import osmnx as ox
@@ -1432,10 +1432,8 @@ TIPOS_NOVEDAD_PERSONAL = {
     "LICENCIA":   ("L",   "#EF5350", "#FFF"),
     "ART":        ("ART", "#FF9800", "#000"),
     "VACACIONES": ("V",   "#AB47BC", "#FFF"),
-    "FRANCO":     ("F",   "#42A5F5", "#FFF"),
-    "AUSENTE":    ("A",   "#78909C", "#FFF"),
 }
-PRIORIDAD_NOVEDAD = ["AUSENTE", "LICENCIA", "ART", "VACACIONES", "FRANCO"]
+PRIORIDAD_NOVEDAD = ["LICENCIA", "ART", "VACACIONES"]
 MESES_ES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO",
             "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
 LETRAS_DIA = ["L", "M", "M", "J", "V", "S", "D"]
@@ -4132,3 +4130,4 @@ function bip() {
 }
 </script>
 """, height=0)
+
