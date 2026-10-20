@@ -1223,14 +1223,6 @@ function crearModal(html,borde){
   PD.body.appendChild(d);
 }
 
-function repetir(ms,max){
-  repeticiones=0;
-  timerRepeat=setInterval(function(){
-    if(pendiente && repeticiones<max){repeticiones++; campana();}
-    else if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
-  },ms);
-}
-
 // Aviso previo / recorrida pendiente: pregunta SÍ / NO
 function mostrar(hora){
   if(PD.getElementById("aion_modal_rec")) return;
@@ -1265,6 +1257,7 @@ function mostrar(hora){
 function mostrarHora(hora){
   if(PD.getElementById("aion_modal_rec")) return;
   pendiente=hora; tipoModal="hora";
+  marcarAhora(hora);
   crearModal(
     '<h2 style="color:#39FF14;margin:0 0 10px;font-size:20px">🚶 ¡Es hora de la recorrida!</h2>'+
     '<p style="font-size:16px;margin:0 0 16px;line-height:1.4">Ronda de las <b>'+hora+' hs</b>.<br>Recorré el objetivo y escaneá el QR de cada punto de control.</p>'+
@@ -1272,7 +1265,6 @@ function mostrarHora(hora){
     "#39FF14");
   PD.getElementById("aion_ent").onclick=function(){marcarAhora(hora);cerrar();};
   campana();
-  repetir(45000,3);
 }
 
 setInterval(function(){
@@ -1298,7 +1290,7 @@ setInterval(function(){
 
 
 @st.cache_resource(show_spinner=False)
-def _declarar_alerta_recorrida(version="v3"):
+def _declarar_alerta_recorrida(version="v4"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_ALERTA_HTML)
@@ -1329,7 +1321,7 @@ def registrar_respuesta_recorrida(obj, nombre, dni, evento):
 
 def renderizar_alerta_recorrida_js(horarios_previstos, obj_u, nombre, dni):
     horarios = _horarios_unicos(horarios_previstos)
-    evento = _declarar_alerta_recorrida("v3")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
+    evento = _declarar_alerta_recorrida("v4")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
     if evento and evento.get("id") != st.session_state.get("ultimo_evento_alerta"):
         st.session_state.ultimo_evento_alerta = evento.get("id")
         if registrar_respuesta_recorrida(obj_u, nombre, dni, evento):
@@ -5116,4 +5108,3 @@ function bip() {
 }
 </script>
 """, height=0)
-                      
