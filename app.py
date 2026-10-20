@@ -143,8 +143,7 @@ def obtener_mapeo_solapas():
         "VIGILADORES": "VIGILADORES",
         "PADRON VIGILADORES": "PADRON VIGILADORES",
         "RECORRIDOS PUNTOS": "RECORRIDOS PUNTOS",
-        "REGISTRO RECORRIDOS": "REGISTRO RECORRIDOS",
-        "CALENDARIO": "CALENDARIO"
+        "REGISTRO RECORRIDOS": "REGISTRO RECORRIDOS"
     }
 
 def actualizar_celda(pestana, fila, columna, valor):
@@ -780,157 +779,6 @@ def mostrar_notificaciones_sidebar():
         if len(pend) > 8:
             st.caption(f"y {len(pend) - 8} notificaciones más (las más viejas).")
 
-# --- CALENDARIO EDITABLE (BARRA LATERAL, TODOS LOS PERFILES) ---
-_CAL_COLS = ["ID", "FECHA", "TITULO", "DETALLE", "CREADO_POR", "ULTIMA_MODIFICACION"]
-_MESES_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-
-def _hoja_calendario():
-    gc = conectar_google()
-    if not gc:
-        return None
-    sh = gc.open_by_key(ID_MAESTRO_DB)
-    try:
-        return sh.worksheet("CALENDARIO")
-    except Exception:
-        hoja = sh.add_worksheet(title="CALENDARIO", rows="500", cols="8")
-        hoja.append_row(_CAL_COLS)
-        return hoja
-
-def _cal_firma():
-    return str(st.session_state.get("user_sel", "")).strip().upper() + " · " + obtener_hora_argentina()[:16]
-
-def _cal_guardar(fecha, titulo, detalle, id_evento=None):
-    try:
-        hoja = _hoja_calendario()
-        if hoja is None:
-            return False
-        firma = _cal_firma()
-        if not id_evento:
-            nuevo_id = str(int(datetime.now().timestamp() * 1000))
-            hoja.append_row([nuevo_id, fecha.strftime("%Y-%m-%d"), titulo, detalle, firma, firma])
-        else:
-            fila = hoja.col_values(1).index(str(id_evento)) + 1
-            hoja.update(f"B{fila}:F{fila}", [[fecha.strftime("%Y-%m-%d"), titulo, detalle,
-                                              hoja.cell(fila, 5).value or firma, firma]])
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        print(f"Error guardando evento de calendario: {e}")
-        return False
-
-def _cal_borrar(id_evento):
-    try:
-        hoja = _hoja_calendario()
-        if hoja is None:
-            return False
-        fila = hoja.col_values(1).index(str(id_evento)) + 1
-        hoja.delete_rows(fila)
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        print(f"Error borrando evento de calendario: {e}")
-        return False
-
-def mostrar_calendario_sidebar():
-    hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires")).date()
-    if "cal_anio" not in st.session_state:
-        st.session_state.cal_anio = hoy.year
-        st.session_state.cal_mes = hoy.month
-    if "cal_edit_id" not in st.session_state:
-        st.session_state.cal_edit_id = None
-
-    st.markdown("---")
-    with st.expander("📅 CALENDARIO", expanded=False):
-        anio, mes = st.session_state.cal_anio, st.session_state.cal_mes
-
-        c_prev, c_tit, c_next = st.columns([1, 3, 1])
-        if c_prev.button("◀", key="cal_prev", use_container_width=True):
-            st.session_state.cal_mes = 12 if mes == 1 else mes - 1
-            st.session_state.cal_anio = anio - 1 if mes == 1 else anio
-            st.rerun()
-        c_tit.markdown(f"<div style='text-align:center;font-weight:bold;color:#00E5FF;padding-top:6px;'>{_MESES_ES[mes - 1]} {anio}</div>", unsafe_allow_html=True)
-        if c_next.button("▶", key="cal_next", use_container_width=True):
-            st.session_state.cal_mes = 1 if mes == 12 else mes + 1
-            st.session_state.cal_anio = anio + 1 if mes == 12 else anio
-            st.rerun()
-
-        df_cal = leer_matriz_nube("CALENDARIO")
-        if df_cal.empty or not set(_CAL_COLS) <= set(df_cal.columns):
-            df_cal = pd.DataFrame(columns=_CAL_COLS)
-        df_cal = df_cal.copy()
-        df_cal["_F"] = pd.to_datetime(df_cal["FECHA"], errors="coerce")
-        df_mes = df_cal[(df_cal["_F"].dt.year == anio) & (df_cal["_F"].dt.month == mes)].sort_values("_F")
-        dias_con_evento = set(df_mes["_F"].dt.day.tolist())
-
-        filas_html = ""
-        for semana in calendar.monthcalendar(anio, mes):
-            celdas = ""
-            for d in semana:
-                if d == 0:
-                    celdas += "<td></td>"
-                    continue
-                estilo = "text-align:center;padding:3px 0;font-size:12px;color:#E0E0E0;"
-                if d in dias_con_evento:
-                    estilo += "background:#00E5FF;color:#000;font-weight:bold;border-radius:4px;"
-                if (anio, mes, d) == (hoy.year, hoy.month, hoy.day):
-                    estilo += "outline:2px solid #39FF14;border-radius:4px;"
-                celdas += f"<td style='{estilo}'>{d}</td>"
-            filas_html += f"<tr>{celdas}</tr>"
-        cab = "".join(f"<th style='font-size:11px;color:#A0A5B5;text-align:center;'>{x}</th>" for x in ["L", "M", "M", "J", "V", "S", "D"])
-        st.markdown(f"<table style='width:100%;border-collapse:separate;border-spacing:2px;'><tr>{cab}</tr>{filas_html}</table>", unsafe_allow_html=True)
-
-        st.markdown("**📌 Eventos del mes**")
-        if df_mes.empty:
-            st.caption("Sin eventos este mes.")
-        for idx_e, ev in df_mes.iterrows():
-            id_e = str(ev.get("ID", ""))
-            st.markdown(f"**{ev['_F'].strftime('%d/%m')}** · {ev.get('TITULO', '')}")
-            if str(ev.get("DETALLE", "")).strip():
-                st.caption(str(ev.get("DETALLE", "")))
-            st.caption(f"Creó: {ev.get('CREADO_POR', '')} | Modificó: {ev.get('ULTIMA_MODIFICACION', '')}")
-            c_ed, c_del = st.columns(2)
-            if c_ed.button("✏️", key=f"cal_ed_{id_e}", use_container_width=True):
-                st.session_state.cal_edit_id = id_e
-                st.rerun()
-            if c_del.button("🗑️", key=f"cal_del_{id_e}", use_container_width=True):
-                if _cal_borrar(id_e):
-                    if st.session_state.cal_edit_id == id_e:
-                        st.session_state.cal_edit_id = None
-                    st.rerun()
-                else:
-                    st.error("❌ No se pudo borrar el evento.")
-
-        st.markdown("---")
-        id_edit = st.session_state.cal_edit_id
-        ev_edit = None
-        if id_edit:
-            m = df_cal[df_cal["ID"].astype(str) == str(id_edit)]
-            if m.empty:
-                st.session_state.cal_edit_id = None
-                id_edit = None
-            else:
-                ev_edit = m.iloc[0]
-
-        st.markdown("**✏️ EDITAR EVENTO**" if id_edit else "**➕ NUEVO EVENTO**")
-        sufijo = str(id_edit or "nuevo")
-        f_def = ev_edit["_F"].date() if (ev_edit is not None and pd.notna(ev_edit["_F"])) else hoy
-        f_ev = st.date_input("FECHA:", value=f_def, format="DD/MM/YYYY", key=f"cal_f_{sufijo}")
-        t_ev = st.text_input("TÍTULO:", value=str(ev_edit["TITULO"]) if ev_edit is not None else "", key=f"cal_t_{sufijo}")
-        d_ev = st.text_area("DETALLE:", value=str(ev_edit["DETALLE"]) if ev_edit is not None else "", height=70, key=f"cal_d_{sufijo}")
-        c_ok, c_can = st.columns(2)
-        if c_ok.button("💾 GUARDAR", key=f"cal_ok_{sufijo}", use_container_width=True):
-            if not t_ev.strip():
-                st.warning("⚠️ Escribí un título.")
-            elif _cal_guardar(f_ev, t_ev.strip(), d_ev.strip(), id_edit):
-                st.session_state.cal_edit_id = None
-                st.session_state.cal_anio, st.session_state.cal_mes = f_ev.year, f_ev.month
-                st.rerun()
-            else:
-                st.error("❌ No se pudo guardar el evento.")
-        if id_edit and c_can.button("✖️ CANCELAR", key=f"cal_can_{sufijo}", use_container_width=True):
-            st.session_state.cal_edit_id = None
-            st.rerun()
-
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
@@ -1094,7 +942,7 @@ button.sec{background:#2D313E;color:#E0E0E0}
 #h{color:#A0A5B5;font-size:11px;margin:4px 0 0;line-height:1.3}
 </style></head><body>
 <div id="panel"><p id="t">🔔 AVISO DE RECORRIDAS</p>
-<button id="b">🔊 ACTIVAR AVISO SONORO</button>
+<button id="b">🔊 ACTIVAR AVISO SONORO</button><button id="p" class="sec">🔔 PROBAR</button>
 <p id="e"></p><p id="w"></p><p id="h"></p></div>
 <script>
 function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
@@ -1155,6 +1003,7 @@ PD.addEventListener("visibilitychange",function(){
   PD.addEventListener(n,function(){ if(!ctx||ctx.state!=="running") audio(); if(!wl) pantalla(); },{passive:true});
 });
 document.getElementById("b").onclick=function(){audio();pantalla();setTimeout(campana,150);};
+document.getElementById("p").onclick=function(){audio();pantalla();setTimeout(function(){mostrar("PRUEBA");},150);};
 
 function nota(t0,f,dur){
   var o=ctx.createOscillator(), g=ctx.createGain();
@@ -3168,7 +3017,6 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
         mostrar_boton_personal_supervisor()
-        mostrar_calendario_sidebar()
 
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
@@ -3186,7 +3034,6 @@ else:
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
         mostrar_boton_personal_supervisor()
-        mostrar_calendario_sidebar()
             
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
@@ -5124,5 +4971,5 @@ function bip() {
 }
 </script>
 """, height=0)
-
-                     
+                      
+          
