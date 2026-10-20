@@ -1086,7 +1086,7 @@ setInterval(function(){
 </script></body></html>"""
 
 @st.cache_resource(show_spinner=False)
-def _declarar_alerta_recorrida(version="v3"):
+def _declarar_alerta_recorrida(version="v5"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_ALERTA_HTML)
