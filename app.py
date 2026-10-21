@@ -383,15 +383,15 @@ def _geocodificar_nominatim(direccion_completa):
     params = {
         'q': direccion_completa,
         'format': 'json',
-        'limit': 1
+        'limit': 1,
+        'countrycodes': 'ar'  # Restringimos estrictamente la búsqueda a Argentina
     }
     
     try:
-        # Pasamos los headers en la petición HTTP
         r = requests.get(url, params=params, headers=headers, timeout=5)
         r.raise_for_status()
         data = r.json()
-        if data:
+        if data and len(data) > 0:
             return float(data[0]['lat']), float(data[0]['lon'])
     except Exception as e:
         print(f"Error en geocodificación OSM: {e}")
@@ -399,12 +399,23 @@ def _geocodificar_nominatim(direccion_completa):
 
 def geocodificar_direccion(direccion, localidad):
     """Dirección -> (lat, lon) con OpenStreetMap (Nominatim). None si no la encuentra."""
-    d, l = str(direccion).strip(), str(localidad).strip()
-    if not d or not l:
+    d = str(direccion).strip() if direccion is not None else ""
+    l = str(localidad).strip() if localidad is not None else ""
+    
+    if not d or d.upper() == "NAN" or not l or l.upper() == "NAN":
         return None
-    return _geocodificar_nominatim(f"{d}, {l}, Buenos Aires, Argentina")
-
-@st.cache_data(ttl=30, show_spinner=False)
+        
+    # Limpieza previa para evitar ruidos en la consulta OSM
+    d_clean = d.replace("°", "").replace("#", "").strip()
+    l_clean = l.replace("°", "").replace("#", "").strip()
+    
+    # Intento 1: Dirección completa con localidad y provincia
+    resultado = _geocodificar_nominatim(f"{d_clean}, {l_clean}, Buenos Aires, Argentina")
+    if resultado:
+        return resultado
+        
+    # Intento 2 (Respaldo por si la localidad exacta no matchea): Solo dirección y Buenos Aires general
+    return _geocodificar_nominatim(f"{d_clean}, Buenos Aires, Argentina")
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
     if not df.empty:
