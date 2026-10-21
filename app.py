@@ -899,12 +899,23 @@ def _listado_hilos_mensajeria(rol_contexto):
                     f'{nuevo}{punto} <b>{esc(msg.get("REMITENTE", "ANÓNIMO"))}</b> → {esc(msg.get("DESTINATARIO", ""))} · {esc(msg.get(col_fecha, ""))} · '
                     f'<b style="color:{color}">{esc(grav or "SIN GRAVEDAD")}</b><br>{esc(msg.get("MENSAJE", ""))}</div>',
                     unsafe_allow_html=True)
-            if st.button("Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
-                otros = [str(r).strip().upper() for r in grupo['REMITENTE'] if str(r).strip().upper() not in _identidades_mensajeria()]
-                st.session_state.asunto_respuesta = asunto
-                st.session_state.destino_respuesta = otros[-1] if otros else ""
-                sincronizar_url_sesion()
-                st.rerun()
+            ids_yo = _identidades_mensajeria()
+            otros = [str(r).strip().upper() for r in grupo['REMITENTE'] if str(r).strip().upper() not in ids_yo]
+            destino_resp = otros[-1] if otros else str(grupo['DESTINATARIO'].iloc[-1]).strip().upper()
+            with st.form(key=f"form_resp_{asunto}_{rol_contexto}", clear_on_submit=True):
+                txt_resp = st.text_input(f"✍️ Responder a {destino_resp}:", key=f"txt_resp_{asunto}_{rol_contexto}")
+                grav_resp = st.selectbox("Gravedad:", ["VERDE", "AMARILLO", "ROJA"],
+                                         index=["VERDE", "AMARILLO", "ROJA"].index(grav_max) if grav_max in GRAVEDADES_MENSAJE else 0,
+                                         format_func=lambda g: f"{GRAVEDADES_MENSAJE[g]} {g}", key=f"grav_resp_{asunto}_{rol_contexto}")
+                if st.form_submit_button("✉️ ENVIAR RESPUESTA"):
+                    if txt_resp.strip():
+                        escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), _remitente_mensajeria(), destino_resp,
+                                                             asunto, txt_resp.strip().upper(), "PENDIENTE", grav_resp])
+                        st.session_state.mensaje_enviado = "RESPUESTA"
+                        st.session_state.mensaje_enviado_grav = grav_resp
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Escribí la respuesta antes de enviar.")
 
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
@@ -1251,19 +1262,6 @@ def enviar_push_panico(remitente, objetivo, supervisor=""):
     import threading
     threading.Thread(target=_enviar, daemon=True).start()
 
-@st.cache_data(ttl=10, show_spinner=False)
-def _leer_hoja_rapida(nombre):
-    """Igual que leer_matriz_nube pero con caché de 10 s (compartida entre sesiones) para que la alarma reaccione rápido."""
-    gc = conectar_google()
-    if not gc:
-        raise RuntimeError("Sin conexión a Google")
-    filas = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre).get_all_values()
-    if not filas:
-        return pd.DataFrame()
-    enc = [str(h).strip().upper() for h in filas[0]]
-    df = pd.DataFrame(filas[1:], columns=enc)
-    return df.loc[:, ~df.columns.duplicated()]
-
 HORAS_ALARMA_PANICO = 12  # un mensaje de pánico sin leer deja de sonar pasadas estas horas
 
 _HTML_ALARMA_PANICO = """
@@ -1327,13 +1325,13 @@ def alarma_panico_sonora(rol, usuario):
         pend = []
         try:
             if monitoreo:
-                df = _leer_hoja_rapida("ALERTAS")
+                df = leer_matriz_nube("ALERTAS")
                 for _, r in df.iterrows():
                     f = [str(x).strip() for x in r.tolist()] + [""] * 6
                     if f[2].upper().replace("Á", "A") == "PANICO" and f[3].upper() == "PENDIENTE":
-                        pend.append((f[0], f[1].upper(), f[4].upper(), None))
+                        pend.append((f[0], f[1].upper(), f[4].upper(), None, ""))
             else:
-                df = _leer_hoja_rapida("MENSAJERIA")
+                df = leer_matriz_nube("MENSAJERIA")
                 sin = _mensajes_sin_leer(df)
                 if not sin.empty and 'ASUNTO' in sin.columns:
                     sin = sin[col_texto(sin, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")]
@@ -1341,7 +1339,9 @@ def alarma_panico_sonora(rol, usuario):
                               - pd.Timedelta(hours=HORAS_ALARMA_PANICO)).strftime("%Y-%m-%d %H:%M:%S")
                     sin = sin[sin.iloc[:, 0].astype(str) >= limite]
                     for i, r in sin.iterrows():
-                        pend.append((str(r.iloc[0]), str(r.get('REMITENTE', '')).upper(), str(r.get('MENSAJE', '')), i))
+                        pend.append((str(r.iloc[0]), str(r.get('REMITENTE', '')).upper(), str(r.get('MENSAJE', '')), i, str(r.get('ASUNTO', ''))))
+            if df.empty:
+                pend = st.session_state.get("_pan_ult_" + rol, [])
             st.session_state["_pan_ult_" + rol] = pend
         except Exception as e:
             print(f"Error en alarma de pánico: {e}")
@@ -1372,6 +1372,20 @@ def alarma_panico_sonora(rol, usuario):
             if c2.button("🔇 SILENCIAR", key=f"btn_sil_pan_{rol}", use_container_width=True):
                 st.session_state["_pan_silenciado"] = firma
                 st.rerun(scope="fragment")
+            ultimo = pend[-1]
+            with st.expander(f"✍️ RESPONDER A {ultimo[1]}"):
+                with st.form(key=f"form_resp_pan_{rol}", clear_on_submit=True):
+                    txt_resp = st.text_input("Escribí tu respuesta:")
+                    if st.form_submit_button("✉️ ENVIAR RESPUESTA"):
+                        if txt_resp.strip():
+                            escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), _remitente_mensajeria(), ultimo[1],
+                                                                 ultimo[4], txt_resp.strip().upper(), "PENDIENTE", "ROJA"])
+                            marcar_mensajes_leidos([p[3] for p in pend])
+                            st.session_state.mensaje_enviado = "RESPUESTA"
+                            st.session_state.mensaje_enviado_grav = "ROJA"
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ Escribí la respuesta antes de enviar.")
 
     _alarma()
 
@@ -5647,5 +5661,5 @@ function bip() {
   try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
 }
 </script>
-""", height=0)          
+""", height=0)
             
