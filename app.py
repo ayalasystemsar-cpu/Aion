@@ -320,7 +320,7 @@ def _geocodificar_cache(consulta):
     if not datos:
         return None
     return (float(datos[0]["lat"]), float(datos[0]["lon"]), str(datos[0].get("display_name", "")))
-    @st.cache_resource(show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def _posiciones_objetivos():
     """Posiciones ya ubicadas de los objetivos (en memoria del servidor, compartidas entre sesiones)."""
     import threading
