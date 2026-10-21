@@ -4183,12 +4183,35 @@ if st.session_state.rol_sel == "MONITOREO":
             st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
         elif not no_ubicados:
             st.info("No hay objetivos cargados para mostrar en el mapa.")
-        st.markdown('</div>', unsafe_allow_html=True)
-      
-            if p[3].get("obj_lat") is None:
-                st.warning(f"⚠️ No se pudo ubicar {p[0]} en el mapa: {p[3]['motivo']}")
-            else:
-                ubicados.append(p)
+             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        # Con "MOSTRAR TODO" se ubican todos los objetivos del filtro; la comisaría solo para los que están
+        # en pánico y para el objetivo enfocado (consulta en vivo, sin coordenadas guardadas)
+        puntos = []
+        if not df_mapa_filtrado_sup.empty:
+            with st.spinner("Ubicando objetivos en el mapa..."):
+                for _, r in df_mapa_filtrado_sup.iterrows():
+                    obj_nombre = str(r['OBJETIVO']).strip().upper()
+                    es_panico = obj_nombre in lista_objetivos_en_panico
+                    es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
+                    if obj_seleccionado != "MOSTRAR TODO" and not (es_panico or es_el_seleccionado):
+                        continue
+                    if es_el_seleccionado and info_sel is not None:
+                        info_p = info_sel
+                    elif es_panico:
+                        info_p = comisaria_para_objetivo(obj_nombre, r.get('DIRECCION', ''), r.get('LOCALIDAD', ''))
+                    else:
+                        pos = ubicar_objetivo(obj_nombre, r.get('DIRECCION', ''), r.get('LOCALIDAD', ''))
+                        if pos:
+                            info_p = {"ok": False, "motivo": "", "obj_lat": pos[0], "obj_lon": pos[1]}
+                        else:
+                            info_p = {"ok": False, "motivo": "No se pudo ubicar la dirección (revisá calle, altura y localidad)."}
+                    puntos.append((obj_nombre, es_panico, es_el_seleccionado, info_p, str(r.get('SUPERVISOR', 'N/A'))))
+
+        ubicados = [p for p in puntos if p[3].get("obj_lat") is not None]
+        no_ubicados = [p for p in puntos if p[3].get("obj_lat") is None]
+        if no_ubicados:
+            st.warning("⚠️ No se pudieron ubicar en el mapa: " + ", ".join(p[0] for p in no_ubicados) +
+                       ". Revisá que la dirección tenga calle y altura, y la localidad.")
 
         if ubicados:
             m_mon = folium.Map(
@@ -4197,6 +4220,8 @@ if st.session_state.rol_sel == "MONITOREO":
                 max_zoom=19,
                 tiles="OpenStreetMap"
             )
+            if len(ubicados) > 1:
+                m_mon.fit_bounds([[p[3]["obj_lat"], p[3]["obj_lon"]] for p in ubicados], padding=(30, 30), max_zoom=16)
 
             m_mon.get_root().header.add_child(Element("""
             <style>
@@ -4233,7 +4258,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     ).add_to(m_mon)
                 else:
                     folium.CircleMarker(
-                        location=pos_obj, radius=10, color="#FFFFFF",
+                        location=pos_obj, radius=12 if es_el_seleccionado else 9, color="#FFFFFF",
                         fill=True, fill_color="#00E5FF", fill_opacity=0.9,
                         tooltip=f"🎯 {obj_nombre} | 👤 SUP: {sup_p}"
                     ).add_to(m_mon)
@@ -4247,14 +4272,16 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"👮 {info_p['nombre']}{sufijo}",
                         icon=folium.DivIcon(html=f"""<div style="font-size:{tamano_fuente};color:{color_icono};text-shadow:0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                     ).add_to(m_mon)
-                    if es_panico:
+                    # Ruta a la comisaría: en pánico o cuando el objetivo está enfocado en el buscador
+                    if es_panico or es_el_seleccionado:
                         ruta = obtener_ruta_calles_osrm(info_p["obj_lat"], info_p["obj_lon"], info_p["lat"], info_p["lon"])
                         folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
                         folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
 
             st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
-        elif not puntos:
-            st.info("Elegí un objetivo en el buscador para verlo en el mapa. Si hay un pánico, el objetivo y su comisaría más cercana aparecen solos.")
+        elif not no_ubicados:
+            st.info("No hay objetivos cargados para mostrar en el mapa.")
+        st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with t_mensajeria:
