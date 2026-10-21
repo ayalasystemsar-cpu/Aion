@@ -301,17 +301,24 @@ def _localidad_osm(loc):
 
 @st.cache_resource(show_spinner=False)
 def _reloj_nominatim():
-    return {"ultimo": 0.0}
+    import threading
+    return {"ultimo": 0.0, "lock": threading.Lock()}
+
+def _esperar_turno_nominatim():
+    """Nominatim permite 1 consulta por segundo. Este reloj lo comparten la búsqueda en segundo plano
+    y la búsqueda inmediata (pánico / objetivo enfocado), así nunca se pisan entre sí."""
+    import time
+    reloj = _reloj_nominatim()
+    with reloj["lock"]:
+        espera = 1.1 - (time.time() - reloj["ultimo"])
+        if espera > 0:
+            time.sleep(espera)
+        reloj["ultimo"] = time.time()
 
 @st.cache_data(ttl=7 * 24 * 3600, show_spinner=False)
 def _geocodificar_cache(consulta):
     """Nominatim (OpenStreetMap). Si falla la red lanza el error (así no se guarda el fallo); None si no encuentra."""
-    import time
-    reloj = _reloj_nominatim()
-    espera = 1.1 - (time.time() - reloj["ultimo"])   # Nominatim: máximo 1 consulta por segundo
-    if espera > 0:
-        time.sleep(espera)
-    reloj["ultimo"] = time.time()
+    _esperar_turno_nominatim()
     r = requests.get("https://nominatim.openstreetmap.org/search",
                      params={"q": consulta, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
                      headers=_CABECERA_OSM, timeout=10)
@@ -320,6 +327,7 @@ def _geocodificar_cache(consulta):
     if not datos:
         return None
     return (float(datos[0]["lat"]), float(datos[0]["lon"]), str(datos[0].get("display_name", "")))
+
 @st.cache_resource(show_spinner=False)
 def _posiciones_objetivos():
     """Posiciones ya ubicadas de los objetivos (en memoria del servidor, compartidas entre sesiones)."""
@@ -352,12 +360,12 @@ def _ubicar_en_segundo_plano(items):
                 if n:
                     consultas.append(", ".join(x for x in [n, l, "Argentina"] if x))
                 for q in consultas:
+                    _esperar_turno_nominatim()
                     r = requests.get("https://nominatim.openstreetmap.org/search",
                                      params={"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
                                      headers=_CABECERA_OSM, timeout=10)
                     r.raise_for_status()
                     datos = r.json()
-                    time.sleep(1.1)
                     if datos:
                         res = (float(datos[0]["lat"]), float(datos[0]["lon"]))
                         break
@@ -389,8 +397,6 @@ def ubicar_objetivo(nombre, direccion, localidad):
             continue
         if res:
             return res
-        if i < len(consultas) - 1:
-            time.sleep(1.1)   # Nominatim pide como máximo 1 consulta por segundo
     return None
 
 @st.cache_data(ttl=24 * 3600, show_spinner=False)
@@ -3839,6 +3845,13 @@ aplicar_identidad_alfa()
 df_objetivos = cargar_objetivos()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
 
+# Precarga en segundo plano: ubica todos los objetivos por dirección y altura apenas se inicia sesión
+if not df_objetivos.empty and {'OBJETIVO', 'DIRECCION', 'LOCALIDAD'} <= set(df_objetivos.columns):
+    _ubicar_en_segundo_plano([
+        (_clave_obj(r['OBJETIVO'], r['DIRECCION'], r['LOCALIDAD']), r['OBJETIVO'], r['DIRECCION'], r['LOCALIDAD'])
+        for _, r in df_objetivos.iterrows()
+    ])
+
 if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_autenticado", False):
     with st.sidebar:
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
@@ -4134,6 +4147,7 @@ if st.session_state.rol_sel == "MONITOREO":
             with col_sel2:
                 st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
         st.markdown('</div>', unsafe_allow_html=True)
+
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         est_pos = _posiciones_objetivos()
 
@@ -4182,6 +4196,8 @@ if st.session_state.rol_sel == "MONITOREO":
                         lat, lon = est_pos["datos"][clave]
                         puntos.append((obj_nombre, False, False, {"ok": False, "obj_lat": lat, "obj_lon": lon}, sup_p))
 
+            if hay_pendientes and not pendientes:
+                st.rerun(scope="app")   # ya están todos ubicados: se redibuja una vez y se apaga el refresco
             if pendientes:
                 st.caption(f"⏳ Ubicando {pendientes} objetivo(s) más... aparecen solos en el mapa.")
             if sin_ubicar:
