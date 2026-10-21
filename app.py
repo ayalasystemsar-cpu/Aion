@@ -998,116 +998,6 @@ def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asigna
         if dest and dest != "MONITOREO" and dest != "N/A":
             escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, "ALERTA DE PÁNICO", mensaje, "PENDIENTE", "ROJA"])
 
-# --- ALARMA SONORA DE PÁNICO (Monitoreo, Supervisor, Jefe de Operaciones, Gerencia) ---
-@st.cache_data(ttl=8, show_spinner=False)
-def leer_panicos_pendientes():
-    """Pánicos con ESTADO = PENDIENTE: lista de (fecha, usuario, objetivo, supervisor).
-    Caché corto (8 s) compartido entre sesiones: una sola lectura a Sheets cada 8 s."""
-    gc = conectar_google()
-    if not gc:
-        raise RuntimeError("Sin conexión a Google")
-    filas = gc.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS").get_all_values()
-    salida = []
-    for f in filas[1:]:
-        f = list(f) + [""] * (6 - len(f))
-        tipo = f[2].strip().upper().replace("Á", "A")
-        estado = f[3].strip().upper()
-        if tipo == "PANICO" and estado == "PENDIENTE":
-            salida.append((f[0].strip(), f[1].strip().upper(), f[4].strip().upper(), f[5].strip().upper()))
-    return salida
-
-_HTML_ALARMA_PANICO = """
-<style>
-  body{margin:0;font-family:sans-serif}
-  #b{background:#B00020;color:#fff;border-radius:8px;padding:10px;text-align:center;font-weight:700;
-     font-size:15px;animation:p 1s infinite}
-  @keyframes p{50%{background:#FF3B30}}
-  #d{font-weight:400;font-size:12px;margin-top:3px}
-  #s{font-size:12px;margin-top:4px;color:#FFD600;text-align:center}
-</style>
-<div id="b">🚨 PÁNICO ACTIVO (__N__)<div id="d">__DET__</div></div>
-<div id="s"></div>
-<script>
-(function(){
-  var P = window.parent, ctx = null, osc = null, alto = false, tm = null;
-  function estado(){
-    var ok = ctx && ctx.state === "running";
-    document.getElementById("s").textContent = ok ? "" : "🔈 Tocá la pantalla una vez para activar el sonido";
-  }
-  function resumir(){
-    try { if (ctx && ctx.state !== "running") ctx.resume().then(estado); } catch(e) {}
-  }
-  try {
-    var AC = window.AudioContext || window.webkitAudioContext;
-    ctx = new AC();
-    var g = ctx.createGain(); g.gain.value = 0.35; g.connect(ctx.destination);
-    osc = ctx.createOscillator(); osc.type = "sawtooth"; osc.frequency.value = 800;
-    osc.connect(g); osc.start();
-    tm = setInterval(function(){
-      alto = !alto;
-      try { osc.frequency.setTargetAtTime(alto ? 1200 : 800, ctx.currentTime, 0.04); } catch(e) {}
-      try { if (navigator.vibrate) navigator.vibrate(300); } catch(e) {}
-      resumir();
-    }, 500);
-    ctx.onstatechange = estado; resumir(); estado();
-  } catch(e) {
-    document.getElementById("s").textContent = "No se pudo iniciar el audio en este navegador.";
-  }
-  ["click", "touchstart", "pointerdown", "keydown"].forEach(function(n){
-    document.addEventListener(n, resumir, {passive: true});
-    try { P.document.addEventListener(n, resumir, {passive: true}); } catch(e) {}
-  });
-  window.addEventListener("pagehide", function(){ try { clearInterval(tm); ctx.close(); } catch(e) {} });
-})();
-</script>
-"""
-
-def alarma_panico_sonora(rol, usuario):
-    """Sirena + cartel mientras haya pánicos PENDIENTES que le correspondan a este rol.
-    - MONITOREO / JEFE DE OPERACIONES / GERENCIA: todos los pánicos pendientes.
-    - SUPERVISOR: los pánicos de sus objetivos (los que le llegan por mensaje), no el propio.
-    Se corta sola cuando el pánico se finaliza (ESTADO distinto de PENDIENTE).
-    Monitoreo no puede silenciarla; los demás roles tienen botón SILENCIAR."""
-    import html as _html
-    usuario = str(usuario).strip().upper()
-
-    @st.fragment(run_every=5)
-    def _alarma():
-        try:
-            pend = leer_panicos_pendientes()
-            st.session_state["_pan_ult"] = pend
-        except Exception as e:
-            print(f"Error leyendo pánicos: {e}")
-            pend = st.session_state.get("_pan_ult", [])
-
-        if rol == "SUPERVISOR":
-            pend = [p for p in pend if p[3] == usuario and p[1] != usuario]
-
-        if not pend:
-            st.session_state.pop("_pan_silenciado", None)
-            return
-
-        firma = "|".join(f"{p[0]}~{p[1]}~{p[2]}" for p in pend)
-        silenciable = rol != "MONITOREO"
-
-        if silenciable and st.session_state.get("_pan_silenciado") == firma:
-            st.warning(f"🔇 Alarma silenciada: {len(pend)} pánico(s) pendiente(s).")
-            return
-
-        detalle = " · ".join(f"{p[1]} @ {p[2]}" for p in pend[:3])
-        if len(pend) > 3:
-            detalle += f" · +{len(pend) - 3} más"
-        html_alarma = (_HTML_ALARMA_PANICO
-                       .replace("__N__", str(len(pend)))
-                       .replace("__DET__", _html.escape(detalle)))
-        components.html(html_alarma, height=80)
-
-        if silenciable and st.button("🔇 SILENCIAR ALARMA", key=f"btn_sil_pan_{rol}", use_container_width=True):
-            st.session_state["_pan_silenciado"] = firma
-            st.rerun(scope="fragment")
-
-    _alarma()
-
 def limpiar_matriz_nube(nombre_hoja):
     try:
         gc = conectar_google()
@@ -3488,7 +3378,6 @@ if st.session_state.rol_sel == "MONITOREO":
             else:
                 st.metric("🚨 S.O.S ACTIVOS", "0")
         contar_panicos_monitoreo()
-    alarma_panico_sonora("MONITOREO", st.session_state.user_sel)
 
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
@@ -3978,8 +3867,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             df_objetivos_filtrados = pd.DataFrame()
          
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
-
-        alarma_panico_sonora("SUPERVISOR", st.session_state.user_sel)
 
         st.subheader(f"⏱️ GESTIÓN DE JORNADA")
         _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
@@ -4643,7 +4530,6 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
             total_sos = len(df_pan_vig_jefe)
             st.metric("🚨 S.O.S ACTIVOS", total_sos)
         mostrar_sos()
-    alarma_panico_sonora(st.session_state.rol_sel, st.session_state.user_sel)
 
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
