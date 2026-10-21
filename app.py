@@ -3838,11 +3838,11 @@ if st.session_state.rol_sel == "MONITOREO":
     else:
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
 
+    # Mapeo directo de objetivos para el radar (usando dirección en vivo en lugar de lat/lon guardadas)
     df_mapa_monitoreo = pd.DataFrame()
     if not df_objetivos.empty:
         df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
-        if 'LATITUD' in df_objetivos.columns and 'LONGITUD' in df_objetivos.columns:
-            df_mapa_monitoreo = df_objetivos.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        df_mapa_monitoreo = df_objetivos.copy()
 
     lista_objetivos_en_panico = []
     if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'TIPO' in df_emergencias.columns:
@@ -3882,7 +3882,6 @@ if st.session_state.rol_sel == "MONITOREO":
         renderizar_reloj_fluido()
 
     total_nuevos = contar_mensajes_nuevos()
-
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
     t_radar, t_mensajeria, t_nov = st.tabs([
@@ -3998,17 +3997,20 @@ if st.session_state.rol_sel == "MONITOREO":
          
         if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_filtrado_sup.empty:
             datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
-            lat_obj = datos_obj['LATITUD']
-            lon_obj = datos_obj['LONGITUD']
-             
-            # Comisarías cercanas consultadas en tiempo real (OpenStreetMap / Overpass)
-            df_com_sel = comisarias_cercanas(lat_obj, lon_obj, max_resultados=5)
-            if not df_com_sel.empty:
-                com_m = df_com_sel.iloc[0]
-                comisaria_cercana_name = com_m['COMISARIA']
-                distancia_minima = float(com_m['DISTANCIA_KM'])
-                com_lat_m = com_m['LATITUD']
-                com_lon_m = com_m['LONGITUD']
+            dir_sel = str(datos_obj.get('DIRECCION', '')).strip()
+            loc_sel = str(datos_obj.get('LOCALIDAD', '')).strip()
+            
+            # Geocodificación en vivo mediante OpenStreetMap
+            coords_obj = geocodificar_direccion(dir_sel, loc_sel)
+            if coords_obj:
+                lat_obj, lon_obj = coords_obj
+                df_com_sel = comisarias_cercanas(lat_obj, lon_obj, max_resultados=5)
+                if not df_com_sel.empty:
+                    com_m = df_com_sel.iloc[0]
+                    comisaria_cercana_name = com_m['COMISARIA']
+                    distancia_minima = float(com_m['DISTANCIA_KM'])
+                    com_lat_m = com_m['LATITUD']
+                    com_lon_m = com_m['LONGITUD']
              
             with col_sel2:
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
@@ -4029,309 +4031,108 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        
+        # Centro por defecto (Buenos Aires / Zona operativa)
+        centro_mapa = [-34.6037, -58.3816]
+        zoom_inicial = 11
+
         if not df_mapa_filtrado_sup.empty:
             if obj_seleccionado != "MOSTRAR TODO":
                 datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
-                centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
-                zoom_inicial = 13
-            else:
-                centro_mapa = [df_mapa_filtrado_sup['LATITUD'].mean(), df_mapa_filtrado_sup['LONGITUD'].mean()]
-                zoom_inicial = 11
+                c_sel = geocodificar_direccion(str(datos_obj.get('DIRECCION', '')), str(datos_obj.get('LOCALIDAD', '')))
+                if c_sel:
+                    centro_mapa = list(c_sel)
+                    zoom_inicial = 13
 
-            m_mon = folium.Map(
-                location=centro_mapa,
-                zoom_start=zoom_inicial,
-                max_zoom=19,
-                tiles="OpenStreetMap"
-            )
+        m_mon = folium.Map(
+            location=centro_mapa,
+            zoom_start=zoom_inicial,
+            max_zoom=19,
+            tiles="OpenStreetMap"
+        )
 
-            m_mon.get_root().header.add_child(Element("""
-            <style>
-            .leaflet-container { background: #262626 !important; }
-            .leaflet-tile-pane {
-                filter: invert(100%) hue-rotate(180deg) grayscale(100%) brightness(0.8) contrast(1.25);
-            }
-            @keyframes pulse {
-                from { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,0,0,.8); }
-                to   { transform: scale(1.7); opacity: .35; box-shadow: 0 0 18px 8px rgba(255,0,0,.6); }
-            }
-            </style>
-            """))
+        m_mon.get_root().header.add_child(Element("""
+        <style>
+        .leaflet-container { background: #262626 !important; }
+        .leaflet-tile-pane {
+            filter: invert(100%) hue-rotate(180deg) grayscale(100%) brightness(0.8) contrast(1.25);
+        }
+        @keyframes pulse {
+            from { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,0,0,.8); }
+            to   { transform: scale(1.7); opacity: .35; box-shadow: 0 0 18px 8px rgba(255,0,0,.6); }
+        }
+        </style>
+        """))
 
-            comisarias_mapa = {}  # comisarías consultadas en tiempo real (OpenStreetMap)
-            if comisaria_cercana_name and not df_com_sel.empty:
-                for _, c_s in df_com_sel.iterrows():
-                    comisarias_mapa.setdefault((round(float(c_s["LATITUD"]), 5), round(float(c_s["LONGITUD"]), 5)),
-                        {"nombre": c_s["COMISARIA"], "lat": float(c_s["LATITUD"]), "lon": float(c_s["LONGITUD"]), "panico": False})
+        comisarias_mapa = {} 
+        if comisaria_cercana_name and not df_com_sel.empty:
+            for _, c_s in df_com_sel.iterrows():
+                comisarias_mapa.setdefault((round(float(c_s["LATITUD"]), 5), round(float(c_s["LONGITUD"]), 5)),
+                    {"nombre": c_s["COMISARIA"], "lat": float(c_s["LATITUD"]), "lon": float(c_s["LONGITUD"]), "panico": False})
 
-            for _, r in df_mapa_filtrado_sup.iterrows():
-                obj_nombre = str(r['OBJETIVO']).strip().upper()
-                es_panico = obj_nombre in lista_objetivos_en_panico
-                es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
+        for _, r in df_mapa_filtrado_sup.iterrows():
+            obj_nombre = str(r['OBJETIVO']).strip().upper()
+            coords_r = geocodificar_direccion(str(r.get('DIRECCION', '')), str(r.get('LOCALIDAD', '')))
+            if not coords_r:
+                continue
+            lat_r, lon_r = coords_r
 
-                if es_panico:
-                    texto_tooltip = f"🚨 PÁNICO | OBJ: {obj_nombre}"
-                    if 'OBJETIVO' in df_emergencias.columns:
-                        alerta_activa = df_emergencias[
-                            (col_texto(df_emergencias, 'OBJETIVO').str.strip().str.upper() == obj_nombre) &
-                            (col_texto(df_emergencias, 'ESTADO').str.strip().str.upper() == 'PENDIENTE') &
-                            (col_texto(df_emergencias, 'TIPO').str.strip().str.upper() == 'PÁNICO')
-                        ]
-                        if not alerta_activa.empty:
-                            texto_tooltip = f"🚨 PÁNICO: {alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')} | OBJ: {obj_nombre}"
+            es_panico = obj_nombre in lista_objetivos_en_panico
+            es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
 
-                    folium.Marker(
-                        location=[r['LATITUD'], r['LONGITUD']],
-                        tooltip=texto_tooltip,
-                        icon=folium.DivIcon(
-                            icon_size=(30, 30), icon_anchor=(15, 15),
-                            html='<div style="background-color:#FF0000;width:16px;height:16px;border-radius:50%;border:2px solid white;animation:pulse 0.8s infinite alternate;"></div>'
-                        )
-                    ).add_to(m_mon)
+            if es_panico:
+                texto_tooltip = f"🚨 PÁNICO | OBJ: {obj_nombre}"
+                if 'OBJETIVO' in df_emergencias.columns:
+                    alerta_activa = df_emergencias[
+                        (col_texto(df_emergencias, 'OBJETIVO').str.strip().str.upper() == obj_nombre) &
+                        (col_texto(df_emergencias, 'ESTADO').str.strip().str.upper() == 'PENDIENTE') &
+                        (col_texto(df_emergencias, 'TIPO').str.strip().str.upper() == 'PÁNICO')
+                    ]
+                    if not alerta_activa.empty:
+                        texto_tooltip = f"🚨 PÁNICO: {alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')} | OBJ: {obj_nombre}"
 
-                    com = comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'])
-                    if com is not None:
-                        comisarias_mapa[(round(float(com['LATITUD']), 5), round(float(com['LONGITUD']), 5))] = {
-                            "nombre": com['COMISARIA'], "lat": float(com['LATITUD']), "lon": float(com['LONGITUD']), "panico": True}
-                        ruta = obtener_ruta_calles_osrm(r['LATITUD'], r['LONGITUD'], com['LATITUD'], com['LONGITUD'])
-                        folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
-                        folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
-
-                elif es_el_seleccionado:
-                    folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], radius=10, color="#FFFFFF",
-                        fill=True, fill_color="#00E5FF", fill_opacity=0.9,
-                        tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
-                    ).add_to(m_mon)
-                else:
-                    folium.CircleMarker(
-                        location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True,
-                        tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
-                    ).add_to(m_mon)
-
-            for c in comisarias_mapa.values():
-                en_panico = c["panico"]
-                color_icono = "#FFD600" if en_panico else "#0000FF"
-                tamano_fuente = "26px" if en_panico else "20px"
-                sufijo = " 🌟 [MÁS CERCANA AL PÁNICO]" if en_panico else ""
                 folium.Marker(
-                    location=[c["lat"], c["lon"]],
-                    tooltip=f"👮 {c['nombre']}{sufijo}",
-                    icon=folium.DivIcon(html=f"""<div style="font-size:{tamano_fuente};color:{color_icono};text-shadow:0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+                    location=[lat_r, lon_r],
+                    tooltip=texto_tooltip,
+                    icon=folium.DivIcon(
+                        icon_size=(30, 30), icon_anchor=(15, 15),
+                        html='<div style="background-color:#FF0000;width:16px;height:16px;border-radius:50%;border:2px solid white;animation:pulse 0.8s infinite alternate;"></div>'
+                    )
                 ).add_to(m_mon)
 
-            st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
+                com = comisaria_mas_cercana(lat_r, lon_r)
+                if com is not None:
+                    comisarias_mapa[(round(float(com['LATITUD']), 5), round(float(com['LONGITUD']), 5))] = {
+                        "nombre": com['COMISARIA'], "lat": float(com['LATITUD']), "lon": float(com['LONGITUD']), "panico": True}
+                    ruta = obtener_ruta_calles_osrm(lat_r, lon_r, com['LATITUD'], com['LONGITUD'])
+                    folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
+                    folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
+
+            elif es_el_seleccionado:
+                folium.CircleMarker(
+                    location=[lat_r, lon_r], radius=10, color="#FFFFFF",
+                    fill=True, fill_color="#00E5FF", fill_opacity=0.9,
+                    tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
+                ).add_to(m_mon)
+            else:
+                folium.CircleMarker(
+                    location=[lat_r, lon_r], radius=7, color="#00E5FF", fill=True,
+                    tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
+                ).add_to(m_mon)
+
+        for c in comisarias_mapa.values():
+            en_panico = c["panico"]
+            color_icono = "#FFD600" if en_panico else "#0000FF"
+            tamano_fuente = "26px" if en_panico else "20px"
+            sufijo = " 🌟 [MÁS CERCANA AL PÁNICO]" if en_panico else ""
+            folium.Marker(
+                location=[c["lat"], c["lon"]],
+                tooltip=f"👮 {c['nombre']}{sufijo}",
+                icon=folium.DivIcon(html=f"""<div style="font-size:{tamano_fuente};color:{color_icono};text-shadow:0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+            ).add_to(m_mon)
+
+        st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
         st.markdown('</div>', unsafe_allow_html=True)
-
-    with t_mensajeria:
-        renderizar_mensajeria_global("MONITOREO")
-            
-    with t_nov:
-        st.subheader("🔄 AUDITORÍA Y REGISTROS DE MONITOREO")
-         
-        df_qr_m_base = leer_matriz_nube("REGISTRO QR SUPERVISORES")
-        df_jor_m_base = leer_matriz_nube("JORNADA SUPERVISORES")
-        df_flota_m_base = leer_matriz_nube("CONTROL DE FLOTA")
-        df_vig_rel_m_base = leer_matriz_nube("VIGILADORES")
-        df_nov_m_base = leer_matriz_nube("NOVEDADES GUARDIA")
-        df_alt_m_base = leer_matriz_nube("ALERTAS")
-
-        sups_dinamicos_set = set()
-         
-        if not df_qr_m_base.empty:
-            df_qr_m_base.columns = [str(c).strip().upper() for c in df_qr_m_base.columns]
-            col_sup_qm = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_m_base.columns else df_qr_m_base.columns[3]
-            if col_sup_qm in df_qr_m_base.columns:
-                for s in col_texto(df_qr_m_base, col_sup_qm).dropna().str.strip().str.upper():
-                    if s and s != "NAN": sups_dinamicos_set.add(s)
-
-        if not df_jor_m_base.empty:
-            df_jor_m_base.columns = [str(c).strip().upper() for c in df_jor_m_base.columns]
-            col_sup_jm = 'SUPERVISOR' if 'SUPERVISOR' in df_jor_m_base.columns else df_jor_m_base.columns[1]
-            if col_sup_jm in df_jor_m_base.columns:
-                for s in col_texto(df_jor_m_base, col_sup_jm).dropna().str.strip().str.upper():
-                    if s and s != "NAN": sups_dinamicos_set.add(s)
-
-        if not df_flota_m_base.empty:
-            df_flota_m_base.columns = [str(c).strip().upper() for c in df_flota_m_base.columns]
-            col_sup_fm = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_m_base.columns else df_flota_m_base.columns[1]
-            if col_sup_fm in df_flota_m_base.columns:
-                for s in col_texto(df_flota_m_base, col_sup_fm).dropna().str.strip().str.upper():
-                    if s and s != "NAN": sups_dinamicos_set.add(s)
-
-        sups_dinamicos_lista = sorted(list(sups_dinamicos_set))
-
-        opciones_filtro_monitoreo = ["VER TODOS LOS SUPERVISORES"] + sups_dinamicos_lista
-        sup_elegido_monitoreo_tab = st.selectbox("🔍 FILTRAR AUDITORÍA POR SUPERVISOR O VER TODOS:", opciones_filtro_monitoreo, key="filtro_auditoria_monitoreo_gral")
-
-        lista_sups_a_mostrar = sups_dinamicos_lista if sup_elegido_monitoreo_tab == "VER TODOS LOS SUPERVISORES" else [sup_elegido_monitoreo_tab]
-
-        if len(lista_sups_a_mostrar) > 0:
-            pestanas_sups = st.tabs(lista_sups_a_mostrar)
-             
-            for idx_p, sup_seleccionado_mono in enumerate(lista_sups_a_mostrar):
-                with pestanas_sups[idx_p]:
-                    st.markdown(f"### 🛡️ PANEL DE CONTROL: {sup_seleccionado_mono}")
-                     
-                    st.markdown("#### 📱 Fichajes QR")
-                    if not df_qr_m_base.empty:
-                        col_sup_qm = 'SUPERVISOR' if 'SUPERVISOR' in df_qr_m_base.columns else df_qr_m_base.columns[3]
-                        df_sup_qrs_m = df_qr_m_base[col_texto(df_qr_m_base, col_sup_qm).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]
-                        if not df_sup_qrs_m.empty:
-                            st.dataframe(df_sup_qrs_m.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info("Sin registros QR para este supervisor.")
-                    else:
-                        st.info("No hay datos de fichajes QR.")
-
-                    st.markdown("---")
-                    st.markdown("#### 📋 Fichaje de Vigiladores")
-                    if not df_nov_m_base.empty:
-                        df_nov_m_base.columns = [str(c).strip().upper() for c in df_nov_m_base.columns]
-                        objs_del_sup = [o.strip().upper() for o in df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
-                         
-                        if len(objs_del_sup) > 0 and 'OBJETIVO' in df_nov_m_base.columns:
-                            df_nov_m_base['OBJETIVO_CLEAN'] = col_texto(df_nov_m_base, 'OBJETIVO').str.strip().str.upper()
-                             
-                            col_evento_real = None
-                            for posible_col in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO']:
-                                if posible_col in df_nov_m_base.columns:
-                                    col_evento_real = posible_col
-                                    break
-                            if col_evento_real is None and len(df_nov_m_base.columns) > 2:
-                                col_evento_real = df_nov_m_base.columns[2]
-
-                            if col_evento_real:
-                                mask_fich = df_nov_m_base['OBJETIVO_CLEAN'].isin(objs_del_sup) & \
-                                            col_texto(df_nov_m_base, col_evento_real).str.strip().str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
-                                df_fichajes_sup_filtrado = df_nov_m_base[mask_fich].copy()
-                            else:
-                                df_fichajes_sup_filtrado = pd.DataFrame()
-                             
-                            if not df_fichajes_sup_filtrado.empty:
-                                st.dataframe(df_fichajes_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            else:
-                                st.info("No hay fichajes de vigiladores registrados para los objetivos de este supervisor.")
-                        else:
-                            st.info("Este supervisor no tiene objetivos asignados en la red.")
-                    else:
-                        st.info("No hay novedades de guardia registradas.")
-
-                    st.markdown("---")
-                    st.markdown("#### 🔄 Relevos de vigiladores")
-                    if not df_vig_rel_m_base.empty:
-                        df_vig_rel_m_base.columns = [str(c).strip().upper() for c in df_vig_rel_m_base.columns]
-                        objs_del_sup = df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == sup_seleccionado_mono]['OBJETIVO'].tolist() if not df_objetivos.empty else []
-                         
-                        if len(objs_del_sup) > 0:
-                            col_obj_v = 'OBJETIVO' if 'OBJETIVO' in df_vig_rel_m_base.columns else df_vig_rel_m_base.columns[2]
-                            df_rel_sup_filtrado = df_vig_rel_m_base[col_texto(df_vig_rel_m_base, col_obj_v).str.strip().str.upper().isin([o.upper() for o in objs_del_sup])]
-                             
-                            if not df_rel_sup_filtrado.empty:
-                                st.dataframe(df_rel_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                            else:
-                                st.info("No hay relevos de vigiladores registrados para los objetivos de este supervisor.")
-                        else:
-                            st.info("Este supervisor no tiene objetivos asignados.")
-                    else:
-                        st.info("No hay relevos de vigiladores registrados.")
-
-                    st.markdown("---")
-                    st.markdown("#### 🚶 Recorridas de Vigiladores")
-                    objs_rec_m = df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist() if not df_objetivos.empty else []
-                    df_rec_m = tabla_recorridas_vigiladores(objs_rec_m)
-                    if not df_rec_m.empty:
-                        st.dataframe(df_rec_m, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("Sin recorridas registradas para los objetivos de este supervisor.")
-
-                    st.markdown("---")
-                    st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
-                    if not df_alt_m_base.empty:
-                        df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                        df_panicos_op = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
-                         
-                        if not df_panicos_op.empty:
-                            mask_solo_supervisor = (col_texto(df_panicos_op, 'USUARIO').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
-                            df_pan_sup_filtrado = df_panicos_op[mask_solo_supervisor]
-                        else:
-                            df_pan_sup_filtrado = pd.DataFrame()
-                         
-                        if not df_pan_sup_filtrado.empty:
-                            st.dataframe(df_pan_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info("No hay pánicos S.O.S de supervisor registrados.")
-                    else:
-                        st.info("Sin pánicos S.O.S registrados.")
-
-                    st.markdown("---")
-                    st.markdown("#### 🚨 Pánico S.O.S Vigilador")
-                    if not df_alt_m_base.empty:
-                        df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                        df_panicos_op = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
-                        objs_del_sup = [o.strip().upper() for o in df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
-                         
-                        if not df_panicos_op.empty:
-                            mask_obj_del_sup = col_texto(df_panicos_op, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
-                            mask_no_es_supervisor = ~(col_texto(df_panicos_op, 'USUARIO').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
-                            df_pan_vig_filtrado = df_panicos_op[mask_obj_del_sup & mask_no_es_supervisor]
-                        else:
-                            df_pan_vig_filtrado = pd.DataFrame()
-                         
-                        if not df_pan_vig_filtrado.empty:
-                            df_pan_vig_c_turno_m = df_pan_vig_filtrado.copy()
-                            turnos_vig_list_m = []
-                            for _, f_row_m in df_pan_vig_c_turno_m.iterrows():
-                                fh_val_pm = str(f_row_m.get('FECHA', ''))
-                                turnos_vig_list_m.append(determinar_turno_activo(fh_val_pm))
-                            df_pan_vig_c_turno_m['TURNO VIGILADOR'] = turnos_vig_list_m
-                            st.dataframe(df_pan_vig_c_turno_m.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info("No hay pánicos S.O.S de vigiladores registrados en los objetivos de este supervisor.")
-                    else:
-                        st.info("Sin pánicos S.O.S de vigiladores registrados.")
-
-                    st.markdown("---")
-                    st.markdown("#### ⚠️ Alertas Operativas")
-                    if not df_alt_m_base.empty:
-                        df_alt_m_base.columns = [str(c).strip().upper() for c in df_alt_m_base.columns]
-                         
-                        df_panicos_op_total = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() == "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else pd.DataFrame()
-                         
-                        mask_solo_sup_cnt = (col_texto(df_panicos_op_total, 'USUARIO').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()) if not df_panicos_op_total.empty else pd.Series([False])
-                        total_alertas_supervisor = len(df_panicos_op_total[mask_solo_sup_cnt]) if not df_panicos_op_total.empty else 0
-                         
-                        objs_del_sup_cnt = [o.strip().upper() for o in df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist()] if not df_objetivos.empty else []
-                        mask_obj_sup_cnt = col_texto(df_panicos_op_total, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup_cnt]) if not df_panicos_op_total.empty and 'OBJETIVO' in df_panicos_op_total.columns else pd.Series([False])
-                        mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
-                        total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
-
-                        df_alertas_op = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
-                         
-                        if not df_alertas_op.empty:
-                            mask_alt = pd.Series([False]*len(df_alertas_op))
-                            if 'OBJETIVO' in df_alertas_op.columns:
-                                mask_alt = mask_alt | col_texto(df_alertas_op, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup])
-                            if 'SUPERVISOR' in df_alertas_op.columns:
-                                mask_alt = mask_alt | (col_texto(df_alertas_op, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())
-                            df_alt_sup_filtrado = df_alertas_op[mask_alt]
-                        else:
-                            df_alt_sup_filtrado = pd.DataFrame()
-                         
-                        if total_alertas_supervisor > 0 or total_alertas_vigilador > 0 or not df_alt_sup_filtrado.empty:
-                            if total_alertas_supervisor > 0:
-                                st.markdown(f"• TOTAL ALERTAS DE SUPERVISOR: **{total_alertas_supervisor}**")
-                            if total_alertas_vigilador > 0:
-                                st.markdown(f"• TOTAL ALERTAS DE VIGILADOR: **{total_alertas_vigilador}**")
-                             
-                            if not df_alt_sup_filtrado.empty:
-                                st.dataframe(df_alt_sup_filtrado.iloc[::-1], use_container_width=True, hide_index=True)
-                        else:
-                            st.info("No hay alertas operativas adicionales registradas para los objetivos de este supervisor.")
-                    else:
-                        st.info("Sin alertas operativas registradas.")
-        else:
-            st.info("No hay supervisores con registros activos en el sistema todavía.")
 
 # =========================================================================
 # ROL: SUPERVISOR
