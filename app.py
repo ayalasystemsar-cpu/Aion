@@ -399,13 +399,10 @@ def cargar_objetivos():
             df = df[df['ESTADO'].astype(str).str.strip().str.upper() != "BAJA"]
         if 'SUPERVISOR' in df.columns:
             df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
-        df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
-        df['LONGITUD'] = df['LONGITUD'].astype(str).str.replace(',', '.')
-        df['LATITUD'] = pd.to_numeric(df['LATITUD'], errors='coerce')
-        df['LONGITUD'] = pd.to_numeric(df['LONGITUD'], errors='coerce')
+        
         return df 
     return pd.DataFrame()
-
+    
 @st.cache_resource(show_spinner=False)
 def obtener_grafo_zona(lat, lon):
     try:
