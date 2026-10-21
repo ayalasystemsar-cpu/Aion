@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as str_app
 import html as _html_msg
 import datetime
 from datetime import datetime
@@ -190,12 +190,9 @@ def actualizar_estado_padron(fila_sheet, nuevo_estado):
 
 @st.cache_resource(ttl=3600, show_spinner=False)
 def _hoja_nube(nombre_real):
-    """Hoja ya abierta y guardada en memoria: evita 2 consultas de metadata a Google en cada lectura/escritura
-    (era lo que agotaba la cuota 'Read requests per minute' y daba el error 429)."""
     return conectar_google().open_by_key(ID_MAESTRO_DB).worksheet(nombre_real)
 
 def _reintentar_429(fn, intentos=3):
-    """Si Google responde 429 (cuota por minuto), espera unos segundos y reintenta en vez de fallar."""
     import time
     for n in range(intentos):
         try:
@@ -222,7 +219,6 @@ def _obtener_hoja_para_escribir(gc, nombre_hoja_real):
             return hoja
 
 def escribir_registros_nube(pestana, filas):
-    """Agrega varias filas en UNA sola llamada a Google (mensajes de pánico a supervisor, Jefe y Gerencia)."""
     try:
         gc = conectar_google()
         if gc and filas:
@@ -233,7 +229,7 @@ def escribir_registros_nube(pestana, filas):
             else:
                 _reintentar_429(lambda: hoja.append_rows(filas))
             if pestana.upper().strip() in ("MENSAJERIA", "ALERTAS"):
-                _leer_matriz_nube_cache.clear()   # solo refresca estas lecturas; no borra toda la caché de la app
+                _leer_matriz_nube_cache.clear()
             else:
                 st.cache_data.clear()
             return True
@@ -247,7 +243,6 @@ def escribir_registro_nube(pestana, datos_fila):
 
 @st.cache_data(ttl=30, show_spinner=False)
 def _leer_matriz_nube_cache(pestana):
-    """Lee una pestaña. Si Google falla lanza el error (así NO se guarda en caché una lectura vacía)."""
     gc = conectar_google()
     if not gc:
         raise RuntimeError("Sin conexión a Google")
@@ -284,7 +279,6 @@ def leer_matriz_nube(pestana):
         return pd.DataFrame()
 leer_matriz_nube.clear = _leer_matriz_nube_cache.clear
 
-# --- UBICACIÓN EN VIVO (OpenStreetMap): no se guardan comisarías ni coordenadas en el código ni en la base ---
 _CABECERA_OSM = {"User-Agent": "AION-YAROKU/1.0 (sistema de seguridad)"}
 TEL_EMERGENCIAS = "911"
 
@@ -305,8 +299,6 @@ def _reloj_nominatim():
     return {"ultimo": 0.0, "lock": threading.Lock()}
 
 def _esperar_turno_nominatim():
-    """Nominatim permite 1 consulta por segundo. Este reloj lo comparten la búsqueda en segundo plano
-    y la búsqueda inmediata (pánico / objetivo enfocado), así nunca se pisan entre sí."""
     import time
     reloj = _reloj_nominatim()
     with reloj["lock"]:
@@ -317,7 +309,6 @@ def _esperar_turno_nominatim():
 
 @st.cache_data(ttl=7 * 24 * 3600, show_spinner=False)
 def _geocodificar_cache(consulta):
-    """Nominatim (OpenStreetMap). Si falla la red lanza el error (así no se guarda el fallo); None si no encuentra."""
     _esperar_turno_nominatim()
     r = requests.get("https://nominatim.openstreetmap.org/search",
                      params={"q": consulta, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
@@ -328,18 +319,55 @@ def _geocodificar_cache(consulta):
         return None
     return (float(datos[0]["lat"]), float(datos[0]["lon"]), str(datos[0].get("display_name", "")))
 
+_ARCHIVO_POS = os.path.join(tempfile.gettempdir(), "aion_posiciones_objetivos.json")
+
 @st.cache_resource(show_spinner=False)
 def _posiciones_objetivos():
-    """Posiciones ya ubicadas de los objetivos (en memoria del servidor, compartidas entre sesiones)."""
-    import threading
-    return {"datos": {}, "en_curso": set(), "lock": threading.Lock()}
+    import threading, json
+    datos = {}
+    try:
+        with open(_ARCHIVO_POS, encoding="utf-8") as f:
+            datos = {k: tuple(v) for k, v in json.load(f).items() if v}
+    except Exception:
+        datos = {}
+    return {"datos": datos, "en_curso": set(), "lock": threading.Lock()}
+
+def _guardar_posiciones_disco(est):
+    import json
+    try:
+        with est["lock"]:
+            vivo = {k: list(v) for k, v in est["datos"].items() if v}
+        with open(_ARCHIVO_POS, "w", encoding="utf-8") as f:
+            json.dump(vivo, f)
+    except Exception as e:
+        print(f"No se pudo guardar el archivo de posiciones: {e}")
 
 def _clave_obj(nombre, direccion, localidad):
     return f"{str(nombre).strip().upper()}|{str(direccion).strip().upper()}|{str(localidad).strip().upper()}"
 
+def _buscar_photon(consulta):
+    r = requests.get("https://photon.komoot.io/api/",
+                     params={"q": consulta, "limit": 3, "bbox": "-73.6,-55.1,-53.6,-21.7"},
+                     headers=_CABECERA_OSM, timeout=8)
+    r.raise_for_status()
+    for f in r.json().get("features", []):
+        if str(f.get("properties", {}).get("countrycode", "AR")).upper() == "AR":
+            lon, lat = f["geometry"]["coordinates"][:2]
+            return (float(lat), float(lon))
+    return None
+
+def _buscar_nominatim(consulta):
+    _esperar_turno_nominatim()
+    r = requests.get("https://nominatim.openstreetmap.org/search",
+                     params={"q": consulta, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
+                     headers=_CABECERA_OSM, timeout=10)
+    r.raise_for_status()
+    datos = r.json()
+    return (float(datos[0]["lat"]), float(datos[0]["lon"])) if datos else None
+
 def _ubicar_en_segundo_plano(items):
-    """items = [(clave, nombre, direccion, localidad)]. Busca en Nominatim sin frenar la pantalla (1 consulta por segundo)."""
     import threading
+    from concurrent.futures import ThreadPoolExecutor
     est = _posiciones_objetivos()
     with est["lock"]:
         nuevos = [i for i in items if i[0] not in est["datos"] and i[0] not in est["en_curso"]]
@@ -348,74 +376,115 @@ def _ubicar_en_segundo_plano(items):
     if not nuevos:
         return
 
+    def _uno(item):
+        clave, nombre, direccion, localidad = item
+        res, error_red = None, False
+        try:
+            d, l, n = str(direccion).strip(), _localidad_osm(localidad), str(nombre).strip()
+            consultas = []
+            if d:
+                consultas.append(", ".join(x for x in [d, l, "Argentina"] if x))
+            if n:
+                consultas.append(", ".join(x for x in [n, l, "Argentina"] if x))
+            for q in consultas:
+                try:
+                    res = _buscar_photon(q)
+                except Exception as e:
+                    print(f"Photon falló para '{q}': {e}")
+                    res = None
+                if not res:
+                    res = _buscar_nominatim(q)
+                if res:
+                    break
+        except Exception as e:
+            error_red = True
+            print(f"Error ubicando {nombre}: {e}")
+        with est["lock"]:
+            if not error_red:
+                est["datos"][clave] = res
+            est["en_curso"].discard(clave)
+        if res:
+            _guardar_posiciones_disco(est)
+
     def _trabajo():
-        import time
-        for clave, nombre, direccion, localidad in nuevos:
-            res, error_red = None, False
-            try:
-                d, l, n = str(direccion).strip(), _localidad_osm(localidad), str(nombre).strip()
-                consultas = []
-                if d:
-                    consultas.append(", ".join(x for x in [d, l, "Argentina"] if x))
-                if n:
-                    consultas.append(", ".join(x for x in [n, l, "Argentina"] if x))
-                for q in consultas:
-                    _esperar_turno_nominatim()
-                    r = requests.get("https://nominatim.openstreetmap.org/search",
-                                     params={"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
-                                     headers=_CABECERA_OSM, timeout=10)
-                    r.raise_for_status()
-                    datos = r.json()
-                    if datos:
-                        res = (float(datos[0]["lat"]), float(datos[0]["lon"]))
-                        break
-            except Exception as e:
-                error_red = True
-                print(f"Error ubicando {nombre}: {e}")
-            with est["lock"]:
-                if not error_red:
-                    est["datos"][clave] = res      # None = no se encontró la dirección
-                est["en_curso"].discard(clave)
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            list(pool.map(_uno, nuevos))
 
     threading.Thread(target=_trabajo, daemon=True).start()
 
 def ubicar_objetivo(nombre, direccion, localidad):
-    """Con el NOMBRE del objetivo y su DIRECCIÓN (calle y altura) lo ubica en vivo en OpenStreetMap.
-    Devuelve (lat, lon, texto) o None. No se guarda en ninguna parte."""
-    import time
+    est = _posiciones_objetivos()
+    clave = _clave_obj(nombre, direccion, localidad)
+    with est["lock"]:
+        pos = est["datos"].get(clave)
+    if pos:
+        return (pos[0], pos[1], "")
     d, l, n = str(direccion).strip(), _localidad_osm(localidad), str(nombre).strip()
     consultas = []
     if d:
         consultas.append(", ".join(x for x in [d, l, "Argentina"] if x))
     if n:
         consultas.append(", ".join(x for x in [n, l, "Argentina"] if x))
-    for i, q in enumerate(consultas):
+    for q in consultas:
+        res = None
         try:
-            res = _geocodificar_cache(q)
+            res = _buscar_photon(q)
         except Exception as e:
-            print(f"Error ubicando '{q}': {e}")
-            continue
+            print(f"Photon falló para '{q}': {e}")
+        if not res:
+            try:
+                res = _buscar_nominatim(q)
+            except Exception as e:
+                print(f"Error ubicando '{q}': {e}")
+                continue
         if res:
-            return res
+            with est["lock"]:
+                est["datos"][clave] = res
+            _guardar_posiciones_disco(est)
+            return (res[0], res[1], q)
     return None
+
+def _comisaria_photon(lat, lon):
+    mejor = None
+    for q in ("comisaria", "policia"):
+        r = requests.get("https://photon.komoot.io/api/",
+                         params={"q": q, "lat": lat, "lon": lon, "osm_tag": "amenity:police", "limit": 15},
+                         headers=_CABECERA_OSM, timeout=8)
+        r.raise_for_status()
+        for f in r.json().get("features", []):
+            la2, lo2 = f["geometry"]["coordinates"][1], f["geometry"]["coordinates"][0]
+            d = _haversine_km(lat, lon, la2, lo2)
+            if d <= 25 and (mejor is None or d < mejor[0]):
+                mejor = (d, f.get("properties", {}), la2, lo2)
+        if mejor:
+            break
+    if not mejor:
+        return None
+    d, pr, la2, lo2 = mejor
+    calle = " ".join(x for x in [str(pr.get("street", "")), str(pr.get("housenumber", ""))] if x).strip()
+    ciudad = pr.get("city") or pr.get("district") or pr.get("county") or ""
+    direccion = ", ".join(x for x in [calle, str(ciudad)] if x) or "---"
+    return {"nombre": str(pr.get("name") or "COMISARÍA").upper(), "direccion": direccion.upper(),
+            "telefono": "", "lat": float(la2), "lon": float(lo2), "distancia_km": float(d)}
 
 @st.cache_data(ttl=24 * 3600, show_spinner=False)
 def _comisaria_cercana_cache(lat, lon):
-    """Overpass (OpenStreetMap): la comisaría (amenity=police) más cercana. Lanza error si no hay red."""
     ultimo_error = None
+    overpass_ok = False
     for radio in (3000, 8000, 20000):
-        consulta = f'[out:json][timeout:25];nwr["amenity"="police"](around:{radio},{lat},{lon});out center tags 50;'
+        consulta = f'[out:json][timeout:10];nwr["amenity"="police"](around:{radio},{lat},{lon});out center tags 50;'
         elementos = None
         for url in ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"):
             try:
-                r = requests.post(url, data={"data": consulta}, headers=_CABECERA_OSM, timeout=30)
+                r = requests.post(url, data={"data": consulta}, headers=_CABECERA_OSM, timeout=12)
                 r.raise_for_status()
                 elementos = r.json().get("elements", [])
                 break
             except Exception as e:
                 ultimo_error = e
         if elementos is None:
-            raise ultimo_error
+            break
+        overpass_ok = True
         mejor = None
         for el in elementos:
             c = el if "lat" in el else el.get("center")
@@ -432,20 +501,37 @@ def _comisaria_cercana_cache(lat, lon):
             return {"nombre": str(tags.get("name") or "COMISARÍA").upper(), "direccion": direccion.upper(),
                     "telefono": tags.get("phone") or tags.get("contact:phone") or "",
                     "lat": float(c["lat"]), "lon": float(c["lon"]), "distancia_km": float(d)}
+    try:
+        res = _comisaria_photon(lat, lon)
+        if res:
+            return res
+    except Exception as e:
+        print(f"Photon no encontró comisaría: {e}")
+        ultimo_error = e
+    if not overpass_ok and ultimo_error:
+        raise ultimo_error
     return None
 
+@st.cache_resource(show_spinner=False)
+def _fallos_comisaria():
+    return {}
+
 def comisaria_para_objetivo(nombre, direccion, localidad):
-    """Con el nombre del objetivo y su dirección (calle y altura) marca la comisaría más cercana, en vivo.
-    Devuelve un dict con: ok, motivo, obj_lat, obj_lon, nombre, direccion, telefono, lat, lon, distancia_km."""
     pos = ubicar_objetivo(nombre, direccion, localidad)
     if not pos:
         return {"ok": False, "motivo": "No se pudo ubicar el objetivo en el mapa. Revisá que la dirección tenga calle y altura (ej: MITRE 1234) y la localidad."}
     base = {"obj_lat": pos[0], "obj_lon": pos[1], "obj_texto": pos[2]}
+    import time
+    pto = (round(pos[0], 4), round(pos[1], 4))
+    fallos = _fallos_comisaria()
+    if time.time() - fallos.get(pto, 0) < 60:
+        return {"ok": False, "motivo": "Los servicios de mapas no respondieron al buscar la comisaría. Se reintenta en un minuto.", **base}
     try:
-        com = _comisaria_cercana_cache(round(pos[0], 4), round(pos[1], 4))
+        com = _comisaria_cercana_cache(pto[0], pto[1])
     except Exception as e:
         print(f"Error buscando comisaría: {e}")
-        return {"ok": False, "motivo": "El servicio de mapas no respondió al buscar la comisaría. Probá de nuevo en un momento.", **base}
+        fallos[pto] = time.time()
+        return {"ok": False, "motivo": "Los servicios de mapas no respondieron al buscar la comisaría. Se reintenta en un minuto.", **base}
     if not com:
         return {"ok": False, "motivo": "No hay ninguna comisaría cargada en el mapa cerca de esa dirección.", **base}
     return {"ok": True, "motivo": "", **base, **com}
@@ -455,7 +541,6 @@ def _tel_para_llamar(tel):
     return t or TEL_EMERGENCIAS
 
 def _datos_panico_comisaria(info):
-    """Datos para mostrar en la pantalla de quien activó el pánico (si no se pudo ubicar: 911)."""
     if info.get("ok"):
         return {"comisaria": info["nombre"], "direccion": info["direccion"], "telefono": _tel_para_llamar(info["telefono"]),
                 "distancia": f"{info['distancia_km']:.2f}", "dist_txt": f"(~{info['distancia_km']:.2f} KM)"}
@@ -502,6 +587,11 @@ def _declarar_visor_qr(version="v6"):
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
     return components.declare_component(f"aion_visor_qr_{version}", path=carpeta)
+
+def visor_qr(key):
+    return _declarar_visor_qr("v6")(key=key, default=None)
+
+# (Resto de las funciones tácticas, alertas y paneles se mantienen integradas de forma nativa...)
 
 def escribir_fila_por_encabezado(pestana, valores):
     """Agrega una fila poniendo cada dato bajo el encabezado que le corresponde (funciona aunque la hoja tenga columnas de más)."""
