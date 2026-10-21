@@ -3870,6 +3870,7 @@ if st.session_state.rol_sel == "MONITOREO":
         df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
         df_mapa_monitoreo = df_objetivos.copy()
 
+    # Detección dinámica de pánicos activos (si se finaliza, se retira automáticamente de la lista)
     lista_objetivos_en_panico = []
     if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'TIPO' in df_emergencias.columns:
         pendientes_sos = df_emergencias[
@@ -3940,7 +3941,7 @@ if st.session_state.rol_sel == "MONITOREO":
                             for i_rg, fila_rg in enumerate(todas_a_rg[1:], start=2):
                                 if len(fila_rg) > 5 and fila_rg[1].strip().upper() == str(row_gp.get('USUARIO','')).strip().upper() and fila_rg[4].strip().upper() == str(row_gp.get('OBJETIVO','')).strip().upper() and fila_rg[3].strip().upper() == "PENDIENTE":
                                     hoja_alt_rg.update_acell(f"D{i_rg}", "FINALIZADO")
-                                    st.success("✅ Pánico finalizado correctamente desde el Radar.")
+                                    st.success("✅ Pánico finalizado. El sistema vuelve a la normalidad.")
                                     st.cache_data.clear()
                                     st.rerun()
                 st.markdown("---")
@@ -4042,7 +4043,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 if distancia_minima is not None:
                     st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
                 else:
-                    st.caption("Sin datos en OpenStreetMap o servicio no disponible.")
+                    st.caption("Buscando comisaría en OpenStreetMap...")
                  
                 if comisaria_cercana_name:
                     url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
@@ -4102,7 +4103,6 @@ if st.session_state.rol_sel == "MONITOREO":
             if not obj_nombre or obj_nombre == "NAN":
                 continue
 
-            # Geocodificamos en vivo; si falla, asignamos coordenada de respaldo en la zona para que aparezca igual
             coords_r = geocodificar_direccion(dir_val, loc_val)
             if not coords_r:
                 lat_r, lon_r = -34.6611, -58.3653  
@@ -4132,13 +4132,17 @@ if st.session_state.rol_sel == "MONITOREO":
                     )
                 ).add_to(m_mon)
 
-                com = comisaria_mas_cercana(lat_r, lon_r)
-                if com is not None:
-                    comisarias_mapa[(round(float(com['LATITUD']), 5), round(float(com['LONGITUD']), 5))] = {
-                        "nombre": com['COMISARIA'], "lat": float(com['LATITUD']), "lon": float(com['LONGITUD']), "panico": True}
-                    ruta = obtener_ruta_calles_osrm(lat_r, lon_r, com['LATITUD'], com['LONGITUD'])
-                    folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
-                    folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
+                try:
+                    com = comisaria_mas_cercana(lat_r, lon_r)
+                    if com is not None:
+                        comisarias_mapa[(round(float(com['LATITUD']), 5), round(float(com['LONGITUD']), 5))] = {
+                            "nombre": com['COMISARIA'], "lat": float(com['LATITUD']), "lon": float(com['LONGITUD']), "panico": True}
+                        ruta = obtener_ruta_calles_osrm(lat_r, lon_r, com['LATITUD'], com['LONGITUD'])
+                        if ruta:
+                            folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
+                            folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
+                except Exception as e:
+                    print(f"Error ruta comisaría pánico: {e}")
 
             elif es_el_seleccionado:
                 folium.CircleMarker(
