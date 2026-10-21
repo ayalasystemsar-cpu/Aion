@@ -1,4 +1,3 @@
-
 import streamlit as st
 import html as _html_msg
 import datetime
@@ -300,9 +299,19 @@ def _localidad_osm(loc):
         return "Ciudad Autónoma de Buenos Aires"
     return l
 
+@st.cache_resource(show_spinner=False)
+def _reloj_nominatim():
+    return {"ultimo": 0.0}
+
 @st.cache_data(ttl=7 * 24 * 3600, show_spinner=False)
 def _geocodificar_cache(consulta):
     """Nominatim (OpenStreetMap). Si falla la red lanza el error (así no se guarda el fallo); None si no encuentra."""
+    import time
+    reloj = _reloj_nominatim()
+    espera = 1.1 - (time.time() - reloj["ultimo"])   # Nominatim: máximo 1 consulta por segundo
+    if espera > 0:
+        time.sleep(espera)
+    reloj["ultimo"] = time.time()
     r = requests.get("https://nominatim.openstreetmap.org/search",
                      params={"q": consulta, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
                      headers=_CABECERA_OSM, timeout=10)
@@ -4076,23 +4085,106 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        # Solo se ubican los objetivos en pánico y el elegido en el buscador (consulta en vivo, sin coordenadas guardadas)
+                st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        # Con "MOSTRAR TODO" se ubican todos los objetivos del filtro; la comisaría solo para los que están
+        # en pánico y para el objetivo enfocado (consulta en vivo, sin coordenadas guardadas)
         puntos = []
         if not df_mapa_filtrado_sup.empty:
-            for _, r in df_mapa_filtrado_sup.iterrows():
-                obj_nombre = str(r['OBJETIVO']).strip().upper()
-                es_panico = obj_nombre in lista_objetivos_en_panico
-                es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
-                if not (es_panico or es_el_seleccionado):
-                    continue
-                if es_el_seleccionado and info_sel is not None:
-                    info_p = info_sel
+            with st.spinner("Ubicando objetivos en el mapa..."):
+                for _, r in df_mapa_filtrado_sup.iterrows():
+                    obj_nombre = str(r['OBJETIVO']).strip().upper()
+                    es_panico = obj_nombre in lista_objetivos_en_panico
+                    es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
+                    if obj_seleccionado != "MOSTRAR TODO" and not (es_panico or es_el_seleccionado):
+                        continue
+                    if es_el_seleccionado and info_sel is not None:
+                        info_p = info_sel
+                    elif es_panico:
+                        info_p = comisaria_para_objetivo(obj_nombre, r.get('DIRECCION', ''), r.get('LOCALIDAD', ''))
+                    else:
+                        pos = ubicar_objetivo(obj_nombre, r.get('DIRECCION', ''), r.get('LOCALIDAD', ''))
+                        if pos:
+                            info_p = {"ok": False, "motivo": "", "obj_lat": pos[0], "obj_lon": pos[1]}
+                        else:
+                            info_p = {"ok": False, "motivo": "No se pudo ubicar la dirección (revisá calle, altura y localidad)."}
+                    puntos.append((obj_nombre, es_panico, es_el_seleccionado, info_p, str(r.get('SUPERVISOR', 'N/A'))))
+
+        ubicados = [p for p in puntos if p[3].get("obj_lat") is not None]
+        no_ubicados = [p for p in puntos if p[3].get("obj_lat") is None]
+        if no_ubicados:
+            st.warning("⚠️ No se pudieron ubicar en el mapa: " + ", ".join(p[0] for p in no_ubicados) +
+                       ". Revisá que la dirección tenga calle y altura, y la localidad.")
+
+        if ubicados:
+            m_mon = folium.Map(
+                location=[ubicados[0][3]["obj_lat"], ubicados[0][3]["obj_lon"]],
+                zoom_start=14,
+                max_zoom=19,
+                tiles="OpenStreetMap"
+            )
+            if len(ubicados) > 1:
+                m_mon.fit_bounds([[p[3]["obj_lat"], p[3]["obj_lon"]] for p in ubicados], padding=(30, 30), max_zoom=16)
+
+            m_mon.get_root().header.add_child(Element("""
+            <style>
+            .leaflet-container { background: #262626 !important; }
+            .leaflet-tile-pane {
+                filter: invert(100%) hue-rotate(180deg) grayscale(100%) brightness(0.8) contrast(1.25);
+            }
+            @keyframes pulse {
+                from { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,0,0,.8); }
+                to   { transform: scale(1.7); opacity: .35; box-shadow: 0 0 18px 8px rgba(255,0,0,.6); }
+            }
+            </style>
+            """))
+
+            for obj_nombre, es_panico, es_el_seleccionado, info_p, sup_p in ubicados:
+                pos_obj = [info_p["obj_lat"], info_p["obj_lon"]]
+                if es_panico:
+                    texto_tooltip = f"🚨 PÁNICO | OBJ: {obj_nombre}"
+                    if 'OBJETIVO' in df_emergencias.columns:
+                        alerta_activa = df_emergencias[
+                            (col_texto(df_emergencias, 'OBJETIVO').str.strip().str.upper() == obj_nombre) &
+                            (col_texto(df_emergencias, 'ESTADO').str.strip().str.upper() == 'PENDIENTE') &
+                            (col_texto(df_emergencias, 'TIPO').str.strip().str.upper() == 'PÁNICO')
+                        ]
+                        if not alerta_activa.empty:
+                            texto_tooltip = f"🚨 PÁNICO: {alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')} | OBJ: {obj_nombre}"
+                    folium.Marker(
+                        location=pos_obj,
+                        tooltip=texto_tooltip,
+                        icon=folium.DivIcon(
+                            icon_size=(30, 30), icon_anchor=(15, 15),
+                            html='<div style="background-color:#FF0000;width:16px;height:16px;border-radius:50%;border:2px solid white;animation:pulse 0.8s infinite alternate;"></div>'
+                        )
+                    ).add_to(m_mon)
                 else:
-                    info_p = comisaria_para_objetivo(obj_nombre, r.get('DIRECCION', ''), r.get('LOCALIDAD', ''))
-                puntos.append((obj_nombre, es_panico, es_el_seleccionado, info_p, str(r.get('SUPERVISOR', 'N/A'))))
-        ubicados = []
-        for p in puntos:
+                    folium.CircleMarker(
+                        location=pos_obj, radius=12 if es_el_seleccionado else 9, color="#FFFFFF",
+                        fill=True, fill_color="#00E5FF", fill_opacity=0.9,
+                        tooltip=f"🎯 {obj_nombre} | 👤 SUP: {sup_p}"
+                    ).add_to(m_mon)
+
+                if info_p.get("ok"):
+                    color_icono = "#FFD600" if es_panico else "#0000FF"
+                    tamano_fuente = "26px" if es_panico else "20px"
+                    sufijo = " 🌟 [MÁS CERCANA AL PÁNICO]" if es_panico else ""
+                    folium.Marker(
+                        location=[info_p["lat"], info_p["lon"]],
+                        tooltip=f"👮 {info_p['nombre']}{sufijo}",
+                        icon=folium.DivIcon(html=f"""<div style="font-size:{tamano_fuente};color:{color_icono};text-shadow:0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
+                    ).add_to(m_mon)
+                    # Ruta a la comisaría: en pánico o cuando el objetivo está enfocado en el buscador
+                    if es_panico or es_el_seleccionado:
+                        ruta = obtener_ruta_calles_osrm(info_p["obj_lat"], info_p["obj_lon"], info_p["lat"], info_p["lon"])
+                        folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
+                        folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
+
+            st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
+        elif not no_ubicados:
+            st.info("No hay objetivos cargados para mostrar en el mapa.")
+        st.markdown('</div>', unsafe_allow_html=True)
+      
             if p[3].get("obj_lat") is None:
                 st.warning(f"⚠️ No se pudo ubicar {p[0]} en el mapa: {p[3]['motivo']}")
             else:
