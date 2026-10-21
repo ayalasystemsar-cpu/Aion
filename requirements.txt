@@ -19,3 +19,4 @@ streamlit-webrtc
 av
 reportlab
 streamlit-qrcode-scanner
+geopy
