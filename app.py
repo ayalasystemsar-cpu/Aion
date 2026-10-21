@@ -320,6 +320,56 @@ def _geocodificar_cache(consulta):
     if not datos:
         return None
     return (float(datos[0]["lat"]), float(datos[0]["lon"]), str(datos[0].get("display_name", "")))
+    @st.cache_resource(show_spinner=False)
+def _posiciones_objetivos():
+    """Posiciones ya ubicadas de los objetivos (en memoria del servidor, compartidas entre sesiones)."""
+    import threading
+    return {"datos": {}, "en_curso": set(), "lock": threading.Lock()}
+
+def _clave_obj(nombre, direccion, localidad):
+    return f"{str(nombre).strip().upper()}|{str(direccion).strip().upper()}|{str(localidad).strip().upper()}"
+
+def _ubicar_en_segundo_plano(items):
+    """items = [(clave, nombre, direccion, localidad)]. Busca en Nominatim sin frenar la pantalla (1 consulta por segundo)."""
+    import threading
+    est = _posiciones_objetivos()
+    with est["lock"]:
+        nuevos = [i for i in items if i[0] not in est["datos"] and i[0] not in est["en_curso"]]
+        for i in nuevos:
+            est["en_curso"].add(i[0])
+    if not nuevos:
+        return
+
+    def _trabajo():
+        import time
+        for clave, nombre, direccion, localidad in nuevos:
+            res, error_red = None, False
+            try:
+                d, l, n = str(direccion).strip(), _localidad_osm(localidad), str(nombre).strip()
+                consultas = []
+                if d:
+                    consultas.append(", ".join(x for x in [d, l, "Argentina"] if x))
+                if n:
+                    consultas.append(", ".join(x for x in [n, l, "Argentina"] if x))
+                for q in consultas:
+                    r = requests.get("https://nominatim.openstreetmap.org/search",
+                                     params={"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
+                                     headers=_CABECERA_OSM, timeout=10)
+                    r.raise_for_status()
+                    datos = r.json()
+                    time.sleep(1.1)
+                    if datos:
+                        res = (float(datos[0]["lat"]), float(datos[0]["lon"]))
+                        break
+            except Exception as e:
+                error_red = True
+                print(f"Error ubicando {nombre}: {e}")
+            with est["lock"]:
+                if not error_red:
+                    est["datos"][clave] = res      # None = no se encontró la dirección
+                est["en_curso"].discard(clave)
+
+    threading.Thread(target=_trabajo, daemon=True).start()
 
 def ubicar_objetivo(nombre, direccion, localidad):
     """Con el NOMBRE del objetivo y su DIRECCIÓN (calle y altura) lo ubica en vivo en OpenStreetMap.
