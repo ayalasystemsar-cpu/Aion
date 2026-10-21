@@ -4776,6 +4776,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
         """, unsafe_allow_html=True)
         col_pv1, col_pv2, col_pv3 = st.columns([1, 1, 1])
         with col_pv2:
+           
             if st.button("S.O.S\nPÁNICO", type="primary"):
                 sup_asignado = "MONITOREO"
                 lat_obj_vig, lon_obj_vig = None, None
@@ -4783,8 +4784,8 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                     if not filtro.empty:
                         sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-                        lat_obj_vig = _a_float(filtro['LATITUD'].iloc[0])
-                        lon_obj_vig = _a_float(filtro['LONGITUD'].iloc[0])
+                        # Las coordenadas ya no se leen de la tabla estática; 
+                        # se resuelven en vivo mediante OpenStreetMap cuando se necesitan.           
 
                 # 1) Primero se registra y se envía la alerta (no depende de ningún servicio externo)
                 fecha = obtener_hora_argentina()
