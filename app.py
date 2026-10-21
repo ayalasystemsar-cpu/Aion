@@ -1027,6 +1027,9 @@ def _aviso_mensajes_sidebar():
         st.info(f"💬 {n} mensaje(s) sin leer en MENSAJERÍA")
 
 def mostrar_notificaciones_sidebar():
+    _rol_alarma = str(st.session_state.get('rol_sel', '')).strip().upper()
+    if _rol_alarma in ("SUPERVISOR", "JEFE DE OPERACIONES"):
+        alarma_panico_sonora(_rol_alarma, st.session_state.get('user_sel', ''))   # sirena + aviso en el panel lateral
     _aviso_mensajes_sidebar()
     usuario_actual = str(st.session_state.get('user_sel', '')).strip().upper()
     rol_actual = str(st.session_state.get('rol_sel', '')).strip().upper()
@@ -1285,21 +1288,17 @@ def _slug_topic(txt):
     t = unicodedata.normalize("NFKD", str(txt)).encode("ascii", "ignore").decode().lower()
     return re.sub(r"[^a-z0-9]+", "-", t).strip("-")
 
-def enviar_push_panico(remitente, objetivo, supervisor=""):
-    """Aviso push por ntfy.sh (suena con el celular bloqueado). No hace nada hasta que se
-    configure NTFY_PREFIJO en los secrets de Streamlit. Topics: <prefijo>-monitoreo,
-    <prefijo>-jefe-de-operaciones, <prefijo>-gerencia y <prefijo>-<nombre-del-supervisor>."""
+def _prefijo_ntfy():
     try:
-        prefijo = str(st.secrets.get("NTFY_PREFIJO", "")).strip()
+        return str(st.secrets.get("NTFY_PREFIJO", "")).strip()
     except Exception:
-        prefijo = ""
-    if not prefijo:
-        return
-    sup = _slug_topic(supervisor) if str(supervisor).strip().upper() not in ("", "N/A", "MONITOREO") else ""
-    destinos = [d for d in ["monitoreo", "jefe-de-operaciones", sup] if d]
-    cuerpo = f"PANICO: {remitente} - OBJ: {objetivo}".encode("utf-8")
+        return ""
+
+def _push_ntfy(topics, texto, prefijo):
+    """Manda un aviso push (ntfy.sh) en segundo plano a cada topic <prefijo>-<topic>."""
+    cuerpo = texto.encode("utf-8")
     def _enviar():
-        for d in destinos:
+        for d in topics:
             try:
                 requests.post(f"https://ntfy.sh/{prefijo}-{d}", data=cuerpo, timeout=5,
                               headers={"Title": "ALARMA DE PANICO", "Priority": "5", "Tags": "rotating_light"})
@@ -1307,6 +1306,57 @@ def enviar_push_panico(remitente, objetivo, supervisor=""):
                 print(f"Error enviando push a {d}: {e}")
     import threading
     threading.Thread(target=_enviar, daemon=True).start()
+
+def enviar_push_panico(remitente, objetivo, supervisor=""):
+    """Aviso push por ntfy.sh (suena con el celular bloqueado). No hace nada hasta que se
+    configure NTFY_PREFIJO en los secrets de Streamlit. Topics: <prefijo>-monitoreo,
+    <prefijo>-jefe-de-operaciones y <prefijo>-<nombre-del-supervisor>."""
+    prefijo = _prefijo_ntfy()
+    if not prefijo:
+        return
+    sup = _slug_topic(supervisor) if str(supervisor).strip().upper() not in ("", "N/A", "MONITOREO") else ""
+    _push_ntfy([d for d in ["monitoreo", "jefe-de-operaciones", sup] if d], f"PANICO: {remitente} - OBJ: {objetivo}", prefijo)
+
+@st.cache_resource(show_spinner=False)
+def _recordatorios_panico():
+    return {}
+
+def recordar_push_panicos_sin_leer(cada_seg=60, max_veces=15):
+    """Se ejecuta desde la sesión de Monitoreo: mientras el supervisor no marque leído el mensaje de pánico,
+    repite el aviso push a su celular cada 'cada_seg' segundos (hasta 'max_veces' y durante 30 minutos)."""
+    import time
+    prefijo = _prefijo_ntfy()
+    if not prefijo:
+        return
+    df = leer_matriz_nube("MENSAJERIA")
+    if df.empty or not {'ASUNTO', 'DESTINATARIO', 'REMITENTE', 'MENSAJE'} <= set(df.columns):
+        return
+    asunto = col_texto(df, 'ASUNTO').str.strip().str.upper()
+    dest = col_texto(df, 'DESTINATARIO').str.strip().str.upper()
+    sel = asunto.str.startswith("ALERTA DE PÁNICO") & ~dest.isin(["JEFE DE OPERACIONES", "GERENCIA", "MONITOREO"])
+    if not sel.any():
+        return
+    ahora = datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+    estado = _recordatorios_panico()
+    for _, r in df[sel].iterrows():
+        try:
+            f = datetime.strptime(str(r.iloc[0])[:19], "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            continue
+        if (ahora - f).total_seconds() > 1800:
+            continue
+        d = str(r['DESTINATARIO']).strip().upper()
+        if 'LEIDO_POR' in df.columns and d in [x.strip().upper() for x in str(r['LEIDO_POR']).split(";")]:
+            continue
+        clave = (str(r.iloc[0]), str(r['REMITENTE']), d)
+        if clave not in estado:          # el primer aviso ya salió al apretar el pánico
+            estado[clave] = (1, time.time())
+            continue
+        n, ult = estado[clave]
+        if n >= max_veces or time.time() - ult < cada_seg:
+            continue
+        _push_ntfy([_slug_topic(d)], f"SIN LEER ({n}): PANICO {r['REMITENTE']} - {r['MENSAJE']}", prefijo)
+        estado[clave] = (n + 1, time.time())
 
 HORAS_ALARMA_PANICO = 12  # un mensaje de pánico sin leer deja de sonar pasadas estas horas
 
@@ -1356,11 +1406,12 @@ _HTML_ALARMA_PANICO = """
 </script>
 """
 
-def alarma_panico_sonora(rol, usuario):
+def alarma_panico_sonora(rol, usuario, solo_cartel=False):
     """Sirena + cartel rojo mientras haya un pánico que le corresponda a este rol.
-    - MONITOREO: suena mientras haya pánicos PENDIENTES en ALERTAS (se corta al finalizarlos). No se puede silenciar.
-    - SUPERVISOR / JEFE DE OPERACIONES / GERENCIA: suena mientras tengan sin leer el MENSAJE de pánico que les llegó
-      (se corta al marcarlo leído con el botón ENTERADO o desde MENSAJERÍA). Se puede silenciar."""
+    - MONITOREO: suena mientras haya pánicos PENDIENTES en ALERTAS (se corta al finalizarlos).
+    - SUPERVISOR / JEFE DE OPERACIONES (panel lateral): suena hasta que marquen ENTERADO (o lean el mensaje en
+      MENSAJERÍA). Gerencia no recibe sirena.
+    - solo_cartel=True: muestra únicamente el cartel rojo (sin sonido ni botones), para la pantalla principal."""
     import html as _html
     if rol == "GERENCIA":   # Gerencia recibe el mensaje pero no la sirena
         return
@@ -1376,6 +1427,10 @@ def alarma_panico_sonora(rol, usuario):
                     f = [str(x).strip() for x in r.tolist()] + [""] * 6
                     if f[2].upper().replace("Á", "A") == "PANICO" and f[3].upper() == "PENDIENTE":
                         pend.append((f[0], f[1].upper(), f[4].upper(), None, ""))
+                try:
+                    recordar_push_panicos_sin_leer()   # repite el push al celular del supervisor hasta que lo lea
+                except Exception as e:
+                    print(f"Error en recordatorios push: {e}")
             else:
                 df = leer_matriz_nube("MENSAJERIA")
                 sin = _mensajes_sin_leer(df)
@@ -1394,12 +1449,6 @@ def alarma_panico_sonora(rol, usuario):
             pend = st.session_state.get("_pan_ult_" + rol, [])
 
         if not pend:
-            st.session_state.pop("_pan_silenciado", None)
-            return
-
-        firma = "|".join(f"{p[0]}~{p[1]}" for p in pend)
-        if (not monitoreo) and st.session_state.get("_pan_silenciado") == firma:
-            st.warning(f"🔇 Alarma silenciada: {len(pend)} aviso(s) de pánico sin leer. Revisá MENSAJERÍA.")
             return
 
         if monitoreo:
@@ -1408,16 +1457,17 @@ def alarma_panico_sonora(rol, usuario):
             detalle = " · ".join(p[2].replace("🚨 ", "") for p in pend[:2])
         if len(pend) > 3:
             detalle += f" · +{len(pend) - 3} más"
+
+        if solo_cartel:
+            st.error(f"🚨 PÁNICO SIN LEER ({len(pend)}): {detalle}. Tocá ✔️ ENTERADO en el panel lateral (☰ arriba a la izquierda).")
+            return
+
         components.html(_HTML_ALARMA_PANICO.replace("__N__", str(len(pend))).replace("__DET__", _html.escape(detalle)), height=80)
 
         if not monitoreo:
-            c1, c2 = st.columns(2)
-            if c1.button("✔️ ENTERADO (DETENER ALARMA)", key=f"btn_ent_pan_{rol}", use_container_width=True):
+            if st.button("✔️ ENTERADO (DETENER ALARMA)", key=f"btn_ent_pan_{rol}", use_container_width=True):
                 if marcar_mensajes_leidos([p[3] for p in pend]):
                     st.rerun()
-            if c2.button("🔇 SILENCIAR", key=f"btn_sil_pan_{rol}", use_container_width=True):
-                st.session_state["_pan_silenciado"] = firma
-                st.rerun(scope="fragment")
             ultimo = pend[-1]
             with st.expander(f"✍️ RESPONDER A {ultimo[1]}"):
                 with st.form(key=f"form_resp_pan_{rol}", clear_on_submit=True):
@@ -4298,7 +4348,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
          
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
-        alarma_panico_sonora("SUPERVISOR", st.session_state.user_sel)
+        alarma_panico_sonora("SUPERVISOR", st.session_state.user_sel, solo_cartel=True)
 
         st.subheader(f"⏱️ GESTIÓN DE JORNADA")
         _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
@@ -4958,7 +5008,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
             total_sos = len(df_pan_vig_jefe)
             st.metric("🚨 S.O.S ACTIVOS", total_sos)
         mostrar_sos()
-    alarma_panico_sonora(st.session_state.rol_sel, st.session_state.user_sel)
+    alarma_panico_sonora(st.session_state.rol_sel, st.session_state.user_sel, solo_cartel=True)
 
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
@@ -5708,4 +5758,3 @@ function bip() {
 }
 </script>
 """, height=0)
-                                       
