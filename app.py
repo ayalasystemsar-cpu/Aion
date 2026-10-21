@@ -1,5 +1,4 @@
 import streamlit as st
-import html as _html_msg
 import datetime
 from datetime import datetime
 import pandas as pd
@@ -191,101 +190,55 @@ def actualizar_estado_padron(fila_sheet, nuevo_estado):
         print(f"Error actualizando estado en padrón: {e}")
         return False
 
-@st.cache_resource(ttl=3600, show_spinner=False)
-def _hoja_nube(nombre_real):
-    """Hoja ya abierta y guardada en memoria: evita 2 consultas de metadata a Google en cada lectura/escritura
-    (era lo que agotaba la cuota 'Read requests per minute' y daba el error 429)."""
-    return conectar_google().open_by_key(ID_MAESTRO_DB).worksheet(nombre_real)
-
-def _reintentar_429(fn, intentos=3):
-    """Si Google responde 429 (cuota por minuto), espera unos segundos y reintenta en vez de fallar."""
-    import time
-    for n in range(intentos):
-        try:
-            return fn()
-        except Exception as e:
-            if "429" in str(e) and n < intentos - 1:
-                time.sleep(4 * (n + 1))
-                continue
-            raise
-
-def _obtener_hoja_para_escribir(gc, nombre_hoja_real):
-    try:
-        return _hoja_nube(nombre_hoja_real)
-    except Exception as e:
-        if "429" in str(e):
-            raise
-        sh = gc.open_by_key(ID_MAESTRO_DB)
-        try:
-            return sh.worksheet(nombre_hoja_real)
-        except Exception:
-            hoja = sh.add_worksheet(title=nombre_hoja_real, rows="100", cols="15")
-            if nombre_hoja_real == "NOTIFICACIONES_SUPERVISORES":
-                hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
-            return hoja
-
-def escribir_registros_nube(pestana, filas):
-    """Agrega varias filas en UNA sola llamada a Google (mensajes de pánico a supervisor, Jefe y Gerencia)."""
+def escribir_registro_nube(pestana, datos_fila):
     try:
         gc = conectar_google()
-        if gc and filas:
+        if gc:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            hoja = _obtener_hoja_para_escribir(gc, nombre_hoja_real)
-            if len(filas) == 1:
-                _reintentar_429(lambda: hoja.append_row(filas[0]))
-            else:
-                _reintentar_429(lambda: hoja.append_rows(filas))
-            if pestana.upper().strip() in ("MENSAJERIA", "ALERTAS"):
-                _leer_matriz_nube_cache.clear()   # solo refresca estas lecturas; no borra toda la caché de la app
-            else:
-                st.cache_data.clear()
+            try:
+                hoja = sh.worksheet(nombre_hoja_real)
+            except:
+                hoja = sh.add_worksheet(title=nombre_hoja_real, rows="100", cols="15")
+                if nombre_hoja_real == "NOTIFICACIONES_SUPERVISORES":
+                    hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
+            hoja.append_row(datos_fila)
+            st.cache_data.clear() 
             return True
     except Exception as e:
         print(f"Error de nube en {pestana}: {e}")
         st.error(f"⚠️ Error técnico en nube ({pestana}): {e}")
         return False
 
-def escribir_registro_nube(pestana, datos_fila):
-    return escribir_registros_nube(pestana, [datos_fila])
-
 @st.cache_data(ttl=30, show_spinner=False)
-def _leer_matriz_nube_cache(pestana):
-    """Lee una pestaña. Si Google falla lanza el error (así NO se guarda en caché una lectura vacía)."""
-    gc = conectar_google()
-    if not gc:
-        raise RuntimeError("Sin conexión a Google")
-    nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-    try:
-        hoja = _hoja_nube(nombre_hoja_real)
-    except Exception as e:
-        if "429" in str(e):
-            raise
-        sh = gc.open_by_key(ID_MAESTRO_DB)
-        try:
-            hoja = sh.worksheet(nombre_hoja_real)
-        except Exception:
-            if pestana.upper().strip() == "NOTIFICACIONES_SUPERVISORES":
-                hoja = sh.add_worksheet(title="NOTIFICACIONES_SUPERVISORES", rows="100", cols="15")
-                hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
-            else:
-                return pd.DataFrame()
-    todas_filas = _reintentar_429(hoja.get_all_values)
-    if not todas_filas or len(todas_filas) == 0:
-        return pd.DataFrame()
-    encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-    datos_cuerpo = todas_filas[1:]
-    df = pd.DataFrame(datos_cuerpo, columns=encabezados)
-    df.columns = [str(c).strip().upper() for c in df.columns]
-    df = df.loc[:, ~df.columns.duplicated()]
-    return df
-
 def leer_matriz_nube(pestana):
-    try:
-        return _leer_matriz_nube_cache(pestana)
-    except Exception as e:
-        print(f"Error leyendo {pestana}: {e}")
-        return pd.DataFrame()
-leer_matriz_nube.clear = _leer_matriz_nube_cache.clear
+    gc = conectar_google()
+    if gc:
+        try:
+            sh = gc.open_by_key(ID_MAESTRO_DB)
+            nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
+            try:
+                hoja = sh.worksheet(nombre_hoja_real)
+            except:
+                if pestana.upper().strip() == "NOTIFICACIONES_SUPERVISORES":
+                    hoja = sh.add_worksheet(title="NOTIFICACIONES_SUPERVISORES", rows="100", cols="15")
+                    hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
+                else:
+                    return pd.DataFrame()
+            
+            todas_filas = hoja.get_all_values()
+            if not todas_filas or len(todas_filas) == 0:
+                return pd.DataFrame()
+            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
+            datos_cuerpo = todas_filas[1:]
+            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
+            df.columns = [str(c).strip().upper() for c in df.columns]
+            df = df.loc[:, ~df.columns.duplicated()]
+            return df
+        except Exception as e: 
+            print(f"Error leyendo {pestana}: {e}")
+            return pd.DataFrame()
+    return pd.DataFrame()
 
 @st.cache_data(ttl=60, show_spinner=False)
 def cargar_datos_comisarias():
@@ -395,8 +348,6 @@ def cargar_objetivos():
         df.columns = df.columns.str.strip().str.upper()
         df = df[df['OBJETIVO'].astype(str).str.strip() != ""]
         df = df[df['OBJETIVO'].notna()]
-        if 'ESTADO' in df.columns:
-            df = df[df['ESTADO'].astype(str).str.strip().str.upper() != "BAJA"]
         if 'SUPERVISOR' in df.columns:
             df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
         df['LATITUD'] = df['LATITUD'].astype(str).str.replace(',', '.')
@@ -525,64 +476,6 @@ def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad
     exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
     verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
     return exito
-
-def _avisar_cambio_servicio(supervisor, asunto, texto, usuario):
-    """El supervisor recibe el aviso en la campanita y en su mensajería (gravedad AMARILLO); Jefe y Gerencia quedan al tanto."""
-    notificar_novedad(texto, extra=[supervisor])
-    escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), usuario, supervisor, asunto, texto, "PENDIENTE", "AMARILLO"])
-
-def alta_servicio(nombre, direccion, localidad, supervisor, lat, lon, responsables, usuario):
-    nombre_u = str(nombre).strip().upper()
-    sup_u = str(supervisor).strip().upper()
-    df_o = cargar_objetivos()
-    if not df_o.empty and (col_texto(df_o, 'OBJETIVO').str.strip().str.upper() == nombre_u).any():
-        return False, f"Ya existe un servicio activo llamado {nombre_u}."
-    if not registrar_objetivo_con_comisaria_automatica(nombre_u, direccion, localidad, sup_u, lat, lon, responsables):
-        return False, "No se pudo registrar el servicio en la nube. Verificá la conexión con Google Sheets."
-    escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), usuario, "ALTA", f"{nombre_u} | ASIG: {sup_u}", "PROCESADO"])
-    _avisar_cambio_servicio(sup_u, "ALTA DE SERVICIO",
-        f"🟢 ALTA DE SERVICIO: {usuario} dio de alta el objetivo {nombre_u} ({str(direccion).strip().upper()}, {str(localidad).strip().upper()}) y te lo asignó. Ya figura en tu panel.", usuario)
-    return True, f"Servicio {nombre_u} dado de alta. Se avisó a {sup_u}."
-
-def baja_servicio(objetivo, motivo, usuario):
-    obj_u = str(objetivo).strip().upper()
-    try:
-        gc = conectar_google()
-        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("OBJETIVOS")
-        filas = hoja.get_all_values()
-        enc = [str(h).strip().upper() for h in filas[0]]
-        i_obj = enc.index("OBJETIVO")
-        i_sup = enc.index("SUPERVISOR") if "SUPERVISOR" in enc else None
-        i_est = enc.index("ESTADO") if "ESTADO" in enc else None
-        fila_n, sup_u = None, ""
-        for n, f in enumerate(filas[1:], start=2):
-            if len(f) > i_obj and f[i_obj].strip().upper() == obj_u and not (i_est is not None and len(f) > i_est and f[i_est].strip().upper() == "BAJA"):
-                fila_n = n
-                sup_u = f[i_sup].strip().upper() if (i_sup is not None and len(f) > i_sup) else ""
-        if fila_n is None:
-            return False, f"No se encontró el servicio activo {obj_u}."
-        c_est = _asegurar_columna(hoja, enc, "ESTADO")
-        c_mot = _asegurar_columna(hoja, enc, "MOTIVO_BAJA")
-        c_fec = _asegurar_columna(hoja, enc, "FECHA_BAJA")
-        c_por = _asegurar_columna(hoja, enc, "BAJA_POR")
-        A = gspread.utils.rowcol_to_a1
-        hoja.batch_update([
-            {"range": A(fila_n, c_est), "values": [["BAJA"]]},
-            {"range": A(fila_n, c_mot), "values": [[str(motivo).strip().upper()]]},
-            {"range": A(fila_n, c_fec), "values": [[obtener_hora_argentina()]]},
-            {"range": A(fila_n, c_por), "values": [[usuario]]},
-        ])
-        st.cache_data.clear()
-    except Exception as e:
-        print(f"Error dando de baja el servicio: {e}")
-        return False, f"No se pudo dar de baja el servicio: {e}"
-    escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), usuario, "BAJA", f"{obj_u} - MOTIVO: {str(motivo).strip().upper()}", "PROCESADO"])
-    if sup_u:
-        _avisar_cambio_servicio(sup_u, "BAJA DE SERVICIO",
-            f"🔴 BAJA DE SERVICIO: {usuario} dio de baja el objetivo {obj_u}. Motivo: {str(motivo).strip().upper()}. Ya no figura en tu panel; revisá el personal asignado a ese objetivo.", usuario)
-    else:
-        notificar_novedad(f"🔴 BAJA DE SERVICIO: {usuario} dio de baja el objetivo {obj_u}. Motivo: {str(motivo).strip().upper()}.")
-    return True, f"Servicio {obj_u} dado de baja." + (f" Se avisó a {sup_u}." if sup_u else "")
 
 def obtener_lista_supervisores_dinamica():
     base = ["AYALA BRIAN", "SUPERVISOR 1", "SUPERVISOR 2", "SUPERVISOR 3", "SUPERVISOR 4", "SUPERVISOR 5", "SUPERVISOR NOCTURNO", "CONTROLADOR NOCTURNO", "TIKI", "GONZALEZ"]
@@ -806,177 +699,12 @@ def comisaria_mas_cercana(lat, lon, localidad, df_com):
             dmin, mejor = d, c
     return mejor
 
-GRAVEDADES_MENSAJE = {"VERDE": "🟢", "AMARILLO": "🟡", "ROJA": "🔴"}
-COLORES_MENSAJE = {"VERDE": "#2E9E5B", "AMARILLO": "#E0A800", "ROJA": "#D32F2F"}
-ORDEN_GRAVEDAD = {"ROJA": 3, "AMARILLO": 2, "VERDE": 1}
-DIAS_MENSAJES_NUEVOS = 7  # solo se cuentan como "nuevos" los mensajes de los últimos días
-
-def _remitente_mensajeria():
-    """Nombre con el que firma y con el que se marca como leído el usuario actual."""
-    if str(st.session_state.get("rol_sel", "")).strip().upper() == "VIGILADOR":
-        return _nombre_vigilador_sesion()
-    return str(st.session_state.get("user_sel", "")).strip().upper()
-
-def _identidades_mensajeria():
-    """Todos los destinos a los que puede llegarle un mensaje al usuario actual."""
-    rol = str(st.session_state.get("rol_sel", "")).strip().upper()
-    user = str(st.session_state.get("user_sel", "")).strip().upper()
-    ids = {"TODOS", user, rol}
-    if rol == "SUPERVISOR":
-        ids.add("SUPERVISORES")
-    if rol == "VIGILADOR":
-        ids.update({"VIGILADORES", _nombre_vigilador_sesion()})
-        dni = str(st.session_state.get("dni_vigilador", "")).strip()
-        if dni:
-            ids.add(dni)
-    ids.discard("")
-    return ids
-
-def obtener_lista_vigiladores_dinamica():
-    df_p = leer_matriz_nube("PADRON VIGILADORES")
-    if df_p.empty or 'NOMBRE' not in df_p.columns:
-        return []
-    if 'ESTADO' in df_p.columns:
-        df_p = df_p[col_texto(df_p, 'ESTADO').str.strip().str.upper() == "ACTIVO"]
-    nombres = col_texto(df_p, 'NOMBRE').str.strip().str.upper()
-    return sorted({n for n in nombres if n and n != "NAN"})
-
-def _destinatarios_mensajeria():
-    base = ["TODOS", "VIGILADORES", "SUPERVISORES", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"]
-    extra = obtener_lista_supervisores_dinamica() + obtener_lista_vigiladores_dinamica()
-    yo = _identidades_mensajeria() - {"TODOS"}
-    out = []
-    for d in base + extra:
-        d = str(d).strip().upper()
-        if d and d not in out and d not in yo:
-            out.append(d)
-    return out
-
-def _mensajes_visibles(df_msg):
-    """Cada usuario ve los hilos donde escribió o donde le escribieron (el administrador ve todo)."""
-    if df_msg.empty or 'DESTINATARIO' not in df_msg.columns:
-        return df_msg.iloc[0:0]
-    if st.session_state.get("admin_autenticado", False):
-        return df_msg
-    ids = _identidades_mensajeria()
-    dest = col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper()
-    rem = col_texto(df_msg, 'REMITENTE').str.strip().str.upper()
-    return df_msg[dest.isin(ids) | rem.isin(ids)]
-
-def _mensajes_sin_leer(df_msg):
-    """Mensajes dirigidos al usuario (no escritos por él) que todavía no marcó como leídos."""
-    if df_msg.empty or 'DESTINATARIO' not in df_msg.columns:
-        return df_msg.iloc[0:0]
-    ids = _identidades_mensajeria()
-    yo = _remitente_mensajeria()
-    dest = col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper()
-    rem = col_texto(df_msg, 'REMITENTE').str.strip().str.upper()
-    sel = dest.isin(ids) & ~rem.isin(ids)
-    if 'LEIDO_POR' in df_msg.columns:
-        leidos = col_texto(df_msg, 'LEIDO_POR').apply(lambda v: yo in [x.strip().upper() for x in str(v).split(";")])
-        sel = sel & ~leidos
-    try:
-        limite = (datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S") - pd.Timedelta(days=DIAS_MENSAJES_NUEVOS)).strftime("%Y-%m-%d")
-        sel = sel & (df_msg.iloc[:, 0].astype(str).str[:10] >= limite)
-    except Exception:
-        pass
-    return df_msg[sel]
-
-def contar_mensajes_nuevos():
-    return len(_mensajes_sin_leer(leer_matriz_nube("MENSAJERIA")))
-
-def marcar_mensajes_leidos(indices):
-    """Agrega al usuario actual en la columna LEIDO_POR de cada mensaje (la crea si no existe)."""
-    try:
-        gc = conectar_google()
-        if not gc or not len(indices):
-            return False
-        hoja = gc.open_by_key(ID_MAESTRO_DB).worksheet("MENSAJERIA")
-        filas = hoja.get_all_values()
-        enc = [str(h).strip().upper() for h in filas[0]]
-        col = _asegurar_columna(hoja, enc, "LEIDO_POR")
-        yo = _remitente_mensajeria()
-        cambios = []
-        for i in indices:
-            r = int(i) + 2
-            actual = filas[r - 1][col - 1] if (r - 1) < len(filas) and (col - 1) < len(filas[r - 1]) else ""
-            lectores = [x.strip() for x in str(actual).split(";") if x.strip()]
-            if yo not in [x.upper() for x in lectores]:
-                lectores.append(yo)
-                cambios.append({"range": gspread.utils.rowcol_to_a1(r, col), "values": [[";".join(lectores)]]})
-        if cambios:
-            hoja.batch_update(cambios)
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        print(f"Error marcando mensajes leídos: {e}")
-        return False
-
-@st.fragment(run_every=15)
-def _listado_hilos_mensajeria(rol_contexto):
-    """Hilos de mensajes: se actualiza solo cada 15 segundos, sin que el usuario tenga que tocar nada."""
-    df_msg = leer_matriz_nube("MENSAJERIA")
-    vis = _mensajes_visibles(df_msg)
-    st.caption(f"🔄 Se actualiza solo · {len(df_msg)} mensajes en la red · {len(vis)} tuyos")
-    if vis.empty or 'ASUNTO' not in vis.columns:
-        st.info("Todavía no tenés mensajes. Escribí uno arriba o esperá a que te escriban.")
-        return
-    sin_leer = set(_mensajes_sin_leer(df_msg).index)
-    if sin_leer:
-        if st.button(f"✔️ MARCAR {len(sin_leer)} MENSAJE(S) COMO LEÍDO(S)", key=f"btn_leidos_{rol_contexto}"):
-            if marcar_mensajes_leidos(list(sin_leer)):
-                st.rerun()
-    col_fecha = df_msg.columns[0]
-    hilos = [(str(g[col_fecha].iloc[-1]), asunto, g) for asunto, g in vis.groupby('ASUNTO', sort=False)]
-    hilos.sort(key=lambda h: h[0], reverse=True)
-    for _, asunto, grupo in hilos[:40]:
-        nuevos = sum(1 for i in grupo.index if i in sin_leer)
-        marca = f" 🔵 {nuevos} nuevo(s)" if nuevos else ""
-        grav_max = max((str(x).strip().upper() for x in grupo.get('GRAVEDAD', [])), key=lambda g: ORDEN_GRAVEDAD.get(g, 0), default="")
-        with st.expander(f"{GRAVEDADES_MENSAJE.get(grav_max, '💬')} Hilo: {asunto}{marca}", expanded=bool(nuevos)):
-            for i, msg in grupo.iterrows():
-                punto = GRAVEDADES_MENSAJE.get(str(msg.get('GRAVEDAD', '')).strip().upper(), "⚪")
-                nuevo = "🔵 " if i in sin_leer else ""
-                grav = str(msg.get('GRAVEDAD', '')).strip().upper()
-                color = COLORES_MENSAJE.get(grav, "#64748B")
-                esc = lambda v: _html_msg.escape(str(v))
-                st.markdown(
-                    f'<div style="border-left:6px solid {color};background:{color}22;padding:6px 10px;margin:4px 0;border-radius:4px">'
-                    f'{nuevo}{punto} <b>{esc(msg.get("REMITENTE", "ANÓNIMO"))}</b> → {esc(msg.get("DESTINATARIO", ""))} · {esc(msg.get(col_fecha, ""))} · '
-                    f'<b style="color:{color}">{esc(grav or "SIN GRAVEDAD")}</b><br>{esc(msg.get("MENSAJE", ""))}</div>',
-                    unsafe_allow_html=True)
-            ids_yo = _identidades_mensajeria()
-            otros = [str(r).strip().upper() for r in grupo['REMITENTE'] if str(r).strip().upper() not in ids_yo]
-            destino_resp = otros[-1] if otros else str(grupo['DESTINATARIO'].iloc[-1]).strip().upper()
-            with st.form(key=f"form_resp_{asunto}_{rol_contexto}", clear_on_submit=True):
-                txt_resp = st.text_input(f"✍️ Responder a {destino_resp}:", key=f"txt_resp_{asunto}_{rol_contexto}")
-                grav_resp = st.selectbox("Gravedad:", ["VERDE", "AMARILLO", "ROJA"],
-                                         index=["VERDE", "AMARILLO", "ROJA"].index(grav_max) if grav_max in GRAVEDADES_MENSAJE else 0,
-                                         format_func=lambda g: f"{GRAVEDADES_MENSAJE[g]} {g}", key=f"grav_resp_{asunto}_{rol_contexto}")
-                if st.form_submit_button("✉️ ENVIAR RESPUESTA"):
-                    if txt_resp.strip():
-                        escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), _remitente_mensajeria(), destino_resp,
-                                                             asunto, txt_resp.strip().upper(), "PENDIENTE", grav_resp])
-                        st.session_state.mensaje_enviado = "RESPUESTA"
-                        st.session_state.mensaje_enviado_grav = grav_resp
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ Escribí la respuesta antes de enviar.")
-
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
 
     df_msg = leer_matriz_nube("MENSAJERIA")
-    yo = _remitente_mensajeria()
     st.subheader("💬 COMUNICACIONES OPERATIVAS")
-
-    opciones = _destinatarios_mensajeria()
-    destino_resp = st.session_state.get("destino_respuesta", "")
-    if destino_resp and destino_resp not in opciones:
-        opciones = [destino_resp] + opciones
-    idx_dest = opciones.index(destino_resp) if (st.session_state.asunto_respuesta and destino_resp in opciones) else 0
-    clave_hilo = st.session_state.asunto_respuesta or "nuevo"
 
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
         if st.session_state.asunto_respuesta:
@@ -989,45 +717,39 @@ def renderizar_mensajeria_global(rol_contexto):
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
         with col_b:
-            destinatario = st.selectbox("PARA:", opciones, index=idx_dest, key=f"dest_{rol_contexto}_{clave_hilo}")
-            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "AMARILLO", "ROJA"], key=f"grav_{rol_contexto}_{clave_hilo}",
-                                    format_func=lambda g: f"{GRAVEDADES_MENSAJE[g]} {g}")
+            destinatarios_posibles = ["TODOS", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISORES"] + obtener_lista_supervisores_dinamica()
+            destinatario = st.selectbox("PARA:", destinatarios_posibles)
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "ROJA"])
 
         if st.form_submit_button("TRANSMITIR A LA RED"):
             if txt_msg.strip():
                 escribir_registro_nube("MENSAJERIA", [
-                    obtener_hora_argentina(), yo, destinatario,
+                    obtener_hora_argentina(), st.session_state.user_sel, destinatario, 
                     (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
                 ])
                 st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
-                st.session_state.mensaje_enviado_grav = gravedad
                 st.session_state.asunto_respuesta = None
-                st.session_state.destino_respuesta = ""
                 sincronizar_url_sesion()
                 st.rerun()
-            else:
-                st.warning("⚠️ Escribí el mensaje antes de transmitir.")
 
     if 'mensaje_enviado' in st.session_state:
-        grav_env = st.session_state.pop("mensaje_enviado_grav", "VERDE")
-        txt_env = f"✅ {'RESPUESTA' if st.session_state.mensaje_enviado == 'RESPUESTA' else 'MENSAJE'} ENVIADO · {GRAVEDADES_MENSAJE.get(grav_env, '⚪')} GRAVEDAD {grav_env}"
-        {"ROJA": st.error, "AMARILLO": st.warning}.get(grav_env, st.success)(txt_env)
+        if st.session_state.mensaje_enviado == "RESPUESTA":
+            st.success("✅ RESPUESTA ENVIADA")
+        else:
+            st.success("✅ MENSAJE ENVIADO")
         del st.session_state.mensaje_enviado
 
-    _listado_hilos_mensajeria(rol_contexto)
-
-@st.fragment(run_every=20)
-def _aviso_mensajes_sidebar():
-    n = contar_mensajes_nuevos()
-    previo = st.session_state.get("_msgs_nuevos_prev", 0)
-    if n > previo:
-        st.toast(f"💬 Tenés {n} mensaje(s) sin leer", icon="💬")
-    st.session_state["_msgs_nuevos_prev"] = n
-    if n:
-        st.info(f"💬 {n} mensaje(s) sin leer en MENSAJERÍA")
+    if not df_msg.empty and 'ASUNTO' in df_msg.columns:
+        for asunto, grupo in df_msg.groupby('ASUNTO'):
+            with st.expander(f"💬 Hilo: {asunto}"):
+                for _, msg in grupo.iterrows():
+                    st.markdown(f"**{msg.get('REMITENTE', 'ANÓNIMO')}:** {msg.get('MENSAJE', '')}")
+                if st.button(f"Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
+                    st.session_state.asunto_respuesta = asunto
+                    sincronizar_url_sesion()
+                    st.rerun()
 
 def mostrar_notificaciones_sidebar():
-    _aviso_mensajes_sidebar()
     usuario_actual = str(st.session_state.get('user_sel', '')).strip().upper()
     rol_actual = str(st.session_state.get('rol_sel', '')).strip().upper()
     destinos = {usuario_actual}
@@ -1270,45 +992,29 @@ def mostrar_calendario_sidebar():
 
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
-    remitente = str(nombre_persona).strip().upper() or emisor   # firma el mensaje quien activó el pánico (no "SISTEMA")
-    asunto = f"ALERTA DE PÁNICO - {remitente} ({fecha[11:16]})"  # un hilo por pánico, así se puede leer y responder
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
     destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
-    filas = [[fecha, remitente, dest, asunto, mensaje, "PENDIENTE", "ROJA"]
-             for dest in destinatarios if dest and dest != "MONITOREO" and dest != "N/A"]
-    escribir_registros_nube("MENSAJERIA", filas)   # una sola llamada a Google para los 3 mensajes
-    enviar_push_panico(remitente, objetivo, supervisor_asignado)
+    for dest in destinatarios:
+        if dest and dest != "MONITOREO" and dest != "N/A":
+            escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, "ALERTA DE PÁNICO", mensaje, "PENDIENTE", "ROJA"])
 
-# --- ALARMA SONORA DE PÁNICO + AVISO PUSH (celular bloqueado) ---
-def _slug_topic(txt):
-    import unicodedata
-    t = unicodedata.normalize("NFKD", str(txt)).encode("ascii", "ignore").decode().lower()
-    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")
-
-def enviar_push_panico(remitente, objetivo, supervisor=""):
-    """Aviso push por ntfy.sh (suena con el celular bloqueado). No hace nada hasta que se
-    configure NTFY_PREFIJO en los secrets de Streamlit. Topics: <prefijo>-monitoreo,
-    <prefijo>-jefe-de-operaciones, <prefijo>-gerencia y <prefijo>-<nombre-del-supervisor>."""
-    try:
-        prefijo = str(st.secrets.get("NTFY_PREFIJO", "")).strip()
-    except Exception:
-        prefijo = ""
-    if not prefijo:
-        return
-    sup = _slug_topic(supervisor) if str(supervisor).strip().upper() not in ("", "N/A", "MONITOREO") else ""
-    destinos = [d for d in ["monitoreo", "jefe-de-operaciones", sup] if d]
-    cuerpo = f"PANICO: {remitente} - OBJ: {objetivo}".encode("utf-8")
-    def _enviar():
-        for d in destinos:
-            try:
-                requests.post(f"https://ntfy.sh/{prefijo}-{d}", data=cuerpo, timeout=5,
-                              headers={"Title": "ALARMA DE PANICO", "Priority": "5", "Tags": "rotating_light"})
-            except Exception as e:
-                print(f"Error enviando push a {d}: {e}")
-    import threading
-    threading.Thread(target=_enviar, daemon=True).start()
-
-HORAS_ALARMA_PANICO = 12  # un mensaje de pánico sin leer deja de sonar pasadas estas horas
+# --- ALARMA SONORA DE PÁNICO (Monitoreo, Supervisor, Jefe de Operaciones, Gerencia) ---
+@st.cache_data(ttl=8, show_spinner=False)
+def leer_panicos_pendientes():
+    """Pánicos con ESTADO = PENDIENTE: lista de (fecha, usuario, objetivo, supervisor).
+    Caché corto (8 s) compartido entre sesiones: una sola lectura a Sheets cada 8 s."""
+    gc = conectar_google()
+    if not gc:
+        raise RuntimeError("Sin conexión a Google")
+    filas = gc.open_by_key(ID_MAESTRO_DB).worksheet("ALERTAS").get_all_values()
+    salida = []
+    for f in filas[1:]:
+        f = list(f) + [""] * (6 - len(f))
+        tipo = f[2].strip().upper().replace("Á", "A")
+        estado = f[3].strip().upper()
+        if tipo == "PANICO" and estado == "PENDIENTE":
+            salida.append((f[0].strip(), f[1].strip().upper(), f[4].strip().upper(), f[5].strip().upper()))
+    return salida
 
 _HTML_ALARMA_PANICO = """
 <style>
@@ -1357,81 +1063,48 @@ _HTML_ALARMA_PANICO = """
 """
 
 def alarma_panico_sonora(rol, usuario):
-    """Sirena + cartel rojo mientras haya un pánico que le corresponda a este rol.
-    - MONITOREO: suena mientras haya pánicos PENDIENTES en ALERTAS (se corta al finalizarlos). No se puede silenciar.
-    - SUPERVISOR / JEFE DE OPERACIONES / GERENCIA: suena mientras tengan sin leer el MENSAJE de pánico que les llegó
-      (se corta al marcarlo leído con el botón ENTERADO o desde MENSAJERÍA). Se puede silenciar."""
+    """Sirena + cartel mientras haya pánicos PENDIENTES que le correspondan a este rol.
+    - MONITOREO / JEFE DE OPERACIONES / GERENCIA: todos los pánicos pendientes.
+    - SUPERVISOR: los pánicos de sus objetivos (los que le llegan por mensaje), no el propio.
+    Se corta sola cuando el pánico se finaliza (ESTADO distinto de PENDIENTE).
+    Monitoreo no puede silenciarla; los demás roles tienen botón SILENCIAR."""
     import html as _html
-    if rol == "GERENCIA":   # Gerencia recibe el mensaje pero no la sirena
-        return
+    usuario = str(usuario).strip().upper()
 
     @st.fragment(run_every=5)
     def _alarma():
-        monitoreo = (rol == "MONITOREO")
-        pend = []
         try:
-            if monitoreo:
-                df = leer_matriz_nube("ALERTAS")
-                for _, r in df.iterrows():
-                    f = [str(x).strip() for x in r.tolist()] + [""] * 6
-                    if f[2].upper().replace("Á", "A") == "PANICO" and f[3].upper() == "PENDIENTE":
-                        pend.append((f[0], f[1].upper(), f[4].upper(), None, ""))
-            else:
-                df = leer_matriz_nube("MENSAJERIA")
-                sin = _mensajes_sin_leer(df)
-                if not sin.empty and 'ASUNTO' in sin.columns:
-                    sin = sin[col_texto(sin, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")]
-                    limite = (datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
-                              - pd.Timedelta(hours=HORAS_ALARMA_PANICO)).strftime("%Y-%m-%d %H:%M:%S")
-                    sin = sin[sin.iloc[:, 0].astype(str) >= limite]
-                    for i, r in sin.iterrows():
-                        pend.append((str(r.iloc[0]), str(r.get('REMITENTE', '')).upper(), str(r.get('MENSAJE', '')), i, str(r.get('ASUNTO', ''))))
-            if df.empty:
-                pend = st.session_state.get("_pan_ult_" + rol, [])
-            st.session_state["_pan_ult_" + rol] = pend
+            pend = leer_panicos_pendientes()
+            st.session_state["_pan_ult"] = pend
         except Exception as e:
-            print(f"Error en alarma de pánico: {e}")
-            pend = st.session_state.get("_pan_ult_" + rol, [])
+            print(f"Error leyendo pánicos: {e}")
+            pend = st.session_state.get("_pan_ult", [])
+
+        if rol == "SUPERVISOR":
+            pend = [p for p in pend if p[3] == usuario and p[1] != usuario]
 
         if not pend:
             st.session_state.pop("_pan_silenciado", None)
             return
 
-        firma = "|".join(f"{p[0]}~{p[1]}" for p in pend)
-        if (not monitoreo) and st.session_state.get("_pan_silenciado") == firma:
-            st.warning(f"🔇 Alarma silenciada: {len(pend)} aviso(s) de pánico sin leer. Revisá MENSAJERÍA.")
+        firma = "|".join(f"{p[0]}~{p[1]}~{p[2]}" for p in pend)
+        silenciable = rol != "MONITOREO"
+
+        if silenciable and st.session_state.get("_pan_silenciado") == firma:
+            st.warning(f"🔇 Alarma silenciada: {len(pend)} pánico(s) pendiente(s).")
             return
 
-        if monitoreo:
-            detalle = " · ".join(f"{p[1]} @ {p[2]}" for p in pend[:3])
-        else:
-            detalle = " · ".join(p[2].replace("🚨 ", "") for p in pend[:2])
+        detalle = " · ".join(f"{p[1]} @ {p[2]}" for p in pend[:3])
         if len(pend) > 3:
             detalle += f" · +{len(pend) - 3} más"
-        components.html(_HTML_ALARMA_PANICO.replace("__N__", str(len(pend))).replace("__DET__", _html.escape(detalle)), height=80)
+        html_alarma = (_HTML_ALARMA_PANICO
+                       .replace("__N__", str(len(pend)))
+                       .replace("__DET__", _html.escape(detalle)))
+        components.html(html_alarma, height=80)
 
-        if not monitoreo:
-            c1, c2 = st.columns(2)
-            if c1.button("✔️ ENTERADO (DETENER ALARMA)", key=f"btn_ent_pan_{rol}", use_container_width=True):
-                if marcar_mensajes_leidos([p[3] for p in pend]):
-                    st.rerun()
-            if c2.button("🔇 SILENCIAR", key=f"btn_sil_pan_{rol}", use_container_width=True):
-                st.session_state["_pan_silenciado"] = firma
-                st.rerun(scope="fragment")
-            ultimo = pend[-1]
-            with st.expander(f"✍️ RESPONDER A {ultimo[1]}"):
-                with st.form(key=f"form_resp_pan_{rol}", clear_on_submit=True):
-                    txt_resp = st.text_input("Escribí tu respuesta:")
-                    if st.form_submit_button("✉️ ENVIAR RESPUESTA"):
-                        if txt_resp.strip():
-                            escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), _remitente_mensajeria(), ultimo[1],
-                                                                 ultimo[4], txt_resp.strip().upper(), "PENDIENTE", "ROJA"])
-                            marcar_mensajes_leidos([p[3] for p in pend])
-                            st.session_state.mensaje_enviado = "RESPUESTA"
-                            st.session_state.mensaje_enviado_grav = "ROJA"
-                            st.rerun()
-                        else:
-                            st.warning("⚠️ Escribí la respuesta antes de enviar.")
+        if silenciable and st.button("🔇 SILENCIAR ALARMA", key=f"btn_sil_pan_{rol}", use_container_width=True):
+            st.session_state["_pan_silenciado"] = firma
+            st.rerun(scope="fragment")
 
     _alarma()
 
@@ -3823,7 +3496,15 @@ if st.session_state.rol_sel == "MONITOREO":
     with col4.container():
         renderizar_reloj_fluido()
 
-    total_nuevos = contar_mensajes_nuevos()
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
+    total_nuevos = 0
+    if not df_msg.empty and 'DESTINATARIO' in df_msg.columns and 'ESTADO' in df_msg.columns:
+        mask = ((df_msg['DESTINATARIO'].str.strip().str.upper() == "TODOS") | 
+                (df_msg['DESTINATARIO'].str.strip().str.upper() == "MONITOREO") | 
+                (df_msg['DESTINATARIO'].str.strip().str.upper() == nombre_user)) & \
+               (df_msg['ESTADO'].str.strip().str.upper() == "PENDIENTE")
+        total_nuevos = len(df_msg[mask])
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
@@ -4368,7 +4049,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
                 if exito:
-                    enviar_push_panico(st.session_state.user_sel, obj_actual, "")
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
@@ -4394,10 +4074,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 </div>
             """, unsafe_allow_html=True)
 
-        _n_msg_sup = contar_mensajes_nuevos()
         t_vis_qr, t_nuevo_obj, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica",
-            f"💬 MENSAJERÍA ({_n_msg_sup})" if _n_msg_sup else "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
+            "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica", "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
          
         with t_vis_qr:
@@ -4748,7 +4426,14 @@ elif st.session_state.rol_sel == "VIGILADOR":
         dni_vigilador_actual = "".join(ch for ch in str(st.session_state.get("user_sel", "")) if ch.isdigit())
         st.session_state.dni_vigilador = dni_vigilador_actual
 
-    total_nuevos = contar_mensajes_nuevos()
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    total_nuevos = 0
+    if not df_msg.empty and 'DESTINATARIO' in df_msg.columns and 'ESTADO' in df_msg.columns:
+        mask = ((col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == "TODOS") | 
+                (col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == "VIGILADOR") | 
+                (col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == nombre_vigilador_actual)) & \
+               (col_texto(df_msg, 'ESTADO').str.strip().str.upper() == "PENDIENTE")
+        total_nuevos = len(df_msg[mask])
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
      
@@ -4966,7 +4651,12 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
     with col4.container():
         renderizar_reloj_fluido()
 
-    total_nuevos = contar_mensajes_nuevos()
+    df_msg = leer_matriz_nube("MENSAJERIA")
+    nombre_user = st.session_state.user_sel.upper()
+    total_nuevos = len(df_msg[((col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == "TODOS") | 
+                            (col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == st.session_state.rol_sel) | 
+                            (col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper() == nombre_user)) & 
+                           (col_texto(df_msg, 'ESTADO').str.strip().str.upper() == "PENDIENTE")]) if not df_msg.empty and 'ESTADO' in df_msg.columns else 0
      
     label_msg = f"💬 MENSAJERÍA ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA"
      
@@ -4978,50 +4668,20 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
         renderizar_mensajeria_global(st.session_state.rol_sel)
          
     with t_ejecucion:
-        if st.session_state.get("msg_servicio"):
-            (st.success if st.session_state.msg_servicio[0] else st.error)(st.session_state.msg_servicio[1])
-            del st.session_state["msg_servicio"]
         col_g1, col_g2 = st.columns(2)
         with col_g1:
-            st.subheader("ALTA DE SERVICIO / OBJETIVO")
-            with st.form("form_alta_servicio_jefe", clear_on_submit=True):
-                a_nom = st.text_input("Nombre del servicio:")
-                a_dir = st.text_input("Dirección:")
-                a_loc = st.text_input("Localidad:")
-                c_lat, c_lon = st.columns(2)
-                a_lat = c_lat.text_input("Latitud (Ej: -34.5985):")
-                a_lon = c_lon.text_input("Longitud (Ej: -58.3838):")
-                a_resp = st.text_input("Responsables:")
-                a_sup = st.selectbox("Asignar al supervisor:", LISTA_SUPS_TACTICOS)
-                if st.form_submit_button("🟢 DAR DE ALTA Y AVISAR AL SUPERVISOR"):
-                    try:
-                        float(a_lat.replace(",", ".")); float(a_lon.replace(",", "."))
-                        coords_ok = True
-                    except Exception:
-                        coords_ok = False
-                    if not (a_nom.strip() and a_loc.strip() and coords_ok):
-                        st.session_state.msg_servicio = (False, "⚠️ Completá nombre, localidad y coordenadas válidas (latitud y longitud).")
-                    else:
-                        ok_a, txt_a = alta_servicio(a_nom, a_dir, a_loc, a_sup, a_lat, a_lon, a_resp, st.session_state.user_sel)
-                        st.session_state.msg_servicio = (ok_a, ("✅ " if ok_a else "❌ ") + txt_a)
-                    st.rerun()
+            st.subheader("ALTA DE RECURSO / OBJETIVO")
+            g_alta_nom = st.text_input("Nombre:", key="jefe_alta_nom")
+            g_alta_asig = st.selectbox("Asignar a:", LISTA_SUPS_TACTICOS, key="jefe_alta_asig")
+            if st.button("Solicitar Alta"):
+                escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "ALTA", f"{g_alta_nom} | ASIG: {g_alta_asig}", "PENDIENTE"])
+                st.success("✅ Petición enviada")
         with col_g2:
-            st.subheader("BAJA DE SERVICIO / OBJETIVO")
-            objs_baja = sorted(df_objetivos['OBJETIVO'].astype(str).str.strip().str.upper().unique()) if not df_objetivos.empty else []
-            sup_de_obj = {}
-            if not df_objetivos.empty and 'SUPERVISOR' in df_objetivos.columns:
-                sup_de_obj = dict(zip(df_objetivos['OBJETIVO'].astype(str).str.strip().str.upper(), df_objetivos['SUPERVISOR']))
-            with st.form("form_baja_servicio_jefe", clear_on_submit=True):
-                g_baja_obj = st.selectbox("Objetivo:", objs_baja, format_func=lambda o: f"{o}  (sup. {sup_de_obj.get(o, 'S/A')})")
-                g_baja_mot = st.text_input("Motivo de la baja:")
-                g_baja_ok = st.checkbox("Confirmo que quiero dar de baja este servicio")
-                if st.form_submit_button("🔴 DAR DE BAJA Y AVISAR AL SUPERVISOR"):
-                    if not (g_baja_obj and g_baja_mot.strip() and g_baja_ok):
-                        st.session_state.msg_servicio = (False, "⚠️ Elegí el objetivo, escribí el motivo y tildá la confirmación.")
-                    else:
-                        ok_b, txt_b = baja_servicio(g_baja_obj, g_baja_mot, st.session_state.user_sel)
-                        st.session_state.msg_servicio = (ok_b, ("✅ " if ok_b else "❌ ") + txt_b)
-                    st.rerun()
+            st.subheader("BAJA DE OBJETIVO")
+            g_baja_obj = st.selectbox("Objetivo:", df_objetivos['OBJETIVO'].unique() if not df_objetivos.empty else ["ALFAVINIL"], key="jefe_baja_obj")
+            if st.button("Solicitar Baja"):
+                escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", g_baja_obj, "PENDIENTE"])
+                st.success("✅ Petición enviada")
      
     with t_tab_auditoria:
         st.markdown(f"### ⏱️ AUDITORÍA DE TIEMPOS, OBJETIVOS Y FLOTA POR SUPERVISOR")
