@@ -1448,32 +1448,50 @@ def alarma_panico_sonora(rol, usuario):
 
     _alarma()
 
+def _sirena_en_lateral(rol):
+    """La sirena suena en el panel lateral cuando la pantalla principal NO la muestra
+    (Jefe en 'Planificación por mes', supervisor en 'Personal' o sin autenticar). En el resto
+    de los casos suena en la pantalla principal, como siempre, para no duplicar el sonido."""
+    ss = st.session_state
+    if rol == "JEFE DE OPERACIONES":
+        return bool(ss.get("ver_planificacion", False))
+    if rol == "SUPERVISOR":
+        return (not ss.get("sup_autenticado")) or bool(ss.get("ver_personal_sup", False))
+    return False
+
 def cartel_panico_lateral(rol, usuario):
     """Cartel rojo en el PANEL LATERAL con el aviso de pánico sin leer y el botón ENTERADO.
-    El sonido (sirena) sigue en la pantalla principal, igual que antes. Gerencia no lo recibe."""
+    Si la pantalla principal no puede mostrar la alarma, la sirena suena desde acá. Gerencia no lo recibe."""
     if rol not in ("SUPERVISOR", "JEFE DE OPERACIONES"):
         return
+    import html as _html
 
     @st.fragment(run_every=5)
     def _cartel_lateral():
         pend = []
         try:
             df = leer_matriz_nube("MENSAJERIA")
-            sin = _mensajes_sin_leer(df)
-            if not sin.empty and 'ASUNTO' in sin.columns:
-                sin = sin[col_texto(sin, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")]
-                limite = (datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
-                          - pd.Timedelta(hours=HORAS_ALARMA_PANICO)).strftime("%Y-%m-%d %H:%M:%S")
-                sin = sin[sin.iloc[:, 0].astype(str) >= limite]
-                for i, r in sin.iterrows():
-                    pend.append((i, str(r.get('MENSAJE', '')).replace("🚨 ", "")))
-            st.session_state["_pan_lat_" + rol] = pend
+            if df.empty:   # lectura fallida (cuota de Google): se mantiene el último aviso en vez de borrarlo
+                pend = st.session_state.get("_pan_lat_" + rol, [])
+            else:
+                sin = _mensajes_sin_leer(df)
+                if not sin.empty and 'ASUNTO' in sin.columns:
+                    sin = sin[col_texto(sin, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")]
+                    limite = (datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+                              - pd.Timedelta(hours=HORAS_ALARMA_PANICO)).strftime("%Y-%m-%d %H:%M:%S")
+                    sin = sin[sin.iloc[:, 0].astype(str) >= limite]
+                    for i, r in sin.iterrows():
+                        pend.append((i, str(r.get('MENSAJE', '')).replace("🚨 ", "")))
+                st.session_state["_pan_lat_" + rol] = pend
         except Exception as e:
             print(f"Error en cartel lateral de pánico: {e}")
             pend = st.session_state.get("_pan_lat_" + rol, [])
         if not pend:
             return
-        st.error(f"🚨 PÁNICO SIN LEER ({len(pend)}): " + " · ".join(p[1] for p in pend[:2]))
+        detalle = " · ".join(p[1] for p in pend[:2])
+        st.error(f"🚨 PÁNICO SIN LEER ({len(pend)}): " + detalle)
+        if _sirena_en_lateral(rol):
+            components.html(_HTML_ALARMA_PANICO.replace("__N__", str(len(pend))).replace("__DET__", _html.escape(detalle)), height=80)
         if st.button("✔️ ENTERADO (DETENER ALARMA)", key=f"btn_ent_lat_{rol}", use_container_width=True):
             if marcar_mensajes_leidos([p[0] for p in pend]):
                 st.rerun()
