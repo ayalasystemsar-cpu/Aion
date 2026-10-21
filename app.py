@@ -4085,7 +4085,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-                st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+        st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         # Con "MOSTRAR TODO" se ubican todos los objetivos del filtro; la comisaría solo para los que están
         # en pánico y para el objetivo enfocado (consulta en vivo, sin coordenadas guardadas)
         puntos = []
