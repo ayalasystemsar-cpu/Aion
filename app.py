@@ -1,4 +1,4 @@
-import streamlit as str_app
+import streamlit as st
 import html as _html_msg
 import datetime
 from datetime import datetime
@@ -25,7 +25,10 @@ from reportlab.pdfgen import canvas
 import streamlit.components.v1 as components
 import os, tempfile
 
-# --- 1. CLASE PARA NUMERACIÓN DE PÁGINAS EN PDF ---
+# --- 1. CONFIGURACIÓN DE PÁGINA (DEBE SER LO PRIMERO DE STREAMLIT) ---
+st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+
+# --- 2. CLASE PARA NUMERACIÓN DE PÁGINAS EN PDF ---
 class NumberedCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
         super(NumberedCanvas, self).__init__(*args, **kwargs)
@@ -55,9 +58,7 @@ class NumberedCanvas(canvas.Canvas):
         self.line(24, 25, 792 - 24, 25)
         self.restoreState()
 
-# --- 2. CONFIGURACIÓN E INICIALIZACIÓN CON PERSISTENCIA POR URL ---
-st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
-
+# --- 3. PERSISTENCIA POR URL E INICIALIZACIÓN ---
 query_params = st.query_params
 
 if 'usuario_logueado' not in st.session_state:
@@ -92,7 +93,6 @@ def sincronizar_url_sesion():
     if st.session_state.get("obj_actual_vig"):
         params["obj"] = st.session_state.obj_actual_vig
     st.query_params.update(params)
-
 # --- 3. CONEXIONES Y FUNCIONES GLOBALES OPTIMIZADAS ---
 ID_MAESTRO_DB = "1Md0VkOnwUJWldq0S1fB9UrmOKv4MG__JVG3tQsda0Uw"
 
