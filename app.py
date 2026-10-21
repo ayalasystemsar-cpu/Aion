@@ -371,14 +371,30 @@ def datos_comisaria_panico(lat, lon):
             "distancia_txt": f"~{float(com['DISTANCIA_KM']):.2f} KM"}
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def _geocodificar_nominatim(consulta):
-    r = requests.get("https://nominatim.openstreetmap.org/search",
-                     params={"q": consulta, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
-                     headers=OSM_HEADERS, timeout=10)
-    r.raise_for_status()
-    res = r.json()
-    if res:
-        return float(res[0]["lat"]), float(res[0]["lon"])
+def _geocodificar_nominatim(direccion_completa):
+    import requests
+    url = "https://nominatim.openstreetmap.org/search"
+    
+    # 🛡️ Obligatorio para que OpenStreetMap no rechace las peticiones en vivo
+    headers = {
+        'User-Agent': 'AionYaroku-TacticalSecurityApp/1.0 (contacto@aion.local)'
+    }
+    
+    params = {
+        'q': direccion_completa,
+        'format': 'json',
+        'limit': 1
+    }
+    
+    try:
+        # Pasamos los headers en la petición HTTP
+        r = requests.get(url, params=params, headers=headers, timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        if data:
+            return float(data[0]['lat']), float(data[0]['lon'])
+    except Exception as e:
+        print(f"Error en geocodificación OSM: {e}")
     return None
 
 def geocodificar_direccion(direccion, localidad):
