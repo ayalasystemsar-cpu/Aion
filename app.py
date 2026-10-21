@@ -3870,7 +3870,7 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
         df_objetivos.columns = [str(c).strip().upper() for c in df_objetivos.columns]
         df_mapa_monitoreo = df_objetivos.copy()
 
-    # Detección dinámica de pánicos activos
+    # Detección de pánicos activos
     lista_objetivos_en_panico = []
     if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'TIPO' in df_emergencias.columns:
         pendientes_sos = df_emergencias[
@@ -3938,7 +3938,7 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
                             for i_rg, fila_rg in enumerate(todas_a_rg[1:], start=2):
                                 if len(fila_rg) > 5 and fila_rg[1].strip().upper() == str(row_gp.get('USUARIO','')).strip().upper() and fila_rg[4].strip().upper() == str(row_gp.get('OBJETIVO','')).strip().upper() and fila_rg[3].strip().upper() == "PENDIENTE":
                                     hoja_alt_rg.update_acell(f"D{i_rg}", "FINALIZADO")
-                                    st.success("✅ Pánico finalizado. El sistema vuelve a la normalidad.")
+                                    st.success("✅ Pánico finalizado.")
                                     st.session_state.rol_sel = "MONITOREO"
                                     st.cache_data.clear()
                                     st.rerun()
@@ -3981,7 +3981,7 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
         distancia_minima = None
         com_lat_m, com_lon_m = None, None
         df_com_sel = pd.DataFrame()
-        lat_obj, lon_obj = -34.6611, -58.3653
+        lat_obj, lon_obj = None, None
          
         if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_filtrado_sup.empty:
             datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
@@ -4051,8 +4051,21 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
 
         comisarias_mapa = {} 
 
-        # Bucle 100% blindado: recorre TODA la MASTER y NUNCA saltea ningún objetivo
-        for idx_row, r in df_mapa_filtrado_sup.iterrows():
+        # Si hay un objetivo seleccionado, agregamos su comisaría y ruta directa
+        if obj_seleccionado != "MOSTRAR TODO" and com_lat_m and com_lon_m and lat_obj and lon_obj:
+            comisarias_mapa[(round(com_lat_m, 5), round(com_lon_m, 5))] = {
+                "nombre": comisaria_cercana_name, "lat": com_lat_m, "lon": com_lon_m, "panico": False
+            }
+            try:
+                ruta_sel = obtener_ruta_calles_osrm(lat_obj, lon_obj, com_lat_m, com_lon_m)
+                if ruta_sel:
+                    folium.PolyLine(locations=ruta_sel, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
+                    folium.PolyLine(locations=ruta_sel, color="#00E5FF", weight=4, opacity=0.8).add_to(m_mon)
+            except Exception as e:
+                print(f"Error ruta seleccionada: {e}")
+
+        # Bucle limpio que lee la MASTER original
+        for _, r in df_mapa_filtrado_sup.iterrows():
             obj_nombre = str(r.get('OBJETIVO', '')).strip().upper()
             dir_val = str(r.get('DIRECCION', '')).strip()
             loc_val = str(r.get('LOCALIDAD', '')).strip()
@@ -4060,14 +4073,11 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
             if not obj_nombre or obj_nombre == "NAN":
                 continue
 
-            # Intentamos geocodificar; si falla (por texto aglutinado), le damos una posición distribuida automática
             coords_r = geocodificar_direccion(dir_val, loc_val)
             if not coords_r:
-                # Coordenada de respaldo inteligente basada en el índice para que no se encimen y se vean todos
-                lat_r = -34.6037 - (idx_row * 0.005)
-                lon_r = -58.3816 + (idx_row * 0.005)
-            else:
-                lat_r, lon_r = coords_r
+                continue  # Si la dirección no geocodifica, pasa a la siguiente de la MASTER
+                
+            lat_r, lon_r = coords_r
 
             es_panico = obj_nombre in lista_objetivos_en_panico
             es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
@@ -4096,7 +4106,7 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
                             folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
                             folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
                 except Exception as e:
-                    print(f"Error ruta comisaría pánico: {e}")
+                    print(f"Error ruta pánico: {e}")
 
             elif es_el_seleccionado:
                 folium.CircleMarker(
