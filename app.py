@@ -3938,7 +3938,7 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
                             for i_rg, fila_rg in enumerate(todas_a_rg[1:], start=2):
                                 if len(fila_rg) > 5 and fila_rg[1].strip().upper() == str(row_gp.get('USUARIO','')).strip().upper() and fila_rg[4].strip().upper() == str(row_gp.get('OBJETIVO','')).strip().upper() and fila_rg[3].strip().upper() == "PENDIENTE":
                                     hoja_alt_rg.update_acell(f"D{i_rg}", "FINALIZADO")
-                                    st.success("✅ Pánico finalizado.")
+                                    st.success("✅ Pánico finalizado. El sistema vuelve a su estado normal.")
                                     st.session_state.rol_sel = "MONITOREO"
                                     st.cache_data.clear()
                                     st.rerun()
@@ -3985,12 +3985,13 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
          
         if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_filtrado_sup.empty:
             datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
-            dir_sel = str(datos_obj.get('DIRECCION', '')).strip()
-            loc_sel = str(datos_obj.get('LOCALIDAD', '')).strip()
-            
-            coords_obj = geocodificar_direccion(dir_sel, loc_sel)
-            if coords_obj:
-                lat_obj, lon_obj = coords_obj
+            try:
+                lat_obj = float(datos_obj.get('LATITUD', 0))
+                lon_obj = float(datos_obj.get('LONGITUD', 0))
+            except:
+                lat_obj, lon_obj = None, None
+
+            if lat_obj and lon_obj and lat_obj != 0:
                 df_com_sel = comisarias_cercanas(lat_obj, lon_obj, max_resultados=5)
                 if not df_com_sel.empty:
                     com_m = df_com_sel.iloc[0]
@@ -4004,7 +4005,7 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
                 if distancia_minima is not None:
                     st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
                 else:
-                    st.caption("Buscando comisaría...")
+                    st.caption("Calculando comisaría cercana...")
                  
                 if comisaria_cercana_name:
                     url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
@@ -4014,7 +4015,7 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
                     )
         else:
             with col_sel2:
-                st.info("Seleccione un objetivo de la MASTER para calcular su comisaría.")
+                st.info("Seleccione un objetivo de la MASTER para enfocar y ver su comisaría.")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -4024,10 +4025,14 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
 
         if not df_mapa_filtrado_sup.empty and obj_seleccionado != "MOSTRAR TODO":
             datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
-            c_sel = geocodificar_direccion(str(datos_obj.get('DIRECCION', '')), str(datos_obj.get('LOCALIDAD', '')))
-            if c_sel:
-                centro_mapa = list(c_sel)
-                zoom_inicial = 14
+            try:
+                l_a = float(datos_obj.get('LATITUD', 0))
+                l_o = float(datos_obj.get('LONGITUD', 0))
+                if l_a != 0:
+                    centro_mapa = [l_a, l_o]
+                    zoom_inicial = 14
+            except:
+                pass
 
         m_mon = folium.Map(
             location=centro_mapa,
@@ -4051,7 +4056,7 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
 
         comisarias_mapa = {} 
 
-        # Si hay un objetivo seleccionado, agregamos su comisaría y ruta directa
+        # Ruta del objetivo enfocado en el buscador
         if obj_seleccionado != "MOSTRAR TODO" and com_lat_m and com_lon_m and lat_obj and lon_obj:
             comisarias_mapa[(round(com_lat_m, 5), round(com_lon_m, 5))] = {
                 "nombre": comisaria_cercana_name, "lat": com_lat_m, "lon": com_lon_m, "panico": False
@@ -4064,20 +4069,17 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
             except Exception as e:
                 print(f"Error ruta seleccionada: {e}")
 
-        # Bucle limpio que lee la MASTER original
+        # LECTURA DIRECTA DE LATITUD Y LONGITUD DESDE LA HOJA MASTER
         for _, r in df_mapa_filtrado_sup.iterrows():
             obj_nombre = str(r.get('OBJETIVO', '')).strip().upper()
-            dir_val = str(r.get('DIRECCION', '')).strip()
-            loc_val = str(r.get('LOCALIDAD', '')).strip()
-            
             if not obj_nombre or obj_nombre == "NAN":
                 continue
 
-            coords_r = geocodificar_direccion(dir_val, loc_val)
-            if not coords_r:
-                continue  # Si la dirección no geocodifica, pasa a la siguiente de la MASTER
-                
-            lat_r, lon_r = coords_r
+            try:
+                lat_r = float(str(r.get('LATITUD', '')).replace(',', '.'))
+                lon_r = float(str(r.get('LONGITUD', '')).replace(',', '.'))
+            except (ValueError, TypeError):
+                continue  # Si no hay coordenadas válidas en la fila, la omite
 
             es_panico = obj_nombre in lista_objetivos_en_panico
             es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
@@ -4133,6 +4135,12 @@ if st.session_state.get("rol_sel", "") == "MONITOREO":
 
         st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
         st.markdown('</div>', unsafe_allow_html=True)
+
+    with t_mensajeria:
+        renderizar_mensajeria_global(st.session_state.get("user_sel", "OPERADOR"))
+
+    with t_nov:
+        renderizar_auditoria_monitoreo()
 # =========================================================================
 # ROL: SUPERVISOR
 # =========================================================================
