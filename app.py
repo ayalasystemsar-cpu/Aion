@@ -3865,7 +3865,6 @@ if st.session_state.rol_sel == "MONITOREO":
     else:
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
 
-    # Mapeo directo de objetivos para el radar (usando dirección en vivo en lugar de lat/lon guardadas)
     df_mapa_monitoreo = pd.DataFrame()
     if not df_objetivos.empty:
         df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
@@ -4019,15 +4018,14 @@ if st.session_state.rol_sel == "MONITOREO":
         comisaria_cercana_name = None
         distancia_minima = None
         com_lat_m, com_lon_m = None, None
-        lat_obj, lon_obj = 0.0, 0.0
         df_com_sel = pd.DataFrame()
+        lat_obj, lon_obj = -34.6611, -58.3653
          
         if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_filtrado_sup.empty:
             datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
             dir_sel = str(datos_obj.get('DIRECCION', '')).strip()
             loc_sel = str(datos_obj.get('LOCALIDAD', '')).strip()
             
-            # Geocodificación en vivo mediante OpenStreetMap
             coords_obj = geocodificar_direccion(dir_sel, loc_sel)
             if coords_obj:
                 lat_obj, lon_obj = coords_obj
@@ -4059,7 +4057,6 @@ if st.session_state.rol_sel == "MONITOREO":
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         
-        # Centro por defecto (Buenos Aires / Zona operativa)
         centro_mapa = [-34.6037, -58.3816]
         zoom_inicial = 11
 
@@ -4098,11 +4095,19 @@ if st.session_state.rol_sel == "MONITOREO":
                     {"nombre": c_s["COMISARIA"], "lat": float(c_s["LATITUD"]), "lon": float(c_s["LONGITUD"]), "panico": False})
 
         for _, r in df_mapa_filtrado_sup.iterrows():
-            obj_nombre = str(r['OBJETIVO']).strip().upper()
-            coords_r = geocodificar_direccion(str(r.get('DIRECCION', '')), str(r.get('LOCALIDAD', '')))
-            if not coords_r:
+            obj_nombre = str(r.get('OBJETIVO', '')).strip().upper()
+            dir_val = str(r.get('DIRECCION', '')).strip()
+            loc_val = str(r.get('LOCALIDAD', '')).strip()
+            
+            if not obj_nombre or obj_nombre == "NAN":
                 continue
-            lat_r, lon_r = coords_r
+
+            # Geocodificamos en vivo; si falla, asignamos coordenada de respaldo en la zona para que aparezca igual
+            coords_r = geocodificar_direccion(dir_val, loc_val)
+            if not coords_r:
+                lat_r, lon_r = -34.6611, -58.3653  
+            else:
+                lat_r, lon_r = coords_r
 
             es_panico = obj_nombre in lista_objetivos_en_panico
             es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
@@ -4160,7 +4165,6 @@ if st.session_state.rol_sel == "MONITOREO":
 
         st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
         st.markdown('</div>', unsafe_allow_html=True)
-
 # =========================================================================
 # ROL: SUPERVISOR
 # =========================================================================
