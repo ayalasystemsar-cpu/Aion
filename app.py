@@ -1449,62 +1449,34 @@ def alarma_panico_sonora(rol, usuario):
     _alarma()
 
 def cartel_panico_lateral(rol, usuario):
-    """PANEL LATERAL (supervisor y Jefe de Operaciones):
-    - Cartel rojo con el pánico sin leer y el botón ENTERADO (corta la sirena de la pantalla principal).
-    - Cuadro para ESCRIBIR / RESPONDER al vigilador que sigue disponible aunque la alarma ya esté detenida
-      (durante las últimas HORAS_ALARMA_PANICO horas). Gerencia no lo recibe."""
+    """Cartel rojo en el PANEL LATERAL con el aviso de pánico sin leer y el botón ENTERADO.
+    El sonido (sirena) sigue en la pantalla principal, igual que antes. Gerencia no lo recibe."""
     if rol not in ("SUPERVISOR", "JEFE DE OPERACIONES"):
         return
 
     @st.fragment(run_every=5)
     def _cartel_lateral():
-        sin_leer, recientes = [], []
+        pend = []
         try:
             df = leer_matriz_nube("MENSAJERIA")
-            if not df.empty and {'ASUNTO', 'REMITENTE', 'DESTINATARIO'} <= set(df.columns):
+            sin = _mensajes_sin_leer(df)
+            if not sin.empty and 'ASUNTO' in sin.columns:
+                sin = sin[col_texto(sin, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")]
                 limite = (datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
                           - pd.Timedelta(hours=HORAS_ALARMA_PANICO)).strftime("%Y-%m-%d %H:%M:%S")
-                es_panico = col_texto(df, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")
-                es_mio = col_texto(df, 'DESTINATARIO').str.strip().str.upper().isin(_identidades_mensajeria())
-                reciente = df.iloc[:, 0].astype(str) >= limite
-                nuevos = set(_mensajes_sin_leer(df).index)
-                for i, r in df[es_panico & es_mio & reciente].iterrows():
-                    item = (i, str(r['REMITENTE']).strip().upper(), str(r['ASUNTO']).strip(),
-                            str(r.get('MENSAJE', '')).replace("🚨 ", ""), str(r.iloc[0]))
-                    recientes.append(item)
-                    if i in nuevos:
-                        sin_leer.append(item)
-            st.session_state["_pan_lat_" + rol] = (sin_leer, recientes)
+                sin = sin[sin.iloc[:, 0].astype(str) >= limite]
+                for i, r in sin.iterrows():
+                    pend.append((i, str(r.get('MENSAJE', '')).replace("🚨 ", "")))
+            st.session_state["_pan_lat_" + rol] = pend
         except Exception as e:
             print(f"Error en cartel lateral de pánico: {e}")
-            sin_leer, recientes = st.session_state.get("_pan_lat_" + rol, ([], []))
-
-        if sin_leer:
-            st.error(f"🚨 PÁNICO SIN LEER ({len(sin_leer)}): " + " · ".join(p[3] for p in sin_leer[:2]))
-            if st.button("✔️ ENTERADO (DETENER ALARMA)", key=f"btn_ent_lat_{rol}", use_container_width=True):
-                if marcar_mensajes_leidos([p[0] for p in sin_leer]):
-                    st.rerun()
-
-        if recientes:
-            ult = recientes[::-1][:5]   # los más nuevos primero
-            with st.expander("✍️ ESCRIBIR / RESPONDER AL PÁNICO"):
-                with st.form(key=f"form_resp_lat_{rol}", clear_on_submit=True):
-                    k = 0
-                    if len(ult) > 1:
-                        k = st.selectbox("Responder a:", list(range(len(ult))),
-                                         format_func=lambda j: f"{ult[j][1]} · {ult[j][4][11:16]}")
-                    txt_resp = st.text_input("Escribí tu mensaje:")
-                    if st.form_submit_button("✉️ ENVIAR MENSAJE"):
-                        if txt_resp.strip():
-                            destino = ult[k]
-                            if escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), _remitente_mensajeria(), destino[1],
-                                                                    destino[2], txt_resp.strip().upper(), "PENDIENTE", "ROJA"]):
-                                if sin_leer:   # al responder se da por enterado y se corta la sirena
-                                    marcar_mensajes_leidos([p[0] for p in sin_leer])
-                                st.toast("✅ Mensaje enviado", icon="✅")
-                                st.rerun()
-                        else:
-                            st.warning("⚠️ Escribí el mensaje antes de enviar.")
+            pend = st.session_state.get("_pan_lat_" + rol, [])
+        if not pend:
+            return
+        st.error(f"🚨 PÁNICO SIN LEER ({len(pend)}): " + " · ".join(p[1] for p in pend[:2]))
+        if st.button("✔️ ENTERADO (DETENER ALARMA)", key=f"btn_ent_lat_{rol}", use_container_width=True):
+            if marcar_mensajes_leidos([p[0] for p in pend]):
+                st.rerun()
 
     _cartel_lateral()
 
