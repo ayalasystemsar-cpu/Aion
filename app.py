@@ -4183,7 +4183,7 @@ if st.session_state.rol_sel == "MONITOREO":
             st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
         elif not no_ubicados:
             st.info("No hay objetivos cargados para mostrar en el mapa.")
-             st.markdown('<div class="radar-box">', unsafe_allow_html=True)
+            st.markdown('<div class="radar-box">', unsafe_allow_html=True)
         # Con "MOSTRAR TODO" se ubican todos los objetivos del filtro; la comisaría solo para los que están
         # en pánico y para el objetivo enfocado (consulta en vivo, sin coordenadas guardadas)
         puntos = []
