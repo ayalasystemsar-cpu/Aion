@@ -191,55 +191,101 @@ def actualizar_estado_padron(fila_sheet, nuevo_estado):
         print(f"Error actualizando estado en padrón: {e}")
         return False
 
-def escribir_registro_nube(pestana, datos_fila):
+@st.cache_resource(ttl=3600, show_spinner=False)
+def _hoja_nube(nombre_real):
+    """Hoja ya abierta y guardada en memoria: evita 2 consultas de metadata a Google en cada lectura/escritura
+    (era lo que agotaba la cuota 'Read requests per minute' y daba el error 429)."""
+    return conectar_google().open_by_key(ID_MAESTRO_DB).worksheet(nombre_real)
+
+def _reintentar_429(fn, intentos=3):
+    """Si Google responde 429 (cuota por minuto), espera unos segundos y reintenta en vez de fallar."""
+    import time
+    for n in range(intentos):
+        try:
+            return fn()
+        except Exception as e:
+            if "429" in str(e) and n < intentos - 1:
+                time.sleep(4 * (n + 1))
+                continue
+            raise
+
+def _obtener_hoja_para_escribir(gc, nombre_hoja_real):
+    try:
+        return _hoja_nube(nombre_hoja_real)
+    except Exception as e:
+        if "429" in str(e):
+            raise
+        sh = gc.open_by_key(ID_MAESTRO_DB)
+        try:
+            return sh.worksheet(nombre_hoja_real)
+        except Exception:
+            hoja = sh.add_worksheet(title=nombre_hoja_real, rows="100", cols="15")
+            if nombre_hoja_real == "NOTIFICACIONES_SUPERVISORES":
+                hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
+            return hoja
+
+def escribir_registros_nube(pestana, filas):
+    """Agrega varias filas en UNA sola llamada a Google (mensajes de pánico a supervisor, Jefe y Gerencia)."""
     try:
         gc = conectar_google()
-        if gc:
-            sh = gc.open_by_key(ID_MAESTRO_DB)
+        if gc and filas:
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            try:
-                hoja = sh.worksheet(nombre_hoja_real)
-            except:
-                hoja = sh.add_worksheet(title=nombre_hoja_real, rows="100", cols="15")
-                if nombre_hoja_real == "NOTIFICACIONES_SUPERVISORES":
-                    hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
-            hoja.append_row(datos_fila)
-            st.cache_data.clear() 
+            hoja = _obtener_hoja_para_escribir(gc, nombre_hoja_real)
+            if len(filas) == 1:
+                _reintentar_429(lambda: hoja.append_row(filas[0]))
+            else:
+                _reintentar_429(lambda: hoja.append_rows(filas))
+            if pestana.upper().strip() in ("MENSAJERIA", "ALERTAS"):
+                _leer_matriz_nube_cache.clear()   # solo refresca estas lecturas; no borra toda la caché de la app
+            else:
+                st.cache_data.clear()
             return True
     except Exception as e:
         print(f"Error de nube en {pestana}: {e}")
         st.error(f"⚠️ Error técnico en nube ({pestana}): {e}")
         return False
 
+def escribir_registro_nube(pestana, datos_fila):
+    return escribir_registros_nube(pestana, [datos_fila])
+
 @st.cache_data(ttl=30, show_spinner=False)
-def leer_matriz_nube(pestana):
+def _leer_matriz_nube_cache(pestana):
+    """Lee una pestaña. Si Google falla lanza el error (así NO se guarda en caché una lectura vacía)."""
     gc = conectar_google()
-    if gc:
+    if not gc:
+        raise RuntimeError("Sin conexión a Google")
+    nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
+    try:
+        hoja = _hoja_nube(nombre_hoja_real)
+    except Exception as e:
+        if "429" in str(e):
+            raise
+        sh = gc.open_by_key(ID_MAESTRO_DB)
         try:
-            sh = gc.open_by_key(ID_MAESTRO_DB)
-            nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
-            try:
-                hoja = sh.worksheet(nombre_hoja_real)
-            except:
-                if pestana.upper().strip() == "NOTIFICACIONES_SUPERVISORES":
-                    hoja = sh.add_worksheet(title="NOTIFICACIONES_SUPERVISORES", rows="100", cols="15")
-                    hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
-                else:
-                    return pd.DataFrame()
-            
-            todas_filas = hoja.get_all_values()
-            if not todas_filas or len(todas_filas) == 0:
+            hoja = sh.worksheet(nombre_hoja_real)
+        except Exception:
+            if pestana.upper().strip() == "NOTIFICACIONES_SUPERVISORES":
+                hoja = sh.add_worksheet(title="NOTIFICACIONES_SUPERVISORES", rows="100", cols="15")
+                hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
+            else:
                 return pd.DataFrame()
-            encabezados = [str(h).strip().upper() for h in todas_filas[0]]
-            datos_cuerpo = todas_filas[1:]
-            df = pd.DataFrame(datos_cuerpo, columns=encabezados)
-            df.columns = [str(c).strip().upper() for c in df.columns]
-            df = df.loc[:, ~df.columns.duplicated()]
-            return df
-        except Exception as e: 
-            print(f"Error leyendo {pestana}: {e}")
-            return pd.DataFrame()
-    return pd.DataFrame()
+    todas_filas = _reintentar_429(hoja.get_all_values)
+    if not todas_filas or len(todas_filas) == 0:
+        return pd.DataFrame()
+    encabezados = [str(h).strip().upper() for h in todas_filas[0]]
+    datos_cuerpo = todas_filas[1:]
+    df = pd.DataFrame(datos_cuerpo, columns=encabezados)
+    df.columns = [str(c).strip().upper() for c in df.columns]
+    df = df.loc[:, ~df.columns.duplicated()]
+    return df
+
+def leer_matriz_nube(pestana):
+    try:
+        return _leer_matriz_nube_cache(pestana)
+    except Exception as e:
+        print(f"Error leyendo {pestana}: {e}")
+        return pd.DataFrame()
+leer_matriz_nube.clear = _leer_matriz_nube_cache.clear
 
 @st.cache_data(ttl=60, show_spinner=False)
 def cargar_datos_comisarias():
@@ -1228,9 +1274,9 @@ def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asigna
     asunto = f"ALERTA DE PÁNICO - {remitente} ({fecha[11:16]})"  # un hilo por pánico, así se puede leer y responder
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
     destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
-    for dest in destinatarios:
-        if dest and dest != "MONITOREO" and dest != "N/A":
-            escribir_registro_nube("MENSAJERIA", [fecha, remitente, dest, asunto, mensaje, "PENDIENTE", "ROJA"])
+    filas = [[fecha, remitente, dest, asunto, mensaje, "PENDIENTE", "ROJA"]
+             for dest in destinatarios if dest and dest != "MONITOREO" and dest != "N/A"]
+    escribir_registros_nube("MENSAJERIA", filas)   # una sola llamada a Google para los 3 mensajes
     enviar_push_panico(remitente, objetivo, supervisor_asignado)
 
 # --- ALARMA SONORA DE PÁNICO + AVISO PUSH (celular bloqueado) ---
@@ -5662,4 +5708,4 @@ function bip() {
 }
 </script>
 """, height=0)
-            
+                                       
