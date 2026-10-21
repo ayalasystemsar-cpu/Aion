@@ -1,4 +1,3 @@
-
 import streamlit as st
 import html as _html_msg
 import datetime
@@ -1272,7 +1271,27 @@ def mostrar_calendario_sidebar():
             st.session_state.cal_edit_id = None
             st.rerun()
 
+def _supervisor_equivalente(nombre):
+    """Si el supervisor de la hoja OBJETIVOS está escrito distinto al usuario con el que entra
+    (otro orden, tildes, espacios), devuelve el usuario real para que le llegue el mensaje y la sirena."""
+    import unicodedata
+    def _norm(t):
+        t = unicodedata.normalize("NFKD", str(t)).encode("ascii", "ignore").decode().upper()
+        return frozenset(re.sub(r"[^A-Z0-9 ]+", " ", t).split())
+    n = str(nombre).strip().upper()
+    if n in ("", "N/A", "MONITOREO"):
+        return n
+    try:
+        objetivo_n = _norm(n)
+        for s in obtener_lista_supervisores_dinamica():
+            if str(s).strip().upper() == n or _norm(s) == objetivo_n:
+                return str(s).strip().upper()
+    except Exception as e:
+        print(f"Error buscando supervisor equivalente: {e}")
+    return n
+
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
+    supervisor_asignado = _supervisor_equivalente(supervisor_asignado)
     fecha = obtener_hora_argentina()
     remitente = str(nombre_persona).strip().upper() or emisor   # firma el mensaje quien activó el pánico (no "SISTEMA")
     asunto = f"ALERTA DE PÁNICO - {remitente} ({fecha[11:16]})"  # un hilo por pánico, así se puede leer y responder
@@ -4422,7 +4441,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
                 if exito:
-                    enviar_push_panico(st.session_state.user_sel, obj_actual, "")
+                    # crea los mensajes de MENSAJERIA para JEFE DE OPERACIONES y GERENCIA (y manda el push)
+                    enviar_alerta_automatica("SISTEMA_SUPERVISOR", obj_actual, st.session_state.user_sel, "")
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
