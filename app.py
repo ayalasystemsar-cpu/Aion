@@ -1,4 +1,6 @@
+
 import streamlit as st
+import html as _html_msg
 import datetime
 from datetime import datetime
 import pandas as pd
@@ -760,6 +762,8 @@ def comisaria_mas_cercana(lat, lon, localidad, df_com):
     return mejor
 
 GRAVEDADES_MENSAJE = {"VERDE": "🟢", "AMARILLO": "🟡", "ROJA": "🔴"}
+COLORES_MENSAJE = {"VERDE": "#2E9E5B", "AMARILLO": "#E0A800", "ROJA": "#D32F2F"}
+ORDEN_GRAVEDAD = {"ROJA": 3, "AMARILLO": 2, "VERDE": 1}
 DIAS_MENSAJES_NUEVOS = 7  # solo se cuentan como "nuevos" los mensajes de los últimos días
 
 def _remitente_mensajeria():
@@ -883,11 +887,19 @@ def _listado_hilos_mensajeria(rol_contexto):
     for _, asunto, grupo in hilos[:40]:
         nuevos = sum(1 for i in grupo.index if i in sin_leer)
         marca = f" 🔵 {nuevos} nuevo(s)" if nuevos else ""
-        with st.expander(f"💬 Hilo: {asunto}{marca}", expanded=bool(nuevos)):
+        grav_max = max((str(x).strip().upper() for x in grupo.get('GRAVEDAD', [])), key=lambda g: ORDEN_GRAVEDAD.get(g, 0), default="")
+        with st.expander(f"{GRAVEDADES_MENSAJE.get(grav_max, '💬')} Hilo: {asunto}{marca}", expanded=bool(nuevos)):
             for i, msg in grupo.iterrows():
                 punto = GRAVEDADES_MENSAJE.get(str(msg.get('GRAVEDAD', '')).strip().upper(), "⚪")
                 nuevo = "🔵 " if i in sin_leer else ""
-                st.markdown(f"{nuevo}{punto} **{msg.get('REMITENTE', 'ANÓNIMO')}** → {msg.get('DESTINATARIO', '')} · {msg.get(col_fecha, '')}  \n{msg.get('MENSAJE', '')}")
+                grav = str(msg.get('GRAVEDAD', '')).strip().upper()
+                color = COLORES_MENSAJE.get(grav, "#64748B")
+                esc = lambda v: _html_msg.escape(str(v))
+                st.markdown(
+                    f'<div style="border-left:6px solid {color};background:{color}22;padding:6px 10px;margin:4px 0;border-radius:4px">'
+                    f'{nuevo}{punto} <b>{esc(msg.get("REMITENTE", "ANÓNIMO"))}</b> → {esc(msg.get("DESTINATARIO", ""))} · {esc(msg.get(col_fecha, ""))} · '
+                    f'<b style="color:{color}">{esc(grav or "SIN GRAVEDAD")}</b><br>{esc(msg.get("MENSAJE", ""))}</div>',
+                    unsafe_allow_html=True)
             if st.button("Responder a este hilo", key=f"btn_{asunto}_{rol_contexto}"):
                 otros = [str(r).strip().upper() for r in grupo['REMITENTE'] if str(r).strip().upper() not in _identidades_mensajeria()]
                 st.session_state.asunto_respuesta = asunto
@@ -922,7 +934,8 @@ def renderizar_mensajeria_global(rol_contexto):
             txt_msg = st.text_input("MENSAJE:")
         with col_b:
             destinatario = st.selectbox("PARA:", opciones, index=idx_dest, key=f"dest_{rol_contexto}_{clave_hilo}")
-            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "AMARILLO", "ROJA"], key=f"grav_{rol_contexto}_{clave_hilo}")
+            gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "AMARILLO", "ROJA"], key=f"grav_{rol_contexto}_{clave_hilo}",
+                                    format_func=lambda g: f"{GRAVEDADES_MENSAJE[g]} {g}")
 
         if st.form_submit_button("TRANSMITIR A LA RED"):
             if txt_msg.strip():
@@ -931,6 +944,7 @@ def renderizar_mensajeria_global(rol_contexto):
                     (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
                 ])
                 st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
+                st.session_state.mensaje_enviado_grav = gravedad
                 st.session_state.asunto_respuesta = None
                 st.session_state.destino_respuesta = ""
                 sincronizar_url_sesion()
@@ -939,10 +953,9 @@ def renderizar_mensajeria_global(rol_contexto):
                 st.warning("⚠️ Escribí el mensaje antes de transmitir.")
 
     if 'mensaje_enviado' in st.session_state:
-        if st.session_state.mensaje_enviado == "RESPUESTA":
-            st.success("✅ RESPUESTA ENVIADA")
-        else:
-            st.success("✅ MENSAJE ENVIADO")
+        grav_env = st.session_state.pop("mensaje_enviado_grav", "VERDE")
+        txt_env = f"✅ {'RESPUESTA' if st.session_state.mensaje_enviado == 'RESPUESTA' else 'MENSAJE'} ENVIADO · {GRAVEDADES_MENSAJE.get(grav_env, '⚪')} GRAVEDAD {grav_env}"
+        {"ROJA": st.error, "AMARILLO": st.warning}.get(grav_env, st.success)(txt_env)
         del st.session_state.mensaje_enviado
 
     _listado_hilos_mensajeria(rol_contexto)
@@ -1201,11 +1214,167 @@ def mostrar_calendario_sidebar():
 
 def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asignado):
     fecha = obtener_hora_argentina()
+    remitente = str(nombre_persona).strip().upper() or emisor   # firma el mensaje quien activó el pánico (no "SISTEMA")
+    asunto = f"ALERTA DE PÁNICO - {remitente} ({fecha[11:16]})"  # un hilo por pánico, así se puede leer y responder
     mensaje = f"🚨 ALERTA DE PÁNICO: {nombre_persona} - OBJ: {objetivo}"
     destinatarios = ["JEFE DE OPERACIONES", "GERENCIA", supervisor_asignado]
     for dest in destinatarios:
         if dest and dest != "MONITOREO" and dest != "N/A":
-            escribir_registro_nube("MENSAJERIA", [fecha, emisor, dest, "ALERTA DE PÁNICO", mensaje, "PENDIENTE", "ROJA"])
+            escribir_registro_nube("MENSAJERIA", [fecha, remitente, dest, asunto, mensaje, "PENDIENTE", "ROJA"])
+    enviar_push_panico(remitente, objetivo, supervisor_asignado)
+
+# --- ALARMA SONORA DE PÁNICO + AVISO PUSH (celular bloqueado) ---
+def _slug_topic(txt):
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(txt)).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")
+
+def enviar_push_panico(remitente, objetivo, supervisor=""):
+    """Aviso push por ntfy.sh (suena con el celular bloqueado). No hace nada hasta que se
+    configure NTFY_PREFIJO en los secrets de Streamlit. Topics: <prefijo>-monitoreo,
+    <prefijo>-jefe-de-operaciones, <prefijo>-gerencia y <prefijo>-<nombre-del-supervisor>."""
+    try:
+        prefijo = str(st.secrets.get("NTFY_PREFIJO", "")).strip()
+    except Exception:
+        prefijo = ""
+    if not prefijo:
+        return
+    sup = _slug_topic(supervisor) if str(supervisor).strip().upper() not in ("", "N/A", "MONITOREO") else ""
+    destinos = [d for d in ["monitoreo", "jefe-de-operaciones", sup] if d]
+    cuerpo = f"PANICO: {remitente} - OBJ: {objetivo}".encode("utf-8")
+    def _enviar():
+        for d in destinos:
+            try:
+                requests.post(f"https://ntfy.sh/{prefijo}-{d}", data=cuerpo, timeout=5,
+                              headers={"Title": "ALARMA DE PANICO", "Priority": "5", "Tags": "rotating_light"})
+            except Exception as e:
+                print(f"Error enviando push a {d}: {e}")
+    import threading
+    threading.Thread(target=_enviar, daemon=True).start()
+
+@st.cache_data(ttl=10, show_spinner=False)
+def _leer_hoja_rapida(nombre):
+    """Igual que leer_matriz_nube pero con caché de 10 s (compartida entre sesiones) para que la alarma reaccione rápido."""
+    gc = conectar_google()
+    if not gc:
+        raise RuntimeError("Sin conexión a Google")
+    filas = gc.open_by_key(ID_MAESTRO_DB).worksheet(nombre).get_all_values()
+    if not filas:
+        return pd.DataFrame()
+    enc = [str(h).strip().upper() for h in filas[0]]
+    df = pd.DataFrame(filas[1:], columns=enc)
+    return df.loc[:, ~df.columns.duplicated()]
+
+HORAS_ALARMA_PANICO = 12  # un mensaje de pánico sin leer deja de sonar pasadas estas horas
+
+_HTML_ALARMA_PANICO = """
+<style>
+  body{margin:0;font-family:sans-serif}
+  #b{background:#B00020;color:#fff;border-radius:8px;padding:10px;text-align:center;font-weight:700;
+     font-size:15px;animation:p 1s infinite}
+  @keyframes p{50%{background:#FF3B30}}
+  #d{font-weight:400;font-size:12px;margin-top:3px}
+  #s{font-size:12px;margin-top:4px;color:#FFD600;text-align:center}
+</style>
+<div id="b">🚨 PÁNICO ACTIVO (__N__)<div id="d">__DET__</div></div>
+<div id="s"></div>
+<script>
+(function(){
+  var P = window.parent, ctx = null, osc = null, alto = false, tm = null;
+  function estado(){
+    var ok = ctx && ctx.state === "running";
+    document.getElementById("s").textContent = ok ? "" : "🔈 Tocá la pantalla una vez para activar el sonido";
+  }
+  function resumir(){
+    try { if (ctx && ctx.state !== "running") ctx.resume().then(estado); } catch(e) {}
+  }
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    ctx = new AC();
+    var g = ctx.createGain(); g.gain.value = 0.35; g.connect(ctx.destination);
+    osc = ctx.createOscillator(); osc.type = "sawtooth"; osc.frequency.value = 800;
+    osc.connect(g); osc.start();
+    tm = setInterval(function(){
+      alto = !alto;
+      try { osc.frequency.setTargetAtTime(alto ? 1200 : 800, ctx.currentTime, 0.04); } catch(e) {}
+      try { if (navigator.vibrate) navigator.vibrate(300); } catch(e) {}
+      resumir();
+    }, 500);
+    ctx.onstatechange = estado; resumir(); estado();
+  } catch(e) {
+    document.getElementById("s").textContent = "No se pudo iniciar el audio en este navegador.";
+  }
+  ["click", "touchstart", "pointerdown", "keydown"].forEach(function(n){
+    document.addEventListener(n, resumir, {passive: true});
+    try { P.document.addEventListener(n, resumir, {passive: true}); } catch(e) {}
+  });
+  window.addEventListener("pagehide", function(){ try { clearInterval(tm); ctx.close(); } catch(e) {} });
+})();
+</script>
+"""
+
+def alarma_panico_sonora(rol, usuario):
+    """Sirena + cartel rojo mientras haya un pánico que le corresponda a este rol.
+    - MONITOREO: suena mientras haya pánicos PENDIENTES en ALERTAS (se corta al finalizarlos). No se puede silenciar.
+    - SUPERVISOR / JEFE DE OPERACIONES / GERENCIA: suena mientras tengan sin leer el MENSAJE de pánico que les llegó
+      (se corta al marcarlo leído con el botón ENTERADO o desde MENSAJERÍA). Se puede silenciar."""
+    import html as _html
+    if rol == "GERENCIA":   # Gerencia recibe el mensaje pero no la sirena
+        return
+
+    @st.fragment(run_every=5)
+    def _alarma():
+        monitoreo = (rol == "MONITOREO")
+        pend = []
+        try:
+            if monitoreo:
+                df = _leer_hoja_rapida("ALERTAS")
+                for _, r in df.iterrows():
+                    f = [str(x).strip() for x in r.tolist()] + [""] * 6
+                    if f[2].upper().replace("Á", "A") == "PANICO" and f[3].upper() == "PENDIENTE":
+                        pend.append((f[0], f[1].upper(), f[4].upper(), None))
+            else:
+                df = _leer_hoja_rapida("MENSAJERIA")
+                sin = _mensajes_sin_leer(df)
+                if not sin.empty and 'ASUNTO' in sin.columns:
+                    sin = sin[col_texto(sin, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")]
+                    limite = (datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+                              - pd.Timedelta(hours=HORAS_ALARMA_PANICO)).strftime("%Y-%m-%d %H:%M:%S")
+                    sin = sin[sin.iloc[:, 0].astype(str) >= limite]
+                    for i, r in sin.iterrows():
+                        pend.append((str(r.iloc[0]), str(r.get('REMITENTE', '')).upper(), str(r.get('MENSAJE', '')), i))
+            st.session_state["_pan_ult_" + rol] = pend
+        except Exception as e:
+            print(f"Error en alarma de pánico: {e}")
+            pend = st.session_state.get("_pan_ult_" + rol, [])
+
+        if not pend:
+            st.session_state.pop("_pan_silenciado", None)
+            return
+
+        firma = "|".join(f"{p[0]}~{p[1]}" for p in pend)
+        if (not monitoreo) and st.session_state.get("_pan_silenciado") == firma:
+            st.warning(f"🔇 Alarma silenciada: {len(pend)} aviso(s) de pánico sin leer. Revisá MENSAJERÍA.")
+            return
+
+        if monitoreo:
+            detalle = " · ".join(f"{p[1]} @ {p[2]}" for p in pend[:3])
+        else:
+            detalle = " · ".join(p[2].replace("🚨 ", "") for p in pend[:2])
+        if len(pend) > 3:
+            detalle += f" · +{len(pend) - 3} más"
+        components.html(_HTML_ALARMA_PANICO.replace("__N__", str(len(pend))).replace("__DET__", _html.escape(detalle)), height=80)
+
+        if not monitoreo:
+            c1, c2 = st.columns(2)
+            if c1.button("✔️ ENTERADO (DETENER ALARMA)", key=f"btn_ent_pan_{rol}", use_container_width=True):
+                if marcar_mensajes_leidos([p[3] for p in pend]):
+                    st.rerun()
+            if c2.button("🔇 SILENCIAR", key=f"btn_sil_pan_{rol}", use_container_width=True):
+                st.session_state["_pan_silenciado"] = firma
+                st.rerun(scope="fragment")
+
+    _alarma()
 
 def limpiar_matriz_nube(nombre_hoja):
     try:
@@ -3587,6 +3756,7 @@ if st.session_state.rol_sel == "MONITOREO":
             else:
                 st.metric("🚨 S.O.S ACTIVOS", "0")
         contar_panicos_monitoreo()
+    alarma_panico_sonora("MONITOREO", st.session_state.user_sel)
 
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
@@ -4069,6 +4239,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
          
         obj_actual = st.session_state.get("obj_qr_tactico", "SIN OBJETIVO")
 
+        alarma_panico_sonora("SUPERVISOR", st.session_state.user_sel)
+
         st.subheader(f"⏱️ GESTIÓN DE JORNADA")
         _, col_j1, col_j2, _ = st.columns([2, 3, 3, 2]) 
         with col_j1:
@@ -4137,6 +4309,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
                 if exito:
+                    enviar_push_panico(st.session_state.user_sel, obj_actual, "")
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
                     st.session_state.alerta_activa_supervisor = {
                         "comisaria": com_nombre_s,
@@ -4726,6 +4899,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
             total_sos = len(df_pan_vig_jefe)
             st.metric("🚨 S.O.S ACTIVOS", total_sos)
         mostrar_sos()
+    alarma_panico_sonora(st.session_state.rol_sel, st.session_state.user_sel)
 
     col2.metric("📡 RED", "OPERATIVA")
     col3.metric("👤 USUARIO", f"{st.session_state.user_sel}")
@@ -5474,4 +5648,5 @@ function bip() {
   try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
 }
 </script>
-""", height=0)
+""", height=0)          
+            
