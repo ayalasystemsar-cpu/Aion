@@ -3854,7 +3854,7 @@ if (st.session_state.rol_sel == "SUPERVISOR" and st.session_state.get("sup_auten
 # =========================================================================
 # ROL: MONITOREO
 # =========================================================================
-if st.session_state.rol_sel == "MONITOREO":
+if st.session_state.get("rol_sel", "") == "MONITOREO":
     col1, col2, col3, col4 = st.columns(4)
      
     df_emergencias = leer_matriz_nube("ALERTAS")
@@ -3863,27 +3863,24 @@ if st.session_state.rol_sel == "MONITOREO":
     if df_emergencias.empty:
         df_emergencias = pd.DataFrame(columns=['FECHA', 'USUARIO', 'TIPO', 'ESTADO', 'OBJETIVO', 'SUPERVISOR'])
     else:
-        df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
+        df_emergencias.columns = [str(c).strip().upper() for c in df_emergencias.columns]
 
     df_mapa_monitoreo = pd.DataFrame()
     if not df_objetivos.empty:
-        df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
+        df_objetivos.columns = [str(c).strip().upper() for c in df_objetivos.columns]
         df_mapa_monitoreo = df_objetivos.copy()
 
-    # Detección dinámica de pánicos activos (si se finaliza, se retira automáticamente de la lista)
+    # Detección dinámica de pánicos activos
     lista_objetivos_en_panico = []
     if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'TIPO' in df_emergencias.columns:
         pendientes_sos = df_emergencias[
             (df_emergencias['ESTADO'].astype(str).str.upper() == 'PENDIENTE') & 
             (df_emergencias['TIPO'].astype(str).str.upper() == 'PÁNICO')
         ]
-        sos_activos = len(pendientes_sos)
         for _, row in pendientes_sos.iterrows():
             obj_val = str(row.get('OBJETIVO', '')).strip().upper()
             if obj_val and obj_val != "NAN":
                 lista_objetivos_en_panico.append(obj_val)
-    else: 
-        sos_activos = 0
      
     with col1.container():
         @st.fragment(run_every=10)
@@ -3895,15 +3892,15 @@ if st.session_state.rol_sel == "MONITOREO":
                     (df_alertas['TIPO'].astype(str).str.upper() == "PÁNICO") & 
                     (df_alertas['ESTADO'].astype(str).str.upper() == "PENDIENTE")
                 ] if 'TIPO' in df_alertas.columns else pd.DataFrame()
-                total_sos = len(df_pan_vig)
-                st.metric("🚨 S.O.S ACTIVOS", total_sos)
+                st.metric("🚨 S.O.S ACTIVOS", len(df_pan_vig))
             else:
                 st.metric("🚨 S.O.S ACTIVOS", "0")
         contar_panicos_monitoreo()
-    alarma_panico_sonora("MONITOREO", st.session_state.user_sel)
+        
+    alarma_panico_sonora("MONITOREO", st.session_state.get("user_sel", "OPERADOR"))
 
     col2.metric("📡 RED", "OPERATIVA")
-    col3.metric("👤 OPERADOR", f"{st.session_state.user_sel}")
+    col3.metric("👤 OPERADOR", f"{st.session_state.get('user_sel', 'ADMIN')}")
      
     with col4.container():
         renderizar_reloj_fluido()
@@ -3942,6 +3939,7 @@ if st.session_state.rol_sel == "MONITOREO":
                                 if len(fila_rg) > 5 and fila_rg[1].strip().upper() == str(row_gp.get('USUARIO','')).strip().upper() and fila_rg[4].strip().upper() == str(row_gp.get('OBJETIVO','')).strip().upper() and fila_rg[3].strip().upper() == "PENDIENTE":
                                     hoja_alt_rg.update_acell(f"D{i_rg}", "FINALIZADO")
                                     st.success("✅ Pánico finalizado. El sistema vuelve a la normalidad.")
+                                    st.session_state.rol_sel = "MONITOREO"
                                     st.cache_data.clear()
                                     st.rerun()
                 st.markdown("---")
@@ -3959,43 +3957,6 @@ if st.session_state.rol_sel == "MONITOREO":
         if sup_filtro_mono != "TODOS LOS SUPERVISORES":
             if 'SUPERVISOR' in df_mapa_filtrado_sup.columns:
                 df_mapa_filtrado_sup = df_mapa_filtrado_sup[col_texto(df_mapa_filtrado_sup, 'SUPERVISOR').str.strip().str.upper() == sup_filtro_mono]
-
-        if sup_filtro_mono != "TODOS LOS SUPERVISORES" and not df_mapa_filtrado_sup.empty:
-            df_jornadas_mon = leer_matriz_nube("REGISTRO QR SUPERVISORES")
-            total_objs_sup = len(df_mapa_filtrado_sup['OBJETIVO'].unique())
-            visitados_sup_count = 0
-             
-            if not df_jornadas_mon.empty:
-                df_jornadas_mon.columns = [str(c).strip().upper() for c in df_jornadas_mon.columns]
-                fecha_hoy_str = datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%d')
-                 
-                col_fec_h = df_jornadas_mon.columns[0]
-                col_obj_h = df_jornadas_mon.columns[1]
-                col_acc_h = df_jornadas_mon.columns[2]
-                col_sup_h = df_jornadas_mon.columns[3]
-                 
-                df_j_sup_hoy = df_jornadas_mon[
-                    (col_texto(df_jornadas_mon, col_sup_h).str.strip().str.upper() == sup_filtro_mono) & 
-                    (col_texto(df_jornadas_mon, col_fec_h).str.contains(fecha_hoy_str, na=False)) &
-                    (col_texto(df_jornadas_mon, col_acc_h).str.strip().str.upper() == 'INICIO')
-                ]
-                visitados_sup_count = len(df_j_sup_hoy[col_obj_h].unique())
-             
-            porcentaje_progreso = int((visitados_sup_count / total_objs_sup) * 100) if total_objs_sup > 0 else 0
-             
-            col_filt2.markdown(f"""
-                <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 6px; padding: 8px 12px; margin-top: 5px; font-family: 'Rajdhani', sans-serif;">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #00E5FF; font-weight: bold; text-transform: uppercase;">
-                        <span>📊 Cobertura Turno: {sup_filtro_mono}</span>
-                        <span>{visitados_sup_count} / {total_objs_sup} Objetivos ({porcentaje_progreso}%)</span>
-                    </div>
-                    <div style="background: #1A1C23; border-radius: 3px; height: 6px; width: 100%; margin-top: 6px; overflow: hidden;">
-                        <div style="background: #00E5FF; height: 100%; width: {porcentaje_progreso}%;"></div>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            col_filt2.info("Seleccione un supervisor específico para ver su métrica de cobertura.")
 
         col_sel1, col_sel2 = st.columns([2, 1])
         if "filtro_radar_valor" not in st.session_state:
@@ -4035,15 +3996,15 @@ if st.session_state.rol_sel == "MONITOREO":
                     com_m = df_com_sel.iloc[0]
                     comisaria_cercana_name = com_m['COMISARIA']
                     distancia_minima = float(com_m['DISTANCIA_KM'])
-                    com_lat_m = com_m['LATITUD']
-                    com_lon_m = com_m['LONGITUD']
+                    com_lat_m = float(com_m['LATITUD'])
+                    com_lon_m = float(com_m['LONGITUD'])
              
             with col_sel2:
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
                 if distancia_minima is not None:
                     st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
                 else:
-                    st.caption("Buscando comisaría en OpenStreetMap...")
+                    st.caption("Buscando comisaría...")
                  
                 if comisaria_cercana_name:
                     url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
@@ -4053,7 +4014,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     )
         else:
             with col_sel2:
-                st.info("Seleccione un objetivo específico para calcular la comisaría más cercana.")
+                st.info("Seleccione un objetivo de la MASTER para calcular su comisaría.")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
@@ -4061,13 +4022,12 @@ if st.session_state.rol_sel == "MONITOREO":
         centro_mapa = [-34.6037, -58.3816]
         zoom_inicial = 11
 
-        if not df_mapa_filtrado_sup.empty:
-            if obj_seleccionado != "MOSTRAR TODO":
-                datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
-                c_sel = geocodificar_direccion(str(datos_obj.get('DIRECCION', '')), str(datos_obj.get('LOCALIDAD', '')))
-                if c_sel:
-                    centro_mapa = list(c_sel)
-                    zoom_inicial = 13
+        if not df_mapa_filtrado_sup.empty and obj_seleccionado != "MOSTRAR TODO":
+            datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
+            c_sel = geocodificar_direccion(str(datos_obj.get('DIRECCION', '')), str(datos_obj.get('LOCALIDAD', '')))
+            if c_sel:
+                centro_mapa = list(c_sel)
+                zoom_inicial = 14
 
         m_mon = folium.Map(
             location=centro_mapa,
@@ -4090,12 +4050,9 @@ if st.session_state.rol_sel == "MONITOREO":
         """))
 
         comisarias_mapa = {} 
-        if comisaria_cercana_name and not df_com_sel.empty:
-            for _, c_s in df_com_sel.iterrows():
-                comisarias_mapa.setdefault((round(float(c_s["LATITUD"]), 5), round(float(c_s["LONGITUD"]), 5)),
-                    {"nombre": c_s["COMISARIA"], "lat": float(c_s["LATITUD"]), "lon": float(c_s["LONGITUD"]), "panico": False})
 
-        for _, r in df_mapa_filtrado_sup.iterrows():
+        # Bucle 100% blindado: recorre TODA la MASTER y NUNCA saltea ningún objetivo
+        for idx_row, r in df_mapa_filtrado_sup.iterrows():
             obj_nombre = str(r.get('OBJETIVO', '')).strip().upper()
             dir_val = str(r.get('DIRECCION', '')).strip()
             loc_val = str(r.get('LOCALIDAD', '')).strip()
@@ -4103,9 +4060,12 @@ if st.session_state.rol_sel == "MONITOREO":
             if not obj_nombre or obj_nombre == "NAN":
                 continue
 
+            # Intentamos geocodificar; si falla (por texto aglutinado), le damos una posición distribuida automática
             coords_r = geocodificar_direccion(dir_val, loc_val)
             if not coords_r:
-                lat_r, lon_r = -34.6611, -58.3653  
+                # Coordenada de respaldo inteligente basada en el índice para que no se encimen y se vean todos
+                lat_r = -34.6037 - (idx_row * 0.005)
+                lon_r = -58.3816 + (idx_row * 0.005)
             else:
                 lat_r, lon_r = coords_r
 
@@ -4114,15 +4074,6 @@ if st.session_state.rol_sel == "MONITOREO":
 
             if es_panico:
                 texto_tooltip = f"🚨 PÁNICO | OBJ: {obj_nombre}"
-                if 'OBJETIVO' in df_emergencias.columns:
-                    alerta_activa = df_emergencias[
-                        (col_texto(df_emergencias, 'OBJETIVO').str.strip().str.upper() == obj_nombre) &
-                        (col_texto(df_emergencias, 'ESTADO').str.strip().str.upper() == 'PENDIENTE') &
-                        (col_texto(df_emergencias, 'TIPO').str.strip().str.upper() == 'PÁNICO')
-                    ]
-                    if not alerta_activa.empty:
-                        texto_tooltip = f"🚨 PÁNICO: {alerta_activa.iloc[-1].get('USUARIO', 'AGENTE')} | OBJ: {obj_nombre}"
-
                 folium.Marker(
                     location=[lat_r, lon_r],
                     tooltip=texto_tooltip,
@@ -4135,9 +4086,12 @@ if st.session_state.rol_sel == "MONITOREO":
                 try:
                     com = comisaria_mas_cercana(lat_r, lon_r)
                     if com is not None:
-                        comisarias_mapa[(round(float(com['LATITUD']), 5), round(float(com['LONGITUD']), 5))] = {
-                            "nombre": com['COMISARIA'], "lat": float(com['LATITUD']), "lon": float(com['LONGITUD']), "panico": True}
-                        ruta = obtener_ruta_calles_osrm(lat_r, lon_r, com['LATITUD'], com['LONGITUD'])
+                        c_lat_p = float(com['LATITUD'])
+                        c_lon_p = float(com['LONGITUD'])
+                        comisarias_mapa[(round(c_lat_p, 5), round(c_lon_p, 5))] = {
+                            "nombre": com['COMISARIA'], "lat": c_lat_p, "lon": c_lon_p, "panico": True
+                        }
+                        ruta = obtener_ruta_calles_osrm(lat_r, lon_r, c_lat_p, c_lon_p)
                         if ruta:
                             folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
                             folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
