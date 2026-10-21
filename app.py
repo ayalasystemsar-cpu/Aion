@@ -135,7 +135,6 @@ def obtener_mapeo_solapas():
         "SOLICITUDES DE ACCESO": "SOLICITUDES ACCESO",
         "SOLICITUDES ACCESO": "SOLICITUDES ACCESO",
         "OBJETIVOS": "OBJETIVOS",
-        "COMISARIAS": "COMISARIAS",
         "USUARIOS": "USUARIOS",
         "ALERTAS": "ALERTAS",
         "MENSAJERIA": "MENSAJERIA",
@@ -287,106 +286,107 @@ def leer_matriz_nube(pestana):
         return pd.DataFrame()
 leer_matriz_nube.clear = _leer_matriz_nube_cache.clear
 
-@st.cache_data(ttl=60, show_spinner=False)
-def cargar_datos_comisarias():
-    df_nube = leer_matriz_nube("COMISARIAS")
-    if not df_nube.empty and 'COMISARIA' in df_nube.columns:
-        df_nube['LATITUD'] = pd.to_numeric(df_nube['LATITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-        df_nube['LONGITUD'] = pd.to_numeric(df_nube['LONGITUD'].astype(str).str.replace(',', '.'), errors='coerce')
-    else:
-        df_nube = pd.DataFrame()
-     
-    data = {
-        "COMISARIA": [
-            "COMISARÍA VECINAL 1A", "COMISARÍA VECINAL 1B", "COMISARÍA VECINAL 1C", "COMISARÍA VECINAL 2A", "COMISARÍA VECINAL 2B",
-            "COMISARÍA VECINAL 3A", "COMISARÍA VECINAL 3B", "COMISARÍA VECINAL 4A", "COMISARÍA VECINAL 4B", "COMISARÍA VECINAL 4C",
-            "COMISARÍA VECINAL 5A", "COMISARÍA VECINAL 5B", "COMISARÍA VECINAL 6A", "COMISARÍA VECINAL 6B", "COMISARÍA VECINAL 7A",
-            "COMISARÍA VECINAL 7B", "COMISARÍA VECINAL 8A", "COMISARÍA VECINAL 8B", "COMISARÍA VECINAL 8C", "COMISARÍA VECINAL 9A",
-            "COMISARÍA VECINAL 9B", "COMISARÍA VECINAL 9C", "COMISARÍA VECINAL 10A", "COMISARÍA VECINAL 10B", "COMISARÍA VECINAL 10C",
-            "COMISARÍA VECINAL 11A", "COMISARÍA VECINAL 11B", "COMISARÍA VECINAL 12A", "COMISARÍA VECINAL 12B", "COMISARÍA VECINAL 12C",
-            "COMISARÍA VECINAL 13A", "COMISARÍA VECINAL 13B", "COMISARÍA VECINAL 13C", "COMISARÍA VECINAL 14A", "COMISARÍA VECINAL 14B",
-            "COMISARÍA VECINAL 14C", "COMISARÍA VECINAL 15A", "COMISARÍA VECINAL 15B", "COMISARÍA VECINAL 15C", "COMISARÍA SAN MARTÍN 1RA",
-            "COMISARÍA AVELLANEDA 1RA", "COMISARÍA CAMPANA 1RA", "COMISARÍA SAN FERNANDO 1RA", "COMISARÍA TIGRE 1RA", "COMISARÍA PILAR 6TA",
-            "COMISARÍA ESCOBAR 3RA", "COMISARÍA VICENTE LÓPEZ 2DA", "COMISARÍA SAN ISIDRO 1RA", "COMISARÍA LANÚS 1RA", "COMISARÍA LOMAS DE ZAMORA 1RA",
-            "COMISARÍA MORÓN 1RA", "COMISARÍA LA MATANZA 1RA", "COMISARÍA TRES DE FEBRERO 1RA", "COMISARÍA QUILMES 1RA", "COMISARÍA VARELA 1RA",
-            "COMISARÍA BERAZATEGUI 1RA", "COMISARÍA TIGRE 2DA (PACHECO)", "COMISARÍA ESCOBAR 1RA (BELÉN)", "COMISARÍA PILAR 1RA", "COMISARÍA ZÁRATE 1RA",
-            "COMISARÍA CAMPANA 2DA", "COMISARÍA EXALTACIÓN DE LA CRUZ (CARDALES)", "COMISARÍA LUJÁN 1RA", "COMISARÍA MERCEDES 1RA", "COMISARÍA SAN ANDRÉS DE GILES",
-            "COMISARÍA GENERAL SAN MARTÍN 2DA", "COMISARÍA VICENTE LÓPEZ 1RA", "COMISARÍA SAN ISIDRO 4TA (MARTÍNEZ)", "COMISARÍA SAN FERNANDO 2DA (VIRREYES)", "COMISARÍA TIGRE 3RA (DON TORCUATO)",
-            "COMISARÍA MALVINAS ARGENTINAS 1RA", "COMISARÍA J. C. PAZ 1RA", "COMISARÍA SAN MIGUEL 1RA", "COMISARÍA MORENO 1RA", "COMISARÍA MERLO 1RA"
-        ],
-        "DIRECCION": [
-            "Suipacha 1156", "Uruguay 350", "Tacuarí 770", "General Las Heras 2650", "Paraguay 1122",
-            "Lavalle 2625", "San Juan 1767", "Zavaleta 425", "Av. Regimiento de Patricios 1150", "Benito Juárez 1445",
-            "Maza 1250", "Av. Independencia 2250", "Av. La Plata 550", "Rivadavia 4701", "Piedras 1450",
-            "Av. Directorio 1500", "Dellepiane 6900", "Av. General Paz 14500", "Av. Cruz 4500", "Av. Juan B. Alberdi 6752",
-            "Coronel Cárdenas 2850", "Toneleroro 6400", "Segurola 1550", "Av. Gaona 3850", "Alejandro Magariños Cervantes 4525",
-            "Av. Nazca 4550", "Cuenca 3250", "Miller 2750", "Arias 4450", "Manuela Pedraza 2340",
-            "Av. Cabildo 2300", "Amenábar 2320", "Av. Cramer 3250", "Cnel. Díaz 2250", "Av. Coronel Díaz 2550",
-            "Av. Santa Fe 3200", "Guzmán 346", "Av. Forest 1450", "Av. Triunvirato 4550", "Gral. Lavalle 420",
-            "Gral. Lavalle 150", "Rivadavia 750", "Constitución 720", "Cazón 1250", "Ruta 25 s/n",
-            "Belgrano 1150", "Av. San Martín 2450", "25 de Mayo 450", "Yrigoyen 300", "Chacabuco 500",
-            "San Martín 750", "Arieta 2500", "Belgrano 3400", "Rivadavia 400", "San Martín 800",
-            "Mitre 600", "Av. Constituyentes 450", "Asborno 750", "San Martín 950", "Justa Lima 450",
-            "Mitre 1200", "Belgrano 600", "San Martín 500", "Calle 24 Nro 650", "Mitre 400",
-            "Mitre 1500", "Maipú 2500", "Alvear 500", "Av. Avellaneda 1200", "Alvear 800",
-            "Perón 1200", "Hipólito Yrigoyen 500", "Perón 800", "Alcorta 400", "Suipacha 300"
-        ],
-        "LOCALIDAD": [
-            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
-            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
-            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA",
-            "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "CABA", "SAN MARTÍN",
-            "AVELLANEDA", "CAMPANA", "SAN FERNANDO", "TIGRE", "PILAR", "GARÍN", "FLORIDA", "SAN ISIDRO", "LANÚS", "LOMAS DE ZAMORA",
-            "MORÓN", "LA MATANZA", "TRES DE FEBRERO", "QUILMES", "VARELA", "BERAZATEGUI", "PACHECO", "ESCÓBAR", "PILAR", "ZÁRATE",
-            "CAMPANA", "CARDALES", "LUJÁN", "MERCEDES", "GILES", "SAN MARTÍN", "VICENTE LÓPEZ", "MARTÍNEZ", "VIRREYES", "DON TORCUATO",
-            "MALVINAS ARGENTINAS", "J. C. PAZ", "SAN MIGUEL", "MORENO", "MERLO"
-        ],
-        "TELEFONO": [
-            "011-4393-0100", "011-4371-0100", "011-4331-0100", "011-4803-0100", "011-4811-0100",
-            "011-4381-0100", "011-4952-0100", "011-4301-0100", "011-4361-0100", "011-4683-0100",
-            "011-4931-0100", "011-4304-0100", "011-4923-0100", "011-4982-0100", "011-4342-0100",
-            "011-4631-0100", "011-4637-0100", "011-4696-0100", "011-4919-0100", "011-4641-0100",
-            "011-4682-0100", "011-4642-0100", "011-4567-0100", "011-4581-0100", "011-4585-0100",
-            "011-4501-0100", "011-4571-0100", "011-4541-1122", "011-4542-3344", "011-4572-0100",
-            "011-4788-9900", "011-4781-0100", "011-4552-0100", "011-4821-5544", "011-4822-0100",
-            "011-4813-0100", "011-4554-0100", "011-4555-0100", "011-4521-0100", "011-4754-2321",
-            "011-4201-1122", "03489-422111", "011-4744-0192", "011-4512-9900", "0230-449-0111",
-            "03327-442000", "011-4791-0000", "011-4743-0100", "011-4241-0100", "011-4243-0100",
-            "011-4483-0100", "011-4482-0100", "011-4751-0100", "011-4253-0100", "011-4255-0100",
-            "011-4256-0100", "011-4740-0100", "0348-442-0100", "0230-442-0100", "03487-422-0100",
-            "03489-423-0100", "02322-490-100", "02323-420-100", "02324-420-100", "02326-452-100",
-            "011-4752-0100", "011-4797-0100", "011-4792-0100", "011-4745-0100", "011-4717-0100",
-            "02320-482-100", "02320-432-100", "02323-442-100", "0237-482-0100", "0220-482-0100"
-        ],
-        "LATITUD": [
-            -34.5985, -34.6037, -34.6112, -34.5852, -34.5910, -34.6080, -34.6150, -34.6390, -34.6350, -34.6410,
-            -34.6150, -34.6220, -34.6250, -34.6180, -34.6190, -34.6280, -34.6500, -34.6750, -34.6600, -34.6400,
-            -34.6450, -34.6500, -34.6200, -34.6150, -34.6100, -34.6000, -34.5950, -34.5543, -34.5684, -34.5600,
-            -34.5574, -34.5550, -34.5500, -34.5877, -34.5850, -34.5800, -34.5880, -34.5800, -34.5750, -34.5801,
-            -34.6641, -34.1636, -34.4401, -34.4241, -34.4170, -34.4273, -34.5453, -34.4720, -34.7000, -34.7600,
-            -34.6500, -34.6700, -34.5800, -34.7200, -34.8100, -34.7600, -34.4600, -34.3400, -34.4500, -34.0900,
-            -34.1700, -34.2900, -34.5700, -34.6500, -34.2500, -34.5800, -34.5100, -34.4900, -34.4500, -34.4700,
-            -34.4800, -34.5100, -34.5300, -34.6500, -34.6700
-        ],
-        "LONGITUD": [
-            -58.3838, -58.3862, -58.3790, -58.4012, -58.3950, -58.3850, -58.3800, -58.4050, -58.3650, -58.4800,
-            -58.4200, -58.3830, -58.4400, -58.4350, -58.3750, -58.4600, -58.4500, -58.4650, -58.4450, -58.5100,
-            -58.5050, -58.5200, -58.4900, -58.4600, -58.4750, -58.4950, -58.4700, -58.4721, -58.4820, -58.4600,
-            -58.4611, -58.4550, -58.4500, -58.4160, -58.4100, -58.3950, -58.4700, -58.4600, -58.4800, -58.5414,
-            -58.3680, -58.9614, -58.5561, -58.5797, -58.8682, -58.7205, -58.4937, -58.5100, -58.3700, -58.4000,
-            -58.6200, -58.5600, -58.5400, -58.2700, -58.2800, -58.2100, -58.6300, -58.7900, -58.9000, -58.8500,
-            -58.9700, -58.9100, -59.5400, -59.4300, -59.7100, -58.5500, -58.4800, -58.5200, -58.5400, -58.6000,
-            -58.7000, -58.7100, -58.7200, -58.9000, -58.7100
-        ]
-    }
-    df_base = pd.DataFrame(data)
-    if df_nube.empty:
-        return df_base
-    df_total = pd.concat([df_nube, df_base], ignore_index=True)
-    df_total['_KEY'] = df_total['COMISARIA'].astype(str).str.strip().str.upper()
-    df_total = df_total.drop_duplicates(subset='_KEY', keep='first').drop(columns='_KEY')
-    df_total = df_total.dropna(subset=['LATITUD', 'LONGITUD'])
-    return df_total.reset_index(drop=True)
+# =========================================================================
+# COMISARÍAS EN TIEMPO REAL (OpenStreetMap - Overpass API) Y GEOCODIFICACIÓN (Nominatim)
+# Sin bases estáticas: nada de comisarías ni coordenadas guardadas en el código.
+# =========================================================================
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+]
+OSM_HEADERS = {"User-Agent": "AION-YAROKU/1.0 (sistema de seguridad y monitoreo)"}
+TEL_EMERGENCIAS = "911"
+
+def _a_float(valor):
+    try:
+        f = float(str(valor).replace(',', '.'))
+        return None if math.isnan(f) else f
+    except Exception:
+        return None
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    la1, lo1, la2, lo2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    a = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(a))
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _consultar_comisarias_overpass(lat_r, lon_r, radio_m):
+    consulta = f'[out:json][timeout:20];nwr["amenity"="police"](around:{radio_m},{lat_r},{lon_r});out center tags;'
+    for url in OVERPASS_ENDPOINTS:
+        try:
+            r = requests.post(url, data={"data": consulta}, headers=OSM_HEADERS, timeout=12)
+            if r.ok:
+                return r.json().get("elements", [])
+        except Exception:
+            continue
+    raise RuntimeError("Overpass no disponible")  # las excepciones no se guardan en caché
+
+def comisarias_cercanas(lat, lon, max_resultados=5):
+    """Comisarías (amenity=police) más cercanas, consultadas en tiempo real en OpenStreetMap."""
+    columnas = ["COMISARIA", "DIRECCION", "LOCALIDAD", "TELEFONO", "LATITUD", "LONGITUD", "DISTANCIA_KM"]
+    lat_f, lon_f = _a_float(lat), _a_float(lon)
+    if lat_f is None or lon_f is None:
+        return pd.DataFrame(columns=columnas)
+    for radio in (3000, 8000, 20000):
+        try:
+            elementos = _consultar_comisarias_overpass(round(lat_f, 3), round(lon_f, 3), radio)
+        except Exception:
+            return pd.DataFrame(columns=columnas)
+        filas = []
+        for el in elementos:
+            tags = el.get("tags", {})
+            c_lat = el.get("lat", el.get("center", {}).get("lat"))
+            c_lon = el.get("lon", el.get("center", {}).get("lon"))
+            if c_lat is None or c_lon is None:
+                continue
+            tel = str(tags.get("phone", tags.get("contact:phone", ""))).split(";")[0]
+            tel = re.sub(r"[^0-9+]", "", tel) or TEL_EMERGENCIAS
+            calle = f"{tags.get('addr:street', '')} {tags.get('addr:housenumber', '')}".strip()
+            filas.append({
+                "COMISARIA": str(tags.get("name", "COMISARÍA (SIN NOMBRE EN OSM)")).strip().upper(),
+                "DIRECCION": calle.upper() if calle else "---",
+                "LOCALIDAD": str(tags.get("addr:city", tags.get("addr:suburb", "---"))).strip().upper(),
+                "TELEFONO": tel,
+                "LATITUD": float(c_lat),
+                "LONGITUD": float(c_lon),
+                "DISTANCIA_KM": _haversine_km(lat_f, lon_f, float(c_lat), float(c_lon)),
+            })
+        if filas:
+            df = pd.DataFrame(filas).sort_values("DISTANCIA_KM").drop_duplicates(subset=["LATITUD", "LONGITUD"])
+            return df.head(max_resultados).reset_index(drop=True)
+    return pd.DataFrame(columns=columnas)
+
+def comisaria_mas_cercana(lat, lon):
+    df = comisarias_cercanas(lat, lon, max_resultados=1)
+    return df.iloc[0] if not df.empty else None
+
+def datos_comisaria_panico(lat, lon):
+    """Datos para mostrar en un pánico. Si OpenStreetMap no responde o no hay datos, se indica el 911."""
+    com = comisaria_mas_cercana(lat, lon)
+    if com is None:
+        return {"nombre": "COMISARÍA JURISDICCIONAL (SIN DATOS EN OSM)", "direccion": "---", "localidad": "---",
+                "telefono": TEL_EMERGENCIAS, "lat": None, "lon": None, "distancia_txt": "distancia sin datos"}
+    return {"nombre": com["COMISARIA"], "direccion": com["DIRECCION"], "localidad": com["LOCALIDAD"],
+            "telefono": com["TELEFONO"], "lat": com["LATITUD"], "lon": com["LONGITUD"],
+            "distancia_txt": f"~{float(com['DISTANCIA_KM']):.2f} KM"}
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _geocodificar_nominatim(consulta):
+    r = requests.get("https://nominatim.openstreetmap.org/search",
+                     params={"q": consulta, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
+                     headers=OSM_HEADERS, timeout=10)
+    r.raise_for_status()
+    res = r.json()
+    if res:
+        return float(res[0]["lat"]), float(res[0]["lon"])
+    return None
+
+def geocodificar_direccion(direccion, localidad):
+    """Dirección -> (lat, lon) con OpenStreetMap (Nominatim). None si no la encuentra."""
+    d, l = str(direccion).strip(), str(localidad).strip()
+    if not d or not l:
+        return None
+    return _geocodificar_nominatim(f"{d}, {l}, Buenos Aires, Argentina")
 
 @st.cache_data(ttl=30, show_spinner=False)
 def cargar_objetivos():
@@ -440,105 +440,46 @@ def _declarar_visor_qr(version="v6"):
         f.write(html)
     return components.declare_component(f"aion_visor_qr_{version}", path=carpeta)
 
-def verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, lat, lon):
-    try:
-        gc = conectar_google()
-        if gc:
-            sh = gc.open_by_key(ID_MAESTRO_DB)
-            try:
-                hoja_comis = sh.worksheet("COMISARIAS")
-            except:
-                hoja_comis = sh.add_worksheet(title="COMISARIAS", rows="100", cols="10")
-                hoja_comis.append_row(["COMISARIA", "DIRECCION", "LOCALIDAD", "TELEFONO", "LATITUD", "LONGITUD"])
-
-            registros_existentes = hoja_comis.get_all_values()
-            encontrada = False
-            for fila_c in registros_existentes[1:]:
-                if len(fila_c) > 0 and str(fila_c[0]).strip().upper() == str(com_n).strip().upper():
-                    encontrada = True
-                    break
-             
-            if not encontrada and str(com_n).strip() != "" and str(com_n).strip() != "---":
-                hoja_comis.append_row([
-                    str(com_n).strip().upper(), 
-                    str(com_d).strip().upper(), 
-                    str(com_l).strip().upper(), 
-                    str(com_t).strip(), 
-                    str(lat), 
-                    str(lon)
-                ])
-                st.cache_data.clear()
-    except Exception as e:
-        print(f"Error gestionando solapa comisarías: {e}")
-
-def registrar_objetivo_con_comisaria_automatica(nombre_obj, direccion, localidad, supervisor, lat, lon, responsables):
+def registrar_objetivo(nombre_obj, direccion, localidad, supervisor, responsables):
+    """Da de alta un objetivo. La ubicación se obtiene sola desde la dirección (OpenStreetMap);
+    la comisaría ya no se guarda: se consulta en tiempo real cuando hace falta."""
     nombre_obj_upper = str(nombre_obj).strip().upper()
-    localidad_obj_upper = str(localidad).strip().upper()
-     
-    distancia_minima = float('inf')
-    com_n, com_d, com_l, com_t = "COMISARÍA JURISDICCIONAL", "---", "---", "011-4000-0000"
-    com_lat_calc, com_lon_calc = lat, lon
-     
-    df_comis = cargar_datos_comisarias()
+    coords = None
     try:
-        lat_f = float(str(lat).replace(',', '.'))
-        lon_f = float(str(lon).replace(',', '.'))
-         
-        if not df_comis.empty and 'LOCALIDAD' in df_comis.columns:
-            df_comis_filtrada = df_comis[df_comis['LOCALIDAD'].astype(str).str.strip().str.upper() == localidad_obj_upper]
-            if df_comis_filtrada.empty:
-                df_comis_filtrada = df_comis
-        else:
-            df_comis_filtrada = df_comis
-
-        for _, com in df_comis_filtrada.iterrows():
-            lon1, lat1, lon2, lat2 = map(math.radians, [lon_f, lat_f, com['LONGITUD'], com['LATITUD']])
-            dlon = lon2 - lon1
-            dlat = lat2 - lat1
-            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-            c = 2 * math.asin(math.sqrt(a))
-            km = 6371 * c
-            if km < distancia_minima:
-                distancia_minima = km
-                com_n = com['COMISARIA']
-                com_d = com['DIRECCION']
-                com_l = com['LOCALIDAD']
-                com_t = com.get('TELEFONO', '011-4000-0000')
-                com_lat_calc = com.get('LATITUD', lat)
-                com_lon_calc = com.get('LONGITUD', lon)
-    except Exception as e:
-        print(f"Error calculando comisaría cercana: {e}")
-
-    comisaria_formateada = f"{com_n} - {com_d}, {com_l} (Tel: {com_t}) (~{distancia_minima:.2f} KM)"
+        coords = geocodificar_direccion(direccion, localidad)
+    except Exception:
+        return False, "❌ No se pudo consultar OpenStreetMap para ubicar la dirección. Intentá de nuevo en unos segundos."
+    if coords is None:
+        return False, "❌ No se pudo ubicar esa dirección en OpenStreetMap. Revisá calle, altura y localidad (ej: AV. MITRE 1234, AVELLANEDA)."
 
     datos_nuevo_obj = [
-        nombre_obj_upper, 
-        str(direccion).strip().upper(), 
-        str(localidad).strip().upper(), 
-        str(supervisor).strip().upper(), 
-        str(lat), 
-        str(lon), 
+        nombre_obj_upper,
+        str(direccion).strip().upper(),
+        str(localidad).strip().upper(),
+        str(supervisor).strip().upper(),
+        str(coords[0]),
+        str(coords[1]),
         str(responsables).strip().upper(),
-        comisaria_formateada
+        ""  # columna de comisaría: ya no se almacena
     ]
-     
-    exito = escribir_registro_nube("OBJETIVOS", datos_nuevo_obj)
-    verificar_e_insertar_comisaria_automatica(com_n, com_d, com_l, com_t, com_lat_calc, com_lon_calc)
-    return exito
+    if escribir_registro_nube("OBJETIVOS", datos_nuevo_obj):
+        return True, ""
+    return False, "❌ Error al registrar en la nube. Verifique la conexión con Google Sheets."
 
 def _avisar_cambio_servicio(supervisor, asunto, texto, usuario):
     """El supervisor recibe el aviso en la campanita y en su mensajería (gravedad AMARILLO); Jefe y Gerencia quedan al tanto."""
     notificar_novedad(texto, extra=[supervisor])
     escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), usuario, supervisor, asunto, texto, "PENDIENTE", "AMARILLO"])
 
-def alta_servicio(nombre, direccion, localidad, supervisor, lat, lon, responsables, usuario):
+def alta_servicio(nombre, direccion, localidad, supervisor, responsables, usuario):
     nombre_u = str(nombre).strip().upper()
     sup_u = str(supervisor).strip().upper()
     df_o = cargar_objetivos()
     if not df_o.empty and (col_texto(df_o, 'OBJETIVO').str.strip().str.upper() == nombre_u).any():
         return False, f"Ya existe un servicio activo llamado {nombre_u}."
-    if not registrar_objetivo_con_comisaria_automatica(nombre_u, direccion, localidad, sup_u, lat, lon, responsables):
-        return False, "No se pudo registrar el servicio en la nube. Verificá la conexión con Google Sheets."
+    ok_reg, aviso_reg = registrar_objetivo(nombre_u, direccion, localidad, sup_u, responsables)
+    if not ok_reg:
+        return False, aviso_reg
     escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), usuario, "ALTA", f"{nombre_u} | ASIG: {sup_u}", "PROCESADO"])
     _avisar_cambio_servicio(sup_u, "ALTA DE SERVICIO",
         f"🟢 ALTA DE SERVICIO: {usuario} dio de alta el objetivo {nombre_u} ({str(direccion).strip().upper()}, {str(localidad).strip().upper()}) y te lo asignó. Ya figura en tu panel.", usuario)
@@ -790,21 +731,6 @@ def col_texto(df, col):
     if isinstance(s, pd.DataFrame):
         s = s.iloc[:, 0]
     return s.astype(str)
-
-def comisaria_mas_cercana(lat, lon, localidad, df_com):
-    df_f = df_com
-    if localidad and 'LOCALIDAD' in df_com.columns:
-        sub = df_com[col_texto(df_com, 'LOCALIDAD').str.strip().str.upper() == localidad]
-        if not sub.empty:
-            df_f = sub
-    mejor, dmin = None, float('inf')
-    for _, c in df_f.iterrows():
-        la1, lo1, la2, lo2 = map(math.radians, [lat, lon, c['LATITUD'], c['LONGITUD']])
-        a = math.sin((la2-la1)/2)**2 + math.cos(la1)*math.cos(la2)*math.sin((lo2-lo1)/2)**2
-        d = 6371 * 2 * math.asin(math.sqrt(a))
-        if d < dmin:
-            dmin, mejor = d, c
-    return mejor
 
 GRAVEDADES_MENSAJE = {"VERDE": "🟢", "AMARILLO": "🟡", "ROJA": "🔴"}
 COLORES_MENSAJE = {"VERDE": "#2E9E5B", "AMARILLO": "#E0A800", "ROJA": "#D32F2F"}
@@ -3790,7 +3716,6 @@ if not st.session_state.usuario_logueado:
 aplicar_identidad_alfa()
 
 df_objetivos = cargar_objetivos()
-df_comisarias = cargar_datos_comisarias()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
 
 if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_autenticado", False):
@@ -4069,39 +3994,31 @@ if st.session_state.rol_sel == "MONITOREO":
             st.session_state["filtro_radar_valor"] = obj_seleccionado
          
         comisaria_cercana_name = None
-        distancia_minima = float('inf')
+        distancia_minima = None
         com_lat_m, com_lon_m = None, None
         lat_obj, lon_obj = 0.0, 0.0
+        df_com_sel = pd.DataFrame()
          
         if obj_seleccionado != "MOSTRAR TODO" and not df_mapa_filtrado_sup.empty:
             datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
             lat_obj = datos_obj['LATITUD']
             lon_obj = datos_obj['LONGITUD']
-            localidad_obj_val = str(datos_obj.get('LOCALIDAD', '')).strip().upper()
              
-            df_comis_filtro_mono = df_comisarias
-            if localidad_obj_val and 'LOCALIDAD' in df_comisarias.columns:
-                df_sub_c = df_comisarias[col_texto(df_comisarias, 'LOCALIDAD').str.strip().str.upper() == localidad_obj_val]
-                if not df_sub_c.empty:
-                    df_comis_filtro_mono = df_sub_c
-
-            for _, com in df_comis_filtro_mono.iterrows():
-                lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj, lat_obj, com['LONGITUD'], com['LATITUD']])
-                dlon = lon2 - lon1
-                dlat = lat2 - lat1
-                a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                c = 2 * math.asin(math.sqrt(a))
-                km = 6371 * c
-                 
-                if km < distancia_minima:
-                    distancia_minima = km
-                    comisaria_cercana_name = com['COMISARIA']
-                    com_lat_m = com['LATITUD']
-                    com_lon_m = com['LONGITUD']
+            # Comisarías cercanas consultadas en tiempo real (OpenStreetMap / Overpass)
+            df_com_sel = comisarias_cercanas(lat_obj, lon_obj, max_resultados=5)
+            if not df_com_sel.empty:
+                com_m = df_com_sel.iloc[0]
+                comisaria_cercana_name = com_m['COMISARIA']
+                distancia_minima = float(com_m['DISTANCIA_KM'])
+                com_lat_m = com_m['LATITUD']
+                com_lon_m = com_m['LONGITUD']
              
             with col_sel2:
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=comisaria_cercana_name if comisaria_cercana_name else "N/A")
-                st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
+                if distancia_minima is not None:
+                    st.caption(f"Distancia estimada: {distancia_minima:.2f} Km")
+                else:
+                    st.caption("Sin datos en OpenStreetMap o servicio no disponible.")
                  
                 if comisaria_cercana_name:
                     url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_lat_m},{com_lon_m}&destination={lat_obj},{lon_obj}&travelmode=driving"
@@ -4144,8 +4061,11 @@ if st.session_state.rol_sel == "MONITOREO":
             </style>
             """))
 
-            df_com = cargar_datos_comisarias()
-            comisarias_en_panico = set()
+            comisarias_mapa = {}  # comisarías consultadas en tiempo real (OpenStreetMap)
+            if comisaria_cercana_name and not df_com_sel.empty:
+                for _, c_s in df_com_sel.iterrows():
+                    comisarias_mapa.setdefault((round(float(c_s["LATITUD"]), 5), round(float(c_s["LONGITUD"]), 5)),
+                        {"nombre": c_s["COMISARIA"], "lat": float(c_s["LATITUD"]), "lon": float(c_s["LONGITUD"]), "panico": False})
 
             for _, r in df_mapa_filtrado_sup.iterrows():
                 obj_nombre = str(r['OBJETIVO']).strip().upper()
@@ -4172,9 +4092,10 @@ if st.session_state.rol_sel == "MONITOREO":
                         )
                     ).add_to(m_mon)
 
-                    com = comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'], str(r.get('LOCALIDAD', '')).strip().upper(), df_com)
+                    com = comisaria_mas_cercana(r['LATITUD'], r['LONGITUD'])
                     if com is not None:
-                        comisarias_en_panico.add(com['COMISARIA'])
+                        comisarias_mapa[(round(float(com['LATITUD']), 5), round(float(com['LONGITUD']), 5))] = {
+                            "nombre": com['COMISARIA'], "lat": float(com['LATITUD']), "lon": float(com['LONGITUD']), "panico": True}
                         ruta = obtener_ruta_calles_osrm(r['LATITUD'], r['LONGITUD'], com['LATITUD'], com['LONGITUD'])
                         folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
                         folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
@@ -4191,14 +4112,14 @@ if st.session_state.rol_sel == "MONITOREO":
                         tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
 
-            for _, c in df_com.iterrows():
-                en_panico = c['COMISARIA'] in comisarias_en_panico
+            for c in comisarias_mapa.values():
+                en_panico = c["panico"]
                 color_icono = "#FFD600" if en_panico else "#0000FF"
                 tamano_fuente = "26px" if en_panico else "20px"
                 sufijo = " 🌟 [MÁS CERCANA AL PÁNICO]" if en_panico else ""
                 folium.Marker(
-                    location=[c['LATITUD'], c['LONGITUD']],
-                    tooltip=f"👮 {c['COMISARIA']}{sufijo}",
+                    location=[c["lat"], c["lon"]],
+                    tooltip=f"👮 {c['nombre']}{sufijo}",
                     icon=folium.DivIcon(html=f"""<div style="font-size:{tamano_fuente};color:{color_icono};text-shadow:0 0 10px {color_icono};"><i class="fa fa-shield"></i></div>""")
                 ).add_to(m_mon)
 
@@ -4462,54 +4383,26 @@ elif st.session_state.rol_sel == "SUPERVISOR":
         col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
         with col_p2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
-                lat_obj_s, lon_obj_s = 0.0, 0.0
-                localidad_obj_s = ""
+                lat_obj_s, lon_obj_s = None, None
                 if not df_objetivos.empty:
                     filtro_sup_obj = df_objetivos[df_objetivos['OBJETIVO'] == obj_actual]
                     if not filtro_sup_obj.empty:
-                        lat_obj_s = float(str(filtro_sup_obj['LATITUD'].iloc[0]).replace(',', '.'))
-                        lon_obj_s = float(str(filtro_sup_obj['LONGITUD'].iloc[0]).replace(',', '.'))
-                        localidad_obj_s = str(filtro_sup_obj.iloc[0].get('LOCALIDAD', '')).strip().upper()
+                        lat_obj_s = _a_float(filtro_sup_obj['LATITUD'].iloc[0])
+                        lon_obj_s = _a_float(filtro_sup_obj['LONGITUD'].iloc[0])
 
-                com_nombre_s = "COMISARÍA JURISDICCIONAL"
-                com_dir_s = "---"
-                com_loc_s = "---"
-                com_tel_s = "011-4000-0000"
-                com_lat_s, com_lon_s = lat_obj_s, lon_obj_s
-                dist_s = float('inf')
-
-                df_comis_filtro_s = df_comisarias
-                if localidad_obj_s and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_s = df_comisarias[col_texto(df_comisarias, 'LOCALIDAD').str.strip().str.upper() == localidad_obj_s]
-                    if not df_sub_s.empty:
-                        df_comis_filtro_s = df_sub_s
-
-                for _, com in df_comis_filtro_s.iterrows():
-                    try:
-                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_s, lat_obj_s, com['LONGITUD'], com['LATITUD']])
-                        d = 6371 * 2 * math.asin(math.sqrt(math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2))
-                        if d < dist_s:
-                            dist_s = d
-                            com_nombre_s = com['COMISARIA']
-                            com_dir_s = com['DIRECCION']
-                            com_loc_s = com['LOCALIDAD']
-                            com_tel_s = com.get('TELEFONO', '011-4000-0000')
-                            com_lat_s = com.get('LATITUD', lat_obj_s)
-                            com_lon_s = com.get('LONGITUD', lon_obj_s)
-                    except: pass
-
-                verificar_e_insertar_comisaria_automatica(com_nombre_s, com_dir_s, com_loc_s, com_tel_s, com_lat_s, com_lon_s)
-
+                # 1) Primero se registra y se envía la alerta (no depende de ningún servicio externo)
                 exito = escribir_registro_nube("ALERTAS", [
                     obtener_hora_argentina(), st.session_state.user_sel, "PÁNICO", "PENDIENTE", obj_actual, st.session_state.user_sel
                 ])
                 if exito:
                     enviar_push_panico(st.session_state.user_sel, obj_actual, "")
                     st.error(f"🚨 ALERTA ENVIADA DESDE {obj_actual}")
+                    # 2) Después se consulta en tiempo real la comisaría más cercana (OpenStreetMap / Overpass)
+                    info_com_s = datos_comisaria_panico(lat_obj_s, lon_obj_s)
                     st.session_state.alerta_activa_supervisor = {
-                        "comisaria": com_nombre_s,
-                        "telefono": com_tel_s,
-                        "distancia": f"{dist_s:.2f}"
+                        "comisaria": info_com_s["nombre"],
+                        "telefono": info_com_s["telefono"],
+                        "distancia": info_com_s["distancia_txt"]
                     }
 
         if 'alerta_activa_supervisor' in st.session_state:
@@ -4520,7 +4413,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                         🚨 EMERGENCIA ACTIVA - COMISARÍA JURISDICCIONAL REAL
                     </div>
                     <div style="color: #CBD5E1; font-size: 13px; margin-top: 6px;">
-                        <b>{datos_s['comisaria']}</b> (~{datos_s['distancia']} KM)
+                        <b>{datos_s['comisaria']}</b> ({datos_s['distancia']})
                     </div>
                     <div style="margin-top: 12px;">
                         <a href="tel:{datos_s['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 10px 22px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
@@ -4703,7 +4596,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     st.markdown("#### DATOS CLAVE DEL OBJETIVO")
                     st.write(f"**Dirección:** {datos_sel.get('DIRECCION', 'N/A')}")
                     st.write(f"**Localidad:** {datos_sel.get('LOCALIDAD', 'N/A')}")
-                    st.write(f"**Coordenadas:** {datos_sel.get('LATITUD', 0)}, {datos_sel.get('LONGITUD', 0)}")
                      
                     lat = datos_sel.get('LATITUD', 0)
                     lon = datos_sel.get('LONGITUD', 0)
@@ -4773,24 +4665,20 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                      
                     col_loc1, col_loc2 = st.columns(2)
                     nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="").upper().strip()
-                    nueva_lat = col_loc2.text_input("LATITUD (Ej: -34.5985):", value="")
-                     
-                    col_lon1, col_lon2 = st.columns(2)
-                    nueva_lon = col_lon1.text_input("LONGITUD (Ej: -58.3838):", value="")
-                    nuevos_responsables = col_lon2.text_input("RESPONSABLES:", value="").upper().strip()
+                    nuevos_responsables = col_loc2.text_input("RESPONSABLES:", value="").upper().strip()
                      
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
-                        if nuevo_nombre_obj and nueva_lat and nueva_lon:
-                            exito_alta = registrar_objetivo_con_comisaria_automatica(
-                                nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nueva_lat, nueva_lon, nuevos_responsables
+                        if nuevo_nombre_obj and nueva_direccion and nueva_localidad:
+                            exito_alta, aviso_alta = registrar_objetivo(
+                                nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nuevos_responsables
                             )
                             if exito_alta:
-                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' y comisaría jurisdiccional cargados con éxito en la red!")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' cargado con éxito en la red!")
                             else:
-                                st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
+                                st.error(aviso_alta)
                         else:
-                            st.warning("⚠️ Complete los campos obligatorios (Nombre, Latitud y Longitud).")
+                            st.warning("⚠️ Complete los campos obligatorios (Nombre, Dirección y Localidad).")
 
             with tab_baja_sup:
                 if not df_objetivos_filtrados.empty:
@@ -4814,20 +4702,12 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 obj_r = st.selectbox("DESTINO:", opciones_r, key="sup_ruta_gmaps_target")
                 datos_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_r].iloc[0]
                 lat, lon = datos_r['LATITUD'], datos_r['LONGITUD']
-                loc_r = str(datos_r.get('LOCALIDAD', '')).strip().upper()
-                 
-                dist_min, com_name, com_lat, com_lon = float('inf'), "Ninguna", 0.0, 0.0
-                df_comis_filtro_r = df_comisarias
-                if loc_r and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_r = df_comisarias[col_texto(df_comisarias, 'LOCALIDAD').str.strip().str.upper() == loc_r]
-                    if not df_sub_r.empty:
-                        df_comis_filtro_r = df_sub_r
-
-                for _, com in df_comis_filtro_r.iterrows():
-                    d = 6371 * 2 * math.asin(math.sqrt(math.sin((math.radians(com['LATITUD'])-math.radians(lat))/2)**2 + math.cos(math.radians(lat))*math.cos(math.radians(com['LATITUD']))*math.sin((math.radians(com['LONGITUD'])-math.radians(lon))/2)**2))
-                    if d < dist_min: dist_min, com_name, com_lat, com_lon = d, com['COMISARIA'], com['LATITUD'], com['LONGITUD']
-                st.info(f"👮 **Comisaría Encontrada:** {com_name} ({dist_min:.2f} Km)")
-                st.link_button("🗺️ ABRIR ASISTENTE GPS", f"https://www.google.com/maps/dir/?api=1&origin={com_lat},{com_lon}&destination={lat},{lon}&travelmode=driving", use_container_width=True)
+                com_r = comisaria_mas_cercana(lat, lon)
+                if com_r is None:
+                    st.warning("⚠️ No se encontró ninguna comisaría cercana en OpenStreetMap (o el servicio no respondió). Probá de nuevo en unos segundos.")
+                else:
+                    st.info(f"👮 **Comisaría Encontrada:** {com_r['COMISARIA']} ({com_r['DISTANCIA_KM']:.2f} Km)")
+                    st.link_button("🗺️ ABRIR ASISTENTE GPS", f"https://www.google.com/maps/dir/?api=1&origin={com_r['LATITUD']},{com_r['LONGITUD']}&destination={lat},{lon}&travelmode=driving", use_container_width=True)
 
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
@@ -4901,62 +4781,30 @@ elif st.session_state.rol_sel == "VIGILADOR":
         with col_pv2:
             if st.button("S.O.S\nPÁNICO", type="primary"):
                 sup_asignado = "MONITOREO"
-                lat_obj_vig, lon_obj_vig = 0.0, 0.0
-                localidad_obj_v = ""
+                lat_obj_vig, lon_obj_vig = None, None
                 if not df_objetivos.empty:
                     filtro = df_objetivos[df_objetivos['OBJETIVO'] == obj_detectado]
                     if not filtro.empty:
                         sup_asignado = str(filtro['SUPERVISOR'].iloc[0]).strip()
-                        lat_obj_vig = float(str(filtro['LATITUD'].iloc[0]).replace(',', '.'))
-                        lon_obj_vig = float(str(filtro['LONGITUD'].iloc[0]).replace(',', '.'))
-                        localidad_obj_v = str(filtro.iloc[0].get('LOCALIDAD', '')).strip().upper()
-                 
-                com_cercana_nombre = "COMISARÍA JURISDICCIONAL"
-                com_cercana_dir = "---"
-                com_cercana_loc = "---"
-                com_cercana_tel = "011-4000-0000"
-                com_cercana_lat, com_cercana_lon = lat_obj_vig, lon_obj_vig
-                dist_min_com = float('inf')
-                 
-                df_comis_filtro_v = df_comisarias
-                if localidad_obj_v and 'LOCALIDAD' in df_comisarias.columns:
-                    df_sub_v = df_comisarias[col_texto(df_comisarias, 'LOCALIDAD').str.strip().str.upper() == localidad_obj_v]
-                    if not df_sub_v.empty:
-                        df_comis_filtro_v = df_sub_v
+                        lat_obj_vig = _a_float(filtro['LATITUD'].iloc[0])
+                        lon_obj_vig = _a_float(filtro['LONGITUD'].iloc[0])
 
-                for _, com in df_comis_filtro_v.iterrows():
-                    try:
-                        lon1, lat1, lon2, lat2 = map(math.radians, [lon_obj_vig, lat_obj_vig, com['LONGITUD'], com['LATITUD']])
-                        dlon = lon2 - lon1
-                        dlat = lat2 - lat1
-                        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                        c = 2 * math.asin(math.sqrt(a))
-                        km = 6371 * c
-                        if km < dist_min_com:
-                            dist_min_com = km
-                            com_cercana_nombre = com['COMISARIA']
-                            com_cercana_dir = com['DIRECCION']
-                            com_cercana_loc = com['LOCALIDAD']
-                            com_cercana_tel = com.get('TELEFONO', '011-4000-0000')
-                            com_cercana_lat = com.get('LATITUD', lat_obj_vig)
-                            com_cercana_lon = com.get('LONGITUD', lon_obj_vig)
-                    except: pass
-
-                verificar_e_insertar_comisaria_automatica(com_cercana_nombre, com_cercana_dir, com_cercana_loc, com_cercana_tel, com_cercana_lat, com_cercana_lon)
-
-                st.session_state.alerta_activa_vigilador = {
-                    "nombre": nombre_vigilador_actual,
-                    "obj": obj_detectado,
-                    "comisaria": com_cercana_nombre,
-                    "direccion": com_cercana_dir,
-                    "telefono": com_cercana_tel,
-                    "distancia": f"{dist_min_com:.2f}"
-                }
-
+                # 1) Primero se registra y se envía la alerta (no depende de ningún servicio externo)
                 fecha = obtener_hora_argentina()
                 escribir_registro_nube("ALERTAS", [fecha, nombre_vigilador_actual, "PÁNICO", "PENDIENTE", obj_detectado, sup_asignado])
                 enviar_alerta_automatica("SISTEMA_VIGILADOR", obj_detectado, nombre_vigilador_actual, sup_asignado)
                 st.error(f"🚨 ALERTA ENVIADA: {nombre_vigilador_actual} DESDE {obj_detectado}")
+
+                # 2) Después se consulta en tiempo real la comisaría más cercana (OpenStreetMap / Overpass)
+                info_com_v = datos_comisaria_panico(lat_obj_vig, lon_obj_vig)
+                st.session_state.alerta_activa_vigilador = {
+                    "nombre": nombre_vigilador_actual,
+                    "obj": obj_detectado,
+                    "comisaria": info_com_v["nombre"],
+                    "direccion": info_com_v["direccion"],
+                    "telefono": info_com_v["telefono"],
+                    "distancia": info_com_v["distancia_txt"]
+                }
 
         if 'alerta_activa_vigilador' in st.session_state:
             datos_pan = st.session_state.alerta_activa_vigilador
@@ -4967,7 +4815,7 @@ elif st.session_state.rol_sel == "VIGILADOR":
                     </div>
                     <div style="color: #CBD5E1; font-size: 13px; margin-top: 8px; text-align: center;">
                         👮 <b>COMISARÍA:</b> {datos_pan['comisaria']}<br>
-                        <b>Dirección:</b> {datos_pan['direccion']} (~{datos_pan['distancia']} KM)
+                        <b>Dirección:</b> {datos_pan['direccion']} ({datos_pan['distancia']})
                     </div>
                     <div style="margin-top: 12px; text-align: center;">
                         <a href="tel:{datos_pan['telefono']}" style="background-color: #1E293B; color: #94A3B8; padding: 12px 24px; border-radius: 6px; border: 1px solid #475569; font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px; text-decoration: none; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
@@ -5124,21 +4972,13 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                 a_nom = st.text_input("Nombre del servicio:")
                 a_dir = st.text_input("Dirección:")
                 a_loc = st.text_input("Localidad:")
-                c_lat, c_lon = st.columns(2)
-                a_lat = c_lat.text_input("Latitud (Ej: -34.5985):")
-                a_lon = c_lon.text_input("Longitud (Ej: -58.3838):")
                 a_resp = st.text_input("Responsables:")
                 a_sup = st.selectbox("Asignar al supervisor:", LISTA_SUPS_TACTICOS)
                 if st.form_submit_button("🟢 DAR DE ALTA Y AVISAR AL SUPERVISOR"):
-                    try:
-                        float(a_lat.replace(",", ".")); float(a_lon.replace(",", "."))
-                        coords_ok = True
-                    except Exception:
-                        coords_ok = False
-                    if not (a_nom.strip() and a_loc.strip() and coords_ok):
-                        st.session_state.msg_servicio = (False, "⚠️ Completá nombre, localidad y coordenadas válidas (latitud y longitud).")
+                    if not (a_nom.strip() and a_dir.strip() and a_loc.strip()):
+                        st.session_state.msg_servicio = (False, "⚠️ Completá nombre, dirección y localidad.")
                     else:
-                        ok_a, txt_a = alta_servicio(a_nom, a_dir, a_loc, a_sup, a_lat, a_lon, a_resp, st.session_state.user_sel)
+                        ok_a, txt_a = alta_servicio(a_nom, a_dir, a_loc, a_sup, a_resp, st.session_state.user_sel)
                         st.session_state.msg_servicio = (ok_a, ("✅ " if ok_a else "❌ ") + txt_a)
                     st.rerun()
         with col_g2:
