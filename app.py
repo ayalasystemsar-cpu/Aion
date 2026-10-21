@@ -1,4 +1,3 @@
-
 import streamlit as st
 import html as _html_msg
 import datetime
@@ -1359,116 +1358,203 @@ def recordar_push_panicos_sin_leer(cada_seg=60, max_veces=15):
         _push_ntfy([_slug_topic(d)], f"SIN LEER ({n}): PANICO {r['REMITENTE']} - {r['MENSAJE']}", prefijo)
         estado[clave] = (n + 1, time.time())
 
-HORAS_ALARMA_PANICO = 12  # un mensaje de pánico sin leer deja de sonar pasadas estas horas
+HORAS_ALARMA_PANICO = 6  # un pánico sin atender deja de sonar pasadas estas horas
 
+# Motor de la sirena: vive en la ventana principal del navegador (no dentro del cartel), así no se corta
+# cuando Streamlit redibuja el cartel. El cartel solo le dice "sonar" o "callar" y le avisa que sigue vivo.
 _HTML_ALARMA_PANICO = """
 <style>
   body{margin:0;font-family:sans-serif}
-  #b{background:#B00020;color:#fff;border-radius:8px;padding:10px;text-align:center;font-weight:700;
-     font-size:15px;animation:p 1s infinite}
+  #b{border-radius:8px;padding:9px;text-align:center;font-weight:700;font-size:15px}
+  #b.on{background:#B00020;color:#fff;animation:p 1s infinite}
+  #b.off{background:rgba(57,255,20,.08);border:1px solid rgba(57,255,20,.35);color:#7CE38B;font-size:12px;font-weight:600}
   @keyframes p{50%{background:#FF3B30}}
   #d{font-weight:400;font-size:12px;margin-top:3px}
   #s{font-size:12px;margin-top:4px;color:#FFD600;text-align:center}
+  button{background:#FFD600;color:#000;border:none;border-radius:6px;padding:6px 10px;font-weight:700;font-size:12px;margin-top:4px;width:100%}
 </style>
-<div id="b">🚨 PÁNICO ACTIVO (__N__)<div id="d">__DET__</div></div>
+<div id="b" class="__CLASE__">__TITULO__<div id="d">__DET__</div></div>
 <div id="s"></div>
 <script>
-(function(){
-  var P = window.parent, ctx = null, osc = null, alto = false, tm = null;
-  function estado(){
-    var ok = ctx && ctx.state === "running";
-    document.getElementById("s").textContent = ok ? "" : "🔈 Tocá la pantalla una vez para activar el sonido";
-  }
-  function resumir(){
-    try { if (ctx && ctx.state !== "running") ctx.resume().then(estado); } catch(e) {}
-  }
-  try {
-    var AC = window.AudioContext || window.webkitAudioContext;
-    ctx = new AC();
-    var g = ctx.createGain(); g.gain.value = 0.35; g.connect(ctx.destination);
-    osc = ctx.createOscillator(); osc.type = "sawtooth"; osc.frequency.value = 800;
-    osc.connect(g); osc.start();
-    tm = setInterval(function(){
-      alto = !alto;
-      try { osc.frequency.setTargetAtTime(alto ? 1200 : 800, ctx.currentTime, 0.04); } catch(e) {}
-      try { if (navigator.vibrate) navigator.vibrate(300); } catch(e) {}
-      resumir();
-    }, 500);
-    ctx.onstatechange = estado; resumir(); estado();
-  } catch(e) {
-    document.getElementById("s").textContent = "No se pudo iniciar el audio en este navegador.";
-  }
+function motor(W){
+  if (W.__aion) return;
+  var A = W.__aion = {ctx: null, on: false, hb: 0};
+  A.unlock = function(){
+    try {
+      var AC = W.AudioContext || W.webkitAudioContext;
+      if (!A.ctx) A.ctx = new AC();
+      if (A.ctx.state !== "running") A.ctx.resume();
+    } catch(e) {}
+  };
+  A.start = function(){
+    A.unlock();
+    if (A.on) return;
+    A.on = true;
+    try {
+      var c = A.ctx;
+      A.g = c.createGain(); A.g.gain.value = 0.35; A.g.connect(c.destination);
+      A.o = c.createOscillator(); A.o.type = "sawtooth"; A.o.frequency.value = 1000;
+      A.l = c.createOscillator(); A.l.type = "square"; A.l.frequency.value = 1.8;
+      A.lg = c.createGain(); A.lg.gain.value = 200;
+      A.l.connect(A.lg); A.lg.connect(A.o.frequency);
+      A.o.connect(A.g); A.o.start(); A.l.start();
+    } catch(e) {}
+    A.vt = W.setInterval(function(){ try { if (W.navigator.vibrate) W.navigator.vibrate(300); } catch(e) {} }, 700);
+  };
+  A.stop = function(){
+    if (!A.on) return;
+    A.on = false;
+    try { A.o.stop(); A.l.stop(); A.g.disconnect(); } catch(e) {}
+    W.clearInterval(A.vt);
+  };
+  // Si el cartel desaparece (cierre de sesión, otra pantalla), la sirena se apaga sola a los 30 s
+  W.setInterval(function(){ if (A.on && Date.now() - A.hb > 30000) A.stop(); }, 2000);
   ["click", "touchstart", "pointerdown", "keydown"].forEach(function(n){
-    document.addEventListener(n, resumir, {passive: true});
-    try { P.document.addEventListener(n, resumir, {passive: true}); } catch(e) {}
+    W.document.addEventListener(n, A.unlock, {passive: true});
   });
-  window.addEventListener("pagehide", function(){ try { clearInterval(tm); ctx.close(); } catch(e) {} });
+}
+(function(){
+  var P = window.parent, A = null;
+  try {
+    if (!P.__aion) P.eval("(" + motor.toString() + ")")(P);
+    A = P.__aion;
+  } catch(e) {
+    try { motor(window); A = window.__aion; } catch(e2) {}
+  }
+  var ON = __ON__;
+  var s = document.getElementById("s");
+  var btn = document.createElement("button");
+  btn.textContent = "🔈 TOCÁ ACÁ PARA ACTIVAR EL SONIDO DE LA ALARMA";
+  btn.onclick = function(){ if (A) { A.unlock(); setTimeout(ui, 300); } };
+  function ui(){
+    var ok = A && A.ctx && A.ctx.state === "running";
+    s.innerHTML = "";
+    if (!A) { s.textContent = "No se pudo iniciar el audio en este navegador."; return; }
+    if (!ok) s.appendChild(btn);
+  }
+  if (A) { A.hb = Date.now(); if (ON) A.start(); else A.stop(); }
+  setInterval(function(){ if (A) A.hb = Date.now(); ui(); }, 1500);
+  ui();
 })();
 </script>
 """
 
+@st.cache_resource(show_spinner=False)
+def _panicos_enterados():
+    """Pánicos que cada usuario ya marcó como ENTERADO (en memoria del servidor)."""
+    return set()
+
+def _panicos_para(rol, usuario):
+    """Pánicos sin atender que le corresponden a este rol: lista de (fecha, vigilador, objetivo, clave).
+    Se arma con la hoja ALERTAS (pánicos PENDIENTES), igual que Monitoreo:
+    - MONITOREO: todos, hasta que se finalicen.
+    - SUPERVISOR: los de sus objetivos (no el propio).
+    - JEFE DE OPERACIONES: todos los de vigiladores y supervisores.
+    Para SUPERVISOR / JEFE se descartan los que ya marcó ENTERADO o cuyo mensaje ya leyó.
+    Devuelve None si no se pudo leer la hoja (para conservar el último estado conocido)."""
+    df = leer_matriz_nube("ALERTAS")
+    if df.empty:
+        return None
+    yo = _remitente_mensajeria()
+    monitoreo = (rol == "MONITOREO")
+    limite = (datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+              - pd.Timedelta(hours=HORAS_ALARMA_PANICO)).strftime("%Y-%m-%d %H:%M:%S")
+    enterados = _panicos_enterados()
+    leidos = []   # (vigilador, fecha) de mensajes de pánico que este usuario ya leyó
+    if not monitoreo:
+        msgs = leer_matriz_nube("MENSAJERIA")
+        if not msgs.empty and {'ASUNTO', 'REMITENTE', 'DESTINATARIO', 'LEIDO_POR'} <= set(msgs.columns):
+            es_panico = col_texto(msgs, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")
+            es_mio = col_texto(msgs, 'DESTINATARIO').str.strip().str.upper().isin(_identidades_mensajeria())
+            lo_leyo = col_texto(msgs, 'LEIDO_POR').apply(lambda v: yo in [x.strip().upper() for x in str(v).split(";")])
+            for _, m in msgs[es_panico & es_mio & lo_leyo].iterrows():
+                leidos.append((str(m['REMITENTE']).strip().upper(), str(m.iloc[0]).strip()))
+    salida = []
+    for _, r in df.iterrows():
+        f = [str(x).strip() for x in r.tolist()] + [""] * 6
+        if f[2].upper().replace("Á", "A") != "PANICO" or f[3].upper() != "PENDIENTE" or f[0] < limite:
+            continue
+        vig = f[1].upper()
+        if not monitoreo:
+            if vig == yo:
+                continue
+            if rol == "SUPERVISOR" and f[5].upper() != yo:
+                continue
+            clave = (yo, f[0], vig)
+            if clave in enterados or any(rv == vig and rf >= f[0] for rv, rf in leidos):
+                continue
+        else:
+            clave = (yo, f[0], vig)
+        salida.append((f[0], vig, f[4].upper(), clave))
+    return salida
+
+def _asunto_panico(vigilador):
+    """Asunto del hilo del último mensaje de pánico de ese vigilador (para responder dentro del mismo hilo)."""
+    msgs = leer_matriz_nube("MENSAJERIA")
+    if not msgs.empty and {'ASUNTO', 'REMITENTE'} <= set(msgs.columns):
+        a = col_texto(msgs, 'ASUNTO').str.strip()
+        m = a.str.upper().str.startswith("ALERTA DE PÁNICO") & (col_texto(msgs, 'REMITENTE').str.strip().str.upper() == vigilador)
+        if m.any():
+            return str(a[m].iloc[-1])
+    return f"ALERTA DE PÁNICO - {vigilador}"
+
 def alarma_panico_sonora(rol, usuario, solo_cartel=False):
-    """Sirena + cartel rojo mientras haya un pánico que le corresponda a este rol.
-    - MONITOREO: suena mientras haya pánicos PENDIENTES en ALERTAS (se corta al finalizarlos).
-    - SUPERVISOR / JEFE DE OPERACIONES (panel lateral): suena hasta que marquen ENTERADO (o lean el mensaje en
-      MENSAJERÍA). Gerencia no recibe sirena.
-    - solo_cartel=True: muestra únicamente el cartel rojo (sin sonido ni botones), para la pantalla principal."""
+    """Sirena + cartel rojo mientras haya un pánico que le corresponda a este rol (se revisa cada 5 s).
+    - MONITOREO: suena hasta que se finalice el pánico. No se puede silenciar.
+    - SUPERVISOR / JEFE DE OPERACIONES (panel lateral): suena hasta que toquen ENTERADO (o lean el mensaje).
+    - GERENCIA: no recibe sirena.
+    - solo_cartel=True: solo el cartel rojo (sin sonido ni botones), para la pantalla principal.
+    Mientras no hay pánicos, el panel muestra "alarma lista" y un botón para activar el sonido del navegador."""
     import html as _html
-    if rol == "GERENCIA":   # Gerencia recibe el mensaje pero no la sirena
+    if rol == "GERENCIA":
         return
 
     @st.fragment(run_every=5)
     def _alarma():
         monitoreo = (rol == "MONITOREO")
-        pend = []
         try:
+            pend = _panicos_para(rol, usuario)
+            if pend is None:
+                pend = st.session_state.get("_pan_ult_" + rol, [])
+            st.session_state["_pan_ult_" + rol] = pend
             if monitoreo:
-                df = leer_matriz_nube("ALERTAS")
-                for _, r in df.iterrows():
-                    f = [str(x).strip() for x in r.tolist()] + [""] * 6
-                    if f[2].upper().replace("Á", "A") == "PANICO" and f[3].upper() == "PENDIENTE":
-                        pend.append((f[0], f[1].upper(), f[4].upper(), None, ""))
                 try:
                     recordar_push_panicos_sin_leer()   # repite el push al celular del supervisor hasta que lo lea
                 except Exception as e:
                     print(f"Error en recordatorios push: {e}")
-            else:
-                df = leer_matriz_nube("MENSAJERIA")
-                sin = _mensajes_sin_leer(df)
-                if not sin.empty and 'ASUNTO' in sin.columns:
-                    sin = sin[col_texto(sin, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")]
-                    limite = (datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
-                              - pd.Timedelta(hours=HORAS_ALARMA_PANICO)).strftime("%Y-%m-%d %H:%M:%S")
-                    sin = sin[sin.iloc[:, 0].astype(str) >= limite]
-                    for i, r in sin.iterrows():
-                        pend.append((str(r.iloc[0]), str(r.get('REMITENTE', '')).upper(), str(r.get('MENSAJE', '')), i, str(r.get('ASUNTO', ''))))
-            if df.empty:
-                pend = st.session_state.get("_pan_ult_" + rol, [])
-            st.session_state["_pan_ult_" + rol] = pend
         except Exception as e:
             print(f"Error en alarma de pánico: {e}")
             pend = st.session_state.get("_pan_ult_" + rol, [])
 
-        if not pend:
-            return
-
-        if monitoreo:
-            detalle = " · ".join(f"{p[1]} @ {p[2]}" for p in pend[:3])
-        else:
-            detalle = " · ".join(p[2].replace("🚨 ", "") for p in pend[:2])
+        detalle = " · ".join(f"{p[1]} @ {p[2]}" for p in pend[:3])
         if len(pend) > 3:
             detalle += f" · +{len(pend) - 3} más"
 
         if solo_cartel:
-            st.error(f"🚨 PÁNICO SIN LEER ({len(pend)}): {detalle}. Tocá ✔️ ENTERADO en el panel lateral (☰ arriba a la izquierda).")
+            if pend:
+                st.error(f"🚨 PÁNICO SIN ATENDER ({len(pend)}): {detalle}. Tocá ✔️ ENTERADO en el panel lateral (☰ arriba a la izquierda).")
             return
 
-        components.html(_HTML_ALARMA_PANICO.replace("__N__", str(len(pend))).replace("__DET__", _html.escape(detalle)), height=80)
+        html_alarma = (_HTML_ALARMA_PANICO
+                       .replace("__ON__", "1" if pend else "0")
+                       .replace("__CLASE__", "on" if pend else "off")
+                       .replace("__TITULO__", f"🚨 PÁNICO ACTIVO ({len(pend)})" if pend else "🔔 Alarma de pánico lista · sin pánicos pendientes")
+                       .replace("__DET__", _html.escape(detalle)))
+        components.html(html_alarma, height=88 if pend else 78)
 
-        if not monitoreo:
+        if pend and not monitoreo:
             if st.button("✔️ ENTERADO (DETENER ALARMA)", key=f"btn_ent_pan_{rol}", use_container_width=True):
-                if marcar_mensajes_leidos([p[3] for p in pend]):
-                    st.rerun()
+                _panicos_enterados().update(p[3] for p in pend)
+                try:   # además marca como leídos los mensajes de pánico de esos vigiladores
+                    msgs = leer_matriz_nube("MENSAJERIA")
+                    sin = _mensajes_sin_leer(msgs)
+                    if not sin.empty and 'ASUNTO' in sin.columns:
+                        sin = sin[col_texto(sin, 'ASUNTO').str.strip().str.upper().str.startswith("ALERTA DE PÁNICO")]
+                        if not sin.empty:
+                            marcar_mensajes_leidos(list(sin.index))
+                except Exception as e:
+                    print(f"Error marcando mensajes de pánico como leídos: {e}")
+                st.rerun()
             ultimo = pend[-1]
             with st.expander(f"✍️ RESPONDER A {ultimo[1]}"):
                 with st.form(key=f"form_resp_pan_{rol}", clear_on_submit=True):
@@ -1476,8 +1562,7 @@ def alarma_panico_sonora(rol, usuario, solo_cartel=False):
                     if st.form_submit_button("✉️ ENVIAR RESPUESTA"):
                         if txt_resp.strip():
                             escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), _remitente_mensajeria(), ultimo[1],
-                                                                 ultimo[4], txt_resp.strip().upper(), "PENDIENTE", "ROJA"])
-                            marcar_mensajes_leidos([p[3] for p in pend])
+                                                                 _asunto_panico(ultimo[1]), txt_resp.strip().upper(), "PENDIENTE", "ROJA"])
                             st.session_state.mensaje_enviado = "RESPUESTA"
                             st.session_state.mensaje_enviado_grav = "ROJA"
                             st.rerun()
