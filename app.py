@@ -482,19 +482,23 @@ def _km(lat1, lon1, lat2, lon2):
     return 6371 * 2 * math.asin(math.sqrt(a))
 
 def _buscar_comisarias_osm(lat, lon):
-    """Busca en OpenStreetMap (Overpass) las dependencias policiales cerca del punto, ampliando el radio hasta encontrar."""
+    """Busca dependencias policiales cerca del punto: primero Overpass y, si falla, Nominatim. Deja el motivo en _almacen_geo()['com_error']."""
     import time
-    for radio in (2500, 6000, 12000, 25000):
-        consulta = f'[out:json][timeout:20];nwr["amenity"="police"](around:{radio},{lat},{lon});out center tags;'
+    alm = _almacen_geo()
+    errores = []
+    # --- 1) Overpass, ampliando el radio ---
+    for radio in (3000, 8000, 20000):
+        consulta = f'[out:json][timeout:15];nwr["amenity"="police"](around:{radio},{lat},{lon});out center tags;'
         elementos = None
         for url in ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"):
             try:
-                r = requests.post(url, data={"data": consulta}, headers={"User-Agent": "AION-YAROKU/1.0"}, timeout=25)
+                r = requests.post(url, data={"data": consulta}, headers={"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)"}, timeout=15)
                 if r.ok:
                     elementos = r.json().get("elements", [])
                     break
-            except Exception:
-                continue
+                errores.append(f"Overpass HTTP {r.status_code}")
+            except Exception as e:
+                errores.append(f"Overpass {type(e).__name__}")
         if elementos:
             res = []
             for e in elementos:
@@ -516,7 +520,36 @@ def _buscar_comisarias_osm(lat, lon):
             if res:
                 con_nombre = [x for x in res if "COMISAR" in x["nombre"]]
                 return sorted(con_nombre or res, key=lambda x: x["distancia_km"])
-        time.sleep(1.0)
+        elif elementos is not None:
+            errores.append(f"Overpass sin comisarías en {radio // 1000} km")
+    # --- 2) Respaldo: Nominatim buscando 'comisaría' dentro de un recuadro alrededor del objetivo ---
+    for d in (0.05, 0.15, 0.3):
+        for termino in ("comisaría", "police"):
+            try:
+                r = requests.get(
+                    "https://nominatim.openstreetmap.org/search",
+                    params={"q": termino, "format": "jsonv2", "limit": 15, "countrycodes": "ar", "bounded": 1,
+                            "viewbox": f"{lon - d},{lat + d},{lon + d},{lat - d}"},
+                    headers={"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)", "Accept-Language": "es"}, timeout=10)
+                time.sleep(1.0)
+                if r.ok:
+                    datos = r.json()
+                    res = []
+                    for x in datos:
+                        nombre = str(x.get("name") or x.get("display_name", "").split(",")[0] or "DEPENDENCIA POLICIAL").upper()
+                        res.append({
+                            "nombre": nombre, "direccion": "---", "localidad": "", "telefono": "",
+                            "lat": float(x["lat"]), "lon": float(x["lon"]),
+                            "distancia_km": _km(lat, lon, float(x["lat"]), float(x["lon"])),
+                        })
+                    if res:
+                        con_nombre = [x for x in res if "COMISAR" in x["nombre"]]
+                        return sorted(con_nombre or res, key=lambda x: x["distancia_km"])
+                else:
+                    errores.append(f"Nominatim HTTP {r.status_code}")
+            except Exception as e:
+                errores.append(f"Nominatim {type(e).__name__}")
+    alm["com_error"] = "; ".join(dict.fromkeys(errores)) or "sin resultados"
     return []
 
 def comisaria_para_objetivo(fila_objetivo):
@@ -561,7 +594,7 @@ def comisaria_para_objetivo(fila_objetivo):
 def _resumen_comisaria(com):
     """Datos listos para mostrar en los carteles de pánico."""
     if not com:
-        return {"nombre": "SIN CONFIGURAR", "direccion": "---", "telefono": "", "distancia": "---"}
+        return {"nombre": "NO SE PUDO DETERMINAR (reintentar)", "direccion": "---", "telefono": "", "distancia": "---"}
     try:
         dist = f"{float(com.get('distancia_km')):.2f}"
     except Exception:
@@ -4171,6 +4204,7 @@ if st.session_state.rol_sel == "MONITOREO":
             """))
 
             comisarias_en_panico = {}
+            panicos_sin_comisaria = []
 
             for _, r in df_mapa_filtrado_sup.iterrows():
                 obj_nombre = str(r['OBJETIVO']).strip().upper()
@@ -4204,6 +4238,8 @@ if st.session_state.rol_sel == "MONITOREO":
                         ruta = obtener_ruta_calles_osrm(r['LATITUD'], r['LONGITUD'], com['lat'], com['lon'])
                         folium.PolyLine(locations=ruta, color="#000000", weight=5, opacity=0.4).add_to(m_mon)
                         folium.PolyLine(locations=ruta, color="#39FF14", weight=4, opacity=0.8).add_to(m_mon)
+                    else:
+                        panicos_sin_comisaria.append(obj_nombre)
 
                 elif es_el_seleccionado:
                     folium.CircleMarker(
@@ -4225,6 +4261,9 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
 
             st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
+            if panicos_sin_comisaria:
+                st.warning("⚠️ Pánico en " + ", ".join(panicos_sin_comisaria) + ": no se pudo determinar la comisaría más cercana. Motivo: "
+                           + f"{_almacen_geo().get('com_error', 'sin datos')}.")
             if objetivos_sin_ubicar:
                 st.caption("⚠️ No se pudo ubicar en el mapa: " + ", ".join(objetivos_sin_ubicar) + ". Revisá calle, altura y localidad.")
         else:
