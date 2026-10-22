@@ -476,11 +476,87 @@ def _declarar_visor_qr(version="v6"):
         f.write(html)
     return components.declare_component(f"aion_visor_qr_{version}", path=carpeta)
 
+def _km(lat1, lon1, lat2, lon2):
+    la1, lo1, la2, lo2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    a = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(a))
+
+def _buscar_comisarias_osm(lat, lon):
+    """Busca en OpenStreetMap (Overpass) las dependencias policiales cerca del punto, ampliando el radio hasta encontrar."""
+    import time
+    for radio in (2500, 6000, 12000, 25000):
+        consulta = f'[out:json][timeout:20];nwr["amenity"="police"](around:{radio},{lat},{lon});out center tags;'
+        elementos = None
+        for url in ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"):
+            try:
+                r = requests.post(url, data={"data": consulta}, headers={"User-Agent": "AION-YAROKU/1.0"}, timeout=25)
+                if r.ok:
+                    elementos = r.json().get("elements", [])
+                    break
+            except Exception:
+                continue
+        if elementos:
+            res = []
+            for e in elementos:
+                c = e.get("center") or {}
+                la, lo = e.get("lat", c.get("lat")), e.get("lon", c.get("lon"))
+                if la is None or lo is None:
+                    continue
+                t = e.get("tags", {})
+                calle = t.get("addr:street", "")
+                num = t.get("addr:housenumber", "")
+                res.append({
+                    "nombre": (t.get("name") or t.get("official_name") or "DEPENDENCIA POLICIAL").upper(),
+                    "direccion": (f"{calle} {num}".strip().upper() or "---"),
+                    "localidad": (t.get("addr:city") or "").upper(),
+                    "telefono": str(t.get("phone") or t.get("contact:phone") or "").split(";")[0].strip(),
+                    "lat": float(la), "lon": float(lo),
+                    "distancia_km": _km(lat, lon, float(la), float(lo)),
+                })
+            if res:
+                con_nombre = [x for x in res if "COMISAR" in x["nombre"]]
+                return sorted(con_nombre or res, key=lambda x: x["distancia_km"])
+        time.sleep(1.0)
+    return []
+
 def comisaria_para_objetivo(fila_objetivo):
-    """Comisaría más cercana a un objetivo al activarse el pánico.
-    PENDIENTE: se completa con los 3 requisitos que defina Ivonne (no hay comisarías cargadas en el código).
-    Debe devolver un dict {nombre, direccion, localidad, telefono, lat, lon, distancia_km} o None."""
-    return None
+    """Comisaría más cercana a un objetivo al activarse el pánico, buscada en vivo en OpenStreetMap
+    (no hay comisarías cargadas en el código). Criterio actual: la más cercana en línea recta, prefiriendo las
+    que se llaman 'Comisaría'. Si OSM no trae teléfono se usa el 911.
+    PENDIENTE: ajustar con los 3 requisitos que defina Ivonne.
+    Devuelve un dict {nombre, direccion, localidad, telefono, lat, lon, distancia_km} o None."""
+    import time
+    if fila_objetivo is None:
+        return None
+    lat, lon = None, None
+    try:
+        la, lo = fila_objetivo.get('LATITUD'), fila_objetivo.get('LONGITUD')
+        if la is not None and lo is not None and not pd.isna(la) and not pd.isna(lo):
+            lat, lon = float(la), float(lo)
+    except Exception:
+        pass
+    if lat is None:
+        g = geocodificar_direccion(fila_objetivo.get('CALLE', ''), fila_objetivo.get('ALTURA', ''), fila_objetivo.get('LOCALIDAD', ''))
+        if not g:
+            return None
+        lat, lon = g[0], g[1]
+    alm = _almacen_geo()
+    clave = (round(lat, 4), round(lon, 4))
+    com_cache = alm.setdefault("com", {})
+    com_fallo = alm.setdefault("com_fallo", {})
+    if clave in com_cache:
+        return com_cache[clave]
+    if time.time() - com_fallo.get(clave, 0) < 120:
+        return None
+    cand = _buscar_comisarias_osm(lat, lon)
+    if not cand:
+        com_fallo[clave] = time.time()
+        return None
+    mejor = dict(cand[0])
+    if not mejor["telefono"]:
+        mejor["telefono"] = "911"
+    com_cache[clave] = mejor
+    return mejor
 
 def _resumen_comisaria(com):
     """Datos listos para mostrar en los carteles de pánico."""
