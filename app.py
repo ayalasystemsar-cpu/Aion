@@ -602,19 +602,18 @@ def _resumen_comisaria(com):
     return {"nombre": str(com.get("nombre", "---")), "direccion": str(com.get("direccion", "---")),
             "telefono": str(com.get("telefono", "")).strip(), "distancia": dist}
 
-def registrar_objetivo(nombre_obj, calle, altura, localidad, supervisor, responsables):
-    """Agrega el objetivo a la hoja OBJETIVOS respetando el orden de sus encabezados (crea CALLE y ALTURA si faltan)."""
+def registrar_objetivo(nombre_obj, calle, altura, localidad, supervisor, responsables=""):
+    """Agrega el objetivo respetando los encabezados de la hoja (OBJETIVO, CALLE, ALTURA, LOCALIDAD, SUPERVISOR)."""
     try:
         gc = conectar_google()
         if not gc:
             return False
-        nombre_hoja_real = obtener_mapeo_solapas().get("OBJETIVOS", "OBJETIVOS")
-        hoja = _obtener_hoja_para_escribir(gc, nombre_hoja_real)
+        hoja = _obtener_hoja_para_escribir(gc, obtener_mapeo_solapas().get("OBJETIVOS", "OBJETIVOS"))
         enc = [str(h).strip().upper() for h in _reintentar_429(lambda: hoja.row_values(1))]
         if not enc:
-            enc = ["OBJETIVO", "CALLE", "ALTURA", "DIRECCION", "LOCALIDAD", "SUPERVISOR", "RESPONSABLES"]
+            enc = ["OBJETIVO", "CALLE", "ALTURA", "LOCALIDAD", "SUPERVISOR"]
             _reintentar_429(lambda: hoja.append_row(enc))
-        for col in ("OBJETIVO", "CALLE", "ALTURA", "DIRECCION", "LOCALIDAD", "SUPERVISOR", "RESPONSABLES"):
+        for col in ("OBJETIVO", "CALLE", "ALTURA", "LOCALIDAD", "SUPERVISOR"):
             _asegurar_columna(hoja, enc, col)
         calle_u = str(calle).strip().upper()
         altura_u = str(altura).strip().upper()
@@ -622,13 +621,13 @@ def registrar_objetivo(nombre_obj, calle, altura, localidad, supervisor, respons
             "OBJETIVO": str(nombre_obj).strip().upper(),
             "CALLE": calle_u,
             "ALTURA": altura_u,
-            "DIRECCION": f"{calle_u} {altura_u}".strip(),
+            "DIRECCION": f"{calle_u} {altura_u}".strip(),   # solo si la hoja tiene esa columna
             "LOCALIDAD": str(localidad).strip().upper(),
             "SUPERVISOR": str(supervisor).strip().upper(),
-            "RESPONSABLES": str(responsables).strip().upper(),
+            "RESPONSABLES": str(responsables).strip().upper(),   # solo si la hoja tiene esa columna
         }
         fila = [valores.get(h, "") for h in enc]
-        _reintentar_429(lambda: hoja.append_row(fila))
+        _reintentar_429(lambda: hoja.append_row(fila, table_range="A1"))
         st.cache_data.clear()
         return True
     except Exception as e:
