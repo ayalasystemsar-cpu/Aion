@@ -3873,6 +3873,9 @@ if not st.session_state.usuario_logueado:
 
 aplicar_identidad_alfa()
 
+import centro_supervisor
+centro_supervisor.instalar(globals())
+
 df_objetivos = cargar_objetivos()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
 
@@ -3984,6 +3987,8 @@ if (st.session_state.rol_sel == "SUPERVISOR" and st.session_state.get("sup_auten
         and st.session_state.get("ver_personal_sup", False)):
     renderizar_personal_supervisor(st.session_state.user_sel)
     st.stop()
+
+centro_supervisor.enrutar()
 
 # =========================================================================
 # ROL: MONITOREO
