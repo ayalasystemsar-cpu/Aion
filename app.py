@@ -329,14 +329,34 @@ def _almacen_geo():
     import threading
     return {"ok": {}, "fallo": {}, "lock": threading.Lock()}
 
-def _consultar_ubicacion(q):
+def _normalizar_localidad(loc):
+    l = " ".join(str(loc or "").upper().replace(".", "").split())
+    if l in ("CABA", "CAPITAL", "CAPITAL FEDERAL", "CIUDAD DE BUENOS AIRES", "CIUDAD AUTONOMA DE BUENOS AIRES",
+             "CIUDAD AUTÓNOMA DE BUENOS AIRES", "BUENOS AIRES", "C A B A"):
+        return "Ciudad Autónoma de Buenos Aires"
+    return str(loc or "").strip()
+
+def _expandir_abreviaturas(calle):
+    t = " " + " ".join(str(calle or "").upper().replace(".", " ").split()) + " "
+    for a, b in (("AV", "Avenida"), ("AVDA", "Avenida"), ("GRAL", "General"), ("CNEL", "Coronel"), ("CRL", "Coronel"),
+                 ("PTE", "Presidente"), ("DR", "Doctor"), ("STA", "Santa"), ("STO", "Santo"), ("ING", "Ingeniero"),
+                 ("ALTE", "Almirante"), ("TTE", "Teniente"), ("CAP", "Capitán"), ("PCIA", "Provincia")):
+        t = t.replace(f" {a} ", f" {b} ")
+    return t.strip()
+
+def _consultar_ubicacion(q=None, estructurado=None):
     """Prueba Nominatim y, si falla, Photon (ambos de OpenStreetMap). Devuelve (lat, lon, tipo) o None."""
     import time
     alm = _almacen_geo()
+    desc = q if q else " ".join(str(v) for v in (estructurado or {}).values())
     try:
+        params = {"format": "jsonv2", "limit": 1, "countrycodes": "ar"}
+        if estructurado:
+            params.update(estructurado)
+        else:
+            params["q"] = q
         r = requests.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
+            "https://nominatim.openstreetmap.org/search", params=params,
             headers={"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)", "Accept-Language": "es"},
             timeout=8,
         )
@@ -345,25 +365,22 @@ def _consultar_ubicacion(q):
             datos = r.json()
             if datos:
                 return float(datos[0]["lat"]), float(datos[0]["lon"]), datos[0].get("addresstype", "")
-            alm["error"] = "Nominatim respondió sin resultados"
+            alm["error"] = f"sin resultados para «{desc}»"
         else:
-            alm["error"] = f"Nominatim respondió HTTP {r.status_code}"
+            alm["error"] = f"Nominatim HTTP {r.status_code} para «{desc}»"
     except Exception as e:
-        alm["error"] = f"Nominatim: {type(e).__name__}"
-    try:
-        r = requests.get("https://photon.komoot.io/api/", params={"q": q, "limit": 1, "lang": "es"},
-                         headers={"User-Agent": "AION-YAROKU/1.0"}, timeout=8)
-        if r.ok:
-            feats = r.json().get("features", [])
-            if feats:
-                lon, lat = feats[0]["geometry"]["coordinates"]
-                tipo = feats[0].get("properties", {}).get("type", "")
-                return float(lat), float(lon), ("house" if tipo == "house" else tipo)
-            alm["error"] = (alm.get("error", "") + " | Photon sin resultados").strip(" |")
-        else:
-            alm["error"] = (alm.get("error", "") + f" | Photon HTTP {r.status_code}").strip(" |")
-    except Exception as e:
-        alm["error"] = (alm.get("error", "") + f" | Photon: {type(e).__name__}").strip(" |")
+        alm["error"] = f"Nominatim {type(e).__name__} para «{desc}»"
+    if q:
+        try:
+            r = requests.get("https://photon.komoot.io/api/", params={"q": q, "limit": 1},
+                             headers={"User-Agent": "AION-YAROKU/1.0"}, timeout=8)
+            if r.ok:
+                feats = r.json().get("features", [])
+                if feats:
+                    lon, lat = feats[0]["geometry"]["coordinates"]
+                    return float(lat), float(lon), feats[0].get("properties", {}).get("type", "")
+        except Exception:
+            pass
     return None
 
 def geocodificar_direccion(calle, altura, localidad):
@@ -382,15 +399,23 @@ def geocodificar_direccion(calle, altura, localidad):
     t_fallo = alm["fallo"].get(clave)
     if t_fallo and time.time() - t_fallo < 300:   # no insistir con una dirección que falló hace menos de 5 min
         return None
-    consultas = []
+    loc = _normalizar_localidad(localidad)
+    calle_x = _expandir_abreviaturas(calle)
+    consultas = []   # (texto libre, parámetros estructurados, ¿incluye altura?)
     if altura:
-        consultas.append((f"{calle} {altura}, {localidad}, Buenos Aires, Argentina", True))
-    consultas.append((f"{calle}, {localidad}, Buenos Aires, Argentina", False))
+        consultas.append((None, {"street": f"{altura} {calle}", "city": loc, "country": "Argentina"}, True))
+        consultas.append((f"{calle} {altura}, {loc}, Argentina", None, True))
+        if calle_x.upper() != calle.upper():
+            consultas.append((f"{calle_x} {altura}, {loc}, Argentina", None, True))
+        consultas.append((f"{calle} {altura}, {loc}, Buenos Aires, Argentina", None, True))
+    consultas.append((f"{calle}, {loc}, Argentina", None, False))
+    if calle_x.upper() != calle.upper():
+        consultas.append((f"{calle_x}, {loc}, Argentina", None, False))
     with alm["lock"]:
         if clave in alm["ok"]:
             return alm["ok"][clave]
-        for q, con_altura in consultas:
-            res = _consultar_ubicacion(q)
+        for q, est, con_altura in consultas:
+            res = _consultar_ubicacion(q, est)
             if res:
                 exacta = bool(con_altura) and res[2] in ("house", "building", "amenity", "shop", "office", "place")
                 alm["ok"][clave] = (res[0], res[1], exacta)
@@ -4133,8 +4158,9 @@ if st.session_state.rol_sel == "MONITOREO":
             if df_objetivos.empty:
                 st.warning("⚠️ No hay objetivos cargados todavía.")
             else:
-                st.warning("⚠️ No se pudo ubicar ningún objetivo en el mapa: " + ", ".join(objetivos_sin_ubicar)
-                           + f". Motivo del servicio de mapas: {_almacen_geo().get('error', 'sin datos')}. Revisá calle, altura y localidad.")
+                _det = "; ".join(f"{r['OBJETIVO']}: {r['CALLE']} {r['ALTURA']}, {r['LOCALIDAD']}" for _, r in df_objetivos.iterrows() if str(r['OBJETIVO']) in objetivos_sin_ubicar)
+                st.warning("⚠️ No se pudo ubicar ningún objetivo en el mapa. Direcciones buscadas → " + _det
+                           + f". Último motivo del servicio de mapas: {_almacen_geo().get('error', 'sin datos')}.")
                 if st.button("🔁 REINTENTAR UBICACIÓN DE OBJETIVOS", key="btn_reintentar_geo"):
                     _almacen_geo()["fallo"].clear()
                     st.rerun()
