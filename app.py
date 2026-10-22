@@ -329,6 +329,43 @@ def _almacen_geo():
     import threading
     return {"ok": {}, "fallo": {}, "lock": threading.Lock()}
 
+def _consultar_ubicacion(q):
+    """Prueba Nominatim y, si falla, Photon (ambos de OpenStreetMap). Devuelve (lat, lon, tipo) o None."""
+    import time
+    alm = _almacen_geo()
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
+            headers={"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)", "Accept-Language": "es"},
+            timeout=8,
+        )
+        time.sleep(1.0)   # Nominatim permite 1 consulta por segundo
+        if r.ok:
+            datos = r.json()
+            if datos:
+                return float(datos[0]["lat"]), float(datos[0]["lon"]), datos[0].get("addresstype", "")
+            alm["error"] = "Nominatim respondió sin resultados"
+        else:
+            alm["error"] = f"Nominatim respondió HTTP {r.status_code}"
+    except Exception as e:
+        alm["error"] = f"Nominatim: {type(e).__name__}"
+    try:
+        r = requests.get("https://photon.komoot.io/api/", params={"q": q, "limit": 1, "lang": "es"},
+                         headers={"User-Agent": "AION-YAROKU/1.0"}, timeout=8)
+        if r.ok:
+            feats = r.json().get("features", [])
+            if feats:
+                lon, lat = feats[0]["geometry"]["coordinates"]
+                tipo = feats[0].get("properties", {}).get("type", "")
+                return float(lat), float(lon), ("house" if tipo == "house" else tipo)
+            alm["error"] = (alm.get("error", "") + " | Photon sin resultados").strip(" |")
+        else:
+            alm["error"] = (alm.get("error", "") + f" | Photon HTTP {r.status_code}").strip(" |")
+    except Exception as e:
+        alm["error"] = (alm.get("error", "") + f" | Photon: {type(e).__name__}").strip(" |")
+    return None
+
 def geocodificar_direccion(calle, altura, localidad):
     """Ubica un objetivo por calle + altura + localidad. No se guarda en la hoja ni en el código.
     Devuelve (lat, lon, exacta) o None si no se pudo ubicar."""
@@ -343,33 +380,21 @@ def geocodificar_direccion(calle, altura, localidad):
     if clave in alm["ok"]:
         return alm["ok"][clave]
     t_fallo = alm["fallo"].get(clave)
-    if t_fallo and time.time() - t_fallo < 600:   # no insistir con una dirección que falló hace menos de 10 min
+    if t_fallo and time.time() - t_fallo < 300:   # no insistir con una dirección que falló hace menos de 5 min
         return None
     consultas = []
     if altura:
-        consultas.append((f"{calle} {altura}, {localidad}, Argentina", True))
-    consultas.append((f"{calle}, {localidad}, Argentina", False))
+        consultas.append((f"{calle} {altura}, {localidad}, Buenos Aires, Argentina", True))
+    consultas.append((f"{calle}, {localidad}, Buenos Aires, Argentina", False))
     with alm["lock"]:
         if clave in alm["ok"]:
             return alm["ok"][clave]
         for q, con_altura in consultas:
-            try:
-                r = requests.get(
-                    "https://nominatim.openstreetmap.org/search",
-                    params={"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
-                    headers={"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)"},
-                    timeout=6,
-                )
-                time.sleep(1.1)   # Nominatim permite 1 consulta por segundo
-                if r.ok:
-                    datos = r.json()
-                    if datos:
-                        exacta = bool(con_altura) and datos[0].get("addresstype") in ("house", "building", "amenity", "shop", "office", "place")
-                        res = (float(datos[0]["lat"]), float(datos[0]["lon"]), exacta)
-                        alm["ok"][clave] = res
-                        return res
-            except Exception:
-                time.sleep(1.1)
+            res = _consultar_ubicacion(q)
+            if res:
+                exacta = bool(con_altura) and res[2] in ("house", "building", "amenity", "shop", "office", "place")
+                alm["ok"][clave] = (res[0], res[1], exacta)
+                return alm["ok"][clave]
         alm["fallo"][clave] = time.time()
     return None
 
@@ -4101,6 +4126,18 @@ if st.session_state.rol_sel == "MONITOREO":
             st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
             if objetivos_sin_ubicar:
                 st.caption("⚠️ No se pudo ubicar en el mapa: " + ", ".join(objetivos_sin_ubicar) + ". Revisá calle, altura y localidad.")
+        else:
+            m_vacio = folium.Map(location=[-34.65, -58.5], zoom_start=10, max_zoom=19, tiles="OpenStreetMap")
+            m_vacio.get_root().header.add_child(Element("<style>.leaflet-container { background: #262626 !important; } .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) grayscale(100%) brightness(0.8) contrast(1.25); }</style>"))
+            st_folium(m_vacio, use_container_width=True, height=500, key="mapa_monitoreo_vacio", returned_objects=[])
+            if df_objetivos.empty:
+                st.warning("⚠️ No hay objetivos cargados todavía.")
+            else:
+                st.warning("⚠️ No se pudo ubicar ningún objetivo en el mapa: " + ", ".join(objetivos_sin_ubicar)
+                           + f". Motivo del servicio de mapas: {_almacen_geo().get('error', 'sin datos')}. Revisá calle, altura y localidad.")
+                if st.button("🔁 REINTENTAR UBICACIÓN DE OBJETIVOS", key="btn_reintentar_geo"):
+                    _almacen_geo()["fallo"].clear()
+                    st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     with t_mensajeria:
