@@ -1,4 +1,5 @@
-import streamlit as st
+
+    import streamlit as st
 import html as _html_msg
 import datetime
 from datetime import datetime
@@ -286,13 +287,6 @@ def leer_matriz_nube(pestana):
         return pd.DataFrame()
 leer_matriz_nube.clear = _leer_matriz_nube_cache.clear
 
-def _separar_calle_altura(direccion):
-    """Separa 'AV. MITRE 1234' en ('AV. MITRE', '1234'). Para objetivos viejos que solo tenían DIRECCION."""
-    m = re.match(r'^\s*(.*?)[\s,]+(?:N[°º]?\s*)?(\d{1,6})\s*$', str(direccion or ""))
-    if m and m.group(1).strip():
-        return m.group(1).strip(), m.group(2)
-    return str(direccion or "").strip(), ""
-
 @st.cache_data(ttl=30, show_spinner=False)
 def cargar_objetivos():
     df = leer_matriz_nube("OBJETIVOS")
@@ -304,93 +298,13 @@ def cargar_objetivos():
             df = df[df['ESTADO'].astype(str).str.strip().str.upper() != "BAJA"]
         if 'SUPERVISOR' in df.columns:
             df['SUPERVISOR'] = df['SUPERVISOR'].astype(str).str.strip().str.upper()
-        # La ubicación ya no se guarda: se calcula en vivo con calle, altura y localidad.
         df = df.drop(columns=[c for c in ('LATITUD', 'LONGITUD') if c in df.columns])
-        for c in ('CALLE', 'ALTURA', 'DIRECCION', 'LOCALIDAD'):
-            if c not in df.columns:
-                df[c] = ""
-        calles, alturas = [], []
-        for _, r in df.iterrows():
-            calle, altura = str(r['CALLE']).strip(), str(r['ALTURA']).strip()
-            if not calle:
-                calle, altura = _separar_calle_altura(r['DIRECCION'])
-            calles.append(calle.upper())
-            alturas.append(altura)
-        df['CALLE'] = calles
-        df['ALTURA'] = alturas
-        df['LOCALIDAD'] = df['LOCALIDAD'].astype(str).str.strip().str.upper()
-        df['DIRECCION'] = (df['CALLE'] + " " + df['ALTURA']).str.strip()
         return df
     return pd.DataFrame()
 
-# --- Ubicación en vivo de los objetivos (OpenStreetMap / Nominatim) ---
-@st.cache_resource(show_spinner=False)
-def _almacen_geo():
-    import threading
-    return {"ok": {}, "fallo": {}, "lock": threading.Lock()}
-
-def geocodificar_direccion(calle, altura, localidad):
-    """Ubica un objetivo por calle + altura + localidad. No se guarda en la hoja ni en el código.
-    Devuelve (lat, lon, exacta) o None si no se pudo ubicar."""
-    import time
-    calle = " ".join(str(calle or "").split())
-    altura = " ".join(str(altura or "").split())
-    localidad = " ".join(str(localidad or "").split())
-    if not calle or not localidad:
-        return None
-    clave = (calle.upper(), altura, localidad.upper())
-    alm = _almacen_geo()
-    if clave in alm["ok"]:
-        return alm["ok"][clave]
-    t_fallo = alm["fallo"].get(clave)
-    if t_fallo and time.time() - t_fallo < 600:   # no insistir con una dirección que falló hace menos de 10 min
-        return None
-    consultas = []
-    if altura:
-        consultas.append((f"{calle} {altura}, {localidad}, Argentina", True))
-    consultas.append((f"{calle}, {localidad}, Argentina", False))
-    with alm["lock"]:
-        if clave in alm["ok"]:
-            return alm["ok"][clave]
-        for q, con_altura in consultas:
-            try:
-                r = requests.get(
-                    "https://nominatim.openstreetmap.org/search",
-                    params={"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "ar"},
-                    headers={"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)"},
-                    timeout=6,
-                )
-                time.sleep(1.1)   # Nominatim permite 1 consulta por segundo
-                if r.ok:
-                    datos = r.json()
-                    if datos:
-                        exacta = bool(con_altura) and datos[0].get("addresstype") in ("house", "building", "amenity", "shop", "office", "place")
-                        res = (float(datos[0]["lat"]), float(datos[0]["lon"]), exacta)
-                        alm["ok"][clave] = res
-                        return res
-            except Exception:
-                time.sleep(1.1)
-        alm["fallo"][clave] = time.time()
-    return None
-
-def con_coordenadas(df):
-    """Agrega LATITUD, LONGITUD y UBICACION_EXACTA a los objetivos (calculadas en vivo, en memoria)."""
-    df = df.copy()
-    lats, lons, exactas = [], [], []
-    for _, r in df.iterrows():
-        g = geocodificar_direccion(r.get('CALLE', ''), r.get('ALTURA', ''), r.get('LOCALIDAD', ''))
-        lats.append(g[0] if g else None)
-        lons.append(g[1] if g else None)
-        exactas.append(bool(g[2]) if g else False)
-    df['LATITUD'] = pd.to_numeric(pd.Series(lats, index=df.index), errors='coerce')
-    df['LONGITUD'] = pd.to_numeric(pd.Series(lons, index=df.index), errors='coerce')
-    df['UBICACION_EXACTA'] = exactas
-    return df
-
-def url_destino_objetivo(calle, altura, localidad):
-    """Destino para Google Maps por dirección (sin coordenadas)."""
+def url_destino_objetivo(direccion, localidad):
     from urllib.parse import quote
-    return "https://www.google.com/maps/dir/?api=1&destination=" + quote(f"{calle} {altura}, {localidad}, Argentina") + "&travelmode=driving"
+    return "https://www.google.com/maps/dir/?api=1&destination=" + quote(f"{direccion}, {localidad}, Argentina") + "&travelmode=driving"
 
 @st.cache_resource(show_spinner=False)
 def obtener_grafo_zona(lat, lon):
@@ -443,56 +357,28 @@ def _resumen_comisaria(com):
     return {"nombre": str(com.get("nombre", "---")), "direccion": str(com.get("direccion", "---")),
             "telefono": str(com.get("telefono", "")).strip(), "distancia": dist}
 
-def registrar_objetivo(nombre_obj, calle, altura, localidad, supervisor, responsables):
-    """Agrega el objetivo a la hoja OBJETIVOS respetando el orden de sus encabezados (crea CALLE y ALTURA si faltan)."""
-    try:
-        gc = conectar_google()
-        if not gc:
-            return False
-        nombre_hoja_real = obtener_mapeo_solapas().get("OBJETIVOS", "OBJETIVOS")
-        hoja = _obtener_hoja_para_escribir(gc, nombre_hoja_real)
-        enc = [str(h).strip().upper() for h in _reintentar_429(lambda: hoja.row_values(1))]
-        if not enc:
-            enc = ["OBJETIVO", "CALLE", "ALTURA", "DIRECCION", "LOCALIDAD", "SUPERVISOR", "RESPONSABLES"]
-            _reintentar_429(lambda: hoja.append_row(enc))
-        for col in ("OBJETIVO", "CALLE", "ALTURA", "DIRECCION", "LOCALIDAD", "SUPERVISOR", "RESPONSABLES"):
-            _asegurar_columna(hoja, enc, col)
-        calle_u = str(calle).strip().upper()
-        altura_u = str(altura).strip().upper()
-        valores = {
-            "OBJETIVO": str(nombre_obj).strip().upper(),
-            "CALLE": calle_u,
-            "ALTURA": altura_u,
-            "DIRECCION": f"{calle_u} {altura_u}".strip(),
-            "LOCALIDAD": str(localidad).strip().upper(),
-            "SUPERVISOR": str(supervisor).strip().upper(),
-            "RESPONSABLES": str(responsables).strip().upper(),
-        }
-        fila = [valores.get(h, "") for h in enc]
-        _reintentar_429(lambda: hoja.append_row(fila))
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        print(f"Error registrando objetivo: {e}")
-        st.error(f"⚠️ Error técnico en nube (OBJETIVOS): {e}")
-        return False
-
+def registrar_objetivo(nombre_obj, direccion, localidad, supervisor, responsables):
+    """Agrega el objetivo a OBJETIVOS (las columnas de latitud y longitud quedan vacías)."""
+    return escribir_registro_nube("OBJETIVOS", [
+        str(nombre_obj).strip().upper(), str(direccion).strip().upper(), str(localidad).strip().upper(),
+        str(supervisor).strip().upper(), "", "", str(responsables).strip().upper(), ""
+    ])
 def _avisar_cambio_servicio(supervisor, asunto, texto, usuario):
     """El supervisor recibe el aviso en la campanita y en su mensajería (gravedad AMARILLO); Jefe y Gerencia quedan al tanto."""
     notificar_novedad(texto, extra=[supervisor])
     escribir_registro_nube("MENSAJERIA", [obtener_hora_argentina(), usuario, supervisor, asunto, texto, "PENDIENTE", "AMARILLO"])
 
-def alta_servicio(nombre, calle, altura, localidad, supervisor, responsables, usuario):
+def alta_servicio(nombre, direccion, localidad, supervisor, responsables, usuario):
     nombre_u = str(nombre).strip().upper()
     sup_u = str(supervisor).strip().upper()
     df_o = cargar_objetivos()
     if not df_o.empty and (col_texto(df_o, 'OBJETIVO').str.strip().str.upper() == nombre_u).any():
         return False, f"Ya existe un servicio activo llamado {nombre_u}."
-    if not registrar_objetivo(nombre_u, calle, altura, localidad, sup_u, responsables):
+    if not registrar_objetivo(nombre_u, direccion, localidad, sup_u, responsables):
         return False, "No se pudo registrar el servicio en la nube. Verificá la conexión con Google Sheets."
     escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), usuario, "ALTA", f"{nombre_u} | ASIG: {sup_u}", "PROCESADO"])
     _avisar_cambio_servicio(sup_u, "ALTA DE SERVICIO",
-        f"🟢 ALTA DE SERVICIO: {usuario} dio de alta el objetivo {nombre_u} ({str(calle).strip().upper()} {str(altura).strip().upper()}, {str(localidad).strip().upper()}) y te lo asignó. Ya figura en tu panel.", usuario)
+        f"🟢 ALTA DE SERVICIO: {usuario} dio de alta el objetivo {nombre_u} ({str(direccion).strip().upper()}, {str(localidad).strip().upper()}) y te lo asignó. Ya figura en tu panel.", usuario)
     return True, f"Servicio {nombre_u} dado de alta. Se avisó a {sup_u}."
 
 def baja_servicio(objetivo, motivo, usuario):
@@ -3842,13 +3728,9 @@ if st.session_state.rol_sel == "MONITOREO":
         df_emergencias.columns = df_emergencias.columns.str.strip().str.upper()
 
     df_mapa_monitoreo = pd.DataFrame()
-    objetivos_sin_ubicar = []
     if not df_objetivos.empty:
         df_objetivos.columns = df_objetivos.columns.str.strip().str.upper()
-        with st.spinner("Ubicando objetivos en el mapa..."):
-            _df_ubicados = con_coordenadas(df_objetivos)
-        objetivos_sin_ubicar = _df_ubicados[_df_ubicados['LATITUD'].isna() | _df_ubicados['LONGITUD'].isna()]['OBJETIVO'].astype(str).tolist()
-        df_mapa_monitoreo = _df_ubicados.dropna(subset=['LATITUD', 'LONGITUD']).copy()
+        df_mapa_monitoreo = df_objetivos.copy()
 
     lista_objetivos_en_panico = []
     if not df_emergencias.empty and 'ESTADO' in df_emergencias.columns and 'TIPO' in df_emergencias.columns:
@@ -4004,7 +3886,7 @@ if st.session_state.rol_sel == "MONITOREO":
                 st.metric(label="👮 COMISARÍA MÁS CERCANA", value=res_mon["nombre"])
                 if com_mon:
                     st.caption(f"Distancia estimada: {res_mon['distancia']} Km")
-                    url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_mon['lat']},{com_mon['lon']}&destination={datos_obj['LATITUD']},{datos_obj['LONGITUD']}&travelmode=driving"
+                    url_gmaps_monitoreo = f"https://www.google.com/maps/dir/?api=1&origin={com_mon['lat']},{com_mon['lon']}&destination={datos_obj.get('LATITUD', '')},{datos_obj.get('LONGITUD', '')}&travelmode=driving"
                     st.markdown(
                         f'<a href="{url_gmaps_monitoreo}" target="_blank" class="btn-google-maps" style="font-size:11px; padding:6px 12px; margin-top:5px;">🗺️ ASISTENTE GPS COMPARTIDO</a>',
                         unsafe_allow_html=True
@@ -4015,7 +3897,7 @@ if st.session_state.rol_sel == "MONITOREO":
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="radar-box">', unsafe_allow_html=True)
-        if not df_mapa_filtrado_sup.empty:
+        if not df_mapa_filtrado_sup.empty and 'LATITUD' in df_mapa_filtrado_sup.columns:
             if obj_seleccionado != "MOSTRAR TODO":
                 datos_obj = df_mapa_filtrado_sup[df_mapa_filtrado_sup['OBJETIVO'] == obj_seleccionado].iloc[0]
                 centro_mapa = [datos_obj['LATITUD'], datos_obj['LONGITUD']]
@@ -4050,7 +3932,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 obj_nombre = str(r['OBJETIVO']).strip().upper()
                 es_panico = obj_nombre in lista_objetivos_en_panico
                 es_el_seleccionado = (obj_nombre == str(obj_seleccionado).strip().upper())
-                aprox_txt = "" if bool(r.get('UBICACION_EXACTA', True)) else " | 📍 UBICACIÓN APROXIMADA (revisar altura)"
 
                 if es_panico:
                     texto_tooltip = f"🚨 PÁNICO | OBJ: {obj_nombre}"
@@ -4083,12 +3964,12 @@ if st.session_state.rol_sel == "MONITOREO":
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], radius=10, color="#FFFFFF",
                         fill=True, fill_color="#00E5FF", fill_opacity=0.9,
-                        tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}{aprox_txt}"
+                        tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
                 else:
                     folium.CircleMarker(
                         location=[r['LATITUD'], r['LONGITUD']], radius=7, color="#00E5FF", fill=True,
-                        tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}{aprox_txt}"
+                        tooltip=f"🎯 {obj_nombre} | 👤 SUP: {r.get('SUPERVISOR', 'N/A')}"
                     ).add_to(m_mon)
 
             for nombre_com, c in comisarias_en_panico.items():
@@ -4099,8 +3980,6 @@ if st.session_state.rol_sel == "MONITOREO":
                 ).add_to(m_mon)
 
             st_folium(m_mon, use_container_width=True, height=500, key="mapa_monitoreo_radar_tactico", returned_objects=[])
-            if objetivos_sin_ubicar:
-                st.caption("⚠️ No se pudo ubicar en el mapa: " + ", ".join(objetivos_sin_ubicar) + ". Revisá calle, altura y localidad.")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with t_mensajeria:
@@ -4570,11 +4449,10 @@ elif st.session_state.rol_sel == "SUPERVISOR":
 
                 with col_qr2:
                     st.markdown("#### DATOS CLAVE DEL OBJETIVO")
-                    st.write(f"**Calle:** {datos_sel.get('CALLE', 'N/A')}")
-                    st.write(f"**Altura:** {datos_sel.get('ALTURA', 'N/A')}")
+                    st.write(f"**Dirección:** {datos_sel.get('DIRECCION', 'N/A')}")
                     st.write(f"**Localidad:** {datos_sel.get('LOCALIDAD', 'N/A')}")
                      
-                    url_navegacion = url_destino_objetivo(datos_sel.get('CALLE', ''), datos_sel.get('ALTURA', ''), datos_sel.get('LOCALIDAD', ''))
+                    url_navegacion = url_destino_objetivo(datos_sel.get('DIRECCION', ''), datos_sel.get('LOCALIDAD', ''))
                     st.markdown(f'''
                         <a href="{url_navegacion}" target="_blank" class="btn-google-maps" style="margin-top:10px;">
                         📍 ABRIR NAVEGACIÓN GPS A {obj_select}
@@ -4636,31 +4514,24 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
                     col_no1, col_no2 = st.columns(2)
                     nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="").upper().strip()
-                    nueva_calle = col_no2.text_input("CALLE:", value="").upper().strip()
+                    nueva_direccion = col_no2.text_input("DIRECCIÓN:", value="").upper().strip()
 
                     col_loc1, col_loc2 = st.columns(2)
-                    nueva_altura = col_loc1.text_input("ALTURA:", value="").strip()
-                    nueva_localidad = col_loc2.text_input("LOCALIDAD:", value="").upper().strip()
-
-                    nuevos_responsables = st.text_input("RESPONSABLES:", value="").upper().strip()
+                    nueva_localidad = col_loc1.text_input("LOCALIDAD:", value="").upper().strip()
+                    nuevos_responsables = col_loc2.text_input("RESPONSABLES:", value="").upper().strip()
 
                     supervisor_asignado_actual = st.session_state.user_sel.upper()
                     if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
-                        if not (nuevo_nombre_obj and nueva_calle and nueva_altura and nueva_localidad):
-                            st.warning("⚠️ Complete nombre del objetivo, calle, altura y localidad.")
-                        elif not nueva_altura.isdigit():
-                            st.warning("⚠️ La altura debe ser un número (ej: 1234).")
-                        else:
+                        if nuevo_nombre_obj:
                             exito_alta = registrar_objetivo(
-                                nuevo_nombre_obj, nueva_calle, nueva_altura, nueva_localidad, supervisor_asignado_actual, nuevos_responsables
+                                nuevo_nombre_obj, nueva_direccion, nueva_localidad, supervisor_asignado_actual, nuevos_responsables
                             )
                             if exito_alta:
-                                if geocodificar_direccion(nueva_calle, nueva_altura, nueva_localidad):
-                                    st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' cargado y ubicado en el mapa de monitoreo!")
-                                else:
-                                    st.warning(f"⚠️ Objetivo '{nuevo_nombre_obj}' cargado, pero no se pudo ubicar en el mapa. Revisá calle, altura y localidad.")
+                                st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' cargado con éxito en la red!")
                             else:
                                 st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
+                        else:
+                            st.warning("⚠️ Complete el campo obligatorio (Nombre).")
 
             with tab_baja_sup:
                 if not df_objetivos_filtrados.empty:
@@ -4687,9 +4558,7 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 res_r = _resumen_comisaria(com_r)
                 st.info(f"👮 **Comisaría Encontrada:** {res_r['nombre']}" + (f" ({res_r['distancia']} Km)" if com_r else ""))
                 if com_r:
-                    _geo_r = geocodificar_direccion(datos_r.get('CALLE', ''), datos_r.get('ALTURA', ''), datos_r.get('LOCALIDAD', ''))
-                    if _geo_r:
-                        st.link_button("🗺️ ABRIR ASISTENTE GPS", f"https://www.google.com/maps/dir/?api=1&origin={com_r['lat']},{com_r['lon']}&destination={_geo_r[0]},{_geo_r[1]}&travelmode=driving", use_container_width=True)
+                    st.link_button("🗺️ ABRIR ASISTENTE GPS", f"https://www.google.com/maps/dir/?api=1&origin={com_r['lat']},{com_r['lon']}&destination={datos_r.get('DIRECCION', '')}, {datos_r.get('LOCALIDAD', '')}&travelmode=driving", use_container_width=True)
 
         with t_car_tac:
             novedad_sup = st.text_area("Novedad / Registro Operativo:")
@@ -4950,21 +4819,16 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
         with col_g1:
             st.subheader("ALTA DE SERVICIO / OBJETIVO")
             with st.form("form_alta_servicio_jefe", clear_on_submit=True):
-                a_nom = st.text_input("Nombre del objetivo:")
-                a_calle = st.text_input("Calle:")
-                a_altura = st.text_input("Altura:")
+                a_nom = st.text_input("Nombre del servicio:")
+                a_dir = st.text_input("Dirección:")
                 a_loc = st.text_input("Localidad:")
                 a_resp = st.text_input("Responsables:")
                 a_sup = st.selectbox("Asignar al supervisor:", LISTA_SUPS_TACTICOS)
                 if st.form_submit_button("🟢 DAR DE ALTA Y AVISAR AL SUPERVISOR"):
-                    if not (a_nom.strip() and a_calle.strip() and a_altura.strip() and a_loc.strip() and a_sup):
-                        st.session_state.msg_servicio = (False, "⚠️ Completá nombre del objetivo, calle, altura, localidad y supervisor.")
-                    elif not a_altura.strip().isdigit():
-                        st.session_state.msg_servicio = (False, "⚠️ La altura debe ser un número (ej: 1234).")
+                    if not (a_nom.strip() and a_loc.strip() and a_sup):
+                        st.session_state.msg_servicio = (False, "⚠️ Completá nombre, localidad y supervisor.")
                     else:
-                        ok_a, txt_a = alta_servicio(a_nom, a_calle, a_altura.strip(), a_loc, a_sup, a_resp, st.session_state.user_sel)
-                        if ok_a and not geocodificar_direccion(a_calle, a_altura.strip(), a_loc):
-                            txt_a += " Ojo: no se pudo ubicar en el mapa; revisá calle, altura y localidad."
+                        ok_a, txt_a = alta_servicio(a_nom, a_dir, a_loc, a_sup, a_resp, st.session_state.user_sel)
                         st.session_state.msg_servicio = (ok_a, ("✅ " if ok_a else "❌ ") + txt_a)
                     st.rerun()
         with col_g2:
@@ -5669,4 +5533,4 @@ function bip() {
   try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
 }
 </script>
-""", height=0)
+""", height=0)     
