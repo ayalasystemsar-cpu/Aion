@@ -732,6 +732,19 @@ def obtener_lista_supervisores_dinamica():
                     base.append(s_limpio)
     return base
 
+def obtener_lista_por_rol_dinamica(rol):
+    """Cuentas aprobadas de un rol (MONITOREO, JEFE DE OPERACIONES, GERENCIA) para mandarle un mensaje privado a una persona."""
+    df_u = leer_matriz_nube("USUARIOS")
+    if df_u.empty:
+        return []
+    col_r = 'ROL' if 'ROL' in df_u.columns else ('ROLES' if 'ROLES' in df_u.columns else None)
+    col_u = 'USUARIO' if 'USUARIO' in df_u.columns else df_u.columns[0]
+    if not col_r or 'ESTADO' not in df_u.columns:
+        return []
+    m = ((col_texto(df_u, col_r).str.strip().str.upper() == str(rol).strip().upper()) &
+         (col_texto(df_u, 'ESTADO').str.strip().str.upper() == "APROBADO"))
+    return sorted({str(n).strip().upper() for n in df_u[m][col_u] if str(n).strip() and str(n).strip().upper() != "NAN"})
+
 def obtener_ruta_calles_osrm(lat1, lon1, lat2, lon2):
     try:
         url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson"
@@ -960,6 +973,45 @@ def obtener_lista_vigiladores_dinamica():
     nombres = col_texto(df_p, 'NOMBRE').str.strip().str.upper()
     return sorted({n for n in nombres if n and n != "NAN"})
 
+def _vigiladores_en_turno():
+    """{NOMBRE: {'objetivo', 'hora'}} de los vigiladores que marcaron INGRESO y todavía no EGRESO (turno en curso)."""
+    try:
+        df = leer_matriz_nube("PRESENTISMO")
+    except Exception:
+        return {}
+    if df.empty or df.shape[1] < 6:
+        return {}
+    ultimos = {}
+    for f in df.astype(str).values.tolist():
+        nombre, tipo = f[3].strip().upper(), f[5].strip().upper()
+        if nombre and tipo in ("INGRESO", "EGRESO"):
+            ultimos[nombre] = {"tipo": tipo, "fecha": f[0].strip(), "hora": f[1].strip(), "objetivo": f[4].strip().upper()}
+    try:
+        ahora = datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return {}
+    out = {}
+    for n, u in ultimos.items():
+        if u["tipo"] != "INGRESO":
+            continue
+        try:
+            t0 = datetime.strptime(f"{u['fecha']} {u['hora'][:8]}", "%Y-%m-%d %H:%M:%S")
+            if (ahora - t0).total_seconds() < HORAS_MAX_BLOQUEO_TURNO * 3600:
+                out[n] = {"objetivo": u["objetivo"] or "SIN OBJETIVO", "hora": u["hora"][:5]}
+        except Exception:
+            pass
+    return out
+
+def _objetivos_supervisor_sesion():
+    """Objetivos del supervisor logueado (en mayúsculas). None si el usuario actual no es supervisor."""
+    if str(st.session_state.get("rol_sel", "")).strip().upper() != "SUPERVISOR":
+        return None
+    df_o = cargar_objetivos()
+    sup = str(st.session_state.get("user_sel", "")).strip().upper()
+    if df_o.empty or 'SUPERVISOR' not in df_o.columns:
+        return []
+    return col_texto(df_o, 'OBJETIVO')[col_texto(df_o, 'SUPERVISOR').str.strip().str.upper() == sup].str.strip().str.upper().tolist()
+
 def _destinatarios_mensajeria():
     base = ["TODOS", "VIGILADORES", "SUPERVISORES", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"]
     extra = obtener_lista_supervisores_dinamica() + obtener_lista_vigiladores_dinamica()
@@ -1090,12 +1142,78 @@ def renderizar_mensajeria_global(rol_contexto):
     yo = _remitente_mensajeria()
     st.subheader("💬 COMUNICACIONES OPERATIVAS")
 
-    opciones = _destinatarios_mensajeria()
+    OPC_VIG = "👮 UN VIGILADOR ESPECÍFICO…"
+    vig_todos = obtener_lista_vigiladores_dinamica()
+    vig_set = set(vig_todos)
+    yo_ids = _identidades_mensajeria()
+    opciones = [o for o in _destinatarios_mensajeria() if o not in vig_set]
+    if "VIGILADORES" in opciones:
+        opciones.insert(opciones.index("VIGILADORES") + 1, OPC_VIG)
+    else:
+        opciones.append(OPC_VIG)
+    # Mensaje privado a una persona en particular de cada área
+    PERSONAS = {
+        "MONITOREO": ("🛰️ UNA PERSONA DE MONITOREO…", "PERSONA DE MONITOREO"),
+        "JEFE DE OPERACIONES": ("📋 UNA PERSONA DE JEFE DE OPERACIONES…", "PERSONA DE JEFE DE OPERACIONES"),
+        "GERENCIA": ("🏢 UNA PERSONA DE GERENCIA…", "PERSONA DE GERENCIA"),
+    }
+    personas_rol = {r: [n for n in obtener_lista_por_rol_dinamica(r) if n not in yo_ids] for r in PERSONAS}
+    todas_personas = {n for lst in personas_rol.values() for n in lst}
+    opciones = [o for o in opciones if o not in todas_personas]
+    for r, (etiqueta_opc, _) in PERSONAS.items():
+        if personas_rol[r]:
+            if r in opciones:
+                opciones.insert(opciones.index(r) + 1, etiqueta_opc)
+            else:
+                opciones.append(etiqueta_opc)
     destino_resp = st.session_state.get("destino_respuesta", "")
-    if destino_resp and destino_resp not in opciones:
+    respondiendo = bool(st.session_state.asunto_respuesta)
+    vig_resp = destino_resp if (respondiendo and destino_resp in vig_set) else ""
+    persona_resp_rol = next((r for r, lst in personas_rol.items() if respondiendo and destino_resp in lst), None)
+    if destino_resp and destino_resp not in opciones and not vig_resp and not persona_resp_rol:
         opciones = [destino_resp] + opciones
-    idx_dest = opciones.index(destino_resp) if (st.session_state.asunto_respuesta and destino_resp in opciones) else 0
+    if respondiendo and vig_resp:
+        idx_dest = opciones.index(OPC_VIG)
+    elif persona_resp_rol:
+        idx_dest = opciones.index(PERSONAS[persona_resp_rol][0])
+    elif respondiendo and destino_resp in opciones:
+        idx_dest = opciones.index(destino_resp)
+    else:
+        idx_dest = 0
     clave_hilo = st.session_state.asunto_respuesta or "nuevo"
+
+    # El destinatario va fuera del formulario para que, al elegir "vigilador específico", aparezca la lista de activos.
+    destinatario = st.selectbox("PARA:", opciones, index=idx_dest, key=f"dest_{rol_contexto}_{clave_hilo}")
+    if destinatario == OPC_VIG:
+        en_turno = _vigiladores_en_turno()
+        objs_sup_msg = _objetivos_supervisor_sesion()
+        if objs_sup_msg is None:
+            incluir_sin_turno = st.checkbox("Incluir vigiladores sin turno en curso", value=False, key=f"vig_todos_{rol_contexto}_{clave_hilo}")
+            cand = [v for v in vig_todos if v not in yo_ids and (incluir_sin_turno or v in en_turno or v == vig_resp)]
+        else:
+            # Supervisor: solo los vigiladores en turno en SUS objetivos (los de otros supervisores no aparecen)
+            cand = [v for v in vig_todos if v not in yo_ids and
+                    ((v in en_turno and en_turno[v]["objetivo"] in objs_sup_msg) or v == vig_resp)]
+        cand.sort(key=lambda v: (v not in en_turno, en_turno.get(v, {}).get("objetivo", ""), v))
+        n_act = sum(1 for v in cand if v in en_turno)
+        if not cand:
+            st.info("No hay vigiladores con turno en curso" + (" en tus objetivos." if objs_sup_msg is not None else ". Tildá \"Incluir vigiladores sin turno\" para elegir a cualquiera."))
+            destinatario = None
+        else:
+            etiquetas = {v: (f"🟢 {v} — {en_turno[v]['objetivo']} (desde {en_turno[v]['hora']} hs)" if v in en_turno
+                             else f"⚪ {v} — sin turno en curso") for v in cand}
+            idx_v = cand.index(vig_resp) if vig_resp in cand else 0
+            destinatario = st.selectbox(f"VIGILADOR ({n_act} en turno):", cand, index=idx_v,
+                                        format_func=lambda v: etiquetas.get(v, v), key=f"vig_{rol_contexto}_{clave_hilo}")
+            st.caption("🔒 Solo ese vigilador (y vos) van a ver este mensaje.")
+    else:
+        rol_pers = next((r for r, (e, _) in PERSONAS.items() if e == destinatario), None)
+        if rol_pers:
+            lst_p = personas_rol[rol_pers]
+            idx_m = lst_p.index(destino_resp) if (respondiendo and destino_resp in lst_p) else 0
+            destinatario = st.selectbox(f"{PERSONAS[rol_pers][1]}:", lst_p, index=idx_m,
+                                        key=f"pers_{rol_pers}_{rol_contexto}_{clave_hilo}")
+            st.caption("🔒 Solo esa persona (y vos) van a ver este mensaje.")
 
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
         if st.session_state.asunto_respuesta:
@@ -1107,13 +1225,15 @@ def renderizar_mensajeria_global(rol_contexto):
         col_a, col_b = st.columns([3, 1])
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
+            st.caption(f"PARA: **{destinatario or '— elegí un vigilador —'}**")
         with col_b:
-            destinatario = st.selectbox("PARA:", opciones, index=idx_dest, key=f"dest_{rol_contexto}_{clave_hilo}")
             gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "AMARILLO", "ROJA"], key=f"grav_{rol_contexto}_{clave_hilo}",
                                     format_func=lambda g: f"{GRAVEDADES_MENSAJE[g]} {g}")
 
         if st.form_submit_button("TRANSMITIR A LA RED"):
-            if txt_msg.strip():
+            if not destinatario:
+                st.warning("⚠️ Elegí a qué vigilador mandar el mensaje.")
+            elif txt_msg.strip():
                 escribir_registro_nube("MENSAJERIA", [
                     obtener_hora_argentina(), yo, destinatario,
                     (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
