@@ -2873,11 +2873,10 @@ def notificar_novedad(mensaje, extra=None):
             if d and d not in destinos:
                 destinos.append(d)
         fecha = obtener_hora_argentina()
-        hoja.append_rows([[fecha, d, str(mensaje), "PENDIENTE"] for d in destinos], value_input_option="RAW")
+        hoja.append_rows([[fecha, d, str(mensaje), "PENDIENTE"] for d in destinos], value_input_option="RAW", table_range="A1")
         st.cache_data.clear()
     except Exception as e:
         print(f"Error enviando aviso de novedad: {e}")
-
 def marcar_notificaciones_leidas(indices):
     """Marca como LEÍDO varias notificaciones de una sola vez (indices = posición en el DataFrame)."""
     try:
