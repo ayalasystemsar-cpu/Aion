@@ -1290,6 +1290,203 @@ def _cal_borrar(id_evento):
         print(f"Error borrando evento de calendario: {e}")
         return False
 
+# --- SEGUIMIENTO DE VIGILADORES (PANEL LATERAL): recorrido por vigilador con colores e íconos ---
+def _registro_escaneos_vigiladores():
+    """REGISTRO RECORRIDOS normalizado: _VIG (nombre), _OBJ, _PTO, _FH (fecha/hora), _RONDA."""
+    df = leer_matriz_nube("REGISTRO RECORRIDOS")
+    if df.empty or not {'FECHA_HORA', 'OBJETIVO', 'PUNTO'} <= set(df.columns):
+        return pd.DataFrame()
+    df = df.loc[:, ~df.columns.duplicated()].copy()
+    col_vig = next((c for c in ['VIGILADOR', 'NOMBRE', 'APELLIDO Y NOMBRE'] if c in df.columns), None)
+    if col_vig:
+        df['_VIG'] = col_texto(df, col_vig).str.strip().str.upper()
+    elif 'DNI' in df.columns:
+        df['_VIG'] = col_texto(df, 'DNI').str.replace(r'\D', '', regex=True)
+        df_pad = leer_matriz_nube("PADRON VIGILADORES")
+        if not df_pad.empty and {'DNI', 'NOMBRE'} <= set(df_pad.columns):
+            mapa = dict(zip(col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True),
+                            col_texto(df_pad, 'NOMBRE').str.strip().str.upper()))
+            df['_VIG'] = df['_VIG'].map(lambda d: mapa.get(d, d))
+    else:
+        df['_VIG'] = "---"
+    df['_OBJ'] = col_texto(df, 'OBJETIVO').str.strip().str.upper()
+    df['_PTO'] = col_texto(df, 'PUNTO').str.strip().str.upper()
+    df['_FH'] = pd.to_datetime(df['FECHA_HORA'], errors='coerce')
+    df['_RONDA'] = pd.to_numeric(df['RONDA'], errors='coerce').fillna(1).astype(int) if 'RONDA' in df.columns else 1
+    df = df.dropna(subset=['_FH'])
+    return df.sort_values('_FH')
+
+def _eventos_fraude_qr(fecha_txt):
+    """Escaneos rechazados y reportados hoy (se leen de los mensajes de alerta de fraude QR).
+    Devuelve lista de dicts: fh, vig, obj, pto, tipo, clase ('FRAUDE' o 'SALTEO')."""
+    df = leer_matriz_nube("MENSAJERIA")
+    if df.empty:
+        return []
+    vistos, out = set(), []
+    for fila in df.astype(str).values.tolist():
+        texto = " | ".join(fila)
+        if "POSIBLE FRAUDE QR" not in texto.upper():
+            continue
+        m_f = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', texto)
+        m = re.search(r'POSIBLE FRAUDE QR \(([^)]*)\):\s*(.*?)\s+-\s+OBJ:\s*(.*?)\s+-\s+PUNTO:\s*(.*?)\.(?:\s|$)', texto, flags=re.I)
+        if not m or not m_f or not m_f.group(1).startswith(fecha_txt):
+            continue
+        tipo, vig, obj, pto = [x.strip().upper() for x in m.groups()]
+        clave = (m_f.group(1), vig, obj, pto, tipo)
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        clase = "FRAUDE"   # todo escaneo rechazado y reportado (incluido querer saltear un punto) se muestra como fraude
+        out.append({"fh": pd.Timestamp(m_f.group(1)), "vig": vig, "obj": obj, "pto": pto, "tipo": tipo, "clase": clase})
+    return out
+
+_SEG_ESTILO = {
+    "OK":        ("#00E676", "rgba(0,230,118,0.12)", "✅"),
+    "SALTEO":    ("#FF9100", "rgba(255,145,0,0.15)", "⚠️"),
+    "FRAUDE":    ("#FF1744", "rgba(255,23,68,0.15)", "🚩"),
+    "PENDIENTE": ("#94A3B8", "rgba(148,163,184,0.10)", "⏳"),
+}
+
+def _fila_seg_html(estado, punto, detalle):
+    c, bg, ico = _SEG_ESTILO[estado]
+    return (f"<div style='border-left:4px solid {c};background:{bg};padding:3px 6px;margin:2px 0;"
+            f"font-size:12px;border-radius:3px;'>{ico} <b>{_html_msg.escape(punto)}</b>"
+            f"<span style='float:right;color:{c};'>{_html_msg.escape(detalle)}</span></div>")
+
+def mostrar_seguimiento_sidebar():
+    """Panel lateral para Monitoreo, Jefe de Operaciones, Gerencia y Supervisor (este, solo sus objetivos)."""
+    rol = st.session_state.get("rol_sel")
+    if rol not in ("MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"):
+        return
+    objs_sup = None
+    if rol == "SUPERVISOR":
+        if not st.session_state.get("sup_autenticado"):
+            return
+        df_o = cargar_objetivos()
+        sup = str(st.session_state.get("user_sel", "")).strip().upper()
+        objs_sup = []
+        if not df_o.empty and 'SUPERVISOR' in df_o.columns:
+            objs_sup = col_texto(df_o, 'OBJETIVO')[col_texto(df_o, 'SUPERVISOR').str.strip().str.upper() == sup].str.strip().str.upper().tolist()
+
+    st.markdown("---")
+    st.markdown("### 🛰️ SEGUIMIENTO DE VIGILADORES")
+
+    @st.fragment(run_every=20)
+    def _panel():
+        hoy = obtener_hora_argentina().split(" ")[0]
+        st.markdown(
+            "<div style='font-size:11px;line-height:1.7'>✅ <span style='color:#00E676'>hecho (con horario)</span><br>"
+            "⚠️ <span style='color:#FF9100'>no lo hizo</span><br>"
+            "🚩 <span style='color:#FF1744'>fraude (incluye querer saltear un punto)</span><br>"
+            "⏳ <span style='color:#94A3B8'>pendiente</span></div>", unsafe_allow_html=True)
+        if st.button("🔄 ACTUALIZAR", key="seg_side_refrescar", use_container_width=True):
+            leer_matriz_nube.clear()
+
+        df = _registro_escaneos_vigiladores()
+        dia = df[df['_FH'].dt.strftime('%Y-%m-%d') == hoy].copy() if not df.empty else pd.DataFrame()
+        eventos = _eventos_fraude_qr(hoy)
+
+        if objs_sup is not None:
+            ok_objs = set(objs_sup)
+            vigs_ok = set(dia[dia['_OBJ'].isin(ok_objs)]['_VIG']) if not dia.empty else set()
+            vigs_ok |= {e["vig"] for e in eventos if e["obj"] in ok_objs}
+            dia = dia[dia['_VIG'].isin(vigs_ok)].copy() if not dia.empty else dia
+            eventos = [e for e in eventos if e["vig"] in vigs_ok]
+
+        vigs = sorted(set(dia['_VIG']) if not dia.empty else set()) 
+        vigs = sorted(set(vigs) | {e["vig"] for e in eventos})
+        if not vigs:
+            st.info("Hoy todavía no hay escaneos de recorridos.")
+            return
+
+        df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
+        planificado = {}
+        if not df_p.empty and {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
+            dfp = df_p.copy()
+            dfp['_O'] = col_texto(dfp, 'OBJETIVO').str.strip().str.upper()
+            dfp['_P'] = col_texto(dfp, 'PUNTO').str.strip().str.upper()
+            if 'ORDEN' in dfp.columns:
+                dfp['_ORD'] = pd.to_numeric(dfp['ORDEN'], errors='coerce')
+                dfp = dfp.sort_values('_ORD')
+            for o, g in dfp.groupby('_O', sort=False):
+                planificado[o] = g['_P'].drop_duplicates().tolist()
+
+        for v in vigs:
+            g = dia[dia['_VIG'] == v].sort_values('_FH') if not dia.empty else pd.DataFrame()
+            ev_v = [e for e in eventos if e["vig"] == v]
+            hay_fraude = any(e["clase"] == "FRAUDE" for e in ev_v)
+            hay_salteo = any(e["clase"] == "SALTEO" for e in ev_v)
+
+            objs = list(dict.fromkeys(g['_OBJ'].tolist() if not g.empty else []))
+            for e in ev_v:
+                if e["obj"] not in objs:
+                    objs.append(e["obj"])
+
+            bloques, resumen_ok, resumen_tot = [], 0, 0
+            for o in objs:
+                go = g[g['_OBJ'] == o] if not g.empty else pd.DataFrame()
+                rondas = sorted(set(go['_RONDA'].tolist())) if not go.empty else [1]
+                ronda_actual = rondas[-1]
+                puntos = list(planificado.get(o, []))
+                for p in (go['_PTO'].tolist() if not go.empty else []):
+                    if p not in puntos:
+                        puntos.append(p)
+                ev_o = [e for e in ev_v if e["obj"] == o]
+                horarios = []
+                if not df_p.empty and 'HORARIO' in df_p.columns:
+                    _m = df_p[col_texto(df_p, 'OBJETIVO').str.strip().str.upper() == o]
+                    horarios = _horarios_unicos(_m['HORARIO'].dropna().tolist())
+                bloques.append(f"<div style='margin-top:6px;font-size:12px;color:#00E5FF'><b>🏢 {_html_msg.escape(o)}</b></div>")
+                for r in rondas:
+                    gr = go[go['_RONDA'] == r] if not go.empty else pd.DataFrame()
+                    hechos = {row['_PTO']: row['_FH'] for _, row in gr.iterrows()}
+                    ult_idx = max([puntos.index(p) for p in hechos if p in puntos], default=-1)
+                    titulo_r = f"Ronda {r}" + (f" · {horarios[r - 1]} hs" if r <= len(horarios) else "")
+                    bloques.append(f"<div style='font-size:11px;color:#A0A5B5;margin-top:3px'>{_html_msg.escape(titulo_r)}</div>")
+                    es_actual = (r == ronda_actual)
+                    for i, p in enumerate(puntos):
+                        evs_p = [e for e in ev_o if e["pto"] == p] if es_actual else []
+                        if p in hechos:
+                            extra = " 🚩" if any(e["clase"] == "FRAUDE" for e in evs_p) else ""
+                            bloques.append(_fila_seg_html("OK", p, hechos[p].strftime('%H:%M:%S') + extra))
+                            if es_actual:
+                                resumen_ok += 1
+                        else:
+                            ev_f = next((e for e in evs_p if e["clase"] == "FRAUDE"), None)
+                            ev_s = next((e for e in evs_p if e["clase"] == "SALTEO"), None)
+                            if ev_f:
+                                bloques.append(_fila_seg_html("FRAUDE", p, ev_f["fh"].strftime('%H:%M:%S')))
+                            elif ev_s:
+                                bloques.append(_fila_seg_html("SALTEO", p, ev_s["fh"].strftime('%H:%M:%S')))
+                            elif (not es_actual) or i < ult_idx:
+                                bloques.append(_fila_seg_html("SALTEO", p, "no realizado"))
+                            else:
+                                bloques.append(_fila_seg_html("PENDIENTE", p, "—"))
+                    if es_actual:
+                        resumen_tot += len(puntos)
+
+            # cambios de objetivo
+            avisos = []
+            if not g.empty:
+                prev = None
+                for _, row in g.iterrows():
+                    if prev is not None and row['_OBJ'] != prev:
+                        avisos.append(f"🔀 {row['_FH'].strftime('%H:%M:%S')}: pasó de {prev} a {row['_OBJ']}")
+                    prev = row['_OBJ']
+
+            ico = "🚩" if hay_fraude else ("⚠️" if hay_salteo else "👮")
+            with st.expander(f"{ico} {v}", expanded=False):
+                if not g.empty:
+                    u = g.iloc[-1]
+                    st.caption(f"Último escaneo: {u['_FH'].strftime('%H:%M:%S')} · {u['_OBJ']} · {u['_PTO']}")
+                if resumen_tot:
+                    st.progress(min(1.0, resumen_ok / resumen_tot), text=f"{resumen_ok} de {resumen_tot} puntos (ronda actual)")
+                for a in avisos:
+                    st.warning(a)
+                st.markdown("".join(bloques), unsafe_allow_html=True)
+
+    _panel()
+
 def mostrar_calendario_sidebar():
     hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires")).date()
     if "cal_anio" not in st.session_state:
@@ -4107,6 +4304,7 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
         mostrar_boton_planificacion()
         mostrar_boton_personal_supervisor()
         mostrar_calendario_sidebar()
+        mostrar_seguimiento_sidebar()
 
         st.markdown("---")
         if st.button("🚪 CERRAR SESIÓN", use_container_width=True):
@@ -4129,6 +4327,7 @@ else:
         mostrar_boton_planificacion()
         mostrar_boton_personal_supervisor()
         mostrar_calendario_sidebar()
+        mostrar_seguimiento_sidebar()
             
         st.markdown("---")
         if vigilador_turno_activo():
@@ -4170,167 +4369,6 @@ if (st.session_state.rol_sel == "SUPERVISOR" and st.session_state.get("sup_auten
     st.stop()
 
 centro_supervisor.enrutar()
-
-# --- SEGUIMIENTO DE VIGILADORES (MONITOREO): escaneos QR en vivo, cambios de objetivo y mapa ---
-def _registro_escaneos_vigiladores():
-    """REGISTRO RECORRIDOS normalizado: _VIG (nombre), _OBJ, _PTO, _FH (fecha/hora), _RONDA, _LAT, _LON."""
-    df = leer_matriz_nube("REGISTRO RECORRIDOS")
-    if df.empty or not {'FECHA_HORA', 'OBJETIVO', 'PUNTO'} <= set(df.columns):
-        return pd.DataFrame()
-    df = df.loc[:, ~df.columns.duplicated()].copy()
-    col_vig = next((c for c in ['VIGILADOR', 'NOMBRE', 'APELLIDO Y NOMBRE'] if c in df.columns), None)
-    if col_vig:
-        df['_VIG'] = col_texto(df, col_vig).str.strip().str.upper()
-    elif 'DNI' in df.columns:
-        df['_VIG'] = col_texto(df, 'DNI').str.replace(r'\D', '', regex=True)
-        df_pad = leer_matriz_nube("PADRON VIGILADORES")
-        if not df_pad.empty and {'DNI', 'NOMBRE'} <= set(df_pad.columns):
-            mapa = dict(zip(col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True),
-                            col_texto(df_pad, 'NOMBRE').str.strip().str.upper()))
-            df['_VIG'] = df['_VIG'].map(lambda d: mapa.get(d, d))
-    else:
-        df['_VIG'] = "---"
-    df['_OBJ'] = col_texto(df, 'OBJETIVO').str.strip().str.upper()
-    df['_PTO'] = col_texto(df, 'PUNTO').str.strip().str.upper()
-    df['_FH'] = pd.to_datetime(df['FECHA_HORA'], errors='coerce')
-    df['_RONDA'] = pd.to_numeric(df['RONDA'], errors='coerce').fillna(1).astype(int) if 'RONDA' in df.columns else 1
-    for c_src, c_dst in (('LATITUD', '_LAT'), ('LONGITUD', '_LON')):
-        if c_src in df.columns:
-            df[c_dst] = pd.to_numeric(col_texto(df, c_src).str.replace(',', '.', regex=False), errors='coerce')
-        else:
-            df[c_dst] = float('nan')
-    df = df.dropna(subset=['_FH'])
-    return df.sort_values('_FH')
-
-def _hace_texto(ts):
-    try:
-        seg = max(0, int((pd.Timestamp(obtener_hora_argentina()) - ts).total_seconds()))
-    except Exception:
-        return "---"
-    if seg < 60:
-        return f"hace {seg} s"
-    if seg < 3600:
-        return f"hace {seg // 60} min"
-    return f"hace {seg // 3600} h {(seg % 3600) // 60} min"
-
-def renderizar_seguimiento_vigiladores(objetivos=None):
-    st.subheader("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)")
-    st.caption("Se actualiza solo cada 20 segundos. Muestra cada punto QR que escanea el vigilador, con hora y ubicación, y avisa si pasó a otro objetivo.")
-
-    @st.fragment(run_every=20)
-    def _panel():
-        c_f, c_v, c_b = st.columns([2, 3, 1])
-        fecha_sel = c_f.date_input("FECHA:", value=datetime.now(pytz.timezone("America/Argentina/Buenos_Aires")).date(), key="seg_vig_fecha")
-        if c_b.button("🔄", key="seg_vig_refrescar", use_container_width=True, help="Actualizar ahora"):
-            leer_matriz_nube.clear()
-            st.rerun()
-
-        df = _registro_escaneos_vigiladores()
-        if df.empty:
-            st.info("Todavía no hay escaneos de recorridos registrados.")
-            return
-        dia = df[df['_FH'].dt.strftime('%Y-%m-%d') == fecha_sel.strftime('%Y-%m-%d')].copy()
-        if objetivos is not None:
-            # Supervisor: vigiladores que escanearon en sus objetivos; de ellos se ve todo el día (incluye otros objetivos)
-            objs_ok = {str(o).strip().upper() for o in objetivos}
-            vigs_ok = set(dia[dia['_OBJ'].isin(objs_ok)]['_VIG'])
-            dia = dia[dia['_VIG'].isin(vigs_ok)].copy()
-        if dia.empty:
-            st.info("No hay escaneos registrados en esa fecha.")
-            return
-
-        vigs = sorted(dia['_VIG'].unique().tolist())
-        sel = c_v.selectbox("VIGILADOR:", ["— RESUMEN DE TODOS —"] + vigs, key="seg_vig_sel")
-
-        # ---------- Resumen de todos ----------
-        if sel == "— RESUMEN DE TODOS —":
-            filas = []
-            for v, g in dia.groupby('_VIG'):
-                u = g.iloc[-1]
-                filas.append({
-                    "VIGILADOR": v,
-                    "ÚLTIMO ESCANEO": u['_FH'].strftime('%H:%M:%S'),
-                    "HACE": _hace_texto(u['_FH']),
-                    "OBJETIVO ACTUAL": u['_OBJ'],
-                    "ÚLTIMO PUNTO": u['_PTO'],
-                    "ESCANEOS": len(g),
-                    "OBJETIVOS VISITADOS": g['_OBJ'].nunique(),
-                    "_ord": u['_FH'],
-                })
-            tabla = pd.DataFrame(filas).sort_values('_ord', ascending=False).drop(columns='_ord')
-            st.dataframe(tabla, use_container_width=True, hide_index=True)
-            st.caption("Elegí un vigilador arriba para seguir su recorrido en el mapa.")
-            return
-
-        # ---------- Detalle de un vigilador ----------
-        g = dia[dia['_VIG'] == sel].sort_values('_FH').reset_index(drop=True)
-        ult = g.iloc[-1]
-        g['_CAMBIO'] = g['_OBJ'] != g['_OBJ'].shift()
-        g.loc[0, '_CAMBIO'] = False
-        g['_PREV'] = g['_OBJ'].shift()
-
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("📷 ESCANEOS", len(g))
-        m2.metric("🏢 OBJETIVOS VISITADOS", g['_OBJ'].nunique())
-        m3.metric("🕒 ÚLTIMO ESCANEO", ult['_FH'].strftime('%H:%M:%S'), _hace_texto(ult['_FH']), delta_color="off")
-        m4.metric("📍 OBJETIVO ACTUAL", ult['_OBJ'])
-        st.caption(f"Último punto escaneado: **{ult['_PTO']}** (ronda {int(ult['_RONDA'])})")
-
-        cambios = g[g['_CAMBIO']]
-        if not cambios.empty:
-            for _, r in cambios.iterrows():
-                st.warning(f"🔀 {r['_FH'].strftime('%H:%M:%S')}: pasó de **{r['_PREV']}** a **{r['_OBJ']}**.")
-
-        # Alertas de fraude de ese vigilador en el día
-        df_al = leer_matriz_nube("ALERTAS")
-        if not df_al.empty and {'FECHA', 'USUARIO', 'TIPO'} <= set(df_al.columns):
-            fr = df_al[(col_texto(df_al, 'TIPO').str.upper() == "FRAUDE QR")
-                       & (col_texto(df_al, 'USUARIO').str.strip().str.upper() == sel)
-                       & (col_texto(df_al, 'FECHA').str.startswith(fecha_sel.strftime('%Y-%m-%d')))]
-            if not fr.empty:
-                st.error(f"🚩 {len(fr)} alerta(s) de posible fraude QR de este vigilador en el día.")
-                st.dataframe(fr, use_container_width=True, hide_index=True)
-
-        # Mapa del recorrido
-        con_gps = g.dropna(subset=['_LAT', '_LON'])
-        if not con_gps.empty:
-            paleta = ["#00E5FF", "#FF9100", "#76FF03", "#E040FB", "#FFEA00", "#FF5252", "#40C4FF", "#69F0AE"]
-            colores = {o: paleta[i % len(paleta)] for i, o in enumerate(g['_OBJ'].unique())}
-            m = folium.Map(location=[float(con_gps.iloc[-1]['_LAT']), float(con_gps.iloc[-1]['_LON'])], zoom_start=17, tiles="CartoDB dark_matter")
-            if len(con_gps) > 1:
-                AntPath([[float(a), float(b)] for a, b in zip(con_gps['_LAT'], con_gps['_LON'])], color="#00E5FF", weight=3, delay=1200).add_to(m)
-            n_tot = len(con_gps)
-            for i, (_, r) in enumerate(con_gps.iterrows(), start=1):
-                es_ult = (i == n_tot)
-                col = "#FF1744" if es_ult else colores[r['_OBJ']]
-                tam = 30 if es_ult else 24
-                html_pin = (f"<div style='background:{col};color:#000;border:2px solid #fff;border-radius:50%;width:{tam}px;height:{tam}px;"
-                            f"line-height:{tam - 4}px;text-align:center;font:bold 12px sans-serif;'>{i}</div>")
-                folium.Marker(
-                    [float(r['_LAT']), float(r['_LON'])],
-                    icon=folium.DivIcon(html=html_pin, icon_size=(tam, tam), icon_anchor=(tam // 2, tam // 2)),
-                    tooltip=f"{i}. {r['_FH'].strftime('%H:%M:%S')} - {r['_OBJ']} - {r['_PTO']}" + (" (ÚLTIMA POSICIÓN)" if es_ult else "")
-                ).add_to(m)
-            st_folium(m, use_container_width=True, height=420, key=f"seg_mapa_{sel}_{fecha_sel}", returned_objects=[])
-            leyenda = " · ".join(f"<span style='color:{c}'>●</span> {o}" for o, c in colores.items())
-            st.markdown(f"<div style='font-size:12px'>{leyenda} · <span style='color:#FF1744'>●</span> última posición</div>", unsafe_allow_html=True)
-        else:
-            st.info("Estos escaneos no tienen GPS guardado (los nuevos escaneos sí lo traen) — se muestra solo la línea de tiempo.")
-
-        # Línea de tiempo
-        st.markdown("##### 🧭 LÍNEA DE TIEMPO")
-        linea = pd.DataFrame({
-            "N°": range(1, len(g) + 1),
-            "HORA": g['_FH'].dt.strftime('%H:%M:%S'),
-            "OBJETIVO": g['_OBJ'],
-            "PUNTO": g['_PTO'],
-            "RONDA": g['_RONDA'],
-            "MOVIMIENTO": g['_CAMBIO'].map(lambda c: "🔀 CAMBIÓ DE OBJETIVO" if c else ""),
-        })
-        st.dataframe(linea.iloc[::-1], use_container_width=True, hide_index=True)
-
-    _panel()
-
 
 # =========================================================================
 # ROL: MONITOREO
@@ -4395,9 +4433,6 @@ if st.session_state.rol_sel == "MONITOREO":
     total_nuevos = contar_mensajes_nuevos()
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
-
-    with st.expander("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)", expanded=True):
-        renderizar_seguimiento_vigiladores()
 
     t_radar, t_mensajeria, t_nov = st.tabs([
         "🚨 RADAR S.O.S", label_msg, "Auditoría y registro de monitoreo por supervisor"
@@ -4927,11 +4962,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             """, unsafe_allow_html=True)
 
         _n_msg_sup = contar_mensajes_nuevos()
-        with st.expander("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)", expanded=True):
-            renderizar_seguimiento_vigiladores(
-                df_objetivos_filtrados['OBJETIVO'].tolist() if not df_objetivos_filtrados.empty else []
-            )
-
         t_vis_qr, t_qr_rec_tab, t_ruta_gmaps, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "🧾 PUNTOS QR RECORRIDO", "📲 RUTA GOOGLE MAPS",
             f"💬 MENSAJERÍA ({_n_msg_sup})" if _n_msg_sup else "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
@@ -5405,9 +5435,6 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
      
     st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: {st.session_state.rol_sel}</h2>', unsafe_allow_html=True)
      
-    with st.expander("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)", expanded=True):
-        renderizar_seguimiento_vigiladores()
-
     t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA"])
      
     with t_mensajeria_jefe:
