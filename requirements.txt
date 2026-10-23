@@ -20,3 +20,4 @@ av
 reportlab
 streamlit-qrcode-scanner
 geopy
+supabase
