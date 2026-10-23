@@ -222,7 +222,7 @@ def _obtener_hoja_para_escribir(gc, nombre_hoja_real):
             if nombre_hoja_real == "NOTIFICACIONES_SUPERVISORES":
                 hoja.append_row(["FECHA_HORA", "SUPERVISOR", "MENSAJE", "ESTADO"])
             return hoja
-
+            
 def escribir_registros_nube(pestana, filas):
     """Agrega varias filas en UNA sola llamada a Google (mensajes de pánico a supervisor, Jefe y Gerencia)."""
     try:
@@ -231,9 +231,9 @@ def escribir_registros_nube(pestana, filas):
             nombre_hoja_real = obtener_mapeo_solapas().get(pestana.upper().strip(), pestana)
             hoja = _obtener_hoja_para_escribir(gc, nombre_hoja_real)
             if len(filas) == 1:
-                _reintentar_429(lambda: hoja.append_row(filas[0]))
+                _reintentar_429(lambda: hoja.append_row(filas[0], table_range="A1"))
             else:
-                _reintentar_429(lambda: hoja.append_rows(filas))
+                _reintentar_429(lambda: hoja.append_rows(filas, table_range="A1"))
             if pestana.upper().strip() in ("MENSAJERIA", "ALERTAS"):
                 _leer_matriz_nube_cache.clear()   # solo refresca estas lecturas; no borra toda la caché de la app
             else:
