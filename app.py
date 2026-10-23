@@ -1,3 +1,4 @@
+
 import streamlit as st
 import html as _html_msg
 import datetime
@@ -482,23 +483,47 @@ def _km(lat1, lon1, lat2, lon2):
     return 6371 * 2 * math.asin(math.sqrt(a))
 
 def _buscar_comisarias_osm(lat, lon):
-    """Busca dependencias policiales cerca del punto: primero Overpass y, si falla, Nominatim. Deja el motivo en _almacen_geo()['com_error']."""
+    """Busca dependencias policiales cerca del punto. Overpass (varios servidores espejo, con reintento) y, si fallan todos,
+    una sola consulta a Nominatim. Deja el motivo en _almacen_geo()['com_error']."""
     import time
     alm = _almacen_geo()
     errores = []
-    # --- 1) Overpass, ampliando el radio ---
-    for radio in (3000, 8000, 20000):
+    cabeceras = {"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)", "Accept-Language": "es"}
+    espejos = ("https://overpass-api.de/api/interpreter",
+               "https://overpass.private.coffee/api/interpreter",
+               "https://overpass.kumi.systems/api/interpreter",
+               "https://maps.mail.ru/osm/tools/overpass/api/interpreter")
+    limite = time.time() + 45   # tope total para no dejar la pantalla colgada
+
+    def _ordenar(res):
+        con_nombre = [x for x in res if "COMISAR" in x["nombre"]]
+        return sorted(con_nombre or res, key=lambda x: x["distancia_km"])
+
+    # --- 1) Overpass: radio 6 km y, solo si responde pero sin resultados, 20 km ---
+    for radio in (6000, 20000):
         consulta = f'[out:json][timeout:15];nwr["amenity"="police"](around:{radio},{lat},{lon});out center tags;'
         elementos = None
-        for url in ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"):
-            try:
-                r = requests.post(url, data={"data": consulta}, headers={"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)"}, timeout=15)
-                if r.ok:
-                    elementos = r.json().get("elements", [])
+        for url in espejos:
+            if time.time() > limite:
+                break
+            for intento in range(2):
+                try:
+                    r = requests.post(url, data={"data": consulta}, headers=cabeceras, timeout=12)
+                    if r.ok:
+                        elementos = r.json().get("elements", [])
+                        break
+                    errores.append(f"Overpass HTTP {r.status_code}")
+                    if r.status_code in (429, 502, 503, 504) and intento == 0:
+                        time.sleep(1.5)
+                        continue
                     break
-                errores.append(f"Overpass HTTP {r.status_code}")
-            except Exception as e:
-                errores.append(f"Overpass {type(e).__name__}")
+                except Exception as e:
+                    errores.append(f"Overpass {type(e).__name__}")
+                    break
+            if elementos is not None:
+                break
+        if elementos is None:
+            break   # ningún servidor respondió: no repetir con un radio mayor
         if elementos:
             res = []
             for e in elementos:
@@ -518,37 +543,38 @@ def _buscar_comisarias_osm(lat, lon):
                     "distancia_km": _km(lat, lon, float(la), float(lo)),
                 })
             if res:
-                con_nombre = [x for x in res if "COMISAR" in x["nombre"]]
-                return sorted(con_nombre or res, key=lambda x: x["distancia_km"])
-        elif elementos is not None:
-            errores.append(f"Overpass sin comisarías en {radio // 1000} km")
-    # --- 2) Respaldo: Nominatim buscando 'comisaría' dentro de un recuadro alrededor del objetivo ---
-    for d in (0.05, 0.15, 0.3):
-        for termino in ("comisaría", "police"):
-            try:
-                r = requests.get(
-                    "https://nominatim.openstreetmap.org/search",
-                    params={"q": termino, "format": "jsonv2", "limit": 15, "countrycodes": "ar", "bounded": 1,
-                            "viewbox": f"{lon - d},{lat + d},{lon + d},{lat - d}"},
-                    headers={"User-Agent": "AION-YAROKU/1.0 (monitoreo de objetivos)", "Accept-Language": "es"}, timeout=10)
-                time.sleep(1.0)
-                if r.ok:
-                    datos = r.json()
-                    res = []
-                    for x in datos:
-                        nombre = str(x.get("name") or x.get("display_name", "").split(",")[0] or "DEPENDENCIA POLICIAL").upper()
-                        res.append({
-                            "nombre": nombre, "direccion": "---", "localidad": "", "telefono": "",
-                            "lat": float(x["lat"]), "lon": float(x["lon"]),
-                            "distancia_km": _km(lat, lon, float(x["lat"]), float(x["lon"])),
-                        })
-                    if res:
-                        con_nombre = [x for x in res if "COMISAR" in x["nombre"]]
-                        return sorted(con_nombre or res, key=lambda x: x["distancia_km"])
-                else:
-                    errores.append(f"Nominatim HTTP {r.status_code}")
-            except Exception as e:
-                errores.append(f"Nominatim {type(e).__name__}")
+                return _ordenar(res)
+        errores.append(f"Overpass sin comisarías en {radio // 1000} km")
+    # --- 2) Respaldo: Nominatim, una consulta por término (si responde 429 se corta para no empeorarlo) ---
+    d = 0.15
+    for termino in ("comisaría", "police"):
+        if time.time() > limite + 10:
+            break
+        try:
+            r = requests.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": termino, "format": "jsonv2", "limit": 20, "countrycodes": "ar", "bounded": 1,
+                        "viewbox": f"{lon - d},{lat + d},{lon + d},{lat - d}"},
+                headers=cabeceras, timeout=10)
+            if r.status_code == 429:
+                errores.append("Nominatim HTTP 429")
+                break
+            if r.ok:
+                res = []
+                for x in r.json():
+                    nombre = str(x.get("name") or x.get("display_name", "").split(",")[0] or "DEPENDENCIA POLICIAL").upper()
+                    res.append({
+                        "nombre": nombre, "direccion": "---", "localidad": "", "telefono": "",
+                        "lat": float(x["lat"]), "lon": float(x["lon"]),
+                        "distancia_km": _km(lat, lon, float(x["lat"]), float(x["lon"])),
+                    })
+                if res:
+                    return _ordenar(res)
+            else:
+                errores.append(f"Nominatim HTTP {r.status_code}")
+        except Exception as e:
+            errores.append(f"Nominatim {type(e).__name__}")
+        time.sleep(1.1)
     alm["com_error"] = "; ".join(dict.fromkeys(errores)) or "sin resultados"
     return []
 
@@ -4582,8 +4608,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             """, unsafe_allow_html=True)
 
         _n_msg_sup = contar_mensajes_nuevos()
-        t_vis_qr, t_nuevo_obj, t_ruta_gmaps, t_car_tac, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "➕ CARGAR OBJETIVO", "📲 RUTA GOOGLE MAPS", "Carga Táctica",
+        t_vis_qr, t_qr_rec_tab, t_ruta_gmaps, t_mensajeria_sup, t_pres_sup = st.tabs([
+            "Visita QR", "🧾 PUNTOS QR RECORRIDO", "📲 RUTA GOOGLE MAPS",
             f"💬 MENSAJERÍA ({_n_msg_sup})" if _n_msg_sup else "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
          
@@ -4810,54 +4836,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             else:
                 st.warning("⚠️ No se encontraron objetivos asignados a su usuario Supervisor.")
 
-        with t_nuevo_obj:
-            st.markdown("### ➕ AUTOGESTIÓN Y BAJA DE OBJETIVOS TÁCTICOS")
-            tab_alta_sup, tab_baja_sup, tab_qr_rec_sup = st.tabs(["🚀 DAR DE ALTA", "🗑️ SOLICITAR BAJA", "🧾 PUNTOS QR RECORRIDO"])
-             
-            with tab_alta_sup:
-                with st.form(key="form_crear_objetivo_supervisor", clear_on_submit=False):
-                    col_no1, col_no2 = st.columns(2)
-                    nuevo_nombre_obj = col_no1.text_input("NOMBRE DEL OBJETIVO:", value="").upper().strip()
-                    nueva_calle = col_no2.text_input("CALLE:", value="").upper().strip()
-
-                    col_loc1, col_loc2 = st.columns(2)
-                    nueva_altura = col_loc1.text_input("ALTURA:", value="").strip()
-                    nueva_localidad = col_loc2.text_input("LOCALIDAD:", value="").upper().strip()
-
-                    nuevos_responsables = ""
-
-                    supervisor_asignado_actual = st.session_state.user_sel.upper()
-                    if st.form_submit_button("🚀 DAR DE ALTA OBJETIVO EN LA RED"):
-                        if not (nuevo_nombre_obj and nueva_calle and nueva_altura and nueva_localidad):
-                            st.warning("⚠️ Complete nombre del objetivo, calle, altura y localidad.")
-                        elif not nueva_altura.isdigit():
-                            st.warning("⚠️ La altura debe ser un número (ej: 1234).")
-                        else:
-                            exito_alta = registrar_objetivo(
-                                nuevo_nombre_obj, nueva_calle, nueva_altura, nueva_localidad, supervisor_asignado_actual, nuevos_responsables
-                            )
-                            if exito_alta:
-                                if geocodificar_direccion(nueva_calle, nueva_altura, nueva_localidad):
-                                    st.success(f"✅ ¡Objetivo '{nuevo_nombre_obj}' cargado y ubicado en el mapa de monitoreo!")
-                                else:
-                                    st.warning(f"⚠️ Objetivo '{nuevo_nombre_obj}' cargado, pero no se pudo ubicar en el mapa. Revisá calle, altura y localidad.")
-                            else:
-                                st.error("❌ Error al registrar en la nube. Verifique la conexión con Google Sheets.")
-
-            with tab_baja_sup:
-                if not df_objetivos_filtrados.empty:
-                    with st.form(key="form_baja_objetivo_supervisor", clear_on_submit=True):
-                        obj_a_baja = st.selectbox("SELECCIONE OBJETIVO A DAR DE BAJA:", df_objetivos_filtrados['OBJETIVO'].unique())
-                        motivo_baja = st.text_input("MOTIVO DE LA BAJA:")
-                        if st.form_submit_button("🗑️ SOLICITAR BAJA DE OBJETIVO"):
-                            escribir_registro_nube("SOLICITUDES DE ACCESO", [obtener_hora_argentina(), st.session_state.user_sel, "BAJA", f"{obj_a_baja} - MOTIVO: {motivo_baja}", "PENDIENTE"])
-                            st.success(f"✅ Petición de baja enviada para '{obj_a_baja}'.")
-
-            with tab_qr_rec_sup:
-                renderizar_generador_qr_recorrido(
-                    df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else [],
-                    "sup"
-                )
+        with t_qr_rec_tab:
+            renderizar_generador_qr_recorrido(
+                df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else [],
+                "sup"
+            )
 
         with t_ruta_gmaps:
             st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
@@ -4872,12 +4855,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                     _geo_r = geocodificar_direccion(datos_r.get('CALLE', ''), datos_r.get('ALTURA', ''), datos_r.get('LOCALIDAD', ''))
                     if _geo_r:
                         st.link_button("🗺️ ABRIR ASISTENTE GPS", f"https://www.google.com/maps/dir/?api=1&origin={com_r['lat']},{com_r['lon']}&destination={_geo_r[0]},{_geo_r[1]}&travelmode=driving", use_container_width=True)
-
-        with t_car_tac:
-            novedad_sup = st.text_area("Novedad / Registro Operativo:")
-            if st.button("CARGAR REGISTRO") and novedad_sup.strip():
-                escribir_registro_nube("NOVEDADES GUARDIA", [obtener_hora_argentina(), obj_actual, "NOVEDAD OPERATIVA", novedad_sup.strip().upper(), st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
-                st.success("✅ Cargado correctamente")
 
         with t_mensajeria_sup:
             renderizar_mensajeria_global("SUPERVISOR")
@@ -5136,7 +5113,6 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                 a_calle = st.text_input("Calle:")
                 a_altura = st.text_input("Altura:")
                 a_loc = st.text_input("Localidad:")
-                a_resp = st.text_input("Responsables:")
                 a_sup = st.selectbox("Asignar al supervisor:", LISTA_SUPS_TACTICOS)
                 if st.form_submit_button("🟢 DAR DE ALTA Y AVISAR AL SUPERVISOR"):
                     if not (a_nom.strip() and a_calle.strip() and a_altura.strip() and a_loc.strip() and a_sup):
@@ -5144,7 +5120,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     elif not a_altura.strip().isdigit():
                         st.session_state.msg_servicio = (False, "⚠️ La altura debe ser un número (ej: 1234).")
                     else:
-                        ok_a, txt_a = alta_servicio(a_nom, a_calle, a_altura.strip(), a_loc, a_sup, a_resp, st.session_state.user_sel)
+                        ok_a, txt_a = alta_servicio(a_nom, a_calle, a_altura.strip(), a_loc, a_sup, "", st.session_state.user_sel)
                         if ok_a and not geocodificar_direccion(a_calle, a_altura.strip(), a_loc):
                             txt_a += " Ojo: no se pudo ubicar en el mapa; revisá calle, altura y localidad."
                         st.session_state.msg_servicio = (ok_a, ("✅ " if ok_a else "❌ ") + txt_a)
