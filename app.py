@@ -1,4 +1,4 @@
-fimport streamlit as st
+import streamlit as st
 import html as _html_msg
 import datetime
 from datetime import datetime
@@ -1782,14 +1782,57 @@ navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},wid
     ctx.drawImage(v,0,0,c.width,c.height);
     var im=ctx.getImageData(0,0,c.width,c.height);
     var r=jsQR(im.data,im.width,im.height,{inversionAttempts:"attemptBoth"});
-    if(r&&r.data){pausa=true;bip();enviar("streamlit:setComponentValue",{value:r.data,dataType:"json"});
-      setTimeout(function(){pausa=false;},3000);}
+    if(r&&r.data){
+      pausa=true;bip();
+      var texto=r.data;
+      var listo=function(g){
+        enviar("streamlit:setComponentValue",{value:{texto:texto,lat:g?g.latitude:null,lon:g?g.longitude:null,acc:g?g.accuracy:null,ts:Date.now()},dataType:"json"});
+        setTimeout(function(){pausa=false;},3000);
+      };
+      var GL=null;
+      try{GL=(window.parent.navigator&&window.parent.navigator.geolocation)||navigator.geolocation;}catch(e){GL=navigator.geolocation;}
+      if(GL){GL.getCurrentPosition(function(p){listo(p.coords);},function(){listo(null);},{enableHighAccuracy:true,timeout:8000,maximumAge:0});}
+      else{listo(null);}
+    }
   },120);
 }).catch(function(){m.textContent="No se pudo abrir la cámara. Revisá el permiso del navegador.";});
 </script></body></html>"""
 
 def visor_qr(key):
-    return _declarar_visor_qr("v6")(key=key, default=None)
+    return _declarar_visor_qr("v7")(key=key, default=None)
+
+def texto_qr(lectura):
+    """El visor ahora devuelve {texto, lat, lon, acc, ts}. Esta función devuelve solo el texto del QR."""
+    if isinstance(lectura, dict):
+        return str(lectura.get("texto", "")).strip()
+    return str(lectura or "").strip()
+
+@st.cache_resource(show_spinner=False)
+def _qr_validator():
+    import wlnqr
+    cli = None
+    try:
+        from supabase import create_client
+        cli = create_client(st.secrets["supabase"]["url"], st.secrets["supabase"]["key"])
+    except Exception as e:
+        print(f"Supabase no disponible: {e}")
+    return wlnqr.QRValidator(cli)
+
+def validar_presencia_scan(lectura, calle, altura, localidad, radio_m=150):
+    """Para el supervisor: el GPS tomado al escanear tiene que estar en el objetivo."""
+    if not isinstance(lectura, dict) or lectura.get("lat") is None:
+        return False, "No se pudo tomar tu GPS al escanear. Activá la ubicación y volvé a intentar."
+    destino = geocodificar_direccion(calle, altura, localidad)
+    if not destino:
+        return False, "No se pudo ubicar el objetivo en el mapa. Revisá calle, altura y localidad."
+    d = _km(float(lectura["lat"]), float(lectura["lon"]), destino[0], destino[1]) * 1000
+    prec = float(lectura.get("acc") or 0)
+    margen = radio_m + (0 if destino[2] else 250)
+    if d - prec > margen:
+        return False, f"Estás a {d:.0f} m del objetivo (máximo {margen} m). Escaneo rechazado."
+    if d > margen:
+        return False, "Señal GPS débil. Esperá unos segundos y reintentá."
+    return True, f"Presencia verificada (~{d:.0f} m)."
 
 # --- 3.B RECORRIDOS CON QR (VIGILADORES) Y ALERTA SONORA DE HORARIOS MEJORADA ---
 def _horarios_unicos(valores):
@@ -2190,51 +2233,113 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
             st.caption(f"⛔ Ronda de las {horarios_previstos_lista[n_s - 1]} hs: no realizada ({saltadas[n_s] or 'sin motivo'}).")
     st.progress(min(1.0, len(marcados) / len(lista_puntos)))
 
+    siguiente = next((p for p in lista_puntos if p not in marcados), None)
     for p in lista_puntos:
-        st.write(("✅ " if p in marcados else "⏳ ") + p)
+        st.write(("✅ " if p in marcados else ("➡️ " if p == siguiente else "🔒 ")) + p)
 
     if st.session_state.get("msg_recorrido"):
         st.success(st.session_state.msg_recorrido)
 
-    if len(marcados) >= len(lista_puntos):
-        st.success("🏁 ¡Ronda completa!")
-        if st.button("🔁 INICIAR NUEVA RONDA", use_container_width=True, key=f"btn_nueva_ronda_{obj_u}"):
-            st.session_state[key_ronda] = ronda + 1
-            st.session_state.msg_recorrido = ""
-            st.rerun()
+    # Ronda completa: no se escanea más
+    if siguiente is None:
+        st.success("🏁 ¡Ronda completa! Ya no se puede escanear en esta ronda.")
+        hay_mas = (not horarios_previstos_lista) or ronda < len(horarios_previstos_lista)
+        if hay_mas:
+            if st.button("🔁 INICIAR NUEVA RONDA", use_container_width=True, key=f"btn_nueva_ronda_{obj_u}"):
+                st.session_state[key_ronda] = ronda + 1
+                st.session_state.msg_recorrido = ""
+                st.session_state.pop("resultado_qr", None)
+                st.rerun()
+        else:
+            st.info("Completaste todas las rondas programadas de hoy.")
         return
 
+    # Datos para validar
+    ultima = None
+    if not df_hoy.empty:
+        _dr = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
+        if not _dr.empty:
+            try:
+                ultima = pd.to_datetime(_dr.iloc[-1]['FECHA_HORA']).to_pydatetime()
+            except Exception:
+                ultima = None
+
+    def _cb_fraude(tipo, detalle, ctx):
+        import time as _t
+        clave_f = (tipo, ctx["id_punto"])
+        vistos = st.session_state.setdefault("_fraude_ult", {})
+        if vistos.get(clave_f, 0) > _t.time() - 120:      # no repetir el mismo aviso en 2 minutos
+            return
+        vistos[clave_f] = _t.time()
+        fecha = obtener_hora_argentina()
+        sup = ""
+        df_objetivos = cargar_objetivos()
+        if not df_objetivos.empty:
+            _m = df_objetivos[col_texto(df_objetivos, 'OBJETIVO').str.strip().str.upper() == obj_u]
+            if not _m.empty:
+                sup = str(_m['SUPERVISOR'].iloc[0]).strip().upper()
+        quien = str(nombre).strip().upper()
+        asunto = f"ALERTA DE FRAUDE QR - {quien} ({fecha[11:16]})"
+        texto = f"🚩 POSIBLE FRAUDE QR ({tipo}): {quien} - OBJ: {obj_u} - PUNTO: {ctx['id_punto']}. {detalle}"
+        destinos = [d for d in ["JEFE DE OPERACIONES", "GERENCIA", sup] if d and d not in ("N/A", "MONITOREO")]
+        escribir_registros_nube("MENSAJERIA", [[fecha, quien, d, asunto, texto, "PENDIENTE", "ROJA"] for d in destinos])
+        escribir_registro_nube("ALERTAS", [fecha, quien, "FRAUDE QR", "REGISTRADO", obj_u, sup])
+        pref = _prefijo_ntfy()
+        if pref:
+            _push_ntfy([d for d in ["monitoreo", "jefe-de-operaciones", _slug_topic(sup) if sup else ""] if d],
+                       f"FRAUDE QR: {quien} - {obj_u} - {ctx['id_punto']} - {tipo}", pref)
+
+    st.info(f"➡️ Próximo punto a escanear: **{siguiente}**")
     st.markdown("""
         <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
             <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">📷 ESCANEÁ EL QR DEL PUNTO DE CONTROL</span>
         </div>
     """, unsafe_allow_html=True)
 
-    codigo = visor_qr(key=f"scan_rec_{obj_u}_{ronda}_{len(marcados)}")
+    lectura = visor_qr(key=f"scan_rec_{obj_u}_{ronda}_{len(marcados)}")
 
-    if codigo:
-        txt = str(codigo).strip()
+    # Se procesa UNA sola vez cada lectura (evita alertas repetidas en cada recarga)
+    if isinstance(lectura, dict) and lectura.get("ts") != st.session_state.get("_qr_ts_rec"):
+        st.session_state["_qr_ts_rec"] = lectura.get("ts")
+        st.session_state.pop("resultado_qr", None)
+        txt = texto_qr(lectura)
         partes = {}
         for fragmento in txt.split("|"):
             if ":" in fragmento:
                 k, v = fragmento.split(":", 1)
                 partes[k.strip().upper()] = v.strip().upper()
-        obj_qr = partes.get("OBJ", "")
-        pto_qr = partes.get("PTO", "")
+        obj_qr, pto_qr = partes.get("OBJ", ""), partes.get("PTO", "")
 
         if not txt.upper().startswith("AION-RECORRIDO"):
-            st.error("❌ Ese QR no es de un punto de recorrido.")
-        elif obj_qr != obj_u or pto_qr not in lista_puntos:
-            st.error("❌ Ese punto no pertenece a este objetivo.")
-        elif pto_qr in marcados:
-            st.warning("⚠️ Ese punto ya fue marcado en esta ronda.")
+            st.session_state.resultado_qr = "❌ Ese QR no es de un punto de recorrido."
+        elif obj_qr != obj_u:
+            st.session_state.resultado_qr = "❌ Ese punto no pertenece a este objetivo."
         else:
-            ok = escribir_registro_nube("REGISTRO RECORRIDOS", [
-                obtener_hora_argentina(), obj_u, pto_qr, str(nombre).strip().upper(), str(dni), ronda, "OK"
-            ])
-            if ok:
-                st.session_state.msg_recorrido = f"✅ Marcado: {pto_qr}"
-                st.rerun()
+            fb = None   # ubicación del objetivo, por si el punto no tiene ubicación propia
+            _df_o = cargar_objetivos()
+            _fo = _df_o[col_texto(_df_o, 'OBJETIVO').str.strip().str.upper() == obj_u] if not _df_o.empty else pd.DataFrame()
+            if not _fo.empty:
+                _g = geocodificar_direccion(_fo.iloc[0].get('CALLE', ''), _fo.iloc[0].get('ALTURA', ''), _fo.iloc[0].get('LOCALIDAD', ''))
+                if _g:
+                    fb = (_g[0], _g[1], 150 if _g[2] else 400)
+            res = _qr_validator().validar_marcacion(
+                legajo=st.session_state.get("legajo_vigilador", "S/L"), objetivo=obj_u, id_punto=pto_qr,
+                orden_puntos=lista_puntos, marcados=list(marcados),
+                lat_usuario=lectura.get("lat"), lon_usuario=lectura.get("lon"), precision_m=lectura.get("acc"),
+                ultima_marca=ultima, ronda=ronda, fallback=fb, on_fraude=_cb_fraude)
+            if res["valido"]:
+                if escribir_registro_nube("REGISTRO RECORRIDOS", [
+                    obtener_hora_argentina(), obj_u, pto_qr, str(nombre).strip().upper(), str(dni), ronda, "OK",
+                    round(float(lectura["lat"]), 6), round(float(lectura["lon"]), 6)
+                ]):
+                    st.session_state.msg_recorrido = f"✅ Marcado: {pto_qr}"
+                    st.rerun()
+            else:
+                pref = "🚩 ESCANEO RECHAZADO Y REPORTADO AL SUPERVISOR. " if res["fraude"] else "⛔ "
+                st.session_state.resultado_qr = pref + res["mensaje"]
+
+    if st.session_state.get("resultado_qr"):
+        st.error(st.session_state.resultado_qr)
 
 def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
     st.markdown("#### 🧾 CONFIGURACIÓN DE RONDAS Y HORARIOS ESPECÍFICOS")
@@ -2315,6 +2420,24 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
             mime="image/png",
             key=f"{key_prefix}_dl_qr_{obj_u}_{pto_sel}"
         )
+        kc = f"{key_prefix}_cal_{obj_u}_{str(pto_sel).strip().upper()}".replace(" ", "_")
+        st.caption("📍 Parate frente al QR físico y tocá el botón para guardar dónde está este punto.")
+        if st.button("📍 GUARDAR UBICACIÓN DE ESTE PUNTO", key=kc + "_btn", use_container_width=True):
+            st.session_state[kc + "_n"] = st.session_state.get(kc + "_n", 0) + 1
+            st.session_state[kc] = st.session_state[kc + "_n"]
+        if st.session_state.get(kc):
+            loc = get_geolocation(component_key=f"{kc}_{st.session_state[kc]}")
+            if loc and "coords" in loc:
+                c = loc["coords"]
+                if float(c.get("accuracy") or 999) > 30:
+                    st.warning(f"⚠️ GPS poco preciso (±{float(c.get('accuracy') or 0):.0f} m). Salí a un lugar abierto y probá de nuevo.")
+                elif _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), c["latitude"], c["longitude"]):
+                    st.success("✅ Ubicación del punto guardada.")
+                else:
+                    st.error("❌ No se pudo guardar. Revisá la conexión con Supabase.")
+                st.session_state[kc] = 0
+            else:
+                st.info("📡 Obteniendo ubicación…")
 
 def tabla_recorridas_vigiladores(objs_sup):
     df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
@@ -4022,6 +4145,162 @@ if (st.session_state.rol_sel == "SUPERVISOR" and st.session_state.get("sup_auten
 
 centro_supervisor.enrutar()
 
+# --- SEGUIMIENTO DE VIGILADORES (MONITOREO): escaneos QR en vivo, cambios de objetivo y mapa ---
+def _registro_escaneos_vigiladores():
+    """REGISTRO RECORRIDOS normalizado: _VIG (nombre), _OBJ, _PTO, _FH (fecha/hora), _RONDA, _LAT, _LON."""
+    df = leer_matriz_nube("REGISTRO RECORRIDOS")
+    if df.empty or not {'FECHA_HORA', 'OBJETIVO', 'PUNTO'} <= set(df.columns):
+        return pd.DataFrame()
+    df = df.loc[:, ~df.columns.duplicated()].copy()
+    col_vig = next((c for c in ['VIGILADOR', 'NOMBRE', 'APELLIDO Y NOMBRE'] if c in df.columns), None)
+    if col_vig:
+        df['_VIG'] = col_texto(df, col_vig).str.strip().str.upper()
+    elif 'DNI' in df.columns:
+        df['_VIG'] = col_texto(df, 'DNI').str.replace(r'\D', '', regex=True)
+        df_pad = leer_matriz_nube("PADRON VIGILADORES")
+        if not df_pad.empty and {'DNI', 'NOMBRE'} <= set(df_pad.columns):
+            mapa = dict(zip(col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True),
+                            col_texto(df_pad, 'NOMBRE').str.strip().str.upper()))
+            df['_VIG'] = df['_VIG'].map(lambda d: mapa.get(d, d))
+    else:
+        df['_VIG'] = "---"
+    df['_OBJ'] = col_texto(df, 'OBJETIVO').str.strip().str.upper()
+    df['_PTO'] = col_texto(df, 'PUNTO').str.strip().str.upper()
+    df['_FH'] = pd.to_datetime(df['FECHA_HORA'], errors='coerce')
+    df['_RONDA'] = pd.to_numeric(df['RONDA'], errors='coerce').fillna(1).astype(int) if 'RONDA' in df.columns else 1
+    for c_src, c_dst in (('LATITUD', '_LAT'), ('LONGITUD', '_LON')):
+        if c_src in df.columns:
+            df[c_dst] = pd.to_numeric(col_texto(df, c_src).str.replace(',', '.', regex=False), errors='coerce')
+        else:
+            df[c_dst] = float('nan')
+    df = df.dropna(subset=['_FH'])
+    return df.sort_values('_FH')
+
+def _hace_texto(ts):
+    try:
+        seg = max(0, int((pd.Timestamp(obtener_hora_argentina()) - ts).total_seconds()))
+    except Exception:
+        return "---"
+    if seg < 60:
+        return f"hace {seg} s"
+    if seg < 3600:
+        return f"hace {seg // 60} min"
+    return f"hace {seg // 3600} h {(seg % 3600) // 60} min"
+
+def renderizar_seguimiento_vigiladores():
+    st.subheader("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)")
+    st.caption("Se actualiza solo cada 20 segundos. Muestra cada punto QR que escanea el vigilador, con hora y ubicación, y avisa si pasó a otro objetivo.")
+
+    @st.fragment(run_every=20)
+    def _panel():
+        c_f, c_v, c_b = st.columns([2, 3, 1])
+        fecha_sel = c_f.date_input("FECHA:", value=datetime.now(pytz.timezone("America/Argentina/Buenos_Aires")).date(), key="seg_vig_fecha")
+        if c_b.button("🔄", key="seg_vig_refrescar", use_container_width=True, help="Actualizar ahora"):
+            leer_matriz_nube.clear()
+            st.rerun()
+
+        df = _registro_escaneos_vigiladores()
+        if df.empty:
+            st.info("Todavía no hay escaneos de recorridos registrados.")
+            return
+        dia = df[df['_FH'].dt.strftime('%Y-%m-%d') == fecha_sel.strftime('%Y-%m-%d')].copy()
+        if dia.empty:
+            st.info("No hay escaneos registrados en esa fecha.")
+            return
+
+        vigs = sorted(dia['_VIG'].unique().tolist())
+        sel = c_v.selectbox("VIGILADOR:", ["— RESUMEN DE TODOS —"] + vigs, key="seg_vig_sel")
+
+        # ---------- Resumen de todos ----------
+        if sel == "— RESUMEN DE TODOS —":
+            filas = []
+            for v, g in dia.groupby('_VIG'):
+                u = g.iloc[-1]
+                filas.append({
+                    "VIGILADOR": v,
+                    "ÚLTIMO ESCANEO": u['_FH'].strftime('%H:%M:%S'),
+                    "HACE": _hace_texto(u['_FH']),
+                    "OBJETIVO ACTUAL": u['_OBJ'],
+                    "ÚLTIMO PUNTO": u['_PTO'],
+                    "ESCANEOS": len(g),
+                    "OBJETIVOS VISITADOS": g['_OBJ'].nunique(),
+                    "_ord": u['_FH'],
+                })
+            tabla = pd.DataFrame(filas).sort_values('_ord', ascending=False).drop(columns='_ord')
+            st.dataframe(tabla, use_container_width=True, hide_index=True)
+            st.caption("Elegí un vigilador arriba para seguir su recorrido en el mapa.")
+            return
+
+        # ---------- Detalle de un vigilador ----------
+        g = dia[dia['_VIG'] == sel].sort_values('_FH').reset_index(drop=True)
+        ult = g.iloc[-1]
+        g['_CAMBIO'] = g['_OBJ'] != g['_OBJ'].shift()
+        g.loc[0, '_CAMBIO'] = False
+        g['_PREV'] = g['_OBJ'].shift()
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("📷 ESCANEOS", len(g))
+        m2.metric("🏢 OBJETIVOS VISITADOS", g['_OBJ'].nunique())
+        m3.metric("🕒 ÚLTIMO ESCANEO", ult['_FH'].strftime('%H:%M:%S'), _hace_texto(ult['_FH']), delta_color="off")
+        m4.metric("📍 OBJETIVO ACTUAL", ult['_OBJ'])
+        st.caption(f"Último punto escaneado: **{ult['_PTO']}** (ronda {int(ult['_RONDA'])})")
+
+        cambios = g[g['_CAMBIO']]
+        if not cambios.empty:
+            for _, r in cambios.iterrows():
+                st.warning(f"🔀 {r['_FH'].strftime('%H:%M:%S')}: pasó de **{r['_PREV']}** a **{r['_OBJ']}**.")
+
+        # Alertas de fraude de ese vigilador en el día
+        df_al = leer_matriz_nube("ALERTAS")
+        if not df_al.empty and {'FECHA', 'USUARIO', 'TIPO'} <= set(df_al.columns):
+            fr = df_al[(col_texto(df_al, 'TIPO').str.upper() == "FRAUDE QR")
+                       & (col_texto(df_al, 'USUARIO').str.strip().str.upper() == sel)
+                       & (col_texto(df_al, 'FECHA').str.startswith(fecha_sel.strftime('%Y-%m-%d')))]
+            if not fr.empty:
+                st.error(f"🚩 {len(fr)} alerta(s) de posible fraude QR de este vigilador en el día.")
+                st.dataframe(fr, use_container_width=True, hide_index=True)
+
+        # Mapa del recorrido
+        con_gps = g.dropna(subset=['_LAT', '_LON'])
+        if not con_gps.empty:
+            paleta = ["#00E5FF", "#FF9100", "#76FF03", "#E040FB", "#FFEA00", "#FF5252", "#40C4FF", "#69F0AE"]
+            colores = {o: paleta[i % len(paleta)] for i, o in enumerate(g['_OBJ'].unique())}
+            m = folium.Map(location=[float(con_gps.iloc[-1]['_LAT']), float(con_gps.iloc[-1]['_LON'])], zoom_start=17, tiles="CartoDB dark_matter")
+            if len(con_gps) > 1:
+                AntPath([[float(a), float(b)] for a, b in zip(con_gps['_LAT'], con_gps['_LON'])], color="#00E5FF", weight=3, delay=1200).add_to(m)
+            n_tot = len(con_gps)
+            for i, (_, r) in enumerate(con_gps.iterrows(), start=1):
+                es_ult = (i == n_tot)
+                col = "#FF1744" if es_ult else colores[r['_OBJ']]
+                tam = 30 if es_ult else 24
+                html_pin = (f"<div style='background:{col};color:#000;border:2px solid #fff;border-radius:50%;width:{tam}px;height:{tam}px;"
+                            f"line-height:{tam - 4}px;text-align:center;font:bold 12px sans-serif;'>{i}</div>")
+                folium.Marker(
+                    [float(r['_LAT']), float(r['_LON'])],
+                    icon=folium.DivIcon(html=html_pin, icon_size=(tam, tam), icon_anchor=(tam // 2, tam // 2)),
+                    tooltip=f"{i}. {r['_FH'].strftime('%H:%M:%S')} - {r['_OBJ']} - {r['_PTO']}" + (" (ÚLTIMA POSICIÓN)" if es_ult else "")
+                ).add_to(m)
+            st_folium(m, use_container_width=True, height=420, key=f"seg_mapa_{sel}_{fecha_sel}", returned_objects=[])
+            leyenda = " · ".join(f"<span style='color:{c}'>●</span> {o}" for o, c in colores.items())
+            st.markdown(f"<div style='font-size:12px'>{leyenda} · <span style='color:#FF1744'>●</span> última posición</div>", unsafe_allow_html=True)
+        else:
+            st.info("Estos escaneos no tienen GPS guardado (los nuevos escaneos sí lo traen) — se muestra solo la línea de tiempo.")
+
+        # Línea de tiempo
+        st.markdown("##### 🧭 LÍNEA DE TIEMPO")
+        linea = pd.DataFrame({
+            "N°": range(1, len(g) + 1),
+            "HORA": g['_FH'].dt.strftime('%H:%M:%S'),
+            "OBJETIVO": g['_OBJ'],
+            "PUNTO": g['_PTO'],
+            "RONDA": g['_RONDA'],
+            "MOVIMIENTO": g['_CAMBIO'].map(lambda c: "🔀 CAMBIÓ DE OBJETIVO" if c else ""),
+        })
+        st.dataframe(linea.iloc[::-1], use_container_width=True, hide_index=True)
+
+    _panel()
+
+
 # =========================================================================
 # ROL: MONITOREO
 # =========================================================================
@@ -4086,8 +4365,8 @@ if st.session_state.rol_sel == "MONITOREO":
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
-    t_radar, t_mensajeria, t_nov = st.tabs([
-        "🚨 RADAR S.O.S", label_msg, "Auditoría y registro de monitoreo por supervisor"
+    t_radar, t_mensajeria, t_nov, t_seg_vig = st.tabs([
+        "🚨 RADAR S.O.S", label_msg, "Auditoría y registro de monitoreo por supervisor", "🛰️ SEGUIMIENTO DE VIGILADORES"
     ]) 
 
     with t_radar:
@@ -4319,6 +4598,9 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_mensajeria:
         renderizar_mensajeria_global("MONITOREO")
+
+    with t_seg_vig:
+        renderizar_seguimiento_vigiladores()
             
     with t_nov:
         st.subheader("🔄 AUDITORÍA Y REGISTROS DE MONITOREO")
@@ -4711,62 +4993,47 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                  
                 st.markdown("---")
                 st.markdown("### 📍 VALIDACIÓN GPS DE PRESENCIA FÍSICA")
-                st.info("El escáner QR y el registro de marcación permanecerán bloqueados hasta que el sistema verifique por geolocalización GPS de alta precisión que te encuentras físicamente en el objetivo.")
+                st.info("Tu ubicación se toma en el instante del escaneo. Si no estás en el objetivo, el registro se rechaza.")
 
-                ubicacion_gps = None
-                en_rango_gps = True
-                distancia_actual_m = 0.0
-                precision_gps = 0.0
+                tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
+                accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
 
-                if en_rango_gps:
-                    st.success(f"✅ ¡PRESENCIA GPS VERIFICADA! Estás a ~{distancia_actual_m:.1f} metros del objetivo (Precisión: {precision_gps:.1f}m).")
-                     
-                    tipo_mov_qr = st.radio("TIPO DE MOVIMIENTO QR:", ["INICIO (INGRESO)", "FIN (EGRESO)"], horizontal=True, key="radio_tipo_mov_qr")
-                    accion_str = "INICIO" if "INICIO" in tipo_mov_qr else "FIN"
+                lectura_sup = visor_qr(key=f"scanner_tactico_{accion_str}_{st.session_state.scan_n_sup}")
 
-                    st.markdown("""
-                        <div style="border: 1px solid #00E5FF; border-radius: 6px; padding: 6px; text-align: center; margin: 2px 0; background: rgba(0, 229, 255, 0.05);">
-                            <span style="font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 12px; font-weight: bold;">📷 ESCANER TÁCTICO DE ALTA VELOCIDAD (VISOR LIMPIO)</span><br>
-                            <span style="font-family: 'Rajdhani', sans-serif; color: #A0A5B5; font-size: 10px;">Enfoque el código QR directamente con la cámara.</span>
-                        </div>
-                    """, unsafe_allow_html=True)
+                if st.session_state.ultimo_mensaje_qr:
+                    st.success(st.session_state.ultimo_mensaje_qr)
+                if st.session_state.get("error_qr_sup"):
+                    st.error(st.session_state.error_qr_sup)
 
-                    codigo_qr_leido = visor_qr(key=f"scanner_tactico_{accion_str}_{st.session_state.scan_n_sup}")
-                    st.caption(f"🔧 Lectura recibida: {codigo_qr_leido!r} | n={st.session_state.scan_n_sup}")
-
-                    if st.session_state.ultimo_mensaje_qr:
-                        st.success(st.session_state.ultimo_mensaje_qr)
-
-                    if codigo_qr_leido is not None and str(codigo_qr_leido).strip() != "":
-                        exito_registro = registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str)
-                        if exito_registro:
-                            try:
-                                escribir_registro_nube("NOVEDADES GUARDIA", [
-                                    obtener_hora_argentina(), 
-                                    obj_select, 
-                                    f"SUPERVISIÓN QR VALIDADA ({accion_str}) - #{st.session_state.scan_n_sup + 1}", 
-                                    "---", 
-                                    st.session_state.user_sel, 
-                                    "---", 
-                                    "PROCESADO", 
-                                    st.session_state.user_sel
-                                ])
-                            except:
-                                pass
-                                
-                            numero_intento = st.session_state.scan_n_sup + 1
-                            if accion_str == "INICIO":
-                                st.session_state.ultimo_mensaje_qr = f"✅ ¡INGRESO (INICIO) #{numero_intento} REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                            else:
-                                st.session_state.ultimo_mensaje_qr = f"🏁 ¡EGRESO (FIN) #{numero_intento} REGISTRADO CORRECTAMENTE PARA EL OBJETIVO: {obj_select}!"
-                                
-                            st.session_state.scan_n_sup += 1
-                            sincronizar_url_sesion()
-                            st.rerun()
-                        else:
-                            st.error("❌ Error al registrar en la nube. Intente nuevamente.")
-                else:
-                    st.error(f"❌ ACCESO BLOQUEADO: Te encuentras a {distancia_actual_m:.1f} metros del objetivo '{obj_select}'. Debes estar a menos de 1000 metros físicos para habilitar el escáner QR.")
+                if isinstance(lectura_sup, dict) and lectura_sup.get("ts") != st.session_state.get("_qr_ts_sup"):
+                    st.session_state["_qr_ts_sup"] = lectura_sup.get("ts")
+                    st.session_state.error_qr_sup = ""
+                    txt_s = texto_qr(lectura_sup).upper()
+                    ok_pos, msg_pos = validar_presencia_scan(lectura_sup, datos_sel.get('CALLE', ''), datos_sel.get('ALTURA', ''), datos_sel.get('LOCALIDAD', ''))
+                    if not txt_s.startswith(f"AION-YAROKU-OBJ:{str(obj_select).upper()}"):
+                        st.session_state.error_qr_sup = "❌ Ese QR no corresponde al objetivo seleccionado."
+                        st.rerun()
+                    elif not ok_pos:
+                        st.session_state.error_qr_sup = f"❌ {msg_pos}"
+                        st.rerun()
+                    elif registrar_qr_supervisor(st.session_state.user_sel, obj_select, accion_str):
+                        try:
+                            escribir_registro_nube("NOVEDADES GUARDIA", [
+                                obtener_hora_argentina(), obj_select,
+                                f"SUPERVISIÓN QR VALIDADA ({accion_str}) - #{st.session_state.scan_n_sup + 1}",
+                                "---", st.session_state.user_sel, "---", "PROCESADO", st.session_state.user_sel])
+                        except Exception:
+                            pass
+                        n_int = st.session_state.scan_n_sup + 1
+                        st.session_state.ultimo_mensaje_qr = (
+                            f"✅ ¡INGRESO (INICIO) #{n_int} REGISTRADO PARA: {obj_select}!" if accion_str == "INICIO"
+                            else f"🏁 ¡EGRESO (FIN) #{n_int} REGISTRADO PARA: {obj_select}!")
+                        st.session_state.scan_n_sup += 1
+                        sincronizar_url_sesion()
+                        st.rerun()
+                    else:
+                        st.session_state.error_qr_sup = "❌ Error al registrar en la nube. Intente nuevamente."
+                        st.rerun()
 
                 st.markdown("---")
                  
