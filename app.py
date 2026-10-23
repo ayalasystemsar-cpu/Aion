@@ -4213,7 +4213,7 @@ def _hace_texto(ts):
         return f"hace {seg // 60} min"
     return f"hace {seg // 3600} h {(seg % 3600) // 60} min"
 
-def renderizar_seguimiento_vigiladores():
+def renderizar_seguimiento_vigiladores(objetivos=None):
     st.subheader("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)")
     st.caption("Se actualiza solo cada 20 segundos. Muestra cada punto QR que escanea el vigilador, con hora y ubicación, y avisa si pasó a otro objetivo.")
 
@@ -4230,6 +4230,11 @@ def renderizar_seguimiento_vigiladores():
             st.info("Todavía no hay escaneos de recorridos registrados.")
             return
         dia = df[df['_FH'].dt.strftime('%Y-%m-%d') == fecha_sel.strftime('%Y-%m-%d')].copy()
+        if objetivos is not None:
+            # Supervisor: vigiladores que escanearon en sus objetivos; de ellos se ve todo el día (incluye otros objetivos)
+            objs_ok = {str(o).strip().upper() for o in objetivos}
+            vigs_ok = set(dia[dia['_OBJ'].isin(objs_ok)]['_VIG'])
+            dia = dia[dia['_VIG'].isin(vigs_ok)].copy()
         if dia.empty:
             st.info("No hay escaneos registrados en esa fecha.")
             return
@@ -4391,8 +4396,11 @@ if st.session_state.rol_sel == "MONITOREO":
 
     label_msg = f"💬 MENSAJERÍA GLOBAL ({total_nuevos})" if total_nuevos > 0 else "💬 MENSAJERÍA GLOBAL"
 
-    t_radar, t_mensajeria, t_nov, t_seg_vig = st.tabs([
-        "🚨 RADAR S.O.S", label_msg, "Auditoría y registro de monitoreo por supervisor", "🛰️ SEGUIMIENTO DE VIGILADORES"
+    with st.expander("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)", expanded=True):
+        renderizar_seguimiento_vigiladores()
+
+    t_radar, t_mensajeria, t_nov = st.tabs([
+        "🚨 RADAR S.O.S", label_msg, "Auditoría y registro de monitoreo por supervisor"
     ]) 
 
     with t_radar:
@@ -4624,9 +4632,6 @@ if st.session_state.rol_sel == "MONITOREO":
 
     with t_mensajeria:
         renderizar_mensajeria_global("MONITOREO")
-
-    with t_seg_vig:
-        renderizar_seguimiento_vigiladores()
             
     with t_nov:
         st.subheader("🔄 AUDITORÍA Y REGISTROS DE MONITOREO")
@@ -4922,6 +4927,11 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             """, unsafe_allow_html=True)
 
         _n_msg_sup = contar_mensajes_nuevos()
+        with st.expander("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)", expanded=True):
+            renderizar_seguimiento_vigiladores(
+                df_objetivos_filtrados['OBJETIVO'].tolist() if not df_objetivos_filtrados.empty else []
+            )
+
         t_vis_qr, t_qr_rec_tab, t_ruta_gmaps, t_mensajeria_sup, t_pres_sup = st.tabs([
             "Visita QR", "🧾 PUNTOS QR RECORRIDO", "📲 RUTA GOOGLE MAPS",
             f"💬 MENSAJERÍA ({_n_msg_sup})" if _n_msg_sup else "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
@@ -5395,7 +5405,10 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
      
     st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: {st.session_state.rol_sel}</h2>', unsafe_allow_html=True)
      
-    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria, t_seg_vig_jefe = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA", "🛰️ SEGUIMIENTO DE VIGILADORES"])
+    with st.expander("🛰️ SEGUIMIENTO DE VIGILADORES (ESCANEOS QR)", expanded=True):
+        renderizar_seguimiento_vigiladores()
+
+    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA"])
      
     with t_mensajeria_jefe:
         renderizar_mensajeria_global(st.session_state.rol_sel)
@@ -5696,7 +5709,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                             df_pan_vig_c_turno = df_pan_vig_filtrado.copy()
                             turnos_vig_list = []
                             for _, f_row in df_pan_vig_c_turno.iterrows():
-                                fh_val_p = str(f_row.get('FECHA', ''))
+                                f_val_p = str(f_row.get('FECHA', ''))
                                 turnos_vig_list.append(determinar_turno_activo(f_val_p))
                             df_pan_vig_c_turno['TURNO VIGILADOR'] = turnos_vig_list
                             st.dataframe(df_pan_vig_c_turno.iloc[::-1], use_container_width=True, hide_index=True)
@@ -5872,9 +5885,6 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 # =========================================================================
 # ROL: ADMINISTRADOR
 # =========================================================================
-    with t_seg_vig_jefe:
-        renderizar_seguimiento_vigiladores()
-
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     if st.session_state.user_sel == "ADMIN CENTRAL":
         st.session_state.admin_autenticado = True
