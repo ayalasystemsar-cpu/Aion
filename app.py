@@ -2165,6 +2165,32 @@ def renderizar_alerta_recorrida_js(horarios_previstos, obj_u, nombre, dni):
                 st.toast("📝 Motivo registrado.", icon="📝")
 
 
+def _fila_recorrido(base, lat, lon):
+    """Arma la fila de REGISTRO RECORRIDOS según los encabezados reales de la hoja: LATITUD y LONGITUD van en
+    la columna donde estén esos títulos (la que sea). Las 7 primeras posiciones conservan el orden de siempre."""
+    def _num(v):
+        try:
+            return round(float(v), 6)
+        except Exception:
+            return ""
+    try:
+        cols = [str(c).strip().upper() for c in leer_matriz_nube("REGISTRO RECORRIDOS").columns]
+    except Exception:
+        cols = []
+    if "LATITUD" not in cols or "LONGITUD" not in cols:
+        return list(base) + [_num(lat), _num(lon)]
+    fila = []
+    for i, c in enumerate(cols):
+        if c == "LATITUD":
+            fila.append(_num(lat))
+        elif c == "LONGITUD":
+            fila.append(_num(lon))
+        elif i < len(base):
+            fila.append(base[i])
+        else:
+            fila.append("")
+    return fila
+
 def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     st.markdown("### 🚶 RECORRIDO CON MARCACIÓN QR")
 
@@ -2328,10 +2354,10 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                 lat_usuario=lectura.get("lat"), lon_usuario=lectura.get("lon"), precision_m=lectura.get("acc"),
                 ultima_marca=ultima, ronda=ronda, fallback=fb, on_fraude=_cb_fraude)
             if res["valido"]:
-                if escribir_registro_nube("REGISTRO RECORRIDOS", [
-                    obtener_hora_argentina(), obj_u, pto_qr, str(nombre).strip().upper(), str(dni), ronda, "OK",
-                    round(float(lectura["lat"]), 6), round(float(lectura["lon"]), 6)
-                ]):
+                if escribir_registro_nube("REGISTRO RECORRIDOS", _fila_recorrido(
+                    [obtener_hora_argentina(), obj_u, pto_qr, str(nombre).strip().upper(), str(dni), ronda, "OK"],
+                    lectura.get("lat"), lectura.get("lon")
+                )):
                     st.session_state.msg_recorrido = f"✅ Marcado: {pto_qr}"
                     st.rerun()
             else:
@@ -5369,7 +5395,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
      
     st.markdown(f'<h2 style="color:#00E5FF; font-family:\'Orbitron\'; font-size:24px;">Comando: {st.session_state.rol_sel}</h2>', unsafe_allow_html=True)
      
-    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA"])
+    t_mensajeria_jefe, t_ejecucion, t_tab_auditoria, t_seg_vig_jefe = st.tabs([label_msg, "Ejecución", "📍 TABLERO DE AUDITORÍA", "🛰️ SEGUIMIENTO DE VIGILADORES"])
      
     with t_mensajeria_jefe:
         renderizar_mensajeria_global(st.session_state.rol_sel)
@@ -5846,6 +5872,9 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 # =========================================================================
 # ROL: ADMINISTRADOR
 # =========================================================================
+    with t_seg_vig_jefe:
+        renderizar_seguimiento_vigiladores()
+
 elif st.session_state.rol_sel == "ADMINISTRADOR":
     if st.session_state.user_sel == "ADMIN CENTRAL":
         st.session_state.admin_autenticado = True
