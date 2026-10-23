@@ -1,4 +1,3 @@
-
 import streamlit as st
 import html as _html_msg
 import datetime
@@ -3742,20 +3741,21 @@ def mostrar_landing():
      
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
      
-    nombre_vig_reg = ""
+    dni_vig_reg = ""
     obj_vig_reg = ""
-    legajo_vig_reg = ""
 
     roles_registro = ["VIGILADOR", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR"]
     rol_usuario = st.selectbox("Selección del Rol", roles_registro, key="r")
 
+    _et_user, _et_pass = "Usuario (Apellido y Nombre)", "Contraseña (Número de Legajo)"
+
     with st.form("form_acceso_real"):
-        user = st.text_input("Usuario", key="u")
-        password = st.text_input("Contraseña", type="password", key="p")
+        user = st.text_input(_et_user, key="u")
+        password = st.text_input(_et_pass, type="password", key="p")
 
         if modo == "Crear Cuenta":
-            nombre_vig_reg = st.text_input("Apellido y Nombre", key="nv_reg")
-            legajo_vig_reg = st.text_input("Número de Legajo", key="leg_reg")
+            if rol_usuario == "VIGILADOR":
+                dni_vig_reg = st.text_input("DNI", key="dni_reg")
 
             _df_obj_login = cargar_objetivos()
             _lista_obj_login = sorted(_df_obj_login['OBJETIVO'].astype(str).str.strip().str.upper().unique().tolist()) if not _df_obj_login.empty else []
@@ -3768,7 +3768,7 @@ def mostrar_landing():
         btn_texto = "ENTRAR" if modo == "Iniciar Sesión" else "REGISTRARSE"
          
         if st.form_submit_button(btn_texto):
-            user_limpio = user.strip().upper()
+            user_limpio = " ".join(user.strip().upper().split())
             pass_limpio = password.strip()
              
             if modo == "Iniciar Sesión" and user_limpio == "ADMIN" and pass_limpio == "aion2026":
@@ -3780,45 +3780,21 @@ def mostrar_landing():
                 sincronizar_url_sesion()
                 st.rerun()
                  
-            elif modo == "Iniciar Sesión" and rol_usuario == "MONITOREO" and (user_limpio in ["MONITOREO", "OPERADOR", "OPERADOR CENTRAL"] or pass_limpio == "1234"):
-                st.session_state.usuario_logueado = True
-                st.session_state.user_sel = "OPERADOR CENTRAL" if user_limpio == "MONITOREO" else user_limpio
-                st.session_state.rol_sel = "MONITOREO"
-                st.session_state.sup_autenticado = False
-                st.session_state.admin_autenticado = False
-                sincronizar_url_sesion()
-                st.rerun()
-
-            elif modo == "Iniciar Sesión" and rol_usuario == "JEFE DE OPERACIONES" and (user_limpio in ["JEFE", "JEFE DE OPERACIONES"] or pass_limpio == "1234"):
-                st.session_state.usuario_logueado = True
-                st.session_state.user_sel = "JEFE DE OPERACIONES"
-                st.session_state.rol_sel = "JEFE DE OPERACIONES"
-                st.session_state.sup_autenticado = False
-                st.session_state.admin_autenticado = False
-                sincronizar_url_sesion()
-                st.rerun()
-
-            elif modo == "Iniciar Sesión" and rol_usuario == "GERENCIA" and (user_limpio in ["GERENCIA", "DIRECTOR", "DIRECCIÓN GENERAL"] or pass_limpio == "1234"):
-                st.session_state.usuario_logueado = True
-                st.session_state.user_sel = "DIRECCIÓN GENERAL"
-                st.session_state.rol_sel = "GERENCIA"
-                st.session_state.sup_autenticado = False
-                st.session_state.admin_autenticado = False
-                sincronizar_url_sesion()
-                st.rerun()
-
             elif modo == "Iniciar Sesión" and rol_usuario == "VIGILADOR":
-                dni_ingresado = "".join(ch for ch in user_limpio if ch.isdigit())
                 df_pad = leer_matriz_nube("PADRON VIGILADORES")
                 fila_vig = pd.DataFrame()
-                if dni_ingresado and pass_limpio == dni_ingresado and not df_pad.empty and 'DNI' in df_pad.columns:
-                    fila_vig = df_pad[col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True) == dni_ingresado]
+                if user_limpio and pass_limpio and not df_pad.empty and 'NOMBRE' in df_pad.columns and 'LEGAJO' in df_pad.columns:
+                    fila_vig = df_pad[
+                        (col_texto(df_pad, 'NOMBRE').str.upper().str.split().str.join(" ") == user_limpio) &
+                        (col_texto(df_pad, 'LEGAJO').str.strip().str.upper() == pass_limpio.upper())
+                    ]
                 if not fila_vig.empty and str(fila_vig.iloc[0].get('ESTADO', '')).strip().upper() == "ACTIVO":
-                    nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', dni_ingresado)).strip().upper()
+                    nombre_vig = str(fila_vig.iloc[0].get('NOMBRE', user_limpio)).strip().upper()
+                    dni_vig = "".join(ch for ch in str(fila_vig.iloc[0].get('DNI', '')) if ch.isdigit())
                     st.session_state.usuario_logueado = True
                     st.session_state.user_sel = nombre_vig
                     st.session_state.rol_sel = "VIGILADOR"
-                    st.session_state.dni_vigilador = dni_ingresado
+                    st.session_state.dni_vigilador = dni_vig
                     st.session_state.v_nombre_completo = nombre_vig
                     st.session_state.legajo_vigilador = str(fila_vig.iloc[0].get('LEGAJO', '')).strip()
                     st.session_state.sup_autenticado = False
@@ -3826,14 +3802,14 @@ def mostrar_landing():
                     sincronizar_url_sesion()
                     st.rerun()
                 else:
-                    st.error("❌ DNI no habilitado o contraseña incorrecta.")
+                    st.error("❌ Apellido y nombre o legajo incorrectos, o cuenta aún no habilitada.")
                  
             elif modo == "Iniciar Sesión":
                 df_usuarios = leer_matriz_nube("USUARIOS")
                 usuario_ok = pd.DataFrame()
                 if not df_usuarios.empty and 'USUARIO' in df_usuarios.columns and 'CONTRASEÑA' in df_usuarios.columns:
                     usuario_ok = df_usuarios[
-                        (col_texto(df_usuarios, 'USUARIO').str.strip().str.upper() == user_limpio) & 
+                        (col_texto(df_usuarios, 'USUARIO').str.upper().str.split().str.join(" ") == user_limpio) & 
                         (col_texto(df_usuarios, 'CONTRASEÑA').str.strip() == pass_limpio)
                     ]
                 if not usuario_ok.empty:
@@ -3861,14 +3837,11 @@ def mostrar_landing():
                 else:
                     st.error("❌ Credenciales inválidas o cuenta aún no aprobada.")
             elif modo == "Crear Cuenta" and rol_usuario == "VIGILADOR":
-                dni_reg = "".join(ch for ch in user_limpio if ch.isdigit())
-                pass_reg = "".join(ch for ch in pass_limpio if ch.isdigit())
-                nombre_reg = nombre_vig_reg.strip().upper()
-                legajo_reg = legajo_vig_reg.strip().upper()
-                if not dni_reg or not nombre_reg or not obj_vig_reg:
-                    st.warning("⚠️ Complete DNI, apellido y nombre, y seleccione su objetivo.")
-                elif pass_reg != dni_reg:
-                    st.warning("⚠️ La contraseña debe coincidir con su DNI.")
+                dni_reg = "".join(ch for ch in dni_vig_reg if ch.isdigit())
+                nombre_reg = user_limpio
+                legajo_reg = pass_limpio.upper()
+                if not dni_reg or not nombre_reg or not legajo_reg or not obj_vig_reg:
+                    st.warning("⚠️ Complete apellido y nombre (usuario), legajo (contraseña), DNI y seleccione su objetivo.")
                 else:
                     st.cache_data.clear()
                     df_pad_reg = leer_matriz_nube("PADRON VIGILADORES")
@@ -3879,13 +3852,13 @@ def mostrar_landing():
                     elif escribir_registro_nube("PADRON VIGILADORES", [dni_reg, nombre_reg, legajo_reg, "PENDIENTE", obj_vig_reg]):
                         st.success("✅ Solicitud registrada con legajo. Quedará pendiente de aprobación por la Administración.")
             else:
-                nombre_reg2 = nombre_vig_reg.strip().upper()
-                legajo_reg2 = legajo_vig_reg.strip().upper()
-                if not user.strip() or not password.strip() or not nombre_reg2 or not legajo_reg2:
-                    st.warning("⚠️ Complete usuario, contraseña, apellido y nombre, y número de legajo.")
+                nombre_reg2 = user_limpio
+                legajo_reg2 = password.strip().upper()
+                if not user.strip() or not password.strip():
+                    st.warning("⚠️ Complete su apellido y nombre (usuario) y su número de legajo (contraseña).")
                 else:
                     exito_reg = escribir_registro_nube("USUARIOS", [
-                        user.strip().upper(), password.strip(), nombre_reg2,
+                        user_limpio, password.strip(), nombre_reg2,
                         legajo_reg2, rol_usuario, "PENDIENTE"
                     ])
                     if exito_reg:
@@ -3904,6 +3877,37 @@ centro_supervisor.instalar(globals())
 
 df_objetivos = cargar_objetivos()
 LISTA_SUPS_TACTICOS = obtener_lista_supervisores_dinamica()
+
+def _perfil_visible():
+    """Nombre y legajo para mostrar en el panel lateral. El usuario interno (DNI) no cambia: solo se muestra el nombre."""
+    ss = st.session_state
+    nombre, legajo = "", ""
+    if ss.get("rol_sel") == "VIGILADOR":
+        nombre = str(ss.get("v_nombre_completo", "") or "").strip()
+        legajo = str(ss.get("legajo_vigilador", "") or "").strip()
+    if ss.get("rol_sel") == "VIGILADOR" and not legajo:
+        try:
+            df_p = leer_matriz_nube("PADRON VIGILADORES")
+            if not df_p.empty and "NOMBRE" in df_p.columns and "LEGAJO" in df_p.columns:
+                fp = df_p[col_texto(df_p, "NOMBRE").str.upper().str.split().str.join(" ") == str(ss.get("user_sel", "")).strip().upper()]
+                if not fp.empty:
+                    legajo = str(fp.iloc[0].get("LEGAJO", "") or "").strip()
+        except Exception:
+            pass
+    if not nombre:
+        try:
+            df_u = leer_matriz_nube("USUARIOS")
+            if not df_u.empty and "USUARIO" in df_u.columns:
+                f = df_u[col_texto(df_u, "USUARIO").str.strip().str.upper() == str(ss.get("user_sel", "")).strip().upper()]
+                if not f.empty:
+                    col_n = "APELLIDO Y NOMBRE" if "APELLIDO Y NOMBRE" in df_u.columns else ("NOMBRE" if "NOMBRE" in df_u.columns else None)
+                    if col_n:
+                        nombre = str(f.iloc[0].get(col_n, "") or "").strip().upper()
+                    if "LEGAJO" in df_u.columns and not legajo:
+                        legajo = str(f.iloc[0].get("LEGAJO", "") or "").strip()
+        except Exception:
+            pass
+    return (nombre or str(ss.get("user_sel", ""))), legajo
 
 if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_autenticado", False):
     with st.sidebar:
@@ -3968,7 +3972,10 @@ else:
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
         st.markdown("---")
         st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
-        st.markdown(f"**USUARIO:** {st.session_state.user_sel}")
+        _nom_perfil, _leg_perfil = _perfil_visible()
+        st.markdown(f"**USUARIO:** {_nom_perfil}")
+        if _leg_perfil:
+            st.markdown(f"**LEGAJO:** {_leg_perfil}")
         
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
