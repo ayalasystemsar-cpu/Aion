@@ -125,7 +125,7 @@ def _cs_comisarias(lat, lon, n=5):
     clave = (round(lat, 4), round(lon, 4))
     if clave in cache:
         return cache[clave][:n]
-    if time.time() - fallo.get(clave, 0) < 120:
+    if time.time() - fallo.get(clave, 0) < 45:
         return []
     cand = _buscar_comisarias_osm(lat, lon)
     if not cand:
@@ -357,6 +357,8 @@ def _cs_tab_mapa(sup, mis):
         if not coms:
             st.warning("⚠️ No se encontraron comisarías cercanas. Motivo: " + str(_almacen_geo().get("com_error", "sin datos")) +
                        ". Probá con 🔄 ACTUALIZAR MAPA.")
+            st.markdown("[🔎 Buscar comisarías cerca en Google Maps](https://www.google.com/maps/search/comisar%C3%ADa/@" +
+                        str(float(fila["LATITUD"])) + "," + str(float(fila["LONGITUD"])) + ",14z)  ·  📞 Emergencias: [911](tel:911)")
             continue
         etiquetas = [_cs_etiqueta_comisaria(i, c) for i, c in enumerate(coms)]
         idx_def = 0
@@ -643,6 +645,10 @@ def renderizar_derivacion_monitoreo():
                         if nombre_elegida and str(c["nombre"]).upper() == nombre_elegida:
                             destino, color = c, "#FFD600"
                     _cs_ruta(m, g[0], g[1], destino, color)
+                else:
+                    st.warning("⚠️ No se pudieron traer las comisarías cercanas (" + str(_almacen_geo().get("com_error", "sin datos")) + ").")
+                    st.markdown("[🔎 Buscar comisarías cerca en Google Maps](https://www.google.com/maps/search/comisar%C3%ADa/@" +
+                                str(g[0]) + "," + str(g[1]) + ",14z)  ·  📞 Emergencias: [911](tel:911)")
                 st.markdown(_CS_LEYENDA, unsafe_allow_html=True)
                 st_folium(m, use_container_width=True, height=380, key="cs_mon_mapa_" + str(k), returned_objects=[])
         st.markdown("---")
