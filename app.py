@@ -1156,17 +1156,47 @@ def renderizar_mensajeria_global(rol_contexto):
         "MONITOREO": ("🛰️ UNA PERSONA DE MONITOREO…", "PERSONA DE MONITOREO"),
         "JEFE DE OPERACIONES": ("📋 UNA PERSONA DE JEFE DE OPERACIONES…", "PERSONA DE JEFE DE OPERACIONES"),
         "GERENCIA": ("🏢 UNA PERSONA DE GERENCIA…", "PERSONA DE GERENCIA"),
+        "SUPERVISOR": ("🧑‍✈️ UN SUPERVISOR…", "SUPERVISOR"),
     }
-    personas_rol = {r: [n for n in obtener_lista_por_rol_dinamica(r) if n not in yo_ids] for r in PERSONAS}
+    personas_rol = {r: [n for n in obtener_lista_por_rol_dinamica(r) if n not in yo_ids] for r in PERSONAS if r != "SUPERVISOR"}
+
+    # Supervisores: cada uno con sus objetivos; si quien escribe es vigilador, su supervisor va primero
+    df_o_msg = cargar_objetivos()
+    objs_por_sup = {}
+    if not df_o_msg.empty and 'SUPERVISOR' in df_o_msg.columns:
+        for _o, _sp in zip(col_texto(df_o_msg, 'OBJETIVO').str.strip().str.upper(), col_texto(df_o_msg, 'SUPERVISOR').str.strip().str.upper()):
+            if _sp and _sp not in ("N/A", "MONITOREO", "NAN"):
+                objs_por_sup.setdefault(_sp, []).append(_o)
+    sups_msg = [x for x in sorted(set(obtener_lista_supervisores_dinamica()) | set(objs_por_sup)) if x and x not in yo_ids]
+    mi_sup, mi_obj = None, ""
+    if str(st.session_state.get("rol_sel", "")).strip().upper() == "VIGILADOR":
+        mi_obj = str(_vigiladores_en_turno().get(_nombre_vigilador_sesion(), {}).get("objetivo") or st.session_state.get("obj_actual_vig", "") or "").strip().upper()
+        mi_sup = next((sp for sp, lst in objs_por_sup.items() if mi_obj and mi_obj in lst), None)
+    sups_msg.sort(key=lambda x: (x != mi_sup, x))
+    personas_rol["SUPERVISOR"] = sups_msg
+    etiq_personas = {}
+    for sp in sups_msg:
+        if sp == mi_sup:
+            etiq_personas[sp] = f"⭐ {sp} — tu supervisor ({mi_obj})"
+        else:
+            lst = objs_por_sup.get(sp, [])
+            etiq_personas[sp] = f"🧑‍✈️ {sp}" + (f" — {', '.join(lst[:2])}{'…' if len(lst) > 2 else ''}" if lst else "")
     todas_personas = {n for lst in personas_rol.values() for n in lst}
     opciones = [o for o in opciones if o not in todas_personas]
     for r, (etiqueta_opc, _) in PERSONAS.items():
         if personas_rol[r]:
-            if r in opciones:
-                opciones.insert(opciones.index(r) + 1, etiqueta_opc)
+            ancla = "SUPERVISORES" if r == "SUPERVISOR" else r
+            if ancla in opciones:
+                opciones.insert(opciones.index(ancla) + 1, etiqueta_opc)
             else:
                 opciones.append(etiqueta_opc)
     destino_resp = st.session_state.get("destino_respuesta", "")
+    es_vigilador = str(st.session_state.get("rol_sel", "")).strip().upper() == "VIGILADOR"
+    if es_vigilador:
+        # Los vigiladores no se ven ni se escriben entre sí (ni por nombre, ni por grupo, ni por TODOS)
+        opciones = [o for o in opciones if o not in ("VIGILADORES", "TODOS", OPC_VIG)]
+        if destino_resp in vig_set or destino_resp in ("VIGILADORES", "TODOS"):
+            destino_resp = ""
     respondiendo = bool(st.session_state.asunto_respuesta)
     vig_resp = destino_resp if (respondiendo and destino_resp in vig_set) else ""
     persona_resp_rol = next((r for r, lst in personas_rol.items() if respondiendo and destino_resp in lst), None)
@@ -1212,6 +1242,7 @@ def renderizar_mensajeria_global(rol_contexto):
             lst_p = personas_rol[rol_pers]
             idx_m = lst_p.index(destino_resp) if (respondiendo and destino_resp in lst_p) else 0
             destinatario = st.selectbox(f"{PERSONAS[rol_pers][1]}:", lst_p, index=idx_m,
+                                        format_func=lambda n: etiq_personas.get(n, n),
                                         key=f"pers_{rol_pers}_{rol_contexto}_{clave_hilo}")
             st.caption("🔒 Solo esa persona (y vos) van a ver este mensaje.")
 
