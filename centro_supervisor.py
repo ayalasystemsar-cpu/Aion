@@ -252,6 +252,12 @@ def _cs_dibujar_comisarias(m, coms, nombre_elegida, dibujadas):
         folium.Marker([c["lat"], c["lon"]], tooltip=tip, icon=_cs_icono_comisaria(i == 0, es_elegida)).add_to(m)
 
 
+def _cs_url_ruta_voz(lat, lon):
+    """Google Maps desde la ubicación ACTUAL del supervisor hasta la comisaría elegida, en auto y con la navegación
+    guiada por voz ya iniciada (dir_action=navigate). Sin origen: Maps usa el GPS del celular."""
+    return "https://www.google.com/maps/dir/?api=1&destination=" + str(float(lat)) + "," + str(float(lon)) + "&travelmode=driving&dir_action=navigate"
+
+
 def _cs_etiqueta_comisaria(i, c):
     base = ("⭐ ZONAL · " if i == 0 else "🚓 CERCANA · ") + str(c["nombre"]) + " · " + ("%.2f" % float(c["distancia_km"])) + " km"
     d = str(c.get("direccion", "") or "").strip()
@@ -375,7 +381,11 @@ def _cs_tab_mapa(sup, mis):
         if der:
             st.caption("✅ Ya derivaste a " + str(der.get("COMISARIA", "")) + " (" + str(der.get("TIPO", "")) + ") el " +
                        str(der.get("FECHA_HORA", "")) + ". Podés cambiarla y confirmar de nuevo.")
-        if st.button("✅ CONFIRMAR COMISARÍA", key="cs_conf_" + clave, use_container_width=True):
+        _c_conf, _c_ruta = st.columns(2)
+        _c_ruta.markdown('<a href="' + _cs_url_ruta_voz(c_sel["lat"], c_sel["lon"]) + '" target="_blank" class="btn-google-maps" '
+                         'style="margin-top:0;padding:8px 12px;font-size:12px;">📲 RUTA GOOGLE MAPS</a>', unsafe_allow_html=True)
+        _c_ruta.caption("Ruta desde tu ubicación hasta la comisaría elegida, con guiado por voz.")
+        if _c_conf.button("✅ CONFIRMAR COMISARÍA", key="cs_conf_" + clave, use_container_width=True):
             ok = _cs_registrar_derivacion(sup, p, fila, c_sel, "ZONAL" if sel == 0 else "CERCANA")
             st.session_state.cs_msg = (ok, ("✅ Comisaría confirmada: " + str(c_sel["nombre"]) + ". Monitoreo ya puede verla.")
                                        if ok else "❌ No se pudo registrar la derivación. Revisá la conexión con Google Sheets.")
