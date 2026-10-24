@@ -1,3 +1,4 @@
+
 import streamlit as st
 import html as _html_msg
 import datetime
@@ -5023,6 +5024,55 @@ if st.session_state.rol_sel == "MONITOREO":
                             st.info("No hay alertas operativas adicionales registradas para los objetivos de este supervisor.")
                     else:
                         st.info("Sin alertas operativas registradas.")
+
+                    st.markdown("---")
+                    st.markdown("#### 🚗 Control de Flota")
+                    df_flota_m_sup = pd.DataFrame()
+                    if not df_flota_m_base.empty:
+                        df_flota_m_base.columns = [str(c).strip().upper() for c in df_flota_m_base.columns]
+                        col_sf_m = 'SUPERVISOR' if 'SUPERVISOR' in df_flota_m_base.columns else (df_flota_m_base.columns[1] if len(df_flota_m_base.columns) > 1 else None)
+                        if col_sf_m:
+                            df_flota_m_sup = df_flota_m_base[col_texto(df_flota_m_base, col_sf_m).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()].copy()
+                    if not df_flota_m_sup.empty:
+                        st.dataframe(df_flota_m_sup.iloc[::-1], use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin registros de flota.")
+
+                    st.markdown("---")
+                    st.markdown("#### 🔁 Traspasos de Objetivos")
+                    df_tras_m = pd.DataFrame()
+                    try:
+                        df_tras_raw_m = leer_matriz_nube("TRASPASOS OBJETIVOS").copy()
+                        if not df_tras_raw_m.empty:
+                            df_tras_raw_m.columns = [str(c).strip().upper() for c in df_tras_raw_m.columns]
+                            if {"ORIGEN", "DESTINO"} <= set(df_tras_raw_m.columns):
+                                _sup_m = str(sup_seleccionado_mono).strip().upper()
+                                _ori_m = col_texto(df_tras_raw_m, "ORIGEN").str.strip().str.upper()
+                                _des_m = col_texto(df_tras_raw_m, "DESTINO").str.strip().str.upper()
+                                df_tras_m = df_tras_raw_m[(_ori_m == _sup_m) | (_des_m == _sup_m)].copy()
+                                if not df_tras_m.empty:
+                                    df_tras_m.insert(1, "MOVIMIENTO", ["TRASPASÓ" if x == _sup_m else "RECIBIÓ" for x in _ori_m[df_tras_m.index]])
+                                    df_tras_m = df_tras_m[[c for c in ["FECHA_HORA", "MOVIMIENTO", "OBJETIVO", "ORIGEN", "DESTINO", "MOTIVO"] if c in df_tras_m.columns]]
+                    except Exception:
+                        df_tras_m = pd.DataFrame()
+                    if not df_tras_m.empty:
+                        st.dataframe(df_tras_m.iloc[::-1], use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin traspasos de objetivos.")
+
+                    st.markdown("---")
+                    st.markdown("#### 📋 Cargas Tácticas")
+                    df_car_m = pd.DataFrame()
+                    if not df_nov_m_base.empty and df_nov_m_base.shape[1] >= 5:
+                        _nov_m = df_nov_m_base.iloc[:, :5].copy()
+                        _nov_m.columns = ["FECHA", "OBJETIVO", "TIPO", "DETALLE", "SUPERVISOR"]
+                        _nov_m = _nov_m[(_nov_m["TIPO"].astype(str).str.strip().str.upper() == "NOVEDAD OPERATIVA") &
+                                        (_nov_m["SUPERVISOR"].astype(str).str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper())]
+                        df_car_m = _nov_m[["FECHA", "OBJETIVO", "DETALLE"]]
+                    if not df_car_m.empty:
+                        st.dataframe(df_car_m.iloc[::-1], use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin cargas tácticas.")
         else:
             st.info("No hay supervisores con registros activos en el sistema todavía.")
 
@@ -5113,8 +5163,8 @@ elif st.session_state.rol_sel == "SUPERVISOR":
             """, unsafe_allow_html=True)
 
         _n_msg_sup = contar_mensajes_nuevos()
-        t_vis_qr, t_qr_rec_tab, t_ruta_gmaps, t_mensajeria_sup, t_pres_sup = st.tabs([
-            "Visita QR", "🧾 PUNTOS QR RECORRIDO", "📲 RUTA GOOGLE MAPS",
+        t_vis_qr, t_qr_rec_tab, t_mensajeria_sup, t_pres_sup = st.tabs([
+            "Visita QR", "🧾 PUNTOS QR RECORRIDO",
             f"💬 MENSAJERÍA ({_n_msg_sup})" if _n_msg_sup else "💬 MENSAJERÍA", "📋 NOVEDADES Y RELEVOS"
         ])
          
@@ -5331,20 +5381,6 @@ elif st.session_state.rol_sel == "SUPERVISOR":
                 df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else [],
                 "sup"
             )
-
-        with t_ruta_gmaps:
-            st.markdown("### 🗺️ NAVEGACIÓN TÁCTICA A COMISARÍAS")
-            opciones_r = df_objetivos_filtrados['OBJETIVO'].unique() if not df_objetivos_filtrados.empty else []
-            if len(opciones_r) > 0:
-                obj_r = st.selectbox("DESTINO:", opciones_r, key="sup_ruta_gmaps_target")
-                datos_r = df_objetivos_filtrados[df_objetivos_filtrados['OBJETIVO'] == obj_r].iloc[0]
-                com_r = comisaria_para_objetivo(datos_r)
-                res_r = _resumen_comisaria(com_r)
-                st.info(f"👮 **Comisaría Encontrada:** {res_r['nombre']}" + (f" ({res_r['distancia']} Km)" if com_r else ""))
-                if com_r:
-                    _geo_r = geocodificar_direccion(datos_r.get('CALLE', ''), datos_r.get('ALTURA', ''), datos_r.get('LOCALIDAD', ''))
-                    if _geo_r:
-                        st.link_button("🗺️ ABRIR ASISTENTE GPS", f"https://www.google.com/maps/dir/?api=1&origin={com_r['lat']},{com_r['lon']}&destination={_geo_r[0]},{_geo_r[1]}&travelmode=driving", use_container_width=True)
 
         with t_mensajeria_sup:
             renderizar_mensajeria_global("SUPERVISOR")
@@ -5839,6 +5875,31 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         if col_sf:
                             df_flota_sup_filtro = df_flota_aud[col_texto(df_flota_aud, col_sf).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper()].copy()
 
+                    # --- Traspasos de objetivos y cargas tácticas (Centro del Supervisor) ---
+                    df_tras_sup = pd.DataFrame()
+                    try:
+                        df_tras_raw = leer_matriz_nube("TRASPASOS OBJETIVOS").copy()
+                        if not df_tras_raw.empty:
+                            df_tras_raw.columns = [str(c).strip().upper() for c in df_tras_raw.columns]
+                            if {"ORIGEN", "DESTINO"} <= set(df_tras_raw.columns):
+                                _sup_n = str(sup_seleccionado_jefe).strip().upper()
+                                _ori = col_texto(df_tras_raw, "ORIGEN").str.strip().str.upper()
+                                _des = col_texto(df_tras_raw, "DESTINO").str.strip().str.upper()
+                                df_tras_sup = df_tras_raw[(_ori == _sup_n) | (_des == _sup_n)].copy()
+                                if not df_tras_sup.empty:
+                                    df_tras_sup.insert(1, "MOVIMIENTO", ["TRASPASÓ" if x == _sup_n else "RECIBIÓ" for x in _ori[df_tras_sup.index]])
+                                    df_tras_sup = df_tras_sup[[c for c in ["FECHA_HORA", "MOVIMIENTO", "OBJETIVO", "ORIGEN", "DESTINO", "MOTIVO"] if c in df_tras_sup.columns]]
+                    except Exception:
+                        df_tras_sup = pd.DataFrame()
+
+                    df_car_sup = pd.DataFrame()
+                    if not df_nov_aud.empty and df_nov_aud.shape[1] >= 5:
+                        _nov = df_nov_aud.iloc[:, :5].copy()
+                        _nov.columns = ["FECHA", "OBJETIVO", "TIPO", "DETALLE", "SUPERVISOR"]
+                        _nov = _nov[(_nov["TIPO"].astype(str).str.strip().str.upper() == "NOVEDAD OPERATIVA") &
+                                    (_nov["SUPERVISOR"].astype(str).str.strip().str.upper() == str(sup_seleccionado_jefe).strip().upper())]
+                        df_car_sup = _nov[["FECHA", "OBJETIVO", "DETALLE"]]
+
                     st.markdown("---")
                      
                     with st.expander(f"👁️ VISTA PREVIA DEL REPORTE TÁCTICO: {sup_seleccionado_jefe}", expanded=True):
@@ -5912,9 +5973,21 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin registros de flota.")
 
+                        st.markdown("##### 🔁 Traspasos de Objetivos")
+                        if not df_tras_sup.empty:
+                            st.dataframe(df_tras_sup.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin traspasos de objetivos.")
+
+                        st.markdown("##### 📋 Cargas Tácticas")
+                        if not df_car_sup.empty:
+                            st.dataframe(df_car_sup.iloc[::-1], use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Sin cargas tácticas.")
+
                     st.markdown("---")
 
-                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt, d_rec):
+                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt, d_rec, d_tras=None, d_car=None):
                         buffer = io.BytesIO()
                         doc = SimpleDocTemplate(
                             buffer, 
@@ -6028,6 +6101,8 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                                 agregar_tabla_pdf("Detalle de Alertas Operativas:", d_alt)
 
                         agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
+                        agregar_tabla_pdf("Traspasos de Objetivos:", d_tras.iloc[::-1] if d_tras is not None and not d_tras.empty else pd.DataFrame(), [100, 80, 150, 110, 110, 194])
+                        agregar_tabla_pdf("Cargas Tácticas:", d_car.iloc[::-1] if d_car is not None and not d_car.empty else pd.DataFrame(), [120, 160, 464])
 
                         doc.build(elementos, canvasmaker=NumberedCanvas)
                         buffer.seek(0)
@@ -6037,7 +6112,8 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         sup_seleccionado_jefe, inicio_jornada_gen, fin_jornada_gen, total_horas_trabajadas,
                         df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, 
                         df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro,
-                        total_alertas_supervisor_j, total_alertas_vigilador_j, df_rec_filtrado
+                        total_alertas_supervisor_j, total_alertas_vigilador_j, df_rec_filtrado,
+                        df_tras_sup, df_car_sup
                     )
 
                     st.download_button(
