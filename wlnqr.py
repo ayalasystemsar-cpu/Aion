@@ -11,6 +11,9 @@ Reglas, en este orden:
   4. GPS: la ubicación tomada AL ESCANEAR tiene que estar cerca de ESE punto
      (si escanea fotos de varios QR desde un solo lugar, falla acá).
   5. TIEMPO: mínimo de segundos desde el punto anterior.
+
+CAMBIO: guardar_ubicacion_punto() ahora guarda el error real en
+self.ultimo_error para poder mostrarlo en pantalla.
 """
 import math
 from datetime import datetime, time, timezone
@@ -46,6 +49,7 @@ class QRValidator:
         self.db = supabase_client          # puede ser None: las reglas funcionan igual
         self.ntfy_topic = ntfy_topic
         self.on_fraude = on_fraude
+        self.ultimo_error = None           # último error de base de datos (para mostrarlo en pantalla)
 
     # ------------------------------------------------------------------ puntos
     def config_punto(self, objetivo, id_punto):
@@ -64,8 +68,11 @@ class QRValidator:
             return {}
 
     def guardar_ubicacion_punto(self, objetivo, id_punto, lat, lon, tolerancia_m=None, seg_min=None):
-        """El supervisor, parado frente al QR, guarda dónde está ese punto."""
+        """El supervisor, parado frente al QR, guarda dónde está ese punto.
+        Si falla, devuelve False y deja el motivo real en self.ultimo_error."""
+        self.ultimo_error = None
         if self.db is None:
+            self.ultimo_error = "No hay conexión con Supabase (revisá st.secrets['supabase'] url y key)."
             return False
         try:
             fila = {
@@ -82,6 +89,7 @@ class QRValidator:
             self.db.table("puntos_control").upsert(fila, on_conflict="objetivo,id_punto").execute()
             return True
         except Exception as e:
+            self.ultimo_error = f"{type(e).__name__}: {e}"
             print(f"[wlnqr] Error guardando ubicación del punto: {e}")
             return False
 
@@ -220,6 +228,7 @@ class QRValidator:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }).execute()
         except Exception as e:
+            self.ultimo_error = f"{type(e).__name__}: {e}"
             print(f"[wlnqr] Error registrando auditoría: {e}")
 
     def _registrar_exito(self, legajo, objetivo, id_punto, ronda, lat, lon, precision):
@@ -232,4 +241,5 @@ class QRValidator:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }).execute()
         except Exception as e:
+            self.ultimo_error = f"{type(e).__name__}: {e}"
             print(f"[wlnqr] Error registrando marcación: {e}")
