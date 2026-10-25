@@ -2794,25 +2794,6 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
             mime="image/png",
             key=f"{key_prefix}_dl_qr_{obj_u}_{pto_sel}"
         )
-        kc = f"{key_prefix}_cal_{obj_u}_{str(pto_sel).strip().upper()}".replace(" ", "_")
-        st.caption("📍 Parate frente al QR físico y tocá el botón para guardar dónde está este punto.")
-        if st.button("📍 GUARDAR UBICACIÓN DE ESTE PUNTO", key=kc + "_btn", use_container_width=True):
-            st.session_state[kc + "_n"] = st.session_state.get(kc + "_n", 0) + 1
-            st.session_state[kc] = st.session_state[kc + "_n"]
-        if st.session_state.get(kc):
-            loc = get_geolocation(component_key=f"{kc}_{st.session_state[kc]}")
-            if loc and "coords" in loc:
-                c = loc["coords"]
-                if float(c.get("accuracy") or 999) > 30:
-                    st.warning(f"⚠️ GPS poco preciso (±{float(c.get('accuracy') or 0):.0f} m). Salí a un lugar abierto y probá de nuevo.")
-                elif _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), c["latitude"], c["longitude"]):
-                    st.success("✅ Ubicación del punto guardada.")
-                else:
-                    st.error("❌ No se pudo guardar la ubicación del punto.")
-                    st.code(_qr_validator().ultimo_error or "Sin detalle del error")
-                st.session_state[kc] = 0
-            else:
-                st.info("📡 Obteniendo ubicación…")
 
 def tabla_recorridas_vigiladores(objs_sup):
     """SEGUIMIENTO DE RONDAS: una fila por fecha / objetivo / vigilador / ronda, con íconos como el seguimiento del panel lateral:
