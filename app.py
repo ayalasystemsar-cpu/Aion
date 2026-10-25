@@ -3713,6 +3713,13 @@ def renderizar_personal_supervisor(sup, key_prefix="psup"):
         st.markdown(leyenda_planificacion_html(), unsafe_allow_html=True)
         st.markdown(grilla_planificacion_html(pm, anio, mes), unsafe_allow_html=True)
 
+    try:
+        st.download_button("📥 DESCARGAR MI PERSONAL (PDF)", data=generar_pdf_mi_personal(sup, anio, mes),
+                           file_name=f"mi_personal_{sup.replace(' ', '_')}_{periodo}.pdf", mime="application/pdf",
+                           use_container_width=True, key=f"{key_prefix}_pdf")
+    except Exception as e_pdf_mp:
+        st.warning(f"No se pudo preparar el PDF de Mi personal: {e_pdf_mp}")
+
     # --- Registrar novedad ---
     st.markdown("---")
     etiquetas = {i: f"{r['VIGILADOR']} | {r['OBJETIVO']}" for i, r in vig.iterrows()}
@@ -5099,82 +5106,314 @@ def datos_reporte_integral_supervisor(sup):
                 d_alt=df_alt, d_psup=df_pan_s, d_pvig=df_pan_v, d_flota=df_flota,
                 tot_s_cnt=len(df_pan_s), tot_v_cnt=len(df_pan_v), d_rec=df_rec, d_tras=df_tras, d_car=df_car)
 
+# =========================================================================
+# PDF "TAL CUAL SE VE EN LA APP" (fondo oscuro, colores e íconos): TABLERO DE AUDITORÍA y MI PERSONAL
+# =========================================================================
+from reportlab.platypus import KeepTogether
+from reportlab.lib.utils import simpleSplit
+
+_ICONO_ESTILO = [("🚩", "#FF1744", "FRAUDE"), ("⚠", "#FF9100", "FALTÓ"), ("⏳", "#94A3B8", "PEND."), ("✅", "#00E676", "OK")]
+
+def _estilo_icono(txt):
+    """Color y etiqueta según el ícono que trae el texto (🚩 fraude · ⚠️ no realizado · ⏳ pendiente · ✅ hecho)."""
+    t = str(txt)
+    for ico, col, tag in _ICONO_ESTILO:
+        if ico in t:
+            return col, tag
+    return None, ""
+
+class _ChipsPDF(_Base):
+    """Recuadritos de colores (uno por punto de la ronda), como en la app; se acomodan en varios renglones."""
+    def __init__(self, detalle, ancho):
+        super().__init__()
+        self.width = ancho
+        self.items, self.pos = [], []
+        for p in str(detalle).split(" | "):
+            if not p.strip():
+                continue
+            col, tag = _estilo_icono(p)
+            self.items.append((col or "#E2E8F0", tag, _sin_emoji(p)))
+        x, linea = 0.0, 0
+        for col, tag, txt in self.items:
+            wch = 11 + (stringWidth(tag, "Helvetica-Bold", 6) + 4 if tag else 0) + stringWidth(txt, "Helvetica", 6.8)
+            if x + wch > ancho and x > 0:
+                x, linea = 0.0, linea + 1
+            self.pos.append((linea, x, wch))
+            x += wch + 4
+        self.height = max(1, linea + 1) * 15 + 1
+
+    def draw(self):
+        c = self.canv
+        for (col, tag, txt), (linea, x, wch) in zip(self.items, self.pos):
+            y = self.height - (linea + 1) * 15 + 1
+            c.saveState()
+            c.setFillColor(colors.white)
+            c.setFillAlpha(0.07)
+            c.roundRect(x, y, wch, 12, 2.5, fill=1, stroke=0)
+            c.restoreState()
+            c.setFillColor(_hx(col))
+            c.rect(x, y, 3, 12, fill=1, stroke=0)
+            tx = x + 7
+            if tag:
+                c.setFont("Helvetica-Bold", 6)
+                c.drawString(tx, y + 3.6, tag)
+                tx += stringWidth(tag, "Helvetica-Bold", 6) + 4
+            c.setFont("Helvetica", 6.8)
+            c.setFillColor(_hx("#E2E8F0"))
+            c.drawString(tx, y + 3.4, txt)
+
+class _TarjetaLineasPDF(_Base):
+    """Tarjeta con barra de color a la izquierda: nombre + etiqueta y líneas de texto (igual que las tarjetas de novedades y préstamos)."""
+    def __init__(self, borde, titulo, pill, lineas, ancho=366):
+        super().__init__()
+        self.borde, self.titulo, self.pill = borde, _sin_emoji(titulo), pill
+        self.lineas = []
+        for txt, col, tam in lineas:
+            for l in simpleSplit(_sin_emoji(txt), "Helvetica", tam, ancho - 26):
+                self.lineas.append((l, col, tam))
+        self.width = ancho
+        self.height = 28 + sum(tam + 4 for _, _, tam in self.lineas) + 6
+
+    def draw(self):
+        c, P = self.canv, _pal()
+        w, h = self.width, self.height
+        _marco_pdf(c, w, h)
+        c.setFillColor(_hx(self.borde))
+        c.rect(0, 2, 4, h - 4, fill=1, stroke=0)
+        y = h - 15
+        c.setFont("Helvetica-Bold", 8.5)
+        c.setFillColor(_hx(P["texto"]))
+        c.drawString(12, y, _recortar(self.titulo, "Helvetica-Bold", 8.5, w - 150))
+        if self.pill:
+            txt, base, tcol, relleno = self.pill
+            txt = _sin_emoji(txt)
+            wp = stringWidth(txt, "Helvetica-Bold", 6.8) + 12
+            if relleno:
+                c.setFillColor(_hx(base))
+                c.roundRect(w - wp - 10, y - 3, wp, 11, 5, fill=1, stroke=0)
+            else:
+                c.setStrokeColor(_hx(base))
+                c.setLineWidth(0.7)
+                c.roundRect(w - wp - 10, y - 3, wp, 11, 5, fill=0, stroke=1)
+            c.setFillColor(_hx(tcol))
+            c.setFont("Helvetica-Bold", 6.8)
+            c.drawString(w - wp - 4, y, txt)
+        y -= 6
+        for l, col, tam in self.lineas:
+            y -= tam + 4
+            c.setFont("Helvetica", tam)
+            c.setFillColor(_hx(col))
+            c.drawString(12, y + 2, l)
+
+def _estilos_pdf_oscuro():
+    P = _pal()
+    st_ = getSampleStyleSheet()
+    return dict(
+        P=P,
+        tit=ParagraphStyle("OsT", parent=st_["Heading1"], fontName="Helvetica-Bold", fontSize=14, leading=17, textColor=_hx(P["titulo"]), alignment=1, spaceAfter=2),
+        sub=ParagraphStyle("OsS", parent=st_["Normal"], fontName="Helvetica", fontSize=8.5, leading=11, textColor=_hx(P["suave"]), alignment=1, spaceAfter=10),
+        h2=ParagraphStyle("OsH2", parent=st_["Heading2"], fontName="Helvetica-Bold", fontSize=10.5, leading=13, textColor=_hx(P["titulo"]), spaceBefore=9, spaceAfter=5, keepWithNext=1),
+        h3=ParagraphStyle("OsH3", parent=st_["Heading3"], fontName="Helvetica-Bold", fontSize=9, leading=11, textColor=_hx(P["texto"]), spaceBefore=6, spaceAfter=4, keepWithNext=1),
+        txt=ParagraphStyle("OsX", parent=st_["Normal"], fontName="Helvetica", fontSize=8, leading=10, textColor=_hx(P["suave"])),
+        cab=ParagraphStyle("OsC", parent=st_["Normal"], fontName="Helvetica-Bold", fontSize=7, leading=9, textColor=_hx(P["suave"]), alignment=0),
+        cel=ParagraphStyle("OsL", parent=st_["Normal"], fontName="Helvetica", fontSize=6.7, leading=8.6, textColor=_hx(P["texto"]), alignment=0),
+    )
+
+def _fondo_oscuro_pdf(canv, _doc):
+    canv.saveState()
+    canv.setFillColor(_hx(_pal()["pagina"]))
+    canv.rect(0, 0, 792, 612, fill=1, stroke=0)
+    canv.restoreState()
+
 def generar_pdf_integral_supervisor(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota,
                                     tot_s_cnt, tot_v_cnt, d_rec, d_tras=None, d_car=None):
-    """Mismo PDF que el 'REPORTE TÁCTICO INTEGRAL (PDF COMPLETO)' del Tablero de Auditoría."""
+    """REPORTE TÁCTICO INTEGRAL del Tablero de Auditoría, tal cual se ve en la app: fondo oscuro, colores e íconos.
+    Lo descargan Jefe de Operaciones, Gerencia y Monitoreo."""
+    E = _estilos_pdf_oscuro()
+    P = E["P"]
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=35)
-    elementos = []
-    styles = getSampleStyleSheet()
-    estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, leading=15, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
-    estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=10, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-    estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, leading=11, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
-    estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=35,
+                            title=f"Reporte táctico integral - {sup_nombre}")
+    el = [Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", E["tit"]),
+          Paragraph(f"<b>Supervisor: {_xml_escape(str(sup_nombre))}</b> | Emisión: {obtener_hora_argentina()}", E["sub"])]
 
-    elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
-    elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
-    elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
-    t_jor = Table([["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"], [j_ini, j_fin, j_tot]], colWidths=[248, 248, 248])
-    t_jor.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, 0), 8),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')), ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-        ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    elementos.append(t_jor)
-    elementos.append(Spacer(1, 6))
+    el.append(Paragraph("Control de Jornada y Horas Trabajadas", E["h2"]))
+    tj = Table([[_MetricaPDF("INICIO DE JORNADA", j_ini), _MetricaPDF("CIERRE DE JORNADA", j_fin), _MetricaPDF("TOTAL HORAS TRABAJADAS", j_tot)]],
+               colWidths=[248, 248, 248])
+    tj.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
+    el.append(tj)
 
-    def agregar_tabla_pdf(titulo_sec, df_in, anchos_personalizados=None):
-        elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
-        if df_in is not None and not df_in.empty:
-            cols = list(df_in.columns)
-            num_cols = len(cols)
-            anchos = anchos_personalizados if (anchos_personalizados and len(anchos_personalizados) == num_cols) else [744.0 / num_cols] * num_cols
-            estilo_cab = ParagraphStyle('EC', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7, leading=9, textColor=colors.white, alignment=1)
-            estilo_cel = ParagraphStyle('ECL', parent=styles['Normal'], fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=colors.HexColor('#333333'), alignment=1)
-            datos = [[Paragraph(str(c), estilo_cab) for c in cols]]
-            for _, row in df_in.iterrows():
-                datos.append([Paragraph(_xml_escape(str(row[c])) if pd.notna(row[c]) else "", estilo_cel) for c in cols])
-            t = Table(datos, colWidths=anchos, repeatRows=1)
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')), ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                ('TOPPADDING', (0, 1), (-1, -1), 3), ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
-                ('LEFTPADDING', (0, 0), (-1, -1), 2), ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-            ]))
-            elementos.append(t)
-        else:
-            elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
-        elementos.append(Spacer(1, 6))
+    def tabla(titulo, df_in, anchos=None, invertir=False):
+        el.append(Paragraph(titulo, E["h2"]))
+        if df_in is None or df_in.empty:
+            el.append(Paragraph("Sin registros en este periodo.", E["txt"]))
+            return
+        d = df_in.iloc[::-1] if invertir else df_in
+        cols = list(d.columns)
+        n = len(cols)
+        w = anchos if (anchos and len(anchos) == n) else [744.0 / n] * n
+        datos = [[Paragraph(_xml_escape(_sin_emoji(c)), E["cab"]) for c in cols]]
+        for _, row in d.iterrows():
+            datos.append([Paragraph(_xml_escape(_sin_emoji(row[c])) if pd.notna(row[c]) else "", E["cel"]) for c in cols])
+        t = Table(datos, colWidths=w, repeatRows=1)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), _hx(P["pista"])), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_hx(P["tarjeta"]), _hx("#12171F")]),
+            ("GRID", (0, 0), (-1, -1), 0.5, _hx(P["borde"])), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
+        el.append(t)
 
-    agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
-    agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
-    agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
-    agregar_tabla_pdf("Seguimiento de Rondas de Vigiladores:", _rec_para_pdf(d_rec), [52, 80, 80, 28, 60, 44, 44, 34, 40, 56, 226])
-    agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
-    df_pvig_pdf = d_pvig.copy() if d_pvig is not None else pd.DataFrame()
-    if not df_pvig_pdf.empty:
-        df_pvig_pdf['TURNO VIGILADOR'] = [determinar_turno_activo(str(p.get('FECHA', ''))) for _, p in df_pvig_pdf.iterrows()]
-    agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", df_pvig_pdf)
+    def rondas(df_r):
+        el.append(Paragraph("Seguimiento de Rondas de Vigiladores", E["h2"]))
+        if df_r is None or df_r.empty:
+            el.append(Paragraph("Sin rondas registradas.", E["txt"]))
+            return
+        cols = [c for c in df_r.columns if c != "DETALLE"]
+        n = len(cols)
+        w = [52, 120, 120, 40, 84, 52, 52, 48, 66, 110] if n == 10 else [744.0 / n] * n
+        cab = Table([[Paragraph(_xml_escape(c), E["cab"]) for c in cols]], colWidths=w)
+        cab.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), _hx(P["pista"])), ("LINEBELOW", (0, 0), (-1, -1), 1.2, _hx("#00E5FF")),
+                                 ("LEFTPADDING", (0, 0), (-1, -1), 4), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
+        el.append(cab)
+        for _, r in df_r.iterrows():
+            fila = []
+            for c in cols:
+                col, _tag = _estilo_icono(r[c]) if c in ("FRAUDE", "ESTADO") else (None, "")
+                txt = _xml_escape(_sin_emoji(r[c]))
+                fila.append(Paragraph(f'<font color="{col}">{txt}</font>' if col else txt, E["cel"]))
+            fila2 = [_ChipsPDF(r.get("DETALLE", ""), sum(w) - 10)] + [""] * (n - 1)
+            t = Table([fila, fila2], colWidths=w)
+            t.setStyle(TableStyle([("SPAN", (0, 1), (-1, 1)), ("BACKGROUND", (0, 0), (-1, -1), _hx(P["tarjeta"])),
+                                   ("LINEBELOW", (0, 1), (-1, 1), 0.6, _hx(P["borde"])), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                                   ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                                   ("TOPPADDING", (0, 0), (-1, 0), 3), ("BOTTOMPADDING", (0, 0), (-1, 0), 1),
+                                   ("TOPPADDING", (0, 1), (-1, 1), 0), ("BOTTOMPADDING", (0, 1), (-1, 1), 3)]))
+            el.append(KeepTogether(t))
 
+    tabla("Detalle de Permanencia por Objetivo (Escaneos QR)", d_perm, [180, 180, 180, 204])
+    tabla("Fichaje de Vigiladores", d_fich, [80, 110, 100, 90, 90, 90, 184])
+    tabla("Relevos de Vigiladores", d_rel, [60, 100, 120, 120, 70, 90, 184])
+    rondas(d_rec)
+    tabla("Pánicos S.O.S de Supervisor", d_psup, None, invertir=True)
+    df_pv = d_pvig.copy() if d_pvig is not None else pd.DataFrame()
+    if not df_pv.empty:
+        df_pv["TURNO VIGILADOR"] = [determinar_turno_activo(str(p.get("FECHA", ""))) for _, p in df_pv.iterrows()]
+    tabla("Pánicos S.O.S de Vigiladores", df_pv, None, invertir=True)
     if tot_s_cnt > 0 or tot_v_cnt > 0 or (d_alt is not None and not d_alt.empty):
-        elementos.append(Paragraph("<b>Alertas Operativas</b>", estilo_seccion))
+        el.append(Paragraph("Alertas Operativas", E["h2"]))
         if tot_s_cnt > 0:
-            elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
+            el.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", E["txt"]))
         if tot_v_cnt > 0:
-            elementos.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
-        elementos.append(Spacer(1, 4))
+            el.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", E["txt"]))
         if d_alt is not None and not d_alt.empty:
-            agregar_tabla_pdf("Detalle de Alertas Operativas:", d_alt)
+            el.append(Spacer(1, 4))
+            tabla("Detalle de Alertas Operativas", d_alt)
+    tabla("Control de Flota", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
+    tabla("Traspasos de Objetivos", d_tras, [100, 80, 150, 110, 110, 194], invertir=True)
+    tabla("Cargas Tácticas", d_car, [120, 160, 464], invertir=True)
 
-    agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
-    agregar_tabla_pdf("Traspasos de Objetivos:", d_tras.iloc[::-1] if d_tras is not None and not d_tras.empty else pd.DataFrame(), [100, 80, 150, 110, 110, 194])
-    agregar_tabla_pdf("Cargas Tácticas:", d_car.iloc[::-1] if d_car is not None and not d_car.empty else pd.DataFrame(), [120, 160, 464])
-
-    doc.build(elementos, canvasmaker=NumberedCanvas)
+    doc.build(el, onFirstPage=_fondo_oscuro_pdf, onLaterPages=_fondo_oscuro_pdf, canvasmaker=NumberedCanvasOscuro)
     buffer.seek(0)
     return buffer.getvalue()
+
+def generar_pdf_mi_personal(sup, anio, mes):
+    """PDF de la pantalla MI PERSONAL del supervisor, tal cual se ve en la app: grilla del mes con sus colores,
+    novedades registradas del mes y préstamos de vigiladores (enviados y recibidos)."""
+    sup = str(sup).strip().upper()
+    E = _estilos_pdf_oscuro()
+    P = E["P"]
+    periodo = f"{anio}-{mes:02d}"
+    vig = vigiladores_de_supervisor(sup)
+    dnis = set(vig["DNI"].tolist()) if not vig.empty else set()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=35,
+                            title=f"Mi personal - {sup}")
+    el = [Paragraph("<b>AION-YAROKU | MI PERSONAL</b>", E["tit"]),
+          Paragraph(f"<b>{_xml_escape(sup)}</b> | {MESES_ES[mes - 1]} {anio} | Emisión: {obtener_hora_argentina()}", E["sub"])]
+
+    pm = planificacion_mes(periodo).get(sup)
+    if pm is not None and not pm.empty:
+        el.append(Paragraph(f"Mis vigiladores ({len(pm)}) · {MESES_ES[mes - 1]} {anio}", E["h2"]))
+        el.append(_LeyendaPlanPDF())
+        el.append(Spacer(1, 4))
+        el.append(_tabla_planificacion_pdf(pm, anio, mes))
+    else:
+        el.append(Paragraph("No hay vigiladores activos a cargo.", E["txt"]))
+
+    # --- Novedades registradas (del mes, como se ven por defecto en la app) ---
+    el.append(Paragraph("Novedades registradas", E["h2"]))
+    nov = cargar_novedades_personal()
+    cards = []
+    if nov is not None and not nov.empty:
+        nov = nov[nov["_DNI"].isin(dnis)].copy()
+        primero = pd.Timestamp(anio, mes, 1)
+        ultimo = pd.Timestamp(anio, mes, calendar.monthrange(anio, mes)[1])
+        nov = nov[(nov["_DESDE"] <= ultimo) & (nov["_HASTA"] >= primero)].sort_values("_DESDE", ascending=False)
+        for _, n in nov.iterrows():
+            letra, bg, fg = TIPOS_NOVEDAD_PERSONAL.get(n["_TIPO"], ("?", "#555555", "#FFFFFF"))
+            dias = int((n["_HASTA"] - n["_DESDE"]).days) + 1
+            lineas = [(f"{n.get('OBJETIVO', '')} · {n['_DESDE'].strftime('%d/%m/%Y')} al {n['_HASTA'].strftime('%d/%m/%Y')} ({dias} {'día' if dias == 1 else 'días'})", P["label"], 7)]
+            obs = str(n.get("OBSERVACION", "") or "").strip()
+            if obs:
+                lineas.append(("Obs.: " + obs, P["suave"], 7))
+            rp, rf = str(n.get("REGISTRADO_POR", "") or "").strip(), _fmt_fecha_hora(n.get("FECHA_REGISTRO", ""))
+            if rp or rf:
+                lineas.append(("Registrada por " + (rp or "---") + ((" · " + rf) if rf else ""), "#6B7487", 6.5))
+            mp, mf = str(n.get("MODIFICADO_POR", "") or "").strip(), _fmt_fecha_hora(n.get("FECHA_MODIFICACION", ""))
+            if mp or mf:
+                lineas.append(("Modificada por " + (mp or "---") + ((" · " + mf) if mf else ""), "#E0A458", 6.5))
+            cards.append(_TarjetaLineasPDF(bg, str(n.get("VIGILADOR", "")), (f"{letra} · {n['_TIPO']}", bg, fg, True), lineas))
+    if cards:
+        el.append(_grilla_dos_columnas(cards))
+    else:
+        el.append(Paragraph("No hay novedades registradas para este mes.", E["txt"]))
+
+    # --- Préstamos enviados y recibidos ---
+    el.append(Paragraph("Préstamos de vigiladores (enviados y recibidos)", E["h2"]))
+    pr_all = cargar_prestamos()
+    pr_mios = pr_all[(pr_all["_ORIG"] == sup) | (pr_all["_DEST"] == sup)] if pr_all is not None and not pr_all.empty else pd.DataFrame()
+    if pr_mios.empty:
+        el.append(Paragraph("Todavía no hay préstamos registrados.", E["txt"]))
+    else:
+        hoy_d = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
+        hoy_ts = pd.Timestamp(hoy_d.year, hoy_d.month, hoy_d.day)
+        pr_mios = pr_mios.sort_values("_DESDE", ascending=False)
+
+        def cards_prestamos(df_p):
+            out = []
+            for _, p in df_p.iterrows():
+                if p["_ESTADO"] == "ANULADO":
+                    etiqueta, color = "ANULADO", "#7C869A"
+                elif p["_HASTA"] < hoy_ts:
+                    etiqueta, color = "FINALIZADO", "#7C869A"
+                elif p["_DESDE"] > hoy_ts:
+                    etiqueta, color = "PROGRAMADO", "#5BC0CE"
+                else:
+                    etiqueta, color = "EN CURSO", "#26A69A"
+                obj_o, obj_d = str(p.get("OBJETIVO_ORIGEN", "") or "").strip(), str(p.get("OBJETIVO_DESTINO", "") or "").strip()
+                motivo, por = str(p.get("MOTIVO", "") or "").strip(), str(p.get("REGISTRADO_POR", "") or "").strip()
+                fec = _fmt_fecha_hora(p.get("FECHA_REGISTRO", ""))
+                dias = int((p["_HASTA"] - p["_DESDE"]).days) + 1
+                lineas = [("De " + p["_ORIG"] + ((" (" + obj_o + ")") if obj_o else "") + " > " + p["_DEST"] + ((" · " + obj_d) if obj_d else ""), P["suave"], 7),
+                          (p["_DESDE"].strftime("%d/%m/%Y") + " al " + p["_HASTA"].strftime("%d/%m/%Y") + f" ({dias} {'día' if dias == 1 else 'días'})" +
+                           ((" · Motivo: " + motivo) if motivo else ""), P["label"], 7),
+                          ("Registrado por " + (por or "---") + ((" · " + fec) if fec else ""), "#6B7487", 6.5)]
+                anul, fec_a = str(p.get("ANULADO_POR", "") or "").strip(), _fmt_fecha_hora(p.get("FECHA_ANULACION", ""))
+                if anul or fec_a:
+                    lineas.append(("Anulado por " + (anul or "---") + ((" · " + fec_a) if fec_a else ""), "#E0A458", 6.5))
+                out.append(_TarjetaLineasPDF(color, str(p.get("VIGILADOR", "")), (etiqueta, color, color, False), lineas))
+            return out
+        enviados, recibidos = pr_mios[pr_mios["_ORIG"] == sup], pr_mios[pr_mios["_DEST"] == sup]
+        el.append(Paragraph("Que yo presté", E["h3"]))
+        el.append(_grilla_dos_columnas(cards_prestamos(enviados)) if not enviados.empty else Paragraph("No prestaste vigiladores.", E["txt"]))
+        el.append(Paragraph("Que me prestaron", E["h3"]))
+        el.append(_grilla_dos_columnas(cards_prestamos(recibidos)) if not recibidos.empty else Paragraph("No te prestaron vigiladores.", E["txt"]))
+
+    doc.build(el, onFirstPage=_fondo_oscuro_pdf, onLaterPages=_fondo_oscuro_pdf, canvasmaker=NumberedCanvasOscuro)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 
 def mostrar_reporte_tactico_integral(sup, key_suffix=""):
     """Mismo Tablero de Auditoría que ve el Jefe de Operaciones / Gerencia (jornada, permanencia QR, vista previa
@@ -5357,7 +5596,7 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
             pass
 
 def mostrar_boton_planificacion():
-    if st.session_state.get("rol_sel") not in ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"]:
+    if st.session_state.get("rol_sel") not in ["JEFE DE OPERACIONES", "GERENCIA"]:
         return
     st.markdown("---")
     en_rel = st.session_state.get("ver_planificacion", False)
@@ -5656,7 +5895,7 @@ titulos = {
 }
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
-if st.session_state.rol_sel in ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"] and st.session_state.get("ver_planificacion", False):
+if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"] and st.session_state.get("ver_planificacion", False):
     renderizar_relevamiento_mensual(key_prefix="rel")
     st.stop()
 
@@ -6925,128 +7164,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                     st.markdown("---")
 
-                    def generar_pdf_integral_completo(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota, tot_s_cnt, tot_v_cnt, d_rec, d_tras=None, d_car=None):
-                        buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(
-                            buffer, 
-                            pagesize=landscape(letter), 
-                            rightMargin=24, 
-                            leftMargin=24, 
-                            topMargin=24, 
-                            bottomMargin=35
-                        )
-                        elementos = []
-                        styles = getSampleStyleSheet()
-                         
-                        estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, leading=15, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
-                        estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=10, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
-                        estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, leading=11, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
-                        estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
-
-                        elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
-                        elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
-                         
-                        elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
-                        datos_jornada_resumen = [
-                            ["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"],
-                            [j_ini, j_fin, j_tot]
-                        ]
-                        t_jor = Table(datos_jornada_resumen, colWidths=[248, 248, 248])
-                        t_jor.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
-                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 8),
-                            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')),
-                            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                            ('TOPPADDING', (0, 0), (-1, -1), 4),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                        ]))
-                        elementos.append(t_jor)
-                        elementos.append(Spacer(1, 6))
-
-                        def agregar_tabla_pdf(titulo_sec, df_in, anchos_personalizados=None):
-                            elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
-                            if not df_in.empty:
-                                cols = list(df_in.columns)
-                                num_cols = len(cols)
-                                ancho_total_disponible = 744.0
-                                 
-                                if anchos_personalizados and len(anchos_personalizados) == num_cols:
-                                    anchos_lista = anchos_personalizados
-                                else:
-                                    anchos_lista = [ancho_total_disponible / num_cols] * num_cols
-
-                                estilo_cab = ParagraphStyle('EC', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7, leading=9, textColor=colors.white, alignment=1)
-                                estilo_cel = ParagraphStyle('ECL', parent=styles['Normal'], fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=colors.HexColor('#333333'), alignment=1)
-
-                                datos = []
-                                fila_encabezados = [Paragraph(str(c), estilo_cab) for c in cols]
-                                datos.append(fila_encabezados)
-
-                                for _, row in df_in.iterrows():
-                                    fila_parrafos = []
-                                    for c in cols:
-                                        val = str(row[c]) if pd.notna(row[c]) else ""
-                                        fila_parrafos.append(Paragraph(val, estilo_cel))
-                                    datos.append(fila_parrafos)
-
-                                t = Table(datos, colWidths=anchos_lista, repeatRows=1)
-                                t.setStyle(TableStyle([
-                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
-                                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
-                                    ('TOPPADDING', (0, 1), (-1, -1), 3),
-                                    ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
-                                    ('LEFTPADDING', (0, 0), (-1, -1), 2),
-                                    ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-                                ]))
-                                element = t
-                                elementos.append(element)
-                            else:
-                                element = Paragraph("Sin registros en este periodo.", estilo_texto)
-                                elementos.append(element)
-                            elementos.append(Spacer(1, 6))
-
-                        agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia per Objetivo:", d_perm, [180, 180, 180, 204])
-                        agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
-                        agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
-                        agregar_tabla_pdf("Seguimiento de Rondas de Vigiladores:", _rec_para_pdf(d_rec), [52, 80, 80, 28, 60, 44, 44, 34, 40, 56, 226])
-                        agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
-                         
-                        df_pvig_pdf = d_pvig.copy()
-                        if not df_pvig_pdf.empty:
-                            turnos_vig_pdf_list = []
-                            for _, p_row in df_pvig_pdf.iterrows():
-                                f_val_p = str(p_row.get('FECHA', ''))
-                                turnos_vig_pdf_list.append(determinar_turno_activo(f_val_p))
-                            df_pvig_pdf['TURNO VIGILADOR'] = turnos_vig_pdf_list
-                        agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", df_pvig_pdf)
-                         
-                        if tot_s_cnt > 0 or tot_v_cnt > 0 or not d_alt.empty:
-                            elementos.append(Paragraph("<b>Alertas Operativas</b>", estilo_seccion))
-                            if tot_s_cnt > 0:
-                                elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
-                            if tot_v_cnt > 0:
-                                element_v = Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto)
-                                elementos.append(element_v)
-                            elementos.append(Spacer(1, 4))
-
-                            if not d_alt.empty:
-                                agregar_tabla_pdf("Detalle de Alertas Operativas:", d_alt)
-
-                        agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
-                        agregar_tabla_pdf("Traspasos de Objetivos:", d_tras.iloc[::-1] if d_tras is not None and not d_tras.empty else pd.DataFrame(), [100, 80, 150, 110, 110, 194])
-                        agregar_tabla_pdf("Cargas Tácticas:", d_car.iloc[::-1] if d_car is not None and not d_car.empty else pd.DataFrame(), [120, 160, 464])
-
-                        doc.build(elementos, canvasmaker=NumberedCanvas)
-                        buffer.seek(0)
-                        return buffer.getvalue()
-
-                    pdf_bytes_integral = generar_pdf_integral_completo(
+                    pdf_bytes_integral = generar_pdf_integral_supervisor(
                         sup_seleccionado_jefe, inicio_jornada_gen, fin_jornada_gen, total_horas_trabajadas,
                         df_tabla_permanencia, df_fich_filtrado, df_rel_filtrado, 
                         df_alt_sup_filtrado, df_pan_sup_filtrado, df_pan_vig_filtrado, df_flota_sup_filtro,
