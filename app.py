@@ -2772,6 +2772,52 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
     if st.session_state.get("resultado_qr"):
         st.error(st.session_state.resultado_qr)
 
+_GPS_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html,body{margin:0;padding:0;background:transparent;font-family:sans-serif}#m{font-size:13px;color:#00E5FF;padding:8px;text-align:center}</style></head><body>
+<div id="m">📡 Obteniendo ubicación…</div>
+<script>
+function enviar(t,d){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:t},d),"*");}
+enviar("streamlit:componentReady",{apiVersion:1});
+enviar("streamlit:setFrameHeight",{height:44});
+var m=document.getElementById("m"), iniciado=false;
+window.addEventListener("message",function(ev){
+  if(ev.data && ev.data.type==="streamlit:render" && !iniciado){
+    iniciado=true; var a=ev.data.args||{};
+    medir(Number(a.objetivo)||30, Number(a.max_seg)||25);
+  }
+});
+function medir(obj,maxSeg){
+  var GL=null;
+  try{GL=(window.parent.navigator&&window.parent.navigator.geolocation)||navigator.geolocation;}catch(e){GL=navigator.geolocation;}
+  var mejor=null, t0=Date.now(), fin=false, wid=null, tm=null;
+  function cerrar(err){
+    if(fin) return; fin=true;
+    try{if(GL&&wid!==null)GL.clearWatch(wid);}catch(e){}
+    if(tm) clearInterval(tm);
+    enviar("streamlit:setComponentValue",{value:{lat:mejor?mejor.latitude:null,lon:mejor?mejor.longitude:null,acc:mejor?mejor.accuracy:null,error:err||"",ts:Date.now()},dataType:"json"});
+  }
+  if(!GL){cerrar("sin_gps");return;}
+  // Mide de forma continua con GPS de alta precisión y se queda con la MEJOR lectura (corta apenas llega al objetivo)
+  wid=GL.watchPosition(function(p){
+    if(!mejor||p.coords.accuracy<mejor.accuracy) mejor=p.coords;
+    m.textContent="📡 Mejorando precisión… ±"+Math.round(mejor.accuracy)+" m (objetivo ≤ "+obj+" m)";
+    if(mejor.accuracy<=obj) cerrar("");
+  },function(e){ if(e&&e.code===1) cerrar("permiso"); },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+  tm=setInterval(function(){
+    var s=(Date.now()-t0)/1000;
+    if(s>=maxSeg) cerrar("");
+    else if(!mejor) m.textContent="📡 Buscando señal GPS… "+Math.round(maxSeg-s)+" s";
+  },1000);
+}
+</script></body></html>"""
+
+@st.cache_resource(show_spinner=False)
+def _declarar_gps_preciso(version="v1"):
+    carpeta = tempfile.mkdtemp(prefix=f"aion_gps_{version}_")
+    with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
+        f.write(_GPS_HTML)
+    return components.declare_component(f"aion_gps_preciso_{version}", path=carpeta)
+
 def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
     st.markdown("#### 🧾 CONFIGURACIÓN DE RONDAS Y HORARIOS ESPECÍFICOS")
     lista_objetivos = list(lista_objetivos)
@@ -2857,18 +2903,22 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
             st.session_state[kc + "_n"] = st.session_state.get(kc + "_n", 0) + 1
             st.session_state[kc] = st.session_state[kc + "_n"]
         if st.session_state.get(kc):
-            loc = get_geolocation(component_key=f"{kc}_{st.session_state[kc]}")
-            if loc and "coords" in loc:
-                c = loc["coords"]
-                if float(c.get("accuracy") or 999) > 30:
-                    st.warning(f"⚠️ GPS poco preciso (±{float(c.get('accuracy') or 0):.0f} m). Salí a un lugar abierto y probá de nuevo.")
-                elif _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), c["latitude"], c["longitude"]):
-                    st.success("✅ Ubicación del punto guardada.")
+            loc = _declarar_gps_preciso("v1")(objetivo=30, max_seg=25, key=f"{kc}_{st.session_state[kc]}", default=None)
+            if loc:
+                acc = loc.get("acc")
+                if loc.get("error") == "permiso":
+                    st.error("📍 El navegador no tiene permiso de ubicación. Activalo para este sitio y probá de nuevo.")
+                elif acc is None:
+                    st.warning("⚠️ No se pudo obtener la ubicación. Probá de nuevo desde el celular, con el GPS activado.")
+                elif float(acc) > 30:
+                    st.warning(f"⚠️ GPS poco preciso (mejor lectura: ±{float(acc):.0f} m). Salí a un lugar abierto, esperá unos segundos y probá de nuevo. Desde una PC no se logra: usá el celular.")
+                elif _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), loc["lat"], loc["lon"]):
+                    st.success(f"✅ Ubicación del punto guardada (±{float(acc):.0f} m).")
                 else:
                     st.error("❌ No se pudo guardar. Revisá la conexión con Supabase.")
                 st.session_state[kc] = 0
             else:
-                st.info("📡 Obteniendo ubicación…")
+                st.info("📡 Midiendo ubicación (hasta 25 s). Quedate quieto cerca del QR…")
 
 def tabla_recorridas_vigiladores(objs_sup):
     """SEGUIMIENTO DE RONDAS: una fila por fecha / objetivo / vigilador / ronda, con íconos como el seguimiento del panel lateral:
