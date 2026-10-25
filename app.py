@@ -1,3 +1,4 @@
+
 import streamlit as st
 import html as _html_msg
 import datetime
@@ -2796,6 +2797,10 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
         )
         kc = f"{key_prefix}_cal_{obj_u}_{str(pto_sel).strip().upper()}".replace(" ", "_")
         st.caption("📍 Parate frente al QR físico y tocá el botón para guardar dónde está este punto.")
+        tol_punto = st.number_input(
+            "📏 Tolerancia del punto (metros)", min_value=10, max_value=150, value=25, step=5, key=kc + "_tol",
+            help="Distancia máxima permitida entre el vigilador y este punto. Para puntos en subsuelo (donde el GPS falla), guardá la ubicación de la entrada o rampa y usá 60 a 80 m."
+        )
         if st.button("📍 GUARDAR UBICACIÓN DE ESTE PUNTO", key=kc + "_btn", use_container_width=True):
             st.session_state[kc + "_n"] = st.session_state.get(kc + "_n", 0) + 1
             st.session_state[kc] = st.session_state[kc + "_n"]
@@ -2805,8 +2810,8 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
                 c = loc["coords"]
                 if float(c.get("accuracy") or 999) > 30:
                     st.warning(f"⚠️ GPS poco preciso (±{float(c.get('accuracy') or 0):.0f} m). Salí a un lugar abierto y probá de nuevo.")
-                elif _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), c["latitude"], c["longitude"]):
-                    st.success("✅ Ubicación del punto guardada.")
+                elif _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), c["latitude"], c["longitude"], tolerancia_m=int(tol_punto)):
+                    st.success(f"✅ Ubicación del punto guardada (tolerancia {int(tol_punto)} m).")
                 else:
                     st.error("❌ No se pudo guardar la ubicación del punto.")
                     st.code(_qr_validator().ultimo_error or "Sin detalle del error")
