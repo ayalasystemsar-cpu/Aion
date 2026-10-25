@@ -2850,7 +2850,7 @@ def tabla_recorridas_vigiladores(objs_sup):
     if not df_r.empty:
         df_r['_FECHA'] = df_r['_FH'].dt.strftime('%Y-%m-%d')
 
-    total_ptos, previsto, planificado = {}, {}, {}
+    total_ptos, previsto, planificado, horarios_obj = {}, {}, {}, {}
     df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
     if not df_p.empty and {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
         df_p = df_p.loc[:, ~df_p.columns.duplicated()].copy()
@@ -2861,6 +2861,7 @@ def tabla_recorridas_vigiladores(objs_sup):
                 hs = _horarios_unicos(col_texto(g, 'HORARIO').tolist())
                 if hs:
                     previsto[o] = ", ".join(hs)
+                    horarios_obj[o] = hs
         dfp = df_p.copy()
         dfp['_P'] = col_texto(dfp, 'PUNTO').str.strip().str.upper()
         if 'ORDEN' in dfp.columns:
@@ -2923,7 +2924,7 @@ def tabla_recorridas_vigiladores(objs_sup):
             elif completa:
                 estado = "✅ COMPLETA"
             elif faltan or not es_actual:
-                estado = "⚠️ INCOMPLETA"
+                estado = "⚠️ CON FALTANTES"
             else:
                 estado = "⏳ EN CURSO"
             filas.append({
@@ -2951,10 +2952,62 @@ def tabla_recorridas_vigiladores(objs_sup):
             "FRAUDE": f"🚩 SÍ ({len(evs)})", "ESTADO": "🚩 CON FRAUDE",
             "DETALLE": " | ".join(f"🚩 {e['pto']} {e['fh'].strftime('%H:%M:%S')}" for e in evs),
         })
+    # --- Rondas programadas que NADIE empezó (sin escaneos), con la justificación si el vigilador respondió NO ---
+    TOLERANCIA_RONDA_MIN = 60   # minutos de gracia después del horario previsto antes de marcar la ronda como no realizada
+    ahora = pd.Timestamp(obtener_hora_argentina())
+    justif = {}   # (fecha, objetivo, HH:MM) -> (vigilador, motivo)
+    df_resp = leer_matriz_nube("RESPUESTAS RECORRIDAS")
+    if not df_resp.empty and {'FECHA_HORA', 'OBJETIVO', 'DNI', 'HORARIO', 'RESPUESTA'} <= set(df_resp.columns):
+        mapa_dni = {}
+        df_pad2 = leer_matriz_nube("PADRON VIGILADORES")
+        if not df_pad2.empty and {'DNI', 'NOMBRE'} <= set(df_pad2.columns):
+            mapa_dni = dict(zip(col_texto(df_pad2, 'DNI').str.replace(r'\D', '', regex=True),
+                                col_texto(df_pad2, 'NOMBRE').str.strip().str.upper()))
+        for _, f in df_resp.iterrows():
+            if str(f['RESPUESTA']).strip().upper() != "NO":
+                continue
+            o_j = str(f['OBJETIVO']).strip().upper()
+            hs_j = _horarios_unicos([f['HORARIO']])
+            if o_j not in objs or not hs_j:
+                continue
+            dni_j = re.sub(r'\D', '', str(f['DNI']))
+            justif[(str(f['FECHA_HORA'])[:10], o_j, hs_j[0])] = (mapa_dni.get(dni_j, dni_j or "---"), str(f.get('MOTIVO', '')).strip())
+    hechas = {(k[0], k[1], x[0]) for k, lst in rondas_idx.items() for x in lst}
+    for obj in objs:
+        hs_o = horarios_obj.get(obj, [])
+        fechas_obj = [k[0] for k in rondas_idx if k[1] == obj] + [k[0] for k in justif if k[1] == obj]
+        if not hs_o or not fechas_obj:
+            continue
+        first_fh = df_r[df_r['_OBJ'] == obj]['_FH'].min() if (not df_r.empty and (df_r['_OBJ'] == obj).any()) else None
+        inicio = max(pd.Timestamp(min(fechas_obj)), pd.Timestamp(hoy) - pd.Timedelta(days=30))
+        for fecha_ts in pd.date_range(inicio, pd.Timestamp(hoy)):
+            fecha = fecha_ts.strftime('%Y-%m-%d')
+            for r, hm in enumerate(hs_o, start=1):
+                if (fecha, obj, r) in hechas:
+                    continue
+                prog = pd.Timestamp(f"{fecha} {hm}:00")
+                if prog + pd.Timedelta(minutes=TOLERANCIA_RONDA_MIN) > ahora:
+                    continue
+                jv = justif.get((fecha, obj, hm))
+                if first_fh is not None and prog < first_fh and jv is None:
+                    continue   # antes de que el objetivo empezara a usar el sistema
+                total = total_ptos.get(obj, 0)
+                filas.append({
+                    "FECHA": fecha, "OBJETIVO": obj, "VIGILADOR": jv[0] if jv else "---", "RONDA": r,
+                    "HORARIO PREVISTO": hm, "INICIÓ": "---", "FINALIZÓ": "---",
+                    "PUNTOS": f"0/{total}" if total else "0",
+                    "FRAUDE": "✅ NO",
+                    "ESTADO": "⚠️ NO REALIZADA (JUSTIFICADA)" if jv else "⚠️ NO REALIZADA",
+                    "DETALLE": f"⚠️ Ronda de las {hm} hs no realizada" + ((" · motivo: " + (jv[1] or "sin motivo")) if jv else " · sin escaneos ni justificación"),
+                    "_K": hm + ":00",
+                })
     if not filas:
         return pd.DataFrame()
+    for f in filas:
+        f.setdefault("_K", f["INICIÓ"] if f["INICIÓ"] != "---" else "")
     df_out = pd.DataFrame(filas)
-    return df_out.sort_values(['FECHA', 'INICIÓ'], ascending=False).reset_index(drop=True)
+    df_out = df_out.sort_values(['FECHA', '_K'], ascending=False).drop(columns=['_K']).reset_index(drop=True)
+    return df_out
 
 def mostrar_tabla_rondas(df):
     """Seguimiento de rondas como tabla HTML: el texto se acomoda al ancho de la pantalla (sin mover de costado) y el
