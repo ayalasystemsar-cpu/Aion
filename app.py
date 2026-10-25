@@ -2956,6 +2956,33 @@ def tabla_recorridas_vigiladores(objs_sup):
     df_out = pd.DataFrame(filas)
     return df_out.sort_values(['FECHA', 'INICIÓ'], ascending=False).reset_index(drop=True)
 
+def mostrar_tabla_rondas(df):
+    """Seguimiento de rondas como tabla HTML: el texto se acomoda al ancho de la pantalla (sin mover de costado) y el
+    DETALLE va debajo de cada fila, con cada punto en su recuadro de color (✅ hecho · 🚩 fraude · ⚠️ no lo hizo · ⏳ pendiente)."""
+    if df is None or df.empty:
+        return
+    esc = lambda v: _html_msg.escape(str(v))
+    def _color(txt):
+        t = str(txt)
+        for ico, c in (("🚩", "#FF1744"), ("⚠️", "#FF9100"), ("⏳", "#94A3B8"), ("✅", "#00E676")):
+            if ico in t:
+                return c
+        return "#E2E8F0"
+    cols = [c for c in df.columns if c != "DETALLE"]
+    th = "".join(f"<th style='text-align:left;padding:4px 6px;color:#00E5FF;font-size:10px;border-bottom:2px solid #00E5FF;'>{esc(c)}</th>" for c in cols)
+    filas = []
+    for _, r in df.iterrows():
+        tds = "".join(
+            f"<td style='padding:4px 6px 2px;font-size:12px;vertical-align:top;color:{_color(r[c]) if c in ('FRAUDE', 'ESTADO') else '#E2E8F0'};'>{esc(r[c])}</td>"
+            for c in cols)
+        chips = "".join(
+            f"<span style='display:inline-block;border-left:4px solid {_color(p)};background:rgba(255,255,255,0.06);padding:2px 8px;margin:2px 4px 2px 0;border-radius:3px;font-size:12px;color:#E2E8F0;'>{esc(p.strip())}</span>"
+            for p in str(r.get("DETALLE", "")).split(" | ") if p.strip())
+        filas.append(f"<tr>{tds}</tr><tr><td colspan='{len(cols)}' style='padding:0 6px 8px;border-bottom:1px solid #334155;'>{chips}</td></tr>")
+    html = ("<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;'>"
+            f"<thead><tr>{th}</tr></thead><tbody>{''.join(filas)}</tbody></table></div>")
+    st.markdown(html, unsafe_allow_html=True)
+
 def _rec_para_pdf(df):
     """El PDF (Helvetica) no dibuja emojis: se pasan a palabras."""
     if df is None or df.empty:
@@ -5028,7 +5055,7 @@ if st.session_state.rol_sel == "MONITOREO":
                     objs_rec_m = df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                     df_rec_m = tabla_recorridas_vigiladores(objs_rec_m)
                     if not df_rec_m.empty:
-                        st.dataframe(df_rec_m, use_container_width=True, hide_index=True, column_config={"DETALLE": st.column_config.TextColumn(width="large")})
+                        mostrar_tabla_rondas(df_rec_m)
                     else:
                         st.info("Sin rondas registradas para los objetivos de este supervisor.")
 
@@ -6026,7 +6053,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
 
                         st.markdown("##### 🛰️ Seguimiento de Rondas de Vigiladores")
                         if not df_rec_filtrado.empty:
-                            st.dataframe(df_rec_filtrado, use_container_width=True, hide_index=True, column_config={"DETALLE": st.column_config.TextColumn(width="large")})
+                            mostrar_tabla_rondas(df_rec_filtrado)
                         else:
                             st.info("Sin rondas registradas.")
 
