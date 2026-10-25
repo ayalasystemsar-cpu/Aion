@@ -2219,6 +2219,31 @@ def _qr_validator():
         print(f"Supabase no disponible: {e}")
     return wlnqr.QRValidator(cli)
 
+def _diagnostico_supabase():
+    """Dice por qué no se puede guardar en Supabase: paquete faltante, secrets faltantes o rechazo de la base."""
+    try:
+        from supabase import create_client
+    except Exception as e:
+        return f"Falta instalar el paquete supabase en la app (agregá la línea `supabase` al archivo requirements.txt del repo). Detalle: {e}"
+    try:
+        url, key = st.secrets["supabase"]["url"], st.secrets["supabase"]["key"]
+    except Exception:
+        return "Faltan los secrets de Supabase. En Streamlit Cloud → Settings → Secrets tienen que estar [supabase] con url y key."
+    try:
+        cli = create_client(url, key)
+    except Exception as e:
+        return f"La url o la key de Supabase no son válidas. Detalle: {e}"
+    try:
+        cli.table("puntos_control").select("objetivo").limit(1).execute()
+    except Exception as e:
+        return f"La conexión anda, pero la tabla puntos_control da error al leerla (no existe o un permiso la bloquea). Detalle: {e}"
+    try:   # prueba real de escritura para mostrar el motivo exacto que la librería oculta
+        cli.table("puntos_control").upsert({"objetivo": "__PRUEBA__", "id_punto": "__PRUEBA__", "latitud": 0.0, "longitud": 0.0}, on_conflict="objetivo,id_punto").execute()
+        cli.table("puntos_control").delete().eq("objetivo", "__PRUEBA__").execute()
+    except Exception as e:
+        return f"La tabla puntos_control existe pero rechaza la escritura. Detalle: {e}"
+    return "La tabla puntos_control acepta la escritura; probá guardar de nuevo (puede haber sido un corte momentáneo de conexión)."
+
 def validar_presencia_scan(lectura, calle, altura, localidad, radio_m=150):
     """Para el supervisor: el GPS tomado al escanear tiene que estar en el objetivo."""
     if not isinstance(lectura, dict) or lectura.get("lat") is None:
@@ -2912,10 +2937,16 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
                     st.warning("⚠️ No se pudo obtener la ubicación. Probá de nuevo desde el celular, con el GPS activado.")
                 elif float(acc) > 30:
                     st.warning(f"⚠️ GPS poco preciso (mejor lectura: ±{float(acc):.0f} m). Salí a un lugar abierto, esperá unos segundos y probá de nuevo. Desde una PC no se logra: usá el celular.")
-                elif _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), loc["lat"], loc["lon"]):
-                    st.success(f"✅ Ubicación del punto guardada (±{float(acc):.0f} m).")
                 else:
-                    st.error("❌ No se pudo guardar. Revisá la conexión con Supabase.")
+                    _ok_guardado, _err_guardado = False, ""
+                    try:
+                        _ok_guardado = _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), loc["lat"], loc["lon"])
+                    except Exception as _e_g:
+                        _err_guardado = str(_e_g)
+                    if _ok_guardado:
+                        st.success(f"✅ Ubicación del punto guardada (±{float(acc):.0f} m).")
+                    else:
+                        st.error("❌ No se pudo guardar la ubicación. " + _diagnostico_supabase() + (f" Error: {_err_guardado}" if _err_guardado else ""))
                 st.session_state[kc] = 0
             else:
                 st.info("📡 Midiendo ubicación (hasta 25 s). Quedate quieto cerca del QR…")
