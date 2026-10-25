@@ -9,7 +9,6 @@ numpy
 openpyxl
 pytz
 streamlit-autorefresh
-supabase
 streamlit-drawable-canvas
 osmnx
 networkx
