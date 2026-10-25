@@ -2209,12 +2209,16 @@ def texto_qr(lectura):
     return str(lectura or "").strip()
 
 @st.cache_resource(show_spinner=False)
+def _supabase_cliente():
+    # Si esto falla NO se guarda en caché: se vuelve a intentar en la próxima ejecución.
+    from supabase import create_client
+    return create_client(st.secrets["supabase"]["url"], st.secrets["supabase"]["key"])
+
 def _qr_validator():
     import wlnqr
     cli = None
     try:
-        from supabase import create_client
-        cli = create_client(st.secrets["supabase"]["url"], st.secrets["supabase"]["key"])
+        cli = _supabase_cliente()
     except Exception as e:
         print(f"Supabase no disponible: {e}")
     return wlnqr.QRValidator(cli)
@@ -2940,7 +2944,10 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
                 else:
                     _ok_guardado, _err_guardado = False, ""
                     try:
-                        _ok_guardado = _qr_validator().guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), loc["lat"], loc["lon"])
+                        _vq = _qr_validator()
+                        _ok_guardado = _vq.guardar_ubicacion_punto(obj_u, str(pto_sel).strip().upper(), loc["lat"], loc["lon"])
+                        if not _ok_guardado:
+                            _err_guardado = str(getattr(_vq, "ultimo_error", "") or "")
                     except Exception as _e_g:
                         _err_guardado = str(_e_g)
                     if _ok_guardado:
