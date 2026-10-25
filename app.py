@@ -1,4 +1,3 @@
-
 import streamlit as st
 import html as _html_msg
 import datetime
@@ -1468,7 +1467,7 @@ def _registro_escaneos_vigiladores():
     df = df.dropna(subset=['_FH'])
     return df.sort_values('_FH')
 
-def _eventos_fraude_qr(fecha_txt):
+def _eventos_fraude_qr(fecha_txt=None):
     """Escaneos rechazados y reportados hoy (se leen de los mensajes de alerta de fraude QR).
     Devuelve lista de dicts: fh, vig, obj, pto, tipo, clase ('FRAUDE' o 'SALTEO')."""
     df = leer_matriz_nube("MENSAJERIA")
@@ -1481,7 +1480,7 @@ def _eventos_fraude_qr(fecha_txt):
             continue
         m_f = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', texto)
         m = re.search(r'POSIBLE FRAUDE QR \(([^)]*)\):\s*(.*?)\s+-\s+OBJ:\s*(.*?)\s+-\s+PUNTO:\s*(.*?)\.(?:\s|$)', texto, flags=re.I)
-        if not m or not m_f or not m_f.group(1).startswith(fecha_txt):
+        if not m or not m_f or (fecha_txt and not m_f.group(1).startswith(fecha_txt)):
             continue
         tipo, vig, obj, pto = [x.strip().upper() for x in m.groups()]
         clave = (m_f.group(1), vig, obj, pto, tipo)
@@ -2815,40 +2814,43 @@ def renderizar_generador_qr_recorrido(lista_objetivos, key_prefix):
                 st.info("📡 Obteniendo ubicación…")
 
 def tabla_recorridas_vigiladores(objs_sup):
-    df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
-    if df_r.empty or len(objs_sup) == 0 or not {'FECHA_HORA', 'OBJETIVO', 'PUNTO', 'RONDA'} <= set(df_r.columns):
-        return pd.DataFrame()
-    df_r = df_r.loc[:, ~df_r.columns.duplicated()].copy()
+    """SEGUIMIENTO DE RONDAS: una fila por fecha / objetivo / vigilador / ronda, con íconos como el seguimiento del panel lateral:
+    ✅ hecho (con horario) · ⚠️ no lo hizo · 🚩 fraude (incluye querer saltear un punto) · ⏳ pendiente.
+    Los fraudes QR se leen de los mensajes de alerta (los mismos que usa el panel lateral)."""
     objs = [str(o).strip().upper() for o in objs_sup]
-    df_r['_OBJ'] = col_texto(df_r, 'OBJETIVO').str.strip().str.upper()
-    df_r = df_r[df_r['_OBJ'].isin(objs)].copy()
-    if df_r.empty:
+    if len(objs) == 0:
         return pd.DataFrame()
-
-    col_vig = next((c for c in ['VIGILADOR', 'NOMBRE', 'APELLIDO Y NOMBRE'] if c in df_r.columns), None)
-    if col_vig:
-        df_r['_VIG'] = col_texto(df_r, col_vig).str.strip().str.upper()
-    elif 'DNI' in df_r.columns:
-        df_r['_VIG'] = col_texto(df_r, 'DNI').str.replace(r'\D', '', regex=True)
-        df_pad = leer_matriz_nube("PADRON VIGILADORES")
-        if not df_pad.empty and {'DNI', 'NOMBRE'} <= set(df_pad.columns):
-            mapa = dict(zip(
-                col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True),
-                col_texto(df_pad, 'NOMBRE').str.strip().str.upper()
-            ))
-            df_r['_VIG'] = df_r['_VIG'].map(lambda d: mapa.get(d, d))
+    df_r = leer_matriz_nube("REGISTRO RECORRIDOS")
+    if not df_r.empty and {'FECHA_HORA', 'OBJETIVO', 'PUNTO', 'RONDA'} <= set(df_r.columns):
+        df_r = df_r.loc[:, ~df_r.columns.duplicated()].copy()
+        df_r['_OBJ'] = col_texto(df_r, 'OBJETIVO').str.strip().str.upper()
+        df_r = df_r[df_r['_OBJ'].isin(objs)].copy()
     else:
-        df_r['_VIG'] = "---"
+        df_r = pd.DataFrame()
 
-    df_r['_PTO'] = col_texto(df_r, 'PUNTO').str.strip().str.upper()
-    df_r['_FH'] = pd.to_datetime(df_r['FECHA_HORA'], errors='coerce')
-    df_r['_RONDA'] = pd.to_numeric(df_r['RONDA'], errors='coerce').fillna(1).astype(int)
-    df_r = df_r.dropna(subset=['_FH'])
-    if df_r.empty:
-        return pd.DataFrame()
-    df_r['_FECHA'] = df_r['_FH'].dt.strftime('%Y-%m-%d')
+    if not df_r.empty:
+        col_vig = next((c for c in ['VIGILADOR', 'NOMBRE', 'APELLIDO Y NOMBRE'] if c in df_r.columns), None)
+        if col_vig:
+            df_r['_VIG'] = col_texto(df_r, col_vig).str.strip().str.upper()
+        elif 'DNI' in df_r.columns:
+            df_r['_VIG'] = col_texto(df_r, 'DNI').str.replace(r'\D', '', regex=True)
+            df_pad = leer_matriz_nube("PADRON VIGILADORES")
+            if not df_pad.empty and {'DNI', 'NOMBRE'} <= set(df_pad.columns):
+                mapa = dict(zip(
+                    col_texto(df_pad, 'DNI').str.replace(r'\D', '', regex=True),
+                    col_texto(df_pad, 'NOMBRE').str.strip().str.upper()
+                ))
+                df_r['_VIG'] = df_r['_VIG'].map(lambda d: mapa.get(d, d))
+        else:
+            df_r['_VIG'] = "---"
+        df_r['_PTO'] = col_texto(df_r, 'PUNTO').str.strip().str.upper()
+        df_r['_FH'] = pd.to_datetime(df_r['FECHA_HORA'], errors='coerce')
+        df_r['_RONDA'] = pd.to_numeric(df_r['RONDA'], errors='coerce').fillna(1).astype(int)
+        df_r = df_r.dropna(subset=['_FH'])
+    if not df_r.empty:
+        df_r['_FECHA'] = df_r['_FH'].dt.strftime('%Y-%m-%d')
 
-    total_ptos, previsto = {}, {}
+    total_ptos, previsto, planificado = {}, {}, {}
     df_p = leer_matriz_nube("RECORRIDOS PUNTOS")
     if not df_p.empty and {'OBJETIVO', 'PUNTO'} <= set(df_p.columns):
         df_p = df_p.loc[:, ~df_p.columns.duplicated()].copy()
@@ -2859,25 +2861,116 @@ def tabla_recorridas_vigiladores(objs_sup):
                 hs = _horarios_unicos(col_texto(g, 'HORARIO').tolist())
                 if hs:
                     previsto[o] = ", ".join(hs)
+        dfp = df_p.copy()
+        dfp['_P'] = col_texto(dfp, 'PUNTO').str.strip().str.upper()
+        if 'ORDEN' in dfp.columns:
+            dfp['_ORD'] = pd.to_numeric(dfp['ORDEN'], errors='coerce')
+            dfp = dfp.sort_values('_ORD')
+        for o, g in dfp.groupby('_OBJ', sort=False):
+            planificado[o] = g['_P'].drop_duplicates().tolist()
 
+    # Fraudes QR (de todos los días) de los objetivos pedidos
+    eventos = [e for e in _eventos_fraude_qr(None) if e["obj"] in objs]
+
+    rondas_idx = {}   # (fecha, obj, vig) -> [(ronda, primer escaneo, último escaneo)]
+    if not df_r.empty:
+        for (fecha, obj, vig, ronda), g in df_r.groupby(['_FECHA', '_OBJ', '_VIG', '_RONDA']):
+            rondas_idx.setdefault((fecha, obj, vig), []).append((ronda, g['_FH'].min(), g['_FH'].max()))
+    ev_por_ronda, huerfanos = {}, {}
+    for e in eventos:
+        k = (e["fh"].strftime('%Y-%m-%d'), e["obj"], e["vig"])
+        lst = sorted(rondas_idx.get(k, []), key=lambda x: x[1])
+        if not lst:
+            huerfanos.setdefault(k, []).append(e)
+            continue
+        previas = [x for x in lst if x[1] <= e["fh"]]
+        ronda = (previas[-1] if previas else lst[0])[0]
+        ev_por_ronda.setdefault(k + (ronda,), []).append(e)
+
+    hoy = obtener_hora_argentina().split(" ")[0]
     filas = []
-    for (fecha, obj, vig, ronda), g in df_r.groupby(['_FECHA', '_OBJ', '_VIG', '_RONDA']):
-        marcados = g['_PTO'].nunique()
+    if not df_r.empty:
+        for (fecha, obj, vig, ronda), g in df_r.groupby(['_FECHA', '_OBJ', '_VIG', '_RONDA']):
+            k = (fecha, obj, vig)
+            hechos = {row['_PTO']: row['_FH'] for _, row in g.sort_values('_FH').iterrows()}
+            evs = ev_por_ronda.get(k + (ronda,), [])
+            ev_pto = {}
+            for e in evs:
+                ev_pto.setdefault(e["pto"], e)
+            puntos = list(planificado.get(obj, []))
+            for p in list(hechos) + list(ev_pto):
+                if p not in puntos:
+                    puntos.append(p)
+            es_actual = (fecha == hoy) and ronda == max(x[0] for x in rondas_idx[k])
+            ult_idx = max([puntos.index(p) for p in hechos], default=-1)
+            det, faltan = [], 0
+            for i, p in enumerate(puntos):
+                if p in hechos:
+                    det.append(f"✅ {p} {hechos[p].strftime('%H:%M:%S')}" + (" 🚩" if p in ev_pto else ""))
+                elif p in ev_pto:
+                    det.append(f"🚩 {p} {ev_pto[p]['fh'].strftime('%H:%M:%S')}")
+                elif (not es_actual) or i < ult_idx:
+                    det.append(f"⚠️ {p} no realizado")
+                    faltan += 1
+                else:
+                    det.append(f"⏳ {p}")
+            marcados = g['_PTO'].nunique()
+            total = total_ptos.get(obj, 0)
+            completa = total > 0 and marcados >= total
+            n_fr = len(evs)
+            if n_fr:
+                estado = "🚩 COMPLETA CON FRAUDE" if completa else "🚩 CON FRAUDE"
+            elif completa:
+                estado = "✅ COMPLETA"
+            elif faltan or not es_actual:
+                estado = "⚠️ INCOMPLETA"
+            else:
+                estado = "⏳ EN CURSO"
+            filas.append({
+                "FECHA": fecha,
+                "OBJETIVO": obj,
+                "VIGILADOR": vig,
+                "RONDA": ronda,
+                "HORARIO PREVISTO": previsto.get(obj, "15:00, 17:00, 19:00"),
+                "INICIÓ": g['_FH'].min().strftime('%H:%M:%S'),
+                "FINALIZÓ": g['_FH'].max().strftime('%H:%M:%S') if completa else "---",
+                "PUNTOS": f"{marcados}/{total}" if total else str(marcados),
+                "FRAUDE": f"🚩 SÍ ({n_fr})" if n_fr else "✅ NO",
+                "ESTADO": estado,
+                "DETALLE": " | ".join(det),
+            })
+    # Fraudes de un vigilador que no llegó a marcar ningún punto en esa fecha
+    for (fecha, obj, vig), evs in huerfanos.items():
         total = total_ptos.get(obj, 0)
-        completa = total > 0 and marcados >= total
+        evs = sorted(evs, key=lambda x: x["fh"])
         filas.append({
-            "FECHA": fecha,
-            "OBJETIVO": obj,
-            "VIGILADOR": vig,
-            "RONDA": ronda,
+            "FECHA": fecha, "OBJETIVO": obj, "VIGILADOR": vig, "RONDA": "---",
             "HORARIO PREVISTO": previsto.get(obj, "15:00, 17:00, 19:00"),
-            "INICIÓ": g['_FH'].min().strftime('%H:%M:%S'),
-            "FINALIZÓ": g['_FH'].max().strftime('%H:%M:%S') if completa else "---",
-            "PUNTOS": f"{marcados}/{total}" if total else str(marcados),
-            "ESTADO": "✅ COMPLETA" if completa else "⏳ EN CURSO"
+            "INICIÓ": evs[0]["fh"].strftime('%H:%M:%S'), "FINALIZÓ": "---",
+            "PUNTOS": f"0/{total}" if total else "0",
+            "FRAUDE": f"🚩 SÍ ({len(evs)})", "ESTADO": "🚩 CON FRAUDE",
+            "DETALLE": " | ".join(f"🚩 {e['pto']} {e['fh'].strftime('%H:%M:%S')}" for e in evs),
         })
+    if not filas:
+        return pd.DataFrame()
     df_out = pd.DataFrame(filas)
     return df_out.sort_values(['FECHA', 'INICIÓ'], ascending=False).reset_index(drop=True)
+
+def _rec_para_pdf(df):
+    """El PDF (Helvetica) no dibuja emojis: se pasan a palabras."""
+    if df is None or df.empty:
+        return df
+    d = df.copy()
+    for c in d.columns:
+        s = d[c].astype(str)
+        if c == "DETALLE":
+            s = (s.str.replace("✅", "OK", regex=False).str.replace("🚩", "FRAUDE", regex=False)
+                  .str.replace("⚠️", "FALTÓ", regex=False).str.replace("⏳", "PEND.", regex=False))
+        else:
+            for ico in ("✅", "🚩", "⚠️", "⏳"):
+                s = s.str.replace(ico, "", regex=False)
+        d[c] = s.str.strip()
+    return d
 
 # --- 3.C PLANIFICACIÓN POR MES (JEFE DE OPERACIONES / GERENCIA) ---
 TIPOS_NOVEDAD_PERSONAL = {
@@ -4931,13 +5024,13 @@ if st.session_state.rol_sel == "MONITOREO":
                         st.info("No hay relevos de vigiladores registrados.")
 
                     st.markdown("---")
-                    st.markdown("#### 🚶 Recorridas de Vigiladores")
+                    st.markdown("#### 🛰️ Seguimiento de Rondas de Vigiladores")
                     objs_rec_m = df_objetivos[col_texto(df_objetivos, 'SUPERVISOR').str.strip().str.upper() == str(sup_seleccionado_mono).strip().upper()]['OBJETIVO'].tolist() if not df_objetivos.empty else []
                     df_rec_m = tabla_recorridas_vigiladores(objs_rec_m)
                     if not df_rec_m.empty:
-                        st.dataframe(df_rec_m, use_container_width=True, hide_index=True)
+                        st.dataframe(df_rec_m, use_container_width=True, hide_index=True, column_config={"DETALLE": st.column_config.TextColumn(width="large")})
                     else:
-                        st.info("Sin recorridas registradas para los objetivos de este supervisor.")
+                        st.info("Sin rondas registradas para los objetivos de este supervisor.")
 
                     st.markdown("---")
                     st.markdown("#### 🚨 Pánico S.O.S de Supervisor")
@@ -5000,7 +5093,7 @@ if st.session_state.rol_sel == "MONITOREO":
                         mask_no_sup_cnt = ~mask_solo_sup_cnt if not df_panicos_op_total.empty else pd.Series([False])
                         total_alertas_vigilador = len(df_panicos_op_total[mask_obj_sup_cnt & mask_no_sup_cnt]) if not df_panicos_op_total.empty else 0
 
-                        df_alertas_op = df_alt_m_base[col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() != "PÁNICO"].copy() if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
+                        df_alertas_op = df_alt_m_base[(col_texto(df_alt_m_base, 'TIPO').str.strip().str.upper() != "PÁNICO") & ~col_texto(df_alt_m_base, 'TIPO').str.upper().str.contains("FRAUDE")].copy().reset_index(drop=True) if 'TIPO' in df_alt_m_base.columns else df_alt_m_base.copy()
                          
                         if not df_alertas_op.empty:
                             mask_alt = pd.Series([False]*len(df_alertas_op))
@@ -5863,7 +5956,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                     df_alt_sup_filtrado = pd.DataFrame()
                     if not df_alertas_aud.empty:
                         df_alertas_aud.columns = [str(c).strip().upper() for c in df_alertas_aud.columns]
-                        df_alt_op = df_alertas_aud[col_texto(df_alertas_aud, 'TIPO').str.strip().str.upper() != "PÁNICO"] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
+                        df_alt_op = df_alertas_aud[(col_texto(df_alertas_aud, 'TIPO').str.strip().str.upper() != "PÁNICO") & ~col_texto(df_alertas_aud, 'TIPO').str.upper().str.contains("FRAUDE")] if 'TIPO' in df_alertas_aud.columns else df_alertas_aud
                         mask_alt = (col_texto(df_alt_op, 'OBJETIVO').str.strip().str.upper().isin([o.upper() for o in objs_del_sup]) if 'OBJETIVO' in df_alt_op.columns else False) | \
                                    (col_texto(df_alt_op, 'SUPERVISOR').str.strip().str.upper() == sup_seleccionado_jefe if 'SUPERVISOR' in df_alt_op.columns else False)
                         df_alt_sup_filtrado = df_alt_op[mask_alt]
@@ -5931,11 +6024,11 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         else:
                             st.info("Sin relevos registrados.")
 
-                        st.markdown("##### 🚶 Recorridas de Vigiladores")
+                        st.markdown("##### 🛰️ Seguimiento de Rondas de Vigiladores")
                         if not df_rec_filtrado.empty:
-                            st.dataframe(df_rec_filtrado, use_container_width=True, hide_index=True)
+                            st.dataframe(df_rec_filtrado, use_container_width=True, hide_index=True, column_config={"DETALLE": st.column_config.TextColumn(width="large")})
                         else:
-                            st.info("Sin recorridas registradas.")
+                            st.info("Sin rondas registradas.")
 
                         st.markdown("##### 🚨 Pánicos S.O.S de Supervisor")
                         if not df_pan_sup_filtrado.empty:
@@ -6076,7 +6169,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                         agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia per Objetivo:", d_perm, [180, 180, 180, 204])
                         agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
                         agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
-                        agregar_tabla_pdf("Recorridas de Vigiladores:", d_rec, [70, 110, 130, 40, 80, 80, 80, 50, 104])
+                        agregar_tabla_pdf("Seguimiento de Rondas de Vigiladores:", _rec_para_pdf(d_rec), [52, 80, 80, 28, 60, 44, 44, 34, 40, 56, 226])
                         agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
                          
                         df_pvig_pdf = d_pvig.copy()
