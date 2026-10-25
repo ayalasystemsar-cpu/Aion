@@ -1143,6 +1143,7 @@ def renderizar_mensajeria_global(rol_contexto):
     st.subheader("💬 COMUNICACIONES OPERATIVAS")
 
     OPC_VIG = "👮 UN VIGILADOR ESPECÍFICO…"
+    OPC_ELEGIR = "— ELEGÍ A QUIÉN ENVIAR —"   # opción inicial: así nada sale a TODOS por descuido
     vig_todos = obtener_lista_vigiladores_dinamica()
     vig_set = set(vig_todos)
     yo_ids = _identidades_mensajeria()
@@ -1202,6 +1203,7 @@ def renderizar_mensajeria_global(rol_contexto):
     persona_resp_rol = next((r for r, lst in personas_rol.items() if respondiendo and destino_resp in lst), None)
     if destino_resp and destino_resp not in opciones and not vig_resp and not persona_resp_rol:
         opciones = [destino_resp] + opciones
+    opciones = [OPC_ELEGIR] + opciones   # por defecto NO hay destinatario: hay que elegirlo a propósito
     if respondiendo and vig_resp:
         idx_dest = opciones.index(OPC_VIG)
     elif persona_resp_rol:
@@ -1214,6 +1216,11 @@ def renderizar_mensajeria_global(rol_contexto):
 
     # El destinatario va fuera del formulario para que, al elegir "vigilador específico", aparezca la lista de activos.
     destinatario = st.selectbox("PARA:", opciones, index=idx_dest, key=f"dest_{rol_contexto}_{clave_hilo}")
+    if destinatario == OPC_ELEGIR:
+        destinatario = None
+        st.caption("👆 Elegí a quién va el mensaje. Si es para una persona en particular, nadie más lo ve.")
+    elif destinatario == "TODOS":
+        st.caption("📢 Este mensaje lo van a ver TODOS los usuarios del sistema. Si es para una persona, elegila arriba.")
     if destinatario == OPC_VIG:
         en_turno = _vigiladores_en_turno()
         objs_sup_msg = _objetivos_supervisor_sesion()
@@ -1256,14 +1263,17 @@ def renderizar_mensajeria_global(rol_contexto):
         col_a, col_b = st.columns([3, 1])
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
-            st.caption(f"PARA: **{destinatario or '— elegí un vigilador —'}**")
+            st.caption(f"PARA: **{destinatario or '— elegí a quién enviar —'}**")
         with col_b:
             gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "AMARILLO", "ROJA"], key=f"grav_{rol_contexto}_{clave_hilo}",
                                     format_func=lambda g: f"{GRAVEDADES_MENSAJE[g]} {g}")
 
         if st.form_submit_button("TRANSMITIR A LA RED"):
+            _etiquetas_grupo = {OPC_VIG, OPC_ELEGIR} | {e for e, _ in PERSONAS.values()}
+            if destinatario in _etiquetas_grupo:
+                destinatario = None   # nunca mandar a una opción-menú: tiene que ser una persona o un grupo real
             if not destinatario:
-                st.warning("⚠️ Elegí a qué vigilador mandar el mensaje.")
+                st.warning("⚠️ Elegí a quién enviar el mensaje (una persona, un grupo o TODOS).")
             elif txt_msg.strip():
                 escribir_registro_nube("MENSAJERIA", [
                     obtener_hora_argentina(), yo, destinatario,
@@ -1749,6 +1759,47 @@ def enviar_alerta_automatica(emisor, objetivo, nombre_persona, supervisor_asigna
     escribir_registros_nube("MENSAJERIA", filas)   # una sola llamada a Google para los 3 mensajes
     enviar_push_panico(remitente, objetivo, supervisor_asignado)
 
+def enviar_panico_monitoreo(operador):
+    """Pánico activado desde Monitoreo: le llega (mensaje rojo + sirena) a todos los supervisores y al Jefe de
+    Operaciones, y el mensaje también a Gerencia (Gerencia no recibe sirena). Queda en ALERTAS como pendiente
+    (OBJETIVO = MONITOREO, SUPERVISOR = TODOS) hasta que Monitoreo lo finalice desde el Radar."""
+    op = " ".join(str(operador).strip().upper().split()) or "MONITOREO"
+    fecha = obtener_hora_argentina()
+    sups = [x for x in obtener_lista_supervisores_dinamica() if x and x != op]
+    if not escribir_registro_nube("ALERTAS", [fecha, op, "PÁNICO", "PENDIENTE", "MONITOREO", "TODOS"]):
+        return False
+    asunto = f"ALERTA DE PÁNICO - {op} ({fecha[11:16]})"
+    mensaje = f"🚨 ALERTA DE PÁNICO DESDE MONITOREO: {op}"
+    destinos = sups + ["JEFE DE OPERACIONES", "GERENCIA"]
+    escribir_registros_nube("MENSAJERIA", [[fecha, op, d, asunto, mensaje, "PENDIENTE", "ROJA"] for d in destinos])
+    prefijo = _prefijo_ntfy()
+    if prefijo:
+        _push_ntfy(["jefe-de-operaciones"] + [_slug_topic(x) for x in sups], f"PANICO DESDE MONITOREO: {op}", prefijo)
+    return True
+
+def boton_panico_monitoreo():
+    """Botón chico de pánico junto al logo de Monitoreo (pide una confirmación para evitar toques accidentales)."""
+    operador = str(st.session_state.get("user_sel", "")).strip().upper()
+    if st.session_state.get("_conf_pan_mon"):
+        st.warning("¿Activar pánico?")
+        c_si, c_no = st.columns(2)
+        if c_si.button("✅ SÍ", key="pan_mon_si", use_container_width=True):
+            st.session_state._conf_pan_mon = False
+            if enviar_panico_monitoreo(operador):
+                st.session_state._pan_mon_enviado = obtener_hora_argentina()
+            st.rerun()
+        if c_no.button("✖️ NO", key="pan_mon_no", use_container_width=True):
+            st.session_state._conf_pan_mon = False
+            st.rerun()
+    else:
+        if st.button("🚨 PÁNICO", key="pan_mon_btn", type="primary", use_container_width=True,
+                     help="Avisa a todos los supervisores, Jefe de Operaciones y Gerencia"):
+            st.session_state._conf_pan_mon = True
+            st.rerun()
+    enviado = st.session_state.pop("_pan_mon_enviado", None)
+    if enviado:
+        st.error(f"🚨 Pánico enviado a las {enviado[11:16]} a Supervisores, Jefe y Gerencia. Se finaliza desde el Radar S.O.S.")
+
 # --- ALARMA SONORA DE PÁNICO + AVISO PUSH (celular bloqueado) ---
 def _slug_topic(txt):
     import unicodedata
@@ -1945,12 +1996,14 @@ def _panicos_para(rol, usuario):
         if not monitoreo:
             if vig == yo:
                 continue
-            if rol == "SUPERVISOR" and f[5].upper() != yo:
+            if rol == "SUPERVISOR" and f[5].upper() not in (yo, "TODOS"):   # TODOS = pánico de Monitoreo
                 continue
             clave = (yo, f[0], vig)
             if clave in enterados or any(rv == vig and rf >= f[0] for rv, rf in leidos):
                 continue
         else:
+            if f[4].upper() == "MONITOREO":   # el pánico que activó Monitoreo no le suena a Monitoreo (lo finaliza desde el Radar)
+                continue
             clave = (yo, f[0], vig)
         salida.append((f[0], vig, f[4].upper(), clave))
     return salida
@@ -2312,18 +2365,22 @@ function campana(){
   try{
     if(!ctx) audio();
     if(ctx.state==="suspended") ctx.resume();
-    // Campanita suave pero clara: dos notas ("ding-dong") que se apagan solas, una sola vez (~1,6 s)
-    var t=ctx.currentTime+0.05;
-    [[880,0],[660,0.4]].forEach(function(n){
-      var o=ctx.createOscillator(), g=ctx.createGain(), t0=t+n[1];
-      o.type="triangle"; o.frequency.value=n[0];
+    // Sirena del botón antipánico (misma onda y barrido que la alarma de pánico), 3 veces seguidas
+    var VECES=3, DUR=1.5, PAUSA=0.6, t=ctx.currentTime+0.05, k;
+    for(k=0;k<VECES;k++){
+      var t0=t+k*(DUR+PAUSA);
+      var o=ctx.createOscillator(), l=ctx.createOscillator(), lg=ctx.createGain(), g=ctx.createGain();
+      o.type="sawtooth"; o.frequency.value=1000;
+      l.type="square"; l.frequency.value=1.8; lg.gain.value=200;
+      l.connect(lg); lg.connect(o.frequency);
       g.gain.setValueAtTime(0.0001,t0);
-      g.gain.exponentialRampToValueAtTime(0.35,t0+0.03);
-      g.gain.exponentialRampToValueAtTime(0.0001,t0+1.1);
+      g.gain.linearRampToValueAtTime(0.35,t0+0.03);
+      g.gain.setValueAtTime(0.35,t0+DUR-0.05);
+      g.gain.linearRampToValueAtTime(0.0001,t0+DUR);
       o.connect(g); g.connect(ctx.destination);
-      o.start(t0); o.stop(t0+1.15);
-    });
-    if(navigator.vibrate) navigator.vibrate(150);
+      o.start(t0); l.start(t0); o.stop(t0+DUR+0.05); l.stop(t0+DUR+0.05);
+    }
+    if(navigator.vibrate) navigator.vibrate([300,200,300,200,300]);
   }catch(e){}
 }
 
@@ -2472,7 +2529,7 @@ setInterval(function(){
 
 
 @st.cache_resource(show_spinner=False)
-def _declarar_alerta_recorrida(version="v6"):
+def _declarar_alerta_recorrida(version="v7"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_ALERTA_HTML)
@@ -2503,7 +2560,7 @@ def registrar_respuesta_recorrida(obj, nombre, dni, evento):
 
 def renderizar_alerta_recorrida_js(horarios_previstos, obj_u, nombre, dni):
     horarios = _horarios_unicos(horarios_previstos)
-    evento = _declarar_alerta_recorrida("v6")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
+    evento = _declarar_alerta_recorrida("v7")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
     if evento and evento.get("id") != st.session_state.get("ultimo_evento_alerta"):
         st.session_state.ultimo_evento_alerta = evento.get("id")
         if registrar_respuesta_recorrida(obj_u, nombre, dni, evento):
@@ -5601,6 +5658,111 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
         except Exception:
             pass
 
+# --- GUARDIA DE MONITOREO: quién estuvo y cómo fue el cambio de guardia (lo ven Jefe de Operaciones y Gerencia) ---
+COLS_GUARDIA_MON = ["FECHA_HORA", "OPERADOR", "TIPO"]
+
+def registrar_guardia_monitoreo(operador, tipo):
+    """Anota INGRESO (al iniciar sesión) o EGRESO (al cerrar sesión) de un operador de Monitoreo."""
+    try:
+        gc = conectar_google()
+        if not gc:
+            return False
+        sh = gc.open_by_key(ID_MAESTRO_DB)
+        try:
+            hoja = sh.worksheet("GUARDIA MONITOREO")
+        except Exception:
+            hoja = sh.add_worksheet(title="GUARDIA MONITOREO", rows="200", cols="5")
+            hoja.append_row(COLS_GUARDIA_MON)
+        hoja.append_row([obtener_hora_argentina(), " ".join(str(operador).strip().upper().split()), tipo], table_range="A1")
+        _leer_matriz_nube_cache.clear()
+        return True
+    except Exception as e:
+        print(f"Error registrando guardia de Monitoreo: {e}")
+        return False
+
+def _sesiones_guardia_monitoreo():
+    """Sesiones de Monitoreo ordenadas por ingreso: [{op, ini, fin, estado}]."""
+    df = leer_matriz_nube("GUARDIA MONITOREO")
+    if df.empty or df.shape[1] < 3:
+        return []
+    ev = []
+    for f in df.astype(str).values.tolist():
+        try:
+            t = datetime.strptime(f[0].strip()[:19], "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            continue
+        op, tipo = " ".join(f[1].strip().upper().split()), f[2].strip().upper()
+        if op and tipo in ("INGRESO", "EGRESO"):
+            ev.append((t, op, tipo))
+    ev.sort()
+    ahora = datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+    abiertas, ses = {}, []
+    for t, op, tipo in ev:
+        if tipo == "INGRESO":
+            if op in abiertas:   # volvió a entrar sin haber cerrado sesión
+                ses.append({"op": op, "ini": abiertas.pop(op), "fin": None, "estado": "SIN CIERRE DE SESIÓN"})
+            abiertas[op] = t
+        elif op in abiertas:
+            ses.append({"op": op, "ini": abiertas.pop(op), "fin": t, "estado": "CERRÓ SESIÓN"})
+    for op, t0 in abiertas.items():
+        vigente = (ahora - t0).total_seconds() < HORAS_MAX_BLOQUEO_TURNO * 3600
+        ses.append({"op": op, "ini": t0, "fin": None, "estado": "🟢 EN GUARDIA AHORA" if vigente else "SIN CIERRE DE SESIÓN"})
+    ses.sort(key=lambda x: x["ini"])
+    return ses
+
+def renderizar_guardia_monitoreo():
+    st.subheader("🛰️ GUARDIA DE MONITOREO")
+    st.caption("Quién estuvo en Monitoreo y cuándo cambió la guardia. Se registra solo cuando cada operador inicia y cierra sesión.")
+    ses = _sesiones_guardia_monitoreo()
+    if not ses:
+        st.info("Todavía no hay guardias registradas. Aparecen desde el próximo inicio de sesión de Monitoreo.")
+        return
+    ahora = datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+    en_guardia = [x["op"] for x in ses if x["estado"].startswith("🟢")]
+    st.metric("🟢 EN GUARDIA AHORA", " · ".join(en_guardia) if en_guardia else "Nadie con sesión abierta")
+    periodo = st.selectbox("Período:", ["Últimos 7 días", "Últimos 30 días", "Todo"], key="guardia_mon_periodo")
+    dias = {"Últimos 7 días": 7, "Últimos 30 días": 30}.get(periodo)
+    # el relevo se calcula sobre toda la historia; el período solo recorta lo que se muestra
+    filas, cambios = [], []
+    for i, x in enumerate(ses):
+        ant = ses[i - 1] if i > 0 and ses[i - 1]["op"] != x["op"] else None
+        sig = ses[i + 1] if i + 1 < len(ses) and ses[i + 1]["op"] != x["op"] else None
+        if dias is not None and (ahora - x["ini"]).days >= dias:
+            continue
+        dur = ""
+        if x["fin"]:
+            m = int((x["fin"] - x["ini"]).total_seconds() // 60)
+            dur = f"{m // 60} h {m % 60:02d} min"
+        filas.append({
+            "FECHA": x["ini"].strftime("%d/%m/%Y"), "OPERADOR": x["op"],
+            "INGRESO": x["ini"].strftime("%H:%M"), "EGRESO": x["fin"].strftime("%H:%M") if x["fin"] else "—",
+            "DURACIÓN": dur or "—", "RELEVÓ A": ant["op"] if ant else "—",
+            "RELEVADO POR": sig["op"] if sig else "—", "ESTADO": x["estado"]})
+        if ant:
+            cambios.append(f"🔄 **{x['ini'].strftime('%d/%m/%Y %H:%M')}** — {ant['op']} → **{x['op']}**")
+    st.markdown("##### 🔄 Cambios de guardia")
+    if cambios:
+        for c in reversed(cambios[-30:]):
+            st.markdown(c)
+    else:
+        st.caption("Sin cambios de guardia en el período.")
+    st.markdown("##### 📋 Quién estuvo")
+    if filas:
+        st.dataframe(pd.DataFrame(filas[::-1]), use_container_width=True, hide_index=True)
+    else:
+        st.info("No hay guardias en el período elegido.")
+
+def mostrar_boton_guardia_monitoreo():
+    """Botón del panel lateral de Jefe de Operaciones y Gerencia, debajo de RELEVAMIENTO MENSUAL."""
+    if st.session_state.get("rol_sel") not in ["JEFE DE OPERACIONES", "GERENCIA"]:
+        return
+    activo = st.session_state.get("ver_guardia_mon", False)
+    if st.button("⬅️ VOLVER AL COMANDO" if activo else "🛰️ GUARDIA DE MONITOREO",
+                 use_container_width=True, key="btn_guardia_mon_sidebar"):
+        st.session_state.ver_guardia_mon = not activo
+        st.session_state.ver_planificacion = False
+        st.rerun()
+
 def mostrar_boton_planificacion():
     if st.session_state.get("rol_sel") not in ["JEFE DE OPERACIONES", "GERENCIA"]:
         return
@@ -5609,6 +5771,7 @@ def mostrar_boton_planificacion():
     if st.button("⬅️ VOLVER AL COMANDO" if en_rel else "📊 RELEVAMIENTO MENSUAL",
                  use_container_width=True, key="btn_planificacion_sidebar"):
         st.session_state.ver_planificacion = not en_rel
+        st.session_state.ver_guardia_mon = False
         st.rerun()
 
 def mostrar_boton_personal_supervisor():
@@ -5717,6 +5880,8 @@ def mostrar_landing():
                             st.session_state.sup_autenticado = False
                             st.session_state.admin_autenticado = False
 
+                        if rol_encontrado == "MONITOREO":
+                            registrar_guardia_monitoreo(user_limpio, "INGRESO")   # queda anotado quién entra de guardia
                         sincronizar_url_sesion()
                         st.rerun()
                     else:
@@ -5844,6 +6009,7 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
 
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
+        mostrar_boton_guardia_monitoreo()
         mostrar_boton_personal_supervisor()
         mostrar_calendario_sidebar()
         mostrar_seguimiento_sidebar()
@@ -5867,6 +6033,7 @@ else:
         
         mostrar_notificaciones_sidebar()
         mostrar_boton_planificacion()
+        mostrar_boton_guardia_monitoreo()
         mostrar_boton_personal_supervisor()
         mostrar_calendario_sidebar()
         mostrar_seguimiento_sidebar()
@@ -5876,13 +6043,26 @@ else:
             st.warning("🔒 Tenés un turno en curso. Para cerrar sesión primero finalizá tu turno en la solapa 🏁 FINALIZAR TURNO.")
             st.button("🚪 CERRAR SESIÓN", use_container_width=True, disabled=True, key="btn_logout_bloqueado")
         elif st.button("🚪 CERRAR SESIÓN", use_container_width=True):
+            if st.session_state.get("rol_sel") == "MONITOREO":
+                registrar_guardia_monitoreo(st.session_state.get("user_sel", ""), "EGRESO")   # queda anotado quién deja la guardia
             st.session_state.ver_personal_sup = False
             st.session_state.usuario_logueado = False
             st.session_state.pop("turno_vig_activo", None)
             st.query_params.clear()
             st.rerun()
 
-st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>', unsafe_allow_html=True)
+_LOGO_CENTRAL_HTML = '<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" class="logo-phoenix"></div>'
+if st.session_state.rol_sel == "MONITOREO":
+    try:
+        _c_izq, _c_logo, _c_pan = st.columns([1, 3, 1], vertical_alignment="center")
+    except TypeError:
+        _c_izq, _c_logo, _c_pan = st.columns([1, 3, 1])
+    with _c_logo:
+        st.markdown(_LOGO_CENTRAL_HTML, unsafe_allow_html=True)
+    with _c_pan:
+        boton_panico_monitoreo()   # botón chico de pánico al lado del logo
+else:
+    st.markdown(_LOGO_CENTRAL_HTML, unsafe_allow_html=True)
 
 st.markdown(f"""
     <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
@@ -5903,6 +6083,10 @@ st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel
 
 if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"] and st.session_state.get("ver_planificacion", False):
     renderizar_relevamiento_mensual(key_prefix="rel")
+    st.stop()
+
+if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"] and st.session_state.get("ver_guardia_mon", False):
+    renderizar_guardia_monitoreo()
     st.stop()
 
 if (st.session_state.rol_sel == "SUPERVISOR" and st.session_state.get("sup_autenticado")
