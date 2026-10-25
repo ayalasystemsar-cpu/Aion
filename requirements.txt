@@ -8,7 +8,9 @@ streamlit-js-eval
 numpy
 openpyxl
 pytz
+requests
 streamlit-autorefresh
+supabase
 streamlit-drawable-canvas
 osmnx
 networkx
@@ -19,4 +21,3 @@ av
 reportlab
 streamlit-qrcode-scanner
 geopy
-supabase
