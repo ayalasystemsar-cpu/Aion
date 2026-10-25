@@ -5164,7 +5164,7 @@ class _ChipsPDF(_Base):
 
 class _TarjetaLineasPDF(_Base):
     """Tarjeta con barra de color a la izquierda: nombre + etiqueta y líneas de texto (igual que las tarjetas de novedades y préstamos)."""
-    def __init__(self, borde, titulo, pill, lineas, ancho=366):
+    def __init__(self, borde, titulo, pill, lineas, ancho=744):
         super().__init__()
         self.borde, self.titulo, self.pill = borde, _sin_emoji(titulo), pill
         self.lineas = []
@@ -5172,7 +5172,7 @@ class _TarjetaLineasPDF(_Base):
             for l in simpleSplit(_sin_emoji(txt), "Helvetica", tam, ancho - 26):
                 self.lineas.append((l, col, tam))
         self.width = ancho
-        self.height = 28 + sum(tam + 4 for _, _, tam in self.lineas) + 6
+        self.height = 36 + sum(tam + 5 for _, _, tam in self.lineas) + 8
 
     def draw(self):
         c, P = self.canv, _pal()
@@ -5180,27 +5180,27 @@ class _TarjetaLineasPDF(_Base):
         _marco_pdf(c, w, h)
         c.setFillColor(_hx(self.borde))
         c.rect(0, 2, 4, h - 4, fill=1, stroke=0)
-        y = h - 15
-        c.setFont("Helvetica-Bold", 8.5)
+        y = h - 19
+        c.setFont("Helvetica-Bold", 10)
         c.setFillColor(_hx(P["texto"]))
-        c.drawString(12, y, _recortar(self.titulo, "Helvetica-Bold", 8.5, w - 150))
+        c.drawString(12, y, _recortar(self.titulo, "Helvetica-Bold", 10, w - 190))
         if self.pill:
             txt, base, tcol, relleno = self.pill
             txt = _sin_emoji(txt)
-            wp = stringWidth(txt, "Helvetica-Bold", 6.8) + 12
+            wp = stringWidth(txt, "Helvetica-Bold", 8) + 16
             if relleno:
                 c.setFillColor(_hx(base))
-                c.roundRect(w - wp - 10, y - 3, wp, 11, 5, fill=1, stroke=0)
+                c.roundRect(w - wp - 12, y - 4, wp, 14, 6, fill=1, stroke=0)
             else:
                 c.setStrokeColor(_hx(base))
-                c.setLineWidth(0.7)
-                c.roundRect(w - wp - 10, y - 3, wp, 11, 5, fill=0, stroke=1)
+                c.setLineWidth(0.8)
+                c.roundRect(w - wp - 12, y - 4, wp, 14, 6, fill=0, stroke=1)
             c.setFillColor(_hx(tcol))
-            c.setFont("Helvetica-Bold", 6.8)
+            c.setFont("Helvetica-Bold", 8)
             c.drawString(w - wp - 4, y, txt)
-        y -= 6
+        y -= 9
         for l, col, tam in self.lineas:
-            y -= tam + 4
+            y -= tam + 5
             c.setFont("Helvetica", tam)
             c.setFillColor(_hx(col))
             c.drawString(12, y + 2, l)
@@ -5353,19 +5353,21 @@ def generar_pdf_mi_personal(sup, anio, mes):
         for _, n in nov.iterrows():
             letra, bg, fg = TIPOS_NOVEDAD_PERSONAL.get(n["_TIPO"], ("?", "#555555", "#FFFFFF"))
             dias = int((n["_HASTA"] - n["_DESDE"]).days) + 1
-            lineas = [(f"{n.get('OBJETIVO', '')} · {n['_DESDE'].strftime('%d/%m/%Y')} al {n['_HASTA'].strftime('%d/%m/%Y')} ({dias} {'día' if dias == 1 else 'días'})", P["label"], 7)]
+            lineas = [(f"{n.get('OBJETIVO', '')} · {n['_DESDE'].strftime('%d/%m/%Y')} al {n['_HASTA'].strftime('%d/%m/%Y')} ({dias} {'día' if dias == 1 else 'días'})", "#A3ACBF", 8.5)]
             obs = str(n.get("OBSERVACION", "") or "").strip()
             if obs:
-                lineas.append(("Obs.: " + obs, P["suave"], 7))
+                lineas.append(("Obs.: " + obs, "#C3CAD8", 8.5))
             rp, rf = str(n.get("REGISTRADO_POR", "") or "").strip(), _fmt_fecha_hora(n.get("FECHA_REGISTRO", ""))
             if rp or rf:
-                lineas.append(("Registrada por " + (rp or "---") + ((" · " + rf) if rf else ""), "#6B7487", 6.5))
+                lineas.append(("Registrada por " + (rp or "---") + ((" · " + rf) if rf else ""), "#8B95A8", 7.5))
             mp, mf = str(n.get("MODIFICADO_POR", "") or "").strip(), _fmt_fecha_hora(n.get("FECHA_MODIFICACION", ""))
             if mp or mf:
-                lineas.append(("Modificada por " + (mp or "---") + ((" · " + mf) if mf else ""), "#E0A458", 6.5))
+                lineas.append(("Modificada por " + (mp or "---") + ((" · " + mf) if mf else ""), "#E0A458", 7.5))
             cards.append(_TarjetaLineasPDF(bg, str(n.get("VIGILADOR", "")), (f"{letra} · {n['_TIPO']}", bg, fg, True), lineas))
     if cards:
-        el.append(_grilla_dos_columnas(cards))
+        for tarj in cards:
+            el.append(tarj)
+            el.append(Spacer(1, 6))
     else:
         el.append(Paragraph("No hay novedades registradas para este mes.", E["txt"]))
 
@@ -5395,20 +5397,24 @@ def generar_pdf_mi_personal(sup, anio, mes):
                 motivo, por = str(p.get("MOTIVO", "") or "").strip(), str(p.get("REGISTRADO_POR", "") or "").strip()
                 fec = _fmt_fecha_hora(p.get("FECHA_REGISTRO", ""))
                 dias = int((p["_HASTA"] - p["_DESDE"]).days) + 1
-                lineas = [("De " + p["_ORIG"] + ((" (" + obj_o + ")") if obj_o else "") + " > " + p["_DEST"] + ((" · " + obj_d) if obj_d else ""), P["suave"], 7),
+                lineas = [("De " + p["_ORIG"] + ((" (" + obj_o + ")") if obj_o else "") + " > " + p["_DEST"] + ((" · " + obj_d) if obj_d else ""), "#C3CAD8", 8.5),
                           (p["_DESDE"].strftime("%d/%m/%Y") + " al " + p["_HASTA"].strftime("%d/%m/%Y") + f" ({dias} {'día' if dias == 1 else 'días'})" +
-                           ((" · Motivo: " + motivo) if motivo else ""), P["label"], 7),
-                          ("Registrado por " + (por or "---") + ((" · " + fec) if fec else ""), "#6B7487", 6.5)]
+                           ((" · Motivo: " + motivo) if motivo else ""), "#A3ACBF", 8.5),
+                          ("Registrado por " + (por or "---") + ((" · " + fec) if fec else ""), "#8B95A8", 7.5)]
                 anul, fec_a = str(p.get("ANULADO_POR", "") or "").strip(), _fmt_fecha_hora(p.get("FECHA_ANULACION", ""))
                 if anul or fec_a:
-                    lineas.append(("Anulado por " + (anul or "---") + ((" · " + fec_a) if fec_a else ""), "#E0A458", 6.5))
+                    lineas.append(("Anulado por " + (anul or "---") + ((" · " + fec_a) if fec_a else ""), "#E0A458", 7.5))
                 out.append(_TarjetaLineasPDF(color, str(p.get("VIGILADOR", "")), (etiqueta, color, color, False), lineas))
             return out
         enviados, recibidos = pr_mios[pr_mios["_ORIG"] == sup], pr_mios[pr_mios["_DEST"] == sup]
         el.append(Paragraph("Que yo presté", E["h3"]))
-        el.append(_grilla_dos_columnas(cards_prestamos(enviados)) if not enviados.empty else Paragraph("No prestaste vigiladores.", E["txt"]))
+        for tarj in (cards_prestamos(enviados) if not enviados.empty else [Paragraph("No prestaste vigiladores.", E["txt"])]):
+            el.append(tarj)
+            el.append(Spacer(1, 6))
         el.append(Paragraph("Que me prestaron", E["h3"]))
-        el.append(_grilla_dos_columnas(cards_prestamos(recibidos)) if not recibidos.empty else Paragraph("No te prestaron vigiladores.", E["txt"]))
+        for tarj in (cards_prestamos(recibidos) if not recibidos.empty else [Paragraph("No te prestaron vigiladores.", E["txt"])]):
+            el.append(tarj)
+            el.append(Spacer(1, 6))
 
     doc.build(el, onFirstPage=_fondo_oscuro_pdf, onLaterPages=_fondo_oscuro_pdf, canvasmaker=NumberedCanvasOscuro)
     buffer.seek(0)
