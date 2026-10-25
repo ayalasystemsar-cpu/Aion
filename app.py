@@ -4323,6 +4323,857 @@ def _comparativo_supervisores_html(vista):
                    '<div style="margin-top:4px;">' + leyenda + '</div>' + filas_p + '</div>')
     return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;">' + "".join(bloques) + '</div>'
 
+# =========================================================================
+# PDF DEL RELEVAMIENTO MENSUAL - MISMO ASPECTO QUE EN LA APP
+# (tarjeta por supervisor + horas por vigilador + objetivos + vigiladores a cargo
+#  + comparativo de todos los supervisores, todo en un solo PDF)
+# =========================================================================
+from reportlab.platypus import Flowable, CondPageBreak
+from reportlab.pdfbase.pdfmetrics import stringWidth
+from xml.sax.saxutils import escape as _xml_escape
+
+PDF_REL_OSCURO = True   # True = fondo oscuro, igual que se ve en la app · False = fondo blanco (para imprimir)
+
+_PAL_OSC = {"pagina": "#0E1117", "tarjeta": "#161B22", "borde": "#2A3040", "pista": "#1F2430",
+            "texto": "#E2E8F0", "label": "#7C869A", "suave": "#9AA3B5", "titulo": "#7FD6E0",
+            "dia_finde": "#FF8A80", "dia_normal": "#A0A5B5", "grilla": "#0A0F1E", "nombre_grilla": "#E0E0E0",
+            "finde_borde": "#3A4152"}
+_PAL_CLA = {"pagina": "#FFFFFF", "tarjeta": "#F4F6F9", "borde": "#C9D1DC", "pista": "#DDE3EA",
+            "texto": "#1F2937", "label": "#5B6475", "suave": "#4B5563", "titulo": "#0E7490",
+            "dia_finde": "#C62828", "dia_normal": "#6B7280", "grilla": "#FFFFFF", "nombre_grilla": "#1F2937",
+            "finde_borde": "#9AA5B5"}
+
+def _pal():
+    return _PAL_OSC if PDF_REL_OSCURO else _PAL_CLA
+
+def _hx(c):
+    c = str(c)
+    if len(c) == 4 and c.startswith("#"):      # "#FFF" -> "#FFFFFF" (reportlab lo leería mal)
+        c = "#" + "".join(ch * 2 for ch in c[1:])
+    return colors.HexColor(c)
+
+def _sin_emoji(txt):
+    """Helvetica solo dibuja letras Latin-1: se descartan emojis y símbolos raros."""
+    return "".join(ch for ch in str(txt) if ord(ch) < 256).strip()
+
+def _recortar(txt, fuente, tam, ancho):
+    txt = _sin_emoji(txt)
+    if stringWidth(txt, fuente, tam) <= ancho:
+        return txt
+    while txt and stringWidth(txt + "...", fuente, tam) > ancho:
+        txt = txt[:-1]
+    return txt + "..."
+
+def _barra_pdf(c, x, y, w, h, pct, color):
+    P = _pal()
+    pct = max(0.0, min(100.0, float(pct)))
+    c.setFillColor(_hx(P["pista"]))
+    c.roundRect(x, y, w, h, h / 2.0, fill=1, stroke=0)
+    if pct > 0:
+        c.setFillColor(_hx(color))
+        c.roundRect(x, y, max(w * pct / 100.0, h), h, h / 2.0, fill=1, stroke=0)
+
+def _chip_pdf(c, x, y, texto, borde, color, tam=6):
+    texto = _sin_emoji(texto)
+    w = stringWidth(texto, "Helvetica", tam) + 8
+    c.setStrokeColor(_hx(borde))
+    c.setLineWidth(0.6)
+    c.roundRect(x, y - 2.3, w, tam + 3.8, 3.5, fill=0, stroke=1)
+    c.setFillColor(_hx(color))
+    c.setFont("Helvetica", tam)
+    c.drawString(x + 4, y, texto)
+    return x + w + 4
+
+def _fila_barra_pdf(c, x, y, w, etiqueta, valor, pct, color, chips=None):
+    """Etiqueta a la izquierda (con chips opcionales), valor a la derecha y barra fina debajo."""
+    P = _pal()
+    c.setFont("Helvetica", 7.2)
+    c.setFillColor(_hx(P["texto"]))
+    c.drawString(x, y, _sin_emoji(etiqueta))
+    if chips:
+        cx = x + stringWidth(_sin_emoji(etiqueta), "Helvetica", 7.2) + 6
+        for (t, b, col) in chips:
+            cx = _chip_pdf(c, cx, y, t, b, col, 5.8)
+    c.setFillColor(_hx(P["suave"]))
+    c.drawRightString(x + w, y, _sin_emoji(valor))
+    _barra_pdf(c, x, y - 7.5, w, 3.6, pct, color)
+
+def _marco_pdf(c, w, h, cerrar_arriba=True, cerrar_abajo=True):
+    P = _pal()
+    c.setFillColor(_hx(P["tarjeta"]))
+    c.setStrokeColor(_hx(P["borde"]))
+    c.setLineWidth(0.8)
+    if cerrar_arriba and cerrar_abajo:
+        c.roundRect(0, 0, w, h, 6, fill=1, stroke=1)
+        return
+    c.rect(0, 0, w, h, fill=1, stroke=0)
+    c.line(0, 0, 0, h)
+    c.line(w, 0, w, h)
+    if cerrar_arriba:
+        c.line(0, h, w, h)
+    if cerrar_abajo:
+        c.line(0, 0, w, 0)
+
+class _Base(Flowable):
+    def wrap(self, aw, ah):
+        return self.width, self.height
+
+_SEG_PERSONAL = [("sin novedad", "#3B6B55", "#7FB8A0"), ("licencia", "#C96B6B", "#D98A8A"), ("ART", "#D49A52", "#E0AE74"),
+                 ("vacaciones", "#9A74B5", "#B596CC"), ("ausentes", "#D4B93C", "#E3CB5E"),
+                 ("francos", "#5B8DB8", "#7FB0DC"), ("prestados", "#2E8F87", "#5CC4B8")]
+
+def _tx_seg(col, tx):
+    return tx if PDF_REL_OSCURO else col
+
+def _cantidades_personal(r):
+    n = int(r["VIGILADORES"])
+    cants = [int(r["LICENCIA"]), int(r["ART"]), int(r["VACACIONES"]), int(r["AUSENTE"]), int(r["FRANCO"]), int(r["PRÉSTAMO"])]
+    return n, [max(0, n - sum(cants))] + cants
+
+class _TarjetaSupPDF(_Base):
+    """Tarjeta del supervisor (igual que en la app). Si tiene vigiladores, queda abierta abajo y la continúan las filas."""
+    def __init__(self, r, actividad, anio, mes, vig_df, ancho=744):
+        super().__init__()
+        self.r, self.act, self.anio, self.mes, self.vig_df = r, actividad, anio, mes, vig_df
+        self.tiene_vig = vig_df is not None and not vig_df.empty
+        self.width = ancho
+        self.height = 182 if self.tiene_vig else 164
+
+    def draw(self):
+        c, P, r = self.canv, _pal(), self.r
+        w, h = self.width, self.height
+        _marco_pdf(c, w, h, True, not self.tiene_vig)
+        x0, iw = 14, w - 28
+        ndias = calendar.monthrange(self.anio, self.mes)[1]
+        objs, vis, cob = int(r["OBJETIVOS"]), int(r["OBJ. VISITADOS"]), int(r["COBERTURA %"])
+        dact = len(self.act)
+        pct_dias = round(100 * dact / ndias) if ndias else 0
+        n, cants = _cantidades_personal(r)
+
+        y = h - 17
+        c.setFont("Helvetica-Bold", 11)
+        c.setFillColor(_hx(P["titulo"]))
+        c.drawString(x0, y, _recortar(r["SUPERVISOR"], "Helvetica-Bold", 11, iw - 200))
+        c.setFont("Helvetica", 7.5)
+        c.setFillColor(_hx(P["label"]))
+        c.drawRightString(x0 + iw, y, f"{objs} {'objetivo' if objs == 1 else 'objetivos'} · {n} {'vigilador' if n == 1 else 'vigiladores'}")
+
+        y -= 17
+        for titulo, valor, pct, color in (("Objetivos visitados", f"{vis}/{objs} · {cob}%", cob, "#5BC0CE"),
+                                          ("Días con actividad", f"{dact}/{ndias} · {pct_dias}%", pct_dias, "#4DB6AC")):
+            c.setFont("Helvetica", 7.2)
+            c.setFillColor(_hx(P["label"]))
+            c.drawString(x0, y, titulo)
+            c.setFillColor(_hx(P["texto"]))
+            c.drawRightString(x0 + iw, y, valor)
+            _barra_pdf(c, x0, y - 7, iw, 4, pct, color)
+            y -= 20
+
+        y -= 8
+        datos = [("VISITAS QR", r["VISITAS QR"]), ("HORAS", r["HORAS"]), ("KM", r["KM"]),
+                 ("PÁNICOS", r["PÁNICOS"]), ("NOVEDADES", r["NOVEDADES"]), ("RONDAS", r["RONDAS COMPLETAS"])]
+        cw = iw / float(len(datos))
+        for i, (et, val) in enumerate(datos):
+            cx = x0 + cw * i + cw / 2.0
+            c.setFont("Helvetica-Bold", 12)
+            c.setFillColor(_hx(P["texto"]))
+            c.drawCentredString(cx, y, str(val))
+            c.setFont("Helvetica", 6.3)
+            c.setFillColor(_hx(P["label"]))
+            c.drawCentredString(cx, y - 9, et)
+
+        y -= 25
+        c.setFont("Helvetica", 7.2)
+        c.setFillColor(_hx(P["label"]))
+        c.drawString(x0, y, "Actividad del mes")
+        y -= 11
+        for d in range(1, ndias + 1):
+            activo = d in self.act
+            finde = calendar.weekday(self.anio, self.mes, d) >= 5
+            c.setFillColor(_hx("#4DB6AC" if activo else P["pista"]))
+            if finde and not activo:
+                c.setStrokeColor(_hx(P["finde_borde"]))
+                c.setLineWidth(0.5)
+                c.roundRect(x0 + (d - 1) * 8, y, 6, 6, 1.2, fill=1, stroke=1)
+            else:
+                c.roundRect(x0 + (d - 1) * 8, y, 6, 6, 1.2, fill=1, stroke=0)
+
+        y -= 15
+        c.setFont("Helvetica", 7.2)
+        c.setFillColor(_hx(P["label"]))
+        c.drawString(x0, y, "Personal a cargo")
+        y -= 9
+        c.setFillColor(_hx(P["pista"]))
+        c.roundRect(x0, y, iw, 5, 2.5, fill=1, stroke=0)
+        px = x0
+        for (nm, col, _tx), cant in zip(_SEG_PERSONAL, cants):
+            ancho = (iw * cant / float(max(n, sum(cants)))) if (n or sum(cants)) else 0
+            if ancho > 0:
+                c.setFillColor(_hx(col))
+                c.rect(px, y, ancho, 5, fill=1, stroke=0)
+                px += ancho
+        y -= 10
+        lx = x0
+        c.setFont("Helvetica", 6.8)
+        for (nm, _col, tx), cant in zip(_SEG_PERSONAL, cants):
+            c.setFillColor(_hx(_tx_seg(_col, tx)))
+            c.circle(lx + 2, y + 2.2, 2, fill=1, stroke=0)
+            txt = f"{cant} {nm}"
+            c.drawString(lx + 7, y, txt)
+            lx += 7 + stringWidth(txt, "Helvetica", 6.8) + 10
+
+        if self.tiene_vig:
+            vd = self.vig_df
+            tot_h, n_exc, n_fc = int(vd["HORAS"].sum()), int((vd["EXCESO HS"] > 0).sum()), int(vd["FRANCOS CORTADOS"].sum())
+            y -= 15
+            c.setFont("Helvetica", 7.2)
+            c.setFillColor(_hx(P["label"]))
+            c.drawString(x0, y, f"Vigiladores del mes · límite {HORAS_MAX_MES} hs")
+            y -= 10
+            lx = x0
+            for txt, col in ((f"{tot_h} hs en total · ", P["suave"]), (f"{n_exc} excedidos", "#E89A93"),
+                             (" · ", P["suave"]), (f"{n_fc} con franco cortado", "#4FB3C0" if PDF_REL_OSCURO else "#0E7490")):
+                c.setFillColor(_hx(col))
+                c.drawString(lx, y, txt)
+                lx += stringWidth(txt, "Helvetica", 7.2)
+
+class _FilaVigPDF(_Base):
+    """Una fila de 'Vigiladores del mes' dentro de la tarjeta del supervisor."""
+    def __init__(self, v, ultima, ancho=744):
+        super().__init__()
+        self.v, self.ultima = v, ultima
+        self.width = ancho
+        self.height = 25 if ultima else 21
+
+    def draw(self):
+        c, P, v = self.canv, _pal(), self.v
+        w, h = self.width, self.height
+        _marco_pdf(c, w, h, False, self.ultima)
+        x0, iw = 14, w - 28
+        horas, exc, fc = int(v["HORAS"]), int(v["EXCESO HS"]), int(v["FRANCOS CORTADOS"])
+        ancho_b = max(0, min(100, 100.0 * horas / HORAS_MAX_MES)) if HORAS_MAX_MES else 0
+        color = "#D9776F" if exc > 0 else ("#E0A458" if horas >= 0.9 * HORAS_MAX_MES else "#4DB6AC")
+        base = h - 12
+        nombre = _recortar(v["VIGILADOR"], "Helvetica", 7.5, 230)
+        c.setFont("Helvetica", 7.5)
+        c.setFillColor(_hx(P["texto"]))
+        c.drawString(x0, base, nombre)
+        cx = x0 + stringWidth(nombre, "Helvetica", 7.5) + 6
+        if fc > 0:
+            cx = _chip_pdf(c, cx, base, f"franco cortado · {int(v['MÁX. DÍAS SEGUIDOS'])} días seguidos", "#5BC0CE", "#4FB3C0" if PDF_REL_OSCURO else "#0E7490", 5.8)
+        if exc > 0:
+            cx = _chip_pdf(c, cx, base, f"+{exc} hs", "#D9776F", "#E89A93" if PDF_REL_OSCURO else "#B71C1C", 5.8)
+        c.setFont("Helvetica", 7.2)
+        c.setFillColor(_hx(P["suave"]))
+        c.drawRightString(x0 + iw, base, f"{horas} hs · {int(v['DÍAS'])} d")
+        _barra_pdf(c, x0, base - 7, iw, 3, ancho_b, color)
+
+class _TarjetaVigDetallePDF(_Base):
+    """'Horas por vigilador' del detalle: horas, días seguidos y turnos."""
+    def __init__(self, v, ancho=366):
+        super().__init__()
+        self.v = v
+        self.width, self.height = ancho, 82
+
+    def draw(self):
+        c, P, v = self.canv, _pal(), self.v
+        w, h = self.width, self.height
+        _marco_pdf(c, w, h)
+        x0, iw = 10, w - 20
+        horas, exc, fc = int(v["HORAS"]), int(v["EXCESO HS"]), int(v["FRANCOS CORTADOS"])
+        seguidos = int(v["MÁX. DÍAS SEGUIDOS"])
+        pct_h = 100.0 * horas / HORAS_MAX_MES if HORAS_MAX_MES else 0
+        color_h = "#D9776F" if exc > 0 else ("#E0A458" if horas >= 0.9 * HORAS_MAX_MES else "#4DB6AC")
+        pct_s = 100.0 * seguidos / MAX_DIAS_SEGUIDOS if MAX_DIAS_SEGUIDOS else 0
+        color_s = "#5BC0CE" if seguidos > MAX_DIAS_SEGUIDOS else "#6C7A99"
+        y = h - 14
+        nombre = _recortar(v["VIGILADOR"], "Helvetica-Bold", 8.5, 205)
+        c.setFont("Helvetica-Bold", 8.5)
+        c.setFillColor(_hx(P["texto"]))
+        c.drawString(x0, y, nombre)
+        cx = x0 + stringWidth(nombre, "Helvetica-Bold", 8.5) + 6
+        if exc > 0:
+            cx = _chip_pdf(c, cx, y, f"+{exc} hs", "#D9776F", "#E89A93" if PDF_REL_OSCURO else "#B71C1C", 5.8)
+        if fc > 0:
+            cx = _chip_pdf(c, cx, y, "franco cortado", "#5BC0CE", "#4FB3C0" if PDF_REL_OSCURO else "#0E7490", 5.8)
+        y -= 17
+        _fila_barra_pdf(c, x0, y, iw, "Horas trabajadas", f"{horas} hs de {HORAS_MAX_MES} permitidas", pct_h, color_h)
+        y -= 19
+        _fila_barra_pdf(c, x0, y, iw, "Más días seguidos sin descanso",
+                        f"{seguidos} {'día' if seguidos == 1 else 'días'} (límite {MAX_DIAS_SEGUIDOS})", pct_s, color_s)
+        y -= 18
+        n_dia, n_noc = int(v["TURNOS DIURNOS"]), int(v["TURNOS NOCTURNOS"])
+        n_dias, n_turnos = int(v["DÍAS"]), int(v["TURNOS"])
+        txt = f"Trabajó {n_dias} {'día' if n_dias == 1 else 'días'} del mes · {n_turnos} {'turno' if n_turnos == 1 else 'turnos'}:"
+        c.setFont("Helvetica", 7)
+        c.setFillColor(_hx(P["suave"]))
+        c.drawString(x0, y, txt)
+        cx = x0 + stringWidth(txt, "Helvetica", 7) + 6
+        cx = _chip_pdf(c, cx, y, f"{n_dia} diurno{'' if n_dia == 1 else 's'}", "#E0C060", "#B58A00" if not PDF_REL_OSCURO else "#F0D98A", 6)
+        _chip_pdf(c, cx, y, f"{n_noc} nocturno{'' if n_noc == 1 else 's'}", "#8E9BE0", "#4B5BB5" if not PDF_REL_OSCURO else "#B8C1F0", 6)
+
+class _TarjetaObjetivoPDF(_Base):
+    def __init__(self, o, max_vis, max_perm, ancho=366):
+        super().__init__()
+        self.o, self.max_vis, self.max_perm = o, max_vis, max_perm
+        self.width, self.height = ancho, 64
+
+    def draw(self):
+        c, P, o = self.canv, _pal(), self.o
+        w, h = self.width, self.height
+        _marco_pdf(c, w, h)
+        x0, iw = 10, w - 20
+        vis = int(o["VISITAS"])
+        ok = vis > 0
+        perm = _num_seguro(o["PERMANENCIA PROM. (MIN)"])
+        y = h - 14
+        nombre = _recortar(o["OBJETIVO"], "Helvetica-Bold", 8.5, 220)
+        c.setFont("Helvetica-Bold", 8.5)
+        c.setFillColor(_hx(P["texto"]))
+        c.drawString(x0, y, nombre)
+        cx = x0 + stringWidth(nombre, "Helvetica-Bold", 8.5) + 6
+        if ok:
+            _chip_pdf(c, cx, y, "visitado", "#4DB6AC", "#7FD6C0" if PDF_REL_OSCURO else "#00796B", 5.8)
+        else:
+            _chip_pdf(c, cx, y, "sin visita", "#D9776F", "#E89A93" if PDF_REL_OSCURO else "#B71C1C", 5.8)
+        y -= 17
+        _fila_barra_pdf(c, x0, y, iw, "Visitas QR", str(vis), 100.0 * vis / self.max_vis, "#5BC0CE" if ok else "#3A4152")
+        y -= 19
+        perm_txt = (str(int(round(perm))) + " min") if perm is not None else "sin dato"
+        perm_pct = (100.0 * perm / self.max_perm) if perm is not None else 0
+        _fila_barra_pdf(c, x0, y, iw, "Permanencia promedio", perm_txt, perm_pct, "#4DB6AC")
+
+class _BloqueCompPDF(_Base):
+    """Un gráfico de barras del comparativo (una barra por supervisor)."""
+    def __init__(self, titulo, items, color, escala=None, sufijo="", ancho=366):
+        super().__init__()
+        self.titulo, self.items, self.color, self.escala, self.sufijo = titulo, items, color, escala, sufijo
+        self.width = ancho
+        self.height = 26 + 19 * len(items)
+
+    def draw(self):
+        c, P = self.canv, _pal()
+        w, h = self.width, self.height
+        _marco_pdf(c, w, h)
+        x0, iw = 10, w - 20
+        c.setFont("Helvetica-Bold", 8)
+        c.setFillColor(_hx(P["titulo"]))
+        c.drawString(x0, h - 15, self.titulo)
+        vals = [v for _, v in self.items]
+        tope = self.escala if self.escala else max(vals + [1])
+        y = h - 30
+        for nombre, v in self.items:
+            _fila_barra_pdf(c, x0, y, iw, _recortar(nombre, "Helvetica", 7.2, iw - 70),
+                            ("%g" % v) + self.sufijo, 100.0 * v / tope if tope else 0, self.color)
+            y -= 19
+
+def _lineas_leyenda(ancho, tam=6.5):
+    lineas, actual, usado = [], [], 0
+    for nm, col, tx in _SEG_PERSONAL:
+        wi = 9 + stringWidth(nm, "Helvetica", tam) + 8
+        if actual and usado + wi > ancho:
+            lineas.append(actual)
+            actual, usado = [], 0
+        actual.append((nm, col, tx))
+        usado += wi
+    if actual:
+        lineas.append(actual)
+    return lineas
+
+class _BloquePersonalPDF(_Base):
+    """Personal a cargo de todos los supervisores: barra apilada por supervisor."""
+    def __init__(self, vista, ancho=366):
+        super().__init__()
+        self.vista = vista
+        self.width = ancho
+        self.lineas = _lineas_leyenda(ancho - 20)
+        self.height = 26 + 11 * len(self.lineas) + 6 + 31 * len(vista)
+
+    def draw(self):
+        c, P = self.canv, _pal()
+        w, h = self.width, self.height
+        _marco_pdf(c, w, h)
+        x0, iw = 10, w - 20
+        c.setFont("Helvetica-Bold", 8)
+        c.setFillColor(_hx(P["titulo"]))
+        c.drawString(x0, h - 15, "PERSONAL A CARGO")
+        y = h - 28
+        c.setFont("Helvetica", 6.5)
+        for linea in self.lineas:
+            lx = x0
+            for nm, col, tx in linea:
+                c.setFillColor(_hx(_tx_seg(col, tx)))
+                c.circle(lx + 2, y + 2.2, 2, fill=1, stroke=0)
+                c.drawString(lx + 7, y, nm)
+                lx += 9 + stringWidth(nm, "Helvetica", 6.5) + 8
+            y -= 11
+        y -= 6
+        for _, r in self.vista.iterrows():
+            n, cants = _cantidades_personal(r)
+            c.setFont("Helvetica", 7.2)
+            c.setFillColor(_hx(P["texto"]))
+            c.drawString(x0, y, _recortar(r["SUPERVISOR"], "Helvetica", 7.2, iw - 60))
+            c.setFillColor(_hx(P["suave"]))
+            c.drawRightString(x0 + iw, y, f"{n} vig.")
+            c.setFillColor(_hx(P["pista"]))
+            c.roundRect(x0, y - 9, iw, 6, 3, fill=1, stroke=0)
+            px = x0
+            for (nm, col, _tx), cant in zip(_SEG_PERSONAL, cants):
+                ancho = (iw * cant / float(max(n, sum(cants)))) if (n or sum(cants)) else 0
+                if ancho > 0:
+                    c.setFillColor(_hx(col))
+                    c.rect(px, y - 9, ancho, 6, fill=1, stroke=0)
+                    px += ancho
+            detalle = " · ".join(f"{cant} {nm}" for (nm, _, _), cant in zip(_SEG_PERSONAL, cants) if cant > 0) or "sin personal"
+            c.setFont("Helvetica", 6.2)
+            c.setFillColor(_hx(P["label"]))
+            c.drawString(x0, y - 17, _recortar(detalle, "Helvetica", 6.2, iw))
+            y -= 31
+
+class _MetricaPDF(_Base):
+    def __init__(self, etiqueta, valor, ancho=240):
+        super().__init__()
+        self.etiqueta, self.valor = etiqueta, valor
+        self.width, self.height = ancho, 38
+
+    def draw(self):
+        c, P = self.canv, _pal()
+        _marco_pdf(c, self.width, self.height)
+        c.setFont("Helvetica", 6.8)
+        c.setFillColor(_hx(P["label"]))
+        c.drawString(10, self.height - 13, _sin_emoji(self.etiqueta))
+        c.setFont("Helvetica-Bold", 15)
+        c.setFillColor(_hx(P["texto"]))
+        c.drawString(10, 9, str(self.valor))
+
+class _LeyendaPlanPDF(_Base):
+    def __init__(self, ancho=744):
+        super().__init__()
+        self.width, self.height = ancho, 18
+
+    def draw(self):
+        c = self.canv
+        x = 0
+        items = [("SIN NOVEDAD", "#1F3A2B", "#E0E0E0")] + [(f"{letra} = {nombre}", bg, fg) for nombre, (letra, bg, fg) in TIPOS_NOVEDAD_PERSONAL.items()]
+        for txt, bg, fg in items:
+            txt = _sin_emoji(txt)
+            wch = stringWidth(txt, "Helvetica", 7) + 14
+            c.setFillColor(_hx(bg))
+            c.roundRect(x, 3, wch, 12, 3, fill=1, stroke=0)
+            c.setFillColor(_hx(fg))
+            c.setFont("Helvetica", 7)
+            c.drawString(x + 7, 6.5, txt)
+            x += wch + 6
+
+def _tabla_planificacion_pdf(df, anio, mes):
+    """Grilla de vigiladores a cargo: una fila por vigilador y una columna por día (L/ART/V/A/F/P)."""
+    P = _pal()
+    ndias = calendar.monthrange(anio, mes)[1]
+    ancho_nombre = 126.0
+    ancho_dia = (744.0 - ancho_nombre) / ndias
+    datos = [[""] + [f"{LETRAS_DIA[calendar.weekday(anio, mes, d)]}\n{d}" for d in range(1, ndias + 1)]]
+    estilos = [
+        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"), ("FONTSIZE", (0, 0), (-1, 0), 6),
+        ("LEADING", (0, 0), (-1, 0), 7), ("ALIGN", (1, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 1), ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+        ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("GRID", (1, 1), (-1, -1), 0.8, _hx(P["grilla"])),
+        ("BACKGROUND", (0, 0), (-1, 0), _hx(P["pagina"])),
+    ]
+    for d in range(1, ndias + 1):
+        finde = calendar.weekday(anio, mes, d) >= 5
+        estilos.append(("TEXTCOLOR", (d, 0), (d, 0), _hx(P["dia_finde"] if finde else P["dia_normal"])))
+    for i, (_, r) in enumerate(df.iterrows(), start=1):
+        fila = [_recortar(r["VIGILADOR"], "Helvetica", 6.8, ancho_nombre - 6)]
+        estilos.append(("TEXTCOLOR", (0, i), (0, i), _hx(P["nombre_grilla"])))
+        estilos.append(("ALIGN", (0, i), (0, i), "LEFT"))
+        estilos.append(("FONTSIZE", (0, i), (0, i), 6.8))
+        for d in range(1, ndias + 1):
+            t = r["MAPA"].get(d)
+            if t:
+                letra, bg, fg = TIPOS_NOVEDAD_PERSONAL[t]
+                fila.append(letra)
+                estilos += [("BACKGROUND", (d, i), (d, i), _hx(bg)), ("TEXTCOLOR", (d, i), (d, i), _hx(fg)),
+                            ("FONTNAME", (d, i), (d, i), "Helvetica-Bold"), ("FONTSIZE", (d, i), (d, i), 6.2)]
+            else:
+                fila.append("")
+                estilos.append(("BACKGROUND", (d, i), (d, i), _hx("#1F3A2B")))
+        datos.append(fila)
+    t = Table(datos, colWidths=[ancho_nombre] + [ancho_dia] * ndias, rowHeights=[18] + [13] * len(df), repeatRows=1)
+    t.setStyle(TableStyle(estilos))
+    return t
+
+def _grilla_dos_columnas(tarjetas):
+    """Acomoda tarjetas de 366 pt de ancho de a dos por fila."""
+    filas = []
+    for i in range(0, len(tarjetas), 2):
+        par = tarjetas[i:i + 2]
+        if len(par) == 1:
+            par.append(Spacer(1, 1))
+        filas.append(par)
+    t = Table(filas, colWidths=[372, 372])
+    t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                           ("RIGHTPADDING", (0, 0), (-1, -1), 6), ("TOPPADDING", (0, 0), (-1, -1), 0),
+                           ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
+    return t
+
+class NumberedCanvasOscuro(NumberedCanvas):
+    """Numeración de páginas con colores que se leen sobre fondo oscuro."""
+    def draw_page_number(self, page_count):
+        self.saveState()
+        claro = "#9AA3B5" if PDF_REL_OSCURO else "#666666"
+        self.setFont("Helvetica", 8)
+        self.setFillColor(colors.HexColor(claro))
+        self.drawRightString(792 - 24, 15, f"Página {self._pageNumber} de {page_count}")
+        self.drawString(24, 15, "AION-YAROKU | SISTEMA TÁCTICO INTEGRAL")
+        self.setStrokeColor(colors.HexColor("#3A4152" if PDF_REL_OSCURO else "#CCCCCC"))
+        self.setLineWidth(0.5)
+        self.line(24, 25, 792 - 24, 25)
+        self.restoreState()
+
+def generar_pdf_relevamiento_visual(vista, detalle, personal, actividad, vigs, anio, mes):
+    """Un solo PDF con lo mismo que se ve en la app: por cada supervisor su tarjeta, las horas por vigilador,
+    los objetivos y los vigiladores a cargo; al final, el comparativo de todos los supervisores."""
+    P = _pal()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=35,
+                            title=f"Relevamiento mensual {MESES_ES[mes - 1]} {anio}")
+    styles = getSampleStyleSheet()
+    est_tit = ParagraphStyle("RelT", parent=styles["Heading1"], fontName="Helvetica-Bold", fontSize=14, leading=17,
+                             textColor=_hx(P["titulo"]), alignment=1, spaceAfter=2)
+    est_sub = ParagraphStyle("RelS", parent=styles["Normal"], fontName="Helvetica", fontSize=8.5, leading=11,
+                             textColor=_hx(P["suave"]), alignment=1, spaceAfter=10)
+    est_h2 = ParagraphStyle("RelH2", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=10.5, leading=13,
+                            textColor=_hx(P["titulo"]), spaceBefore=6, spaceAfter=6, keepWithNext=1)
+    est_h3 = ParagraphStyle("RelH3", parent=styles["Heading3"], fontName="Helvetica-Bold", fontSize=9, leading=11,
+                            textColor=_hx(P["texto"]), spaceBefore=8, spaceAfter=5, keepWithNext=1)
+
+    alcance = vista.iloc[0]["SUPERVISOR"] if len(vista) == 1 else "TODOS LOS SUPERVISORES"
+    el = [Paragraph("<b>AION-YAROKU | RELEVAMIENTO MENSUAL DE SUPERVISORES</b>", est_tit),
+          Paragraph(f"<b>{MESES_ES[mes - 1]} {anio}</b> | {_xml_escape(str(alcance))} | Emisión: {obtener_hora_argentina()}", est_sub)]
+
+    metricas = [("SUPERVISORES", len(vista)), ("VISITAS QR", int(vista["VISITAS QR"].sum())),
+                ("COBERTURA PROM.", f"{int(round(vista['COBERTURA %'].mean()))}%"),
+                ("HS VIGILADORES", int(vista["HS VIGILADORES"].sum())), ("EXCEDIDOS", int(vista["EXCEDIDOS"].sum())),
+                ("FRANCOS CORTADOS", int(vista["FRANCOS CORTADOS"].sum())),
+                ("AUSENTES (vigiladores)", int(vista["AUSENTE"].sum())), ("EN FRANCO (vigiladores)", int(vista["FRANCO"].sum())),
+                ("PRESTADOS (vigiladores)", int(vista["PRÉSTAMO"].sum()))]
+    filas_m = [[_MetricaPDF(e, v) for e, v in metricas[i:i + 3]] for i in range(0, 9, 3)]
+    tm = Table(filas_m, colWidths=[248, 248, 248])
+    tm.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
+    el.append(tm)
+    el.append(Paragraph("POR SUPERVISOR", est_h2))
+
+    for _, r in vista.iterrows():
+        s = r["SUPERVISOR"]
+        vig_df = vigs.get(s)
+        tiene_vig = vig_df is not None and not vig_df.empty
+        el.append(CondPageBreak(240))
+        el.append(_TarjetaSupPDF(r, actividad.get(s, set()), anio, mes, vig_df if tiene_vig else None))
+        if tiene_vig:
+            filas_v = list(vig_df.iterrows())
+            for i, (_, v) in enumerate(filas_v):
+                el.append(_FilaVigPDF(v, ultima=(i == len(filas_v) - 1)))
+        el.append(Spacer(1, 8))
+
+        el.append(Paragraph(f"DETALLE DE OBJETIVOS Y PERSONAL - {_xml_escape(str(s))}", est_h2))
+        if tiene_vig:
+            el.append(Paragraph("Horas por vigilador", est_h3))
+            el.append(_grilla_dos_columnas([_TarjetaVigDetallePDF(v) for _, v in vig_df.iterrows()]))
+        el.append(Paragraph("Objetivos", est_h3))
+        det_df = detalle.get(s)
+        if det_df is None or det_df.empty:
+            el.append(Paragraph("Sin objetivos asignados.", est_sub))
+        else:
+            max_vis = max([int(x) for x in det_df["VISITAS"]] + [1])
+            perms = [_num_seguro(x) for x in det_df["PERMANENCIA PROM. (MIN)"]]
+            max_perm = max([x for x in perms if x is not None] + [1])
+            el.append(_grilla_dos_columnas([_TarjetaObjetivoPDF(o, max_vis, max_perm) for _, o in det_df.iterrows()]))
+        if s in personal and not personal[s].empty:
+            el.append(CondPageBreak(120))
+            el.append(Paragraph(f"Vigiladores a cargo ({int(r['VIGILADORES'])})", est_h3))
+            el.append(_LeyendaPlanPDF())
+            el.append(Spacer(1, 4))
+            el.append(_tabla_planificacion_pdf(personal[s], anio, mes))
+        el.append(PageBreak())
+
+    # --- Comparativo de todos los supervisores ---
+    def items(col):
+        return [(r["SUPERVISOR"], float(r[col])) for _, r in vista.iterrows()]
+    bloques = [
+        _BloqueCompPDF("COBERTURA DE OBJETIVOS", items("COBERTURA %"), "#5BC0CE", 100, "%"),
+        _BloqueCompPDF("VISITAS QR", items("VISITAS QR"), "#4DB6AC"),
+        _BloqueCompPDF("DÍAS ACTIVOS", items("DÍAS ACTIVOS"), "#6C9BD2"),
+        _BloqueCompPDF("HORAS DE JORNADA", items("HORAS"), "#8E9BE0", None, " hs"),
+        _BloqueCompPDF("HS DE VIGILADORES", items("HS VIGILADORES"), "#E0A458", None, " hs"),
+        _BloqueCompPDF("KM RECORRIDOS", items("KM"), "#7FB8A0", None, " km"),
+        _BloqueCompPDF("PÁNICOS", items("PÁNICOS"), "#D9776F"),
+        _BloqueCompPDF("NOVEDADES", items("NOVEDADES"), "#B596CC"),
+        _BloqueCompPDF("RONDAS COMPLETAS", items("RONDAS COMPLETAS"), "#5BC0CE"),
+        _BloqueCompPDF("VIGILADORES EXCEDIDOS", items("EXCEDIDOS"), "#D9776F"),
+        _BloqueCompPDF("FRANCOS CORTADOS", items("FRANCOS CORTADOS"), "#7FD6E0"),
+        _BloquePersonalPDF(vista),
+    ]
+    el.append(Paragraph("COMPARATIVO DE TODOS LOS SUPERVISORES", est_h2))
+    el.append(_grilla_dos_columnas(bloques))
+
+    def _fondo(canv, _doc):
+        canv.saveState()
+        canv.setFillColor(_hx(_pal()["pagina"]))
+        canv.rect(0, 0, 792, 612, fill=1, stroke=0)
+        canv.restoreState()
+
+    doc.build(el, onFirstPage=_fondo, onLaterPages=_fondo, canvasmaker=NumberedCanvasOscuro)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+from xml.sax.saxutils import escape as _xml_escape
+# =========================================================================
+# REPORTE TÁCTICO INTEGRAL POR SUPERVISOR (mismo PDF que descarga el Jefe de Operaciones)
+# Se usa también desde Monitoreo, así los dos descargan exactamente lo mismo.
+# =========================================================================
+def datos_reporte_integral_supervisor(sup):
+    """Arma todas las tablas del reporte integral de un supervisor (mismos filtros que el Tablero de Auditoría)."""
+    sup_n = str(sup).strip().upper()
+
+    def _hoja(nombre):
+        d = leer_matriz_nube(nombre)
+        if d is None or d.empty:
+            return pd.DataFrame()
+        d = d.copy()
+        d.columns = [str(c).strip().upper() for c in d.columns]
+        return d
+
+    df_o = cargar_objetivos()
+    objs = []
+    if not df_o.empty and 'SUPERVISOR' in df_o.columns and 'OBJETIVO' in df_o.columns:
+        m_o = col_texto(df_o, 'SUPERVISOR').str.strip().str.upper() == sup_n
+        objs = [o.strip().upper() for o in col_texto(df_o, 'OBJETIVO')[m_o].tolist()]
+
+    # --- Jornada ---
+    ini_j, fin_j, tot_j = "---", "---", "---"
+    df_j = _hoja("JORNADA SUPERVISORES")
+    if not df_j.empty and df_j.shape[1] >= 5:
+        c_s, c_a, c_h = df_j.columns[1], df_j.columns[3], df_j.columns[4]
+        sj = df_j[col_texto(df_j, c_s).str.strip().str.upper() == sup_n]
+        if not sj.empty:
+            inicios = sj[col_texto(sj, c_a).str.strip().str.upper() == 'INICIO']
+            fines = sj[col_texto(sj, c_a).str.strip().str.upper() == 'FIN']
+            dt_i = dt_f = None
+            if not inicios.empty:
+                ini_j = str(inicios.iloc[-1][c_h])
+                try:
+                    dt_i = datetime.strptime(ini_j, "%H:%M:%S")
+                except Exception:
+                    pass
+            if not fines.empty:
+                fin_j = str(fines.iloc[-1][c_h])
+                try:
+                    dt_f = datetime.strptime(fin_j, "%H:%M:%S")
+                except Exception:
+                    pass
+            if dt_i and dt_f and dt_f >= dt_i:
+                m_tot = int((dt_f - dt_i).total_seconds() // 60)
+                tot_j = f"{m_tot // 60}h {m_tot % 60}m" if m_tot >= 60 else f"{m_tot} min"
+
+    # --- Permanencia por objetivo (escaneos QR) ---
+    df_perm = pd.DataFrame()
+    df_q = _hoja("REGISTRO QR SUPERVISORES")
+    if not df_q.empty and df_q.shape[1] >= 4:
+        c_sq = 'SUPERVISOR' if 'SUPERVISOR' in df_q.columns else df_q.columns[3]
+        sq = df_q[col_texto(df_q, c_sq).str.strip().str.upper() == sup_n]
+        if not sq.empty:
+            c_fh, c_ob, c_ac = sq.columns[0], sq.columns[1], sq.columns[2]
+            filas = []
+            for obj_v in col_texto(sq, c_ob).dropna().str.strip().str.upper().unique():
+                reg = sq[col_texto(sq, c_ob).str.strip().str.upper() == obj_v]
+                ini_o = reg[col_texto(reg, c_ac).str.strip().str.upper() == 'INICIO']
+                fin_o = reg[col_texto(reg, c_ac).str.strip().str.upper() == 'FIN']
+                ing, egr, perm = "---", "---", "---"
+                dt_ing = dt_egr = None
+                if not ini_o.empty:
+                    raw = str(ini_o.iloc[-1][c_fh])
+                    ing = raw.split(" ")[1] if " " in raw else raw
+                    try:
+                        dt_ing = datetime.strptime(ing, "%H:%M:%S")
+                    except Exception:
+                        pass
+                if not fin_o.empty:
+                    raw = str(fin_o.iloc[-1][c_fh])
+                    egr = raw.split(" ")[1] if " " in raw else raw
+                    try:
+                        dt_egr = datetime.strptime(egr, "%H:%M:%S")
+                    except Exception:
+                        pass
+                if dt_ing and dt_egr and dt_egr >= dt_ing:
+                    mp = int((dt_egr - dt_ing).total_seconds() // 60)
+                    perm = f"{mp // 60}h {mp % 60}m" if mp >= 60 else f"{mp} min"
+                filas.append({"OBJETIVO": obj_v, "HORARIO INGRESO": ing, "HORARIO EGRESO": egr, "TIEMPO DE PERMANENCIA": perm})
+            df_perm = pd.DataFrame(filas)
+
+    # --- Fichaje de vigiladores ---
+    df_fich = pd.DataFrame()
+    df_n = _hoja("NOVEDADES GUARDIA")
+    if not df_n.empty and objs and 'OBJETIVO' in df_n.columns:
+        df_n['OBJETIVO_CLEAN'] = col_texto(df_n, 'OBJETIVO').str.strip().str.upper()
+        col_ev = next((p for p in ['TIPO_EVENTO', 'TIPO EVENTO', 'EVENTO', 'TIPO'] if p in df_n.columns),
+                      df_n.columns[2] if len(df_n.columns) > 2 else None)
+        if col_ev:
+            mask_f = df_n['OBJETIVO_CLEAN'].isin(objs) & col_texto(df_n, col_ev).str.upper().str.contains("MARCACIÓN|FICHAJE|INGRESO|EGRESO", regex=True)
+            raw_f = df_n[mask_f]
+            if not raw_f.empty:
+                filas = []
+                for _, r in raw_f.iterrows():
+                    ev = str(r.iloc[2])
+                    nom = str(r.iloc[4]) if len(r) > 4 else ""
+                    filas.append({"FECHA": str(r.iloc[0]), "OBJETIVO": str(r.iloc[1]), "EVENTO": ev,
+                                  "INGRESO": nom if "INGRESO" in ev.upper() else "---",
+                                  "EGRESO": nom if "EGRESO" in ev.upper() else "---",
+                                  "LEGAJO": str(r.iloc[5]) if len(r) > 5 else "",
+                                  "ESTADO": str(r.iloc[6]) if len(r) > 6 else "PROCESADO"})
+                df_fich = pd.DataFrame(filas)
+
+    # --- Relevos ---
+    df_rel = pd.DataFrame()
+    df_v = _hoja("VIGILADORES")
+    if not df_v.empty and objs:
+        c_ov = 'OBJETIVO' if 'OBJETIVO' in df_v.columns else df_v.columns[min(2, len(df_v.columns) - 1)]
+        df_rel = df_v[col_texto(df_v, c_ov).str.strip().str.upper().isin(objs)]
+
+    # --- Rondas ---
+    df_rec = tabla_recorridas_vigiladores(objs)
+
+    # --- Pánicos y alertas ---
+    df_pan_s, df_pan_v, df_alt = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    df_a = _hoja("ALERTAS")
+    if not df_a.empty and 'TIPO' in df_a.columns:
+        pan = df_a[col_texto(df_a, 'TIPO').str.strip().str.upper() == "PÁNICO"]
+        es_sup = col_texto(pan, 'USUARIO').str.strip().str.upper() == sup_n
+        df_pan_s = pan[es_sup]
+        en_obj = col_texto(pan, 'OBJETIVO').str.strip().str.upper().isin(objs)
+        df_pan_v = pan[en_obj & ~es_sup]
+        otras = df_a[(col_texto(df_a, 'TIPO').str.strip().str.upper() != "PÁNICO") & ~col_texto(df_a, 'TIPO').str.upper().str.contains("FRAUDE")]
+        m_alt = pd.Series(False, index=otras.index)
+        if 'OBJETIVO' in otras.columns:
+            m_alt = m_alt | col_texto(otras, 'OBJETIVO').str.strip().str.upper().isin(objs)
+        if 'SUPERVISOR' in otras.columns:
+            m_alt = m_alt | (col_texto(otras, 'SUPERVISOR').str.strip().str.upper() == sup_n)
+        df_alt = otras[m_alt]
+
+    # --- Flota ---
+    df_flota = pd.DataFrame()
+    df_f = _hoja("CONTROL DE FLOTA")
+    if not df_f.empty:
+        c_sf = 'SUPERVISOR' if 'SUPERVISOR' in df_f.columns else (df_f.columns[1] if len(df_f.columns) > 1 else None)
+        if c_sf:
+            df_flota = df_f[col_texto(df_f, c_sf).str.strip().str.upper() == sup_n].copy()
+
+    # --- Traspasos de objetivos ---
+    df_tras = pd.DataFrame()
+    try:
+        d_t = _hoja("TRASPASOS OBJETIVOS")
+        if not d_t.empty and {"ORIGEN", "DESTINO"} <= set(d_t.columns):
+            ori = col_texto(d_t, "ORIGEN").str.strip().str.upper()
+            des = col_texto(d_t, "DESTINO").str.strip().str.upper()
+            df_tras = d_t[(ori == sup_n) | (des == sup_n)].copy()
+            if not df_tras.empty:
+                df_tras.insert(1, "MOVIMIENTO", ["TRASPASÓ" if x == sup_n else "RECIBIÓ" for x in ori[df_tras.index]])
+                df_tras = df_tras[[c for c in ["FECHA_HORA", "MOVIMIENTO", "OBJETIVO", "ORIGEN", "DESTINO", "MOTIVO"] if c in df_tras.columns]]
+    except Exception:
+        df_tras = pd.DataFrame()
+
+    # --- Cargas tácticas ---
+    df_car = pd.DataFrame()
+    df_nv = _hoja("NOVEDADES GUARDIA")
+    if not df_nv.empty and df_nv.shape[1] >= 5:
+        nv = df_nv.iloc[:, :5].copy()
+        nv.columns = ["FECHA", "OBJETIVO", "TIPO", "DETALLE", "SUPERVISOR"]
+        nv = nv[(nv["TIPO"].astype(str).str.strip().str.upper() == "NOVEDAD OPERATIVA") &
+                (nv["SUPERVISOR"].astype(str).str.strip().str.upper() == sup_n)]
+        df_car = nv[["FECHA", "OBJETIVO", "DETALLE"]]
+
+    return dict(sup_nombre=sup_n, j_ini=ini_j, j_fin=fin_j, j_tot=tot_j, d_perm=df_perm, d_fich=df_fich, d_rel=df_rel,
+                d_alt=df_alt, d_psup=df_pan_s, d_pvig=df_pan_v, d_flota=df_flota,
+                tot_s_cnt=len(df_pan_s), tot_v_cnt=len(df_pan_v), d_rec=df_rec, d_tras=df_tras, d_car=df_car)
+
+def generar_pdf_integral_supervisor(sup_nombre, j_ini, j_fin, j_tot, d_perm, d_fich, d_rel, d_alt, d_psup, d_pvig, d_flota,
+                                    tot_s_cnt, tot_v_cnt, d_rec, d_tras=None, d_car=None):
+    """Mismo PDF que el 'REPORTE TÁCTICO INTEGRAL (PDF COMPLETO)' del Tablero de Auditoría."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=35)
+    elementos = []
+    styles = getSampleStyleSheet()
+    estilo_titulo = ParagraphStyle('T1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=13, leading=15, textColor=colors.HexColor('#000000'), spaceAfter=2, alignment=1)
+    estilo_sub = ParagraphStyle('T2', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=10, textColor=colors.HexColor('#333333'), spaceAfter=10, alignment=1)
+    estilo_seccion = ParagraphStyle('T3', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=9.5, leading=11, textColor=colors.HexColor('#000000'), spaceBefore=8, spaceAfter=4)
+    estilo_texto = ParagraphStyle('T4', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor('#333333'))
+
+    elementos.append(Paragraph("<b>AION-YAROKU | REPORTE TÁCTICO INTEGRAL DE SUPERVISOR</b>", estilo_titulo))
+    elementos.append(Paragraph(f"<b>Supervisor: {sup_nombre}</b> | Emisión: {obtener_hora_argentina()}", estilo_sub))
+    elementos.append(Paragraph("<b>Control de Jornada y Horas Trabajadas:</b>", estilo_seccion))
+    t_jor = Table([["INICIO DE JORNADA", "CIERRE DE JORNADA", "TOTAL HORAS TRABAJADAS"], [j_ini, j_fin, j_tot]], colWidths=[248, 248, 248])
+    t_jor.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FFFFFF')), ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
+        ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elementos.append(t_jor)
+    elementos.append(Spacer(1, 6))
+
+    def agregar_tabla_pdf(titulo_sec, df_in, anchos_personalizados=None):
+        elementos.append(Paragraph(f"<b>{titulo_sec}</b>", estilo_seccion))
+        if df_in is not None and not df_in.empty:
+            cols = list(df_in.columns)
+            num_cols = len(cols)
+            anchos = anchos_personalizados if (anchos_personalizados and len(anchos_personalizados) == num_cols) else [744.0 / num_cols] * num_cols
+            estilo_cab = ParagraphStyle('EC', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7, leading=9, textColor=colors.white, alignment=1)
+            estilo_cel = ParagraphStyle('ECL', parent=styles['Normal'], fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=colors.HexColor('#333333'), alignment=1)
+            datos = [[Paragraph(str(c), estilo_cab) for c in cols]]
+            for _, row in df_in.iterrows():
+                datos.append([Paragraph(_xml_escape(str(row[c])) if pd.notna(row[c]) else "", estilo_cel) for c in cols])
+            t = Table(datos, colWidths=anchos, repeatRows=1)
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')), ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#666666')),
+                ('TOPPADDING', (0, 1), (-1, -1), 3), ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+                ('LEFTPADDING', (0, 0), (-1, -1), 2), ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ]))
+            elementos.append(t)
+        else:
+            elementos.append(Paragraph("Sin registros en este periodo.", estilo_texto))
+        elementos.append(Spacer(1, 6))
+
+    agregar_tabla_pdf("Detalle de Escaneos QR y Permanencia por Objetivo:", d_perm, [180, 180, 180, 204])
+    agregar_tabla_pdf("Fichaje de Vigiladores:", d_fich, [80, 110, 100, 90, 90, 90, 184])
+    agregar_tabla_pdf("Relevos de Vigiladores:", d_rel, [60, 100, 120, 120, 70, 90, 184])
+    agregar_tabla_pdf("Seguimiento de Rondas de Vigiladores:", _rec_para_pdf(d_rec), [52, 80, 80, 28, 60, 44, 44, 34, 40, 56, 226])
+    agregar_tabla_pdf("Pánicos S.O.S de Supervisor:", d_psup)
+    df_pvig_pdf = d_pvig.copy() if d_pvig is not None else pd.DataFrame()
+    if not df_pvig_pdf.empty:
+        df_pvig_pdf['TURNO VIGILADOR'] = [determinar_turno_activo(str(p.get('FECHA', ''))) for _, p in df_pvig_pdf.iterrows()]
+    agregar_tabla_pdf("Pánicos S.O.S de Vigiladores:", df_pvig_pdf)
+
+    if tot_s_cnt > 0 or tot_v_cnt > 0 or (d_alt is not None and not d_alt.empty):
+        elementos.append(Paragraph("<b>Alertas Operativas</b>", estilo_seccion))
+        if tot_s_cnt > 0:
+            elementos.append(Paragraph(f"• TOTAL ALERTAS DE SUPERVISOR: <b>{tot_s_cnt}</b>", estilo_texto))
+        if tot_v_cnt > 0:
+            elementos.append(Paragraph(f"• TOTAL ALERTAS DE VIGILADOR: <b>{tot_v_cnt}</b>", estilo_texto))
+        elementos.append(Spacer(1, 4))
+        if d_alt is not None and not d_alt.empty:
+            agregar_tabla_pdf("Detalle de Alertas Operativas:", d_alt)
+
+    agregar_tabla_pdf("Control de Flota:", d_flota, [75, 70, 70, 60, 100, 90, 90, 189])
+    agregar_tabla_pdf("Traspasos de Objetivos:", d_tras.iloc[::-1] if d_tras is not None and not d_tras.empty else pd.DataFrame(), [100, 80, 150, 110, 110, 194])
+    agregar_tabla_pdf("Cargas Tácticas:", d_car.iloc[::-1] if d_car is not None and not d_car.empty else pd.DataFrame(), [120, 160, 464])
+
+    doc.build(elementos, canvasmaker=NumberedCanvas)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 def renderizar_relevamiento_mensual(key_prefix="rel"):
     st.markdown("### 📊 RELEVAMIENTO MENSUAL DE SUPERVISORES")
     hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
@@ -4357,6 +5208,15 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
         c2m.metric("🛌 EN FRANCO (vigiladores)", int(vista["FRANCO"].sum()))
         c3m.metric("🤝 PRESTADOS (vigiladores)", int(vista["PRÉSTAMO"].sum()))
 
+        # PDF único: tarjeta de cada supervisor + horas por vigilador + objetivos + vigiladores a cargo + comparativo
+        try:
+            pdf_rel = generar_pdf_relevamiento_visual(vista, detalle, personal, actividad, vigs, anio, mes)
+            st.download_button("📥 DESCARGAR RELEVAMIENTO COMPLETO (PDF)", data=pdf_rel,
+                               file_name=f"relevamiento_supervisores_{periodo}.pdf", mime="application/pdf",
+                               use_container_width=True, key=f"{key_prefix}_pdf")
+        except Exception as e_pdf_rel:
+            st.warning(f"No se pudo preparar el PDF del relevamiento: {e_pdf_rel}")
+
         st.markdown("##### 🛡️ POR SUPERVISOR")
         for _, r in vista.iterrows():
             s = r["SUPERVISOR"]
@@ -4374,18 +5234,9 @@ def renderizar_relevamiento_mensual(key_prefix="rel"):
 
         with st.expander("📋 COMPARATIVO DE TODOS LOS SUPERVISORES"):
             st.markdown(_comparativo_supervisores_html(vista), unsafe_allow_html=True)
-        cols_pdf = ["SUPERVISOR", "OBJETIVOS", "VIGILADORES", "DÍAS ACTIVOS", "HORAS", "VISITAS QR", "COBERTURA %",
-                    "HS VIGILADORES", "EXCEDIDOS", "FRANCOS CORTADOS", "KM", "PÁNICOS", "NOVEDADES", "LICENCIA", "ART", "VACACIONES", "AUSENTE", "FRANCO", "PRÉSTAMO"]
-        try:
-            pdf_rel = generar_pdf_reporte(f"RELEVAMIENTO MENSUAL DE SUPERVISORES - {MESES_ES[mes - 1]} {anio}", vista[cols_pdf])
-            st.download_button("📥 DESCARGAR RELEVAMIENTO (PDF)", data=pdf_rel,
-                               file_name=f"relevamiento_supervisores_{periodo}.pdf", mime="application/pdf",
-                               use_container_width=True, key=f"{key_prefix}_pdf")
-        except Exception as e:
-            print(f"Error generando PDF de relevamiento: {e}")
 
 def mostrar_boton_planificacion():
-    if st.session_state.get("rol_sel") not in ["JEFE DE OPERACIONES", "GERENCIA"]:
+    if st.session_state.get("rol_sel") not in ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"]:
         return
     st.markdown("---")
     en_rel = st.session_state.get("ver_planificacion", False)
@@ -4684,7 +5535,7 @@ titulos = {
 }
 st.markdown(f'<div class="estacion-titulo">{titulos.get(st.session_state.rol_sel, "SISTEMA TÁCTICO DE COMANDO")}</div>', unsafe_allow_html=True)
 
-if st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"] and st.session_state.get("ver_planificacion", False):
+if st.session_state.rol_sel in ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA"] and st.session_state.get("ver_planificacion", False):
     renderizar_relevamiento_mensual(key_prefix="rel")
     st.stop()
 
@@ -5246,6 +6097,20 @@ if st.session_state.rol_sel == "MONITOREO":
                         st.dataframe(df_car_m.iloc[::-1], use_container_width=True, hide_index=True)
                     else:
                         st.info("Sin cargas tácticas.")
+
+                    st.markdown("---")
+                    try:
+                        _pdf_mon = generar_pdf_integral_supervisor(**datos_reporte_integral_supervisor(sup_seleccionado_mono))
+                        st.download_button(
+                            label=f"📥 DESCARGAR REPORTE TÁCTICO INTEGRAL (PDF COMPLETO) - {sup_seleccionado_mono}",
+                            data=_pdf_mon,
+                            file_name=f"reporte_tactico_integral_{str(sup_seleccionado_mono).replace(' ', '_')}.pdf",
+                            mime="application/pdf",
+                            key=f"btn_pdf_integral_mon_{sup_seleccionado_mono}_{idx_p}",
+                            use_container_width=True
+                        )
+                    except Exception as e_pdf_mon:
+                        st.warning(f"No se pudo preparar el PDF de {sup_seleccionado_mono}: {e_pdf_mon}")
         else:
             st.info("No hay supervisores con registros activos en el sistema todavía.")
 
