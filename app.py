@@ -2413,6 +2413,20 @@ function campana(){
   }catch(e){}
 }
 
+// Cada cartel (5 min antes y a la hora) avisa 3 veces mientras siga abierto sin responder.
+var VECES_AVISO=3;       // cantidad de avisos
+var REPETIR_SEG=30;      // segundos entre un aviso y el siguiente
+function avisarVeces(){
+  if(timerRepeat){clearInterval(timerRepeat); timerRepeat=null;}
+  repeticiones=1; campana();
+  timerRepeat=setInterval(function(){
+    if(!PD.getElementById("aion_modal_rec") || repeticiones>=VECES_AVISO){
+      clearInterval(timerRepeat); timerRepeat=null; return;
+    }
+    repeticiones++; campana();
+  }, REPETIR_SEG*1000);
+}
+
 function hoy(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
 function llave(h){return "aion_rec_"+clave+"_"+hoy()+"_"+h;}
 function respuestaDe(h){try{return localStorage.getItem(llave(h));}catch(e){return null;}}
@@ -2489,7 +2503,7 @@ function mostrar(hora){
     var det=PD.getElementById("aion_txt").value.trim();
     responder(hora,"NO",det?mot+" - "+det:mot);
   };
-  campana();
+  avisarVeces();
 }
 
 // A la hora exacta (si dijo SÍ): recordatorio de que empieza la recorrida
@@ -2504,7 +2518,7 @@ function mostrarHora(hora){
     '<button id="aion_ent" style="background:#39FF14;color:#000;border:none;padding:12px 26px;font-weight:bold;font-size:15px;border-radius:8px;width:100%">ENTENDIDO, INICIO</button>',
     "#39FF14");
   PD.getElementById("aion_ent").onclick=function(){marcarAhora(hora);cerrar();};
-  campana();
+  avisarVeces();
 }
 
 // Si no confirmó el aviso de la hora: la recorrida queda bloqueada hasta que justifique
@@ -2558,7 +2572,7 @@ setInterval(function(){
 
 
 @st.cache_resource(show_spinner=False)
-def _declarar_alerta_recorrida(version="v7"):
+def _declarar_alerta_recorrida(version="v8"):
     carpeta = tempfile.mkdtemp(prefix=f"aion_alerta_{version}_")
     with open(os.path.join(carpeta, "index.html"), "w", encoding="utf-8") as f:
         f.write(_ALERTA_HTML)
@@ -2589,7 +2603,7 @@ def registrar_respuesta_recorrida(obj, nombre, dni, evento):
 
 def renderizar_alerta_recorrida_js(horarios_previstos, obj_u, nombre, dni):
     horarios = _horarios_unicos(horarios_previstos)
-    evento = _declarar_alerta_recorrida("v7")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
+    evento = _declarar_alerta_recorrida("v8")(horarios=horarios, clave=obj_u, key=f"alerta_rec_{obj_u}", default=None)
     if evento and evento.get("id") != st.session_state.get("ultimo_evento_alerta"):
         st.session_state.ultimo_evento_alerta = evento.get("id")
         if registrar_respuesta_recorrida(obj_u, nombre, dni, evento):
