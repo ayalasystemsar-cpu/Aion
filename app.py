@@ -410,6 +410,18 @@ def _separar_provincia(texto):
             return ", ".join(partes[:-1]), prov
     return str(texto).strip(), None
 
+def _extraer_coordenadas(texto):
+    """Reconoce coordenadas escritas en el campo calle: '-31.4929, -60.4271', o un link largo de Google Maps
+    (con @lat,lon o !3dLAT!4dLON). Devuelve (lat, lon) o None. Solo acepta valores dentro de Argentina."""
+    import re
+    t = str(texto or "")
+    m = (re.search(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", t) or re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", t)
+         or re.search(r"(-?\d{1,2}\.\d+)\s*[,;]\s*(-?\d{1,3}\.\d+)", t))
+    if not m:
+        return None
+    lat, lon = float(m.group(1)), float(m.group(2))
+    return (lat, lon) if (-56 <= lat <= -21 and -74 <= lon <= -53) else None
+
 def geocodificar_direccion(calle, altura, localidad):
     """Ubica un objetivo por calle + altura + localidad. No se guarda en la hoja ni en el código.
     Devuelve (lat, lon, exacta) o None si no se pudo ubicar."""
@@ -417,6 +429,9 @@ def geocodificar_direccion(calle, altura, localidad):
     calle = " ".join(str(calle or "").split())
     altura = " ".join(str(altura or "").split())
     localidad = " ".join(str(localidad or "").split())
+    coord = _extraer_coordenadas(calle)
+    if coord:   # objetivo cargado con coordenadas (por ejemplo rurales): no hace falta buscar nada
+        return (coord[0], coord[1], True)
     if not calle or not localidad:
         return None
     clave = (calle.upper(), altura, localidad.upper())
@@ -481,6 +496,9 @@ def con_coordenadas(df):
 def url_destino_objetivo(calle, altura, localidad):
     """Destino para Google Maps por dirección (sin coordenadas)."""
     from urllib.parse import quote
+    coord = _extraer_coordenadas(calle)
+    if coord:
+        return f"https://www.google.com/maps/dir/?api=1&destination={coord[0]},{coord[1]}&travelmode=driving"
     return "https://www.google.com/maps/dir/?api=1&destination=" + quote(f"{calle} {altura}, {localidad}, Argentina") + "&travelmode=driving"
 
 @st.cache_resource(show_spinner=False)
@@ -7296,18 +7314,20 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
             st.subheader("ALTA DE SERVICIO / OBJETIVO")
             with st.form("form_alta_servicio_jefe", clear_on_submit=True):
                 a_nom = st.text_input("Nombre del objetivo:")
-                a_calle = st.text_input("Calle:")
-                a_altura = st.text_input("Altura:")
+                a_calle = st.text_input("Calle (o coordenadas del lugar. Ej: -31.4929, -60.4271):")
+                a_altura = st.text_input("Altura (no hace falta si pusiste coordenadas):")
                 a_loc = st.text_input("Localidad (si no es de Buenos Aires, agregá la provincia. Ej: Rosario, Santa Fe):")
                 a_sup = st.selectbox("Asignar al supervisor:", LISTA_SUPS_TACTICOS)
                 if st.form_submit_button("🟢 DAR DE ALTA Y AVISAR AL SUPERVISOR"):
-                    if not (a_nom.strip() and a_calle.strip() and a_altura.strip() and a_loc.strip() and a_sup):
-                        st.session_state.msg_servicio = (False, "⚠️ Completá nombre del objetivo, calle, altura, localidad y supervisor.")
-                    elif not a_altura.strip().isdigit():
+                    _con_coord = _extraer_coordenadas(a_calle) is not None
+                    if not (a_nom.strip() and a_calle.strip() and (a_altura.strip() or _con_coord) and a_loc.strip() and a_sup):
+                        st.session_state.msg_servicio = (False, "⚠️ Completá nombre del objetivo, calle (o coordenadas), altura, localidad y supervisor.")
+                    elif a_altura.strip() and not a_altura.strip().isdigit():
                         st.session_state.msg_servicio = (False, "⚠️ La altura debe ser un número (ej: 1234).")
                     else:
-                        ok_a, txt_a = alta_servicio(a_nom, a_calle, a_altura.strip(), a_loc, a_sup, "", st.session_state.user_sel)
-                        if ok_a and not geocodificar_direccion(a_calle, a_altura.strip(), a_loc):
+                        _altura_ok = a_altura.strip() or "S/N"
+                        ok_a, txt_a = alta_servicio(a_nom, a_calle, _altura_ok, a_loc, a_sup, "", st.session_state.user_sel)
+                        if ok_a and not geocodificar_direccion(a_calle, _altura_ok, a_loc):
                             txt_a += " Ojo: no se pudo ubicar en el mapa; revisá calle, altura y localidad."
                         st.session_state.msg_servicio = (ok_a, ("✅ " if ok_a else "❌ ") + txt_a)
                     st.rerun()
