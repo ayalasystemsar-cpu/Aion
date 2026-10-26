@@ -354,7 +354,7 @@ def _consultar_ubicacion(q=None, estructurado=None):
         params = {"format": "jsonv2", "limit": 1, "countrycodes": "ar"}
         if estructurado:
             params.update(estructurado)
-        else:
+        if q:
             params["q"] = q
         r = requests.get(
             "https://nominatim.openstreetmap.org/search", params=params,
@@ -371,7 +371,7 @@ def _consultar_ubicacion(q=None, estructurado=None):
             alm["error"] = f"Nominatim HTTP {r.status_code} para «{desc}»"
     except Exception as e:
         alm["error"] = f"Nominatim {type(e).__name__} para «{desc}»"
-    if q:
+    if q and not (estructurado and estructurado.get("bounded")):
         try:
             r = requests.get("https://photon.komoot.io/api/", params={"q": q, "limit": 1},
                              headers={"User-Agent": "AION-YAROKU/1.0"}, timeout=8)
@@ -383,6 +383,32 @@ def _consultar_ubicacion(q=None, estructurado=None):
         except Exception:
             pass
     return None
+
+# Rectángulo que cubre la provincia de Buenos Aires (izq, arriba, der, abajo). Solo sesga el orden de los resultados.
+VIEWBOX_PBA = "-63.5,-33.1,-56.5,-41.1"
+
+_PROVINCIAS_AR = {
+    "buenos aires": "Buenos Aires", "catamarca": "Catamarca", "chaco": "Chaco", "chubut": "Chubut",
+    "cordoba": "Córdoba", "corrientes": "Corrientes", "entre rios": "Entre Ríos", "formosa": "Formosa",
+    "jujuy": "Jujuy", "la pampa": "La Pampa", "la rioja": "La Rioja", "mendoza": "Mendoza", "misiones": "Misiones",
+    "neuquen": "Neuquén", "rio negro": "Río Negro", "salta": "Salta", "san juan": "San Juan", "san luis": "San Luis",
+    "santa cruz": "Santa Cruz", "santa fe": "Santa Fe", "santiago del estero": "Santiago del Estero",
+    "tierra del fuego": "Tierra del Fuego", "tucuman": "Tucumán",
+    "bs as": "Buenos Aires", "bsas": "Buenos Aires", "bs  as": "Buenos Aires", "pba": "Buenos Aires",
+}
+
+def _separar_provincia(texto):
+    """'Rosario, Santa Fe' -> ('Rosario', 'Santa Fe'). Sin provincia al final -> (texto, None)."""
+    import re, unicodedata
+    def norm(s):
+        s = "".join(c for c in unicodedata.normalize("NFD", str(s).lower()) if unicodedata.category(c) != "Mn")
+        return re.sub(r"^(provincia|pcia)\.? de ", "", s.replace(".", " ").strip()).strip()
+    partes = [p.strip() for p in str(texto).replace(" - ", ",").split(",") if p.strip()]
+    if len(partes) >= 2:
+        prov = _PROVINCIAS_AR.get(norm(partes[-1]))
+        if prov:
+            return ", ".join(partes[:-1]), prov
+    return str(texto).strip(), None
 
 def geocodificar_direccion(calle, altura, localidad):
     """Ubica un objetivo por calle + altura + localidad. No se guarda en la hoja ni en el código.
@@ -401,17 +427,31 @@ def geocodificar_direccion(calle, altura, localidad):
     if t_fallo and time.time() - t_fallo < 300:   # no insistir con una dirección que falló hace menos de 5 min
         return None
     loc = _normalizar_localidad(localidad)
+    ciudad, provincia = _separar_provincia(loc)   # "Rosario, Santa Fe" -> ("Rosario", "Santa Fe")
+    loc_txt = f"{ciudad}, {provincia}" if provincia else ciudad
     calle_x = _expandir_abreviaturas(calle)
     consultas = []   # (texto libre, parámetros estructurados, ¿incluye altura?)
+    es_caba = ciudad.upper().startswith("CIUDAD AUT")
+    otra_prov = provincia not in (None, "Buenos Aires")   # el usuario indicó otra provincia: no se sesga a Buenos Aires
+    pba = {"state": "Buenos Aires", "country": "Argentina", "viewbox": VIEWBOX_PBA}
     if altura:
-        consultas.append((None, {"street": f"{altura} {calle}", "city": loc, "country": "Argentina"}, True))
-        consultas.append((f"{calle} {altura}, {loc}, Argentina", None, True))
+        if otra_prov:
+            consultas.append((None, {"street": f"{altura} {calle}", "city": ciudad, "state": provincia, "country": "Argentina"}, True))
+        elif not es_caba:   # sin provincia: primero dentro de la provincia de Buenos Aires, después todo el país
+            consultas.append((None, {"street": f"{altura} {calle}", "city": ciudad, **pba}, True))
+        consultas.append((None, {"street": f"{altura} {calle}", "city": ciudad, "country": "Argentina"}, True))
+        consultas.append((f"{calle} {altura}, {loc_txt}, Argentina", None, True))
         if calle_x.upper() != calle.upper():
-            consultas.append((f"{calle_x} {altura}, {loc}, Argentina", None, True))
-        consultas.append((f"{calle} {altura}, {loc}, Buenos Aires, Argentina", None, True))
-    consultas.append((f"{calle}, {loc}, Argentina", None, False))
+            consultas.append((f"{calle_x} {altura}, {loc_txt}, Argentina", None, True))
+        if not otra_prov:
+            consultas.append((f"{calle} {altura}, {loc_txt}, Buenos Aires, Argentina", None, True))
+    if otra_prov:
+        consultas.append((None, {"street": calle, "city": ciudad, "state": provincia, "country": "Argentina"}, False))
+    elif not es_caba:
+        consultas.append((None, {"street": calle, "city": ciudad, **pba}, False))
+    consultas.append((f"{calle}, {loc_txt}, Argentina", None, False))
     if calle_x.upper() != calle.upper():
-        consultas.append((f"{calle_x}, {loc}, Argentina", None, False))
+        consultas.append((f"{calle_x}, {loc_txt}, Argentina", None, False))
     with alm["lock"]:
         if clave in alm["ok"]:
             return alm["ok"][clave]
@@ -7258,7 +7298,7 @@ elif st.session_state.rol_sel in ["JEFE DE OPERACIONES", "GERENCIA"]:
                 a_nom = st.text_input("Nombre del objetivo:")
                 a_calle = st.text_input("Calle:")
                 a_altura = st.text_input("Altura:")
-                a_loc = st.text_input("Localidad:")
+                a_loc = st.text_input("Localidad (si no es de Buenos Aires, agregá la provincia. Ej: Rosario, Santa Fe):")
                 a_sup = st.selectbox("Asignar al supervisor:", LISTA_SUPS_TACTICOS)
                 if st.form_submit_button("🟢 DAR DE ALTA Y AVISAR AL SUPERVISOR"):
                     if not (a_nom.strip() and a_calle.strip() and a_altura.strip() and a_loc.strip() and a_sup):
