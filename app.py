@@ -1609,8 +1609,10 @@ def mostrar_seguimiento_sidebar():
                     for i, p in enumerate(puntos):
                         evs_p = [e for e in ev_o if e["pto"] == p] if es_actual else []
                         if p in hechos:
-                            extra = " 🚩" if any(e["clase"] == "FRAUDE" for e in evs_p) else ""
-                            bloques.append(_fila_seg_html("OK", p, hechos[p].strftime('%H:%M:%S') + extra))
+                            if any(e["clase"] == "FRAUDE" for e in evs_p):
+                                bloques.append(_fila_seg_html("FRAUDE", p, hechos[p].strftime('%H:%M:%S')))
+                            else:
+                                bloques.append(_fila_seg_html("OK", p, hechos[p].strftime('%H:%M:%S')))
                             if es_actual:
                                 resumen_ok += 1
                         else:
@@ -2704,6 +2706,17 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
         marcados = set(col_texto(df_ronda, 'PUNTO').str.strip().str.upper())
 
+    # Puntos de esta ronda que quedaron registrados con alerta de fraude (se muestran en rojo)
+    fraudes_marcados = set()
+    try:
+        if not df_hoy.empty and df_hoy.shape[1] >= 7:
+            _d7 = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
+            _est7 = (_d7.iloc[:, 6].astype(str).str.strip().str.upper() == "FRAUDE").values
+            _pt7 = col_texto(_d7, 'PUNTO').str.strip().str.upper().values
+            fraudes_marcados = set(_pt7[_est7])
+    except Exception:
+        fraudes_marcados = set()
+
     c_r1, c_r2 = st.columns(2)
     c_r1.metric("🔁 RONDA", ronda)
     c_r2.metric("✅ PUNTOS", f"{len(marcados)} / {len(lista_puntos)}")
@@ -2716,7 +2729,10 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
 
     siguiente = next((p for p in lista_puntos if p not in marcados), None)
     for p in lista_puntos:
-        st.write(("✅ " if p in marcados else ("➡️ " if p == siguiente else "🔒 ")) + p)
+        if p in fraudes_marcados:
+            st.markdown(f"<span style='color:#FF1744;font-weight:bold'>🚩 {p} · alerta de fraude</span>", unsafe_allow_html=True)
+        else:
+            st.write(("✅ " if p in marcados else ("➡️ " if p == siguiente else "🔒 ")) + p)
 
     if st.session_state.get("msg_recorrido"):
         st.success(st.session_state.msg_recorrido)
@@ -2824,9 +2840,16 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                 )):
                     st.session_state.msg_recorrido = f"✅ Marcado: {pto_qr}"
                     st.rerun()
+            elif res.get("fraude"):
+                # Fraude ya reportado al supervisor: el punto queda registrado en ROJO y el vigilador sigue con la ronda
+                if escribir_registro_nube("REGISTRO RECORRIDOS", _fila_recorrido(
+                    [obtener_hora_argentina(), obj_u, pto_qr, str(nombre).strip().upper(), str(dni), ronda, "FRAUDE"],
+                    lectura.get("lat"), lectura.get("lon")
+                )):
+                    st.session_state.msg_recorrido = f"🚩 {pto_qr} quedó registrado con alerta de fraude y se avisó al supervisor. Continuá con el próximo punto."
+                    st.rerun()
             else:
-                pref = "🚩 ESCANEO RECHAZADO Y REPORTADO AL SUPERVISOR. " if res["fraude"] else "⛔ "
-                st.session_state.resultado_qr = pref + res["mensaje"]
+                st.session_state.resultado_qr = "⛔ " + res["mensaje"]
 
     if st.session_state.get("resultado_qr"):
         st.error(st.session_state.resultado_qr)
@@ -3082,7 +3105,7 @@ def tabla_recorridas_vigiladores(objs_sup):
             det, faltan = [], 0
             for i, p in enumerate(puntos):
                 if p in hechos:
-                    det.append(f"✅ {p} {hechos[p].strftime('%H:%M:%S')}" + (" 🚩" if p in ev_pto else ""))
+                    det.append((f"🚩 {p} " if p in ev_pto else f"✅ {p} ") + hechos[p].strftime('%H:%M:%S'))
                 elif p in ev_pto:
                     det.append(f"🚩 {p} {ev_pto[p]['fh'].strftime('%H:%M:%S')}")
                 elif (not es_actual) or i < ult_idx:
