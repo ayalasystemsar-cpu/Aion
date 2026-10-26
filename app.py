@@ -7,6 +7,7 @@ import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_js_eval import get_geolocation
+import rastro_gps
 import osmnx as ox
 import networkx as nx
 import folium
@@ -2692,6 +2693,12 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         ronda += 1
     st.session_state[key_ronda] = ronda
 
+    # Rastro GPS continuo mientras el vigilador está en la pantalla de recorrido
+    try:
+        rastro_gps.activar_rastro(_supabase_cliente(), st.session_state.get("legajo_vigilador", "S/L"), obj_u, ronda)
+    except Exception as _e_r:
+        print(f"[rastro_gps] no se pudo activar: {_e_r}")
+
     marcados = set()
     if not df_hoy.empty:
         df_ronda = df_hoy[pd.to_numeric(df_hoy['RONDA'], errors='coerce') == ronda]
@@ -2801,6 +2808,15 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
                 orden_puntos=lista_puntos, marcados=list(marcados),
                 lat_usuario=lectura.get("lat"), lon_usuario=lectura.get("lon"), precision_m=lectura.get("acc"),
                 ultima_marca=ultima, ronda=ronda, fallback=fb, on_fraude=_cb_fraude)
+            # Antifoto por movimiento: si el celular no se movió desde el escaneo anterior, es otro QR sacado desde el mismo lugar
+            if res["valido"] and ultima is not None and marcados:
+                _est_m, _dist_m, _n_m = rastro_gps.movimiento_desde(
+                    _supabase_cliente(), st.session_state.get("legajo_vigilador", "S/L"), ultima)
+                if _est_m == "SIN_MOVIMIENTO":
+                    _det_m = (f"Escaneó {pto_qr} sin moverse desde el punto anterior (se desplazó {_dist_m:.0f} m en {_n_m} lecturas GPS). "
+                              f"Posible foto del QR.")
+                    _cb_fraude("FRAUDE_SIN_MOVIMIENTO", _det_m, {"id_punto": pto_qr})
+                    res = {"valido": False, "fraude": True, "mensaje": _det_m}
             if res["valido"]:
                 if escribir_registro_nube("REGISTRO RECORRIDOS", _fila_recorrido(
                     [obtener_hora_argentina(), obj_u, pto_qr, str(nombre).strip().upper(), str(dni), ronda, "OK"],
