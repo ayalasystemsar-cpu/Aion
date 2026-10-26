@@ -1003,6 +1003,35 @@ def _vigiladores_en_turno():
             pass
     return out
 
+def _supervisores_en_turno():
+    """{NOMBRE: {'objetivo', 'hora'}} de los supervisores que iniciaron jornada (INICIO) y todavía no la cerraron (FIN)."""
+    try:
+        df = leer_matriz_nube("JORNADA SUPERVISORES")
+    except Exception:
+        return {}
+    if df.empty or df.shape[1] < 5:
+        return {}
+    ultimos = {}
+    for f in df.astype(str).values.tolist():
+        nombre, accion = f[1].strip().upper(), f[3].strip().upper()
+        if nombre and accion in ("INICIO", "FIN"):
+            ultimos[nombre] = {"accion": accion, "fecha": f[0].strip(), "hora": f[4].strip(), "objetivo": f[2].strip().upper()}
+    try:
+        ahora = datetime.strptime(obtener_hora_argentina(), "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return {}
+    out = {}
+    for n, u in ultimos.items():
+        if u["accion"] != "INICIO":
+            continue
+        try:
+            t0 = datetime.strptime(f"{u['fecha']} {u['hora'][:8]}", "%Y-%m-%d %H:%M:%S")
+            if (ahora - t0).total_seconds() < HORAS_MAX_BLOQUEO_TURNO * 3600:
+                out[n] = {"objetivo": u["objetivo"] or "SIN OBJETIVO", "hora": u["hora"][:5]}
+        except Exception:
+            pass
+    return out
+
 def _objetivos_supervisor_sesion():
     """Objetivos del supervisor logueado (en mayúsculas). None si el usuario actual no es supervisor."""
     if str(st.session_state.get("rol_sel", "")).strip().upper() != "SUPERVISOR":
@@ -1024,16 +1053,49 @@ def _destinatarios_mensajeria():
             out.append(d)
     return out
 
+GRUPOS_MENSAJE = {"TODOS", "VIGILADORES", "SUPERVISORES", "MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", "SUPERVISOR", "VIGILADOR"}
+ROLES_VEN_FRAUDE = {"MONITOREO", "JEFE DE OPERACIONES", "SUPERVISOR", "GERENCIA"}
+
+def _serie_txt(df_msg, col):
+    return col_texto(df_msg, col).str.upper() if col in df_msg.columns else pd.Series("", index=df_msg.index)
+
+def _es_alerta_fraude_qr(df_msg):
+    return (_serie_txt(df_msg, 'ASUNTO').str.contains("ALERTA DE FRAUDE QR", regex=False) |
+            _serie_txt(df_msg, 'MENSAJE').str.contains("POSIBLE FRAUDE QR", regex=False))
+
+def _es_alerta_sistema(df_msg):
+    asu, txt = _serie_txt(df_msg, 'ASUNTO'), _serie_txt(df_msg, 'MENSAJE')
+    return (asu.str.contains("ALERTA", regex=False) | asu.str.contains("PÁNICO", regex=False) | asu.str.contains("PANICO", regex=False) |
+            txt.str.contains("POSIBLE FRAUDE QR", regex=False) | txt.str.contains("ALERTA DE PÁNICO", regex=False))
+
+def _filtrar_fraude_qr(df_msg, mask):
+    """Las alertas de fraude QR solo las ven Monitoreo, Jefe de Operaciones, Supervisor y Gerencia.
+    Nunca las ve el vigilador, ni quien las originó (no se auto-envía)."""
+    es_fraude = _es_alerta_fraude_qr(df_msg)
+    rol = str(st.session_state.get("rol_sel", "")).strip().upper()
+    puede = rol in ROLES_VEN_FRAUDE or bool(st.session_state.get("admin_autenticado", False))
+    rem = _serie_txt(df_msg, 'REMITENTE').str.strip()
+    if puede:
+        permitido = ~rem.isin(_identidades_mensajeria())
+    else:
+        permitido = pd.Series(False, index=df_msg.index)
+    return mask & (~es_fraude | permitido)
+
 def _mensajes_visibles(df_msg):
-    """Cada usuario ve los hilos donde escribió o donde le escribieron (el administrador ve todo)."""
+    """Cada usuario ve los hilos donde escribió o donde le escribieron.
+    Un mensaje personal lo ve SOLO quien lo envió y quien lo recibió (el administrador no lo ve);
+    el administrador sí ve los mensajes de grupo y las alertas."""
     if df_msg.empty or 'DESTINATARIO' not in df_msg.columns:
         return df_msg.iloc[0:0]
-    if st.session_state.get("admin_autenticado", False):
-        return df_msg
     ids = _identidades_mensajeria()
     dest = col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper()
     rem = col_texto(df_msg, 'REMITENTE').str.strip().str.upper()
-    return df_msg[dest.isin(ids) | rem.isin(ids)]
+    if st.session_state.get("admin_autenticado", False):
+        es_personal = ~dest.isin(GRUPOS_MENSAJE) & ~_es_alerta_sistema(df_msg)
+        mask = ~es_personal | dest.isin(ids) | rem.isin(ids)
+    else:
+        mask = dest.isin(ids) | rem.isin(ids)
+    return df_msg[_filtrar_fraude_qr(df_msg, mask)]
 
 def _mensajes_sin_leer(df_msg):
     """Mensajes dirigidos al usuario (no escritos por él) que todavía no marcó como leídos."""
@@ -1043,7 +1105,7 @@ def _mensajes_sin_leer(df_msg):
     yo = _remitente_mensajeria()
     dest = col_texto(df_msg, 'DESTINATARIO').str.strip().str.upper()
     rem = col_texto(df_msg, 'REMITENTE').str.strip().str.upper()
-    sel = dest.isin(ids) & ~rem.isin(ids)
+    sel = _filtrar_fraude_qr(df_msg, dest.isin(ids) & ~rem.isin(ids))
     if 'LEIDO_POR' in df_msg.columns:
         leidos = col_texto(df_msg, 'LEIDO_POR').apply(lambda v: yo in [x.strip().upper() for x in str(v).split(";")])
         sel = sel & ~leidos
@@ -1135,6 +1197,28 @@ def _listado_hilos_mensajeria(rol_contexto):
                     else:
                         st.warning("⚠️ Escribí la respuesta antes de enviar.")
 
+def _selector_destinos(rotulo, lista, etiquetas, clave, preseleccion=None, activos=None):
+    """Lista de destinatarios con 'seleccionar todos' (y 'todos los activos' si se pasan los activos).
+    Devuelve la lista de elegidos; cada uno recibe el mensaje en privado."""
+    lista = list(lista)
+    if not lista:
+        return []
+    pre = [p for p in (preseleccion or []) if p in lista]
+    act = [a for a in (activos or []) if a in lista]
+    sel_act = False
+    if act and len(act) != len(lista):
+        sel_act = st.checkbox(f"🟢 SELECCIONAR TODOS LOS ACTIVOS ({len(act)})", key=f"{clave}_act")
+    sel_todos = st.checkbox(f"✅ SELECCIONAR TODOS ({len(lista)})", key=f"{clave}_todos")
+    if sel_todos:
+        elegidos = lista
+    elif sel_act:
+        elegidos = act
+    else:
+        return st.multiselect(rotulo, lista, default=pre, format_func=lambda n: etiquetas.get(n, n),
+                              key=f"{clave}_multi_{len(lista)}_{abs(hash(tuple(lista))) % 99991}")
+    st.caption("Se enviará a: " + ", ".join(elegidos[:8]) + (f" y {len(elegidos) - 8} más" if len(elegidos) > 8 else ""))
+    return list(elegidos)
+
 def renderizar_mensajeria_global(rol_contexto):
     if 'asunto_respuesta' not in st.session_state:
         st.session_state.asunto_respuesta = None
@@ -1222,37 +1306,59 @@ def renderizar_mensajeria_global(rol_contexto):
         st.caption("👆 Elegí a quién va el mensaje. Si es para una persona en particular, nadie más lo ve.")
     elif destinatario == "TODOS":
         st.caption("📢 Este mensaje lo van a ver TODOS los usuarios del sistema. Si es para una persona, elegila arriba.")
+    destinos = []
     if destinatario == OPC_VIG:
         en_turno = _vigiladores_en_turno()
         objs_sup_msg = _objetivos_supervisor_sesion()
         if objs_sup_msg is None:
-            incluir_sin_turno = st.checkbox("Incluir vigiladores sin turno en curso", value=False, key=f"vig_todos_{rol_contexto}_{clave_hilo}")
+            incluir_sin_turno = st.checkbox("Mostrar también vigiladores sin turno en curso", value=True, key=f"vig_todos_{rol_contexto}_{clave_hilo}")
             cand = [v for v in vig_todos if v not in yo_ids and (incluir_sin_turno or v in en_turno or v == vig_resp)]
         else:
             # Supervisor: solo los vigiladores en turno en SUS objetivos (los de otros supervisores no aparecen)
             cand = [v for v in vig_todos if v not in yo_ids and
                     ((v in en_turno and en_turno[v]["objetivo"] in objs_sup_msg) or v == vig_resp)]
         cand.sort(key=lambda v: (v not in en_turno, en_turno.get(v, {}).get("objetivo", ""), v))
-        n_act = sum(1 for v in cand if v in en_turno)
         if not cand:
-            st.info("No hay vigiladores con turno en curso" + (" en tus objetivos." if objs_sup_msg is not None else ". Tildá \"Incluir vigiladores sin turno\" para elegir a cualquiera."))
-            destinatario = None
+            st.info("No hay vigiladores con turno en curso" + (" en tus objetivos." if objs_sup_msg is not None else "."))
         else:
-            etiquetas = {v: (f"🟢 {v} — {en_turno[v]['objetivo']} (desde {en_turno[v]['hora']} hs)" if v in en_turno
+            servicios = sorted({en_turno[v]["objetivo"] for v in cand if v in en_turno})
+            if len(servicios) > 1:
+                serv_f = st.selectbox("🏢 SERVICIO:", ["TODOS LOS SERVICIOS"] + servicios, key=f"serv_{rol_contexto}_{clave_hilo}")
+                if serv_f != "TODOS LOS SERVICIOS":
+                    cand = [v for v in cand if (v in en_turno and en_turno[v]["objetivo"] == serv_f) or v == vig_resp]
+            n_act = sum(1 for v in cand if v in en_turno)
+            etiquetas = {v: (f"🟢 {v} — ACTIVO en {en_turno[v]['objetivo']} (desde {en_turno[v]['hora']} hs)" if v in en_turno
                              else f"⚪ {v} — sin turno en curso") for v in cand}
-            idx_v = cand.index(vig_resp) if vig_resp in cand else 0
-            destinatario = st.selectbox(f"VIGILADOR ({n_act} en turno):", cand, index=idx_v,
-                                        format_func=lambda v: etiquetas.get(v, v), key=f"vig_{rol_contexto}_{clave_hilo}")
-            st.caption("🔒 Solo ese vigilador (y vos) van a ver este mensaje.")
+            destinos = _selector_destinos(f"VIGILADORES ({n_act} activos de {len(cand)}):", cand, etiquetas,
+                                          f"vig_{rol_contexto}_{clave_hilo}", [vig_resp] if vig_resp else None,
+                                          activos=[v for v in cand if v in en_turno])
+            st.caption("🔒 Cada vigilador recibe el mensaje en privado: los demás no lo ven.")
     else:
         rol_pers = next((r for r, (e, _) in PERSONAS.items() if e == destinatario), None)
         if rol_pers:
             lst_p = personas_rol[rol_pers]
-            idx_m = lst_p.index(destino_resp) if (respondiendo and destino_resp in lst_p) else 0
-            destinatario = st.selectbox(f"{PERSONAS[rol_pers][1]}:", lst_p, index=idx_m,
-                                        format_func=lambda n: etiq_personas.get(n, n),
-                                        key=f"pers_{rol_pers}_{rol_contexto}_{clave_hilo}")
-            st.caption("🔒 Solo esa persona (y vos) van a ver este mensaje.")
+            etiq_sel = {n: etiq_personas.get(n, n) for n in lst_p}
+            activos_p = None
+            rotulo_p = f"{PERSONAS[rol_pers][1]}:"
+            if rol_pers == "SUPERVISOR":
+                sup_turno = _supervisores_en_turno()
+                lst_p = sorted(lst_p, key=lambda n: (n != mi_sup, n not in sup_turno, n))
+                etiq_sel = {}
+                for n in lst_p:
+                    objs_n = objs_por_sup.get(n, [])
+                    estrella = " ⭐ tu supervisor" if n == mi_sup else ""
+                    if n in sup_turno:
+                        etiq_sel[n] = f"🟢 {n} — ACTIVO en {sup_turno[n]['objetivo']} (desde {sup_turno[n]['hora']} hs){estrella}"
+                    else:
+                        etiq_sel[n] = f"⚪ {n} — sin jornada iniciada" + (f" ({', '.join(objs_n[:2])}{'…' if len(objs_n) > 2 else ''})" if objs_n else "") + estrella
+                activos_p = [n for n in lst_p if n in sup_turno]
+                rotulo_p = f"SUPERVISORES ({len(activos_p)} activos de {len(lst_p)}):"
+            destinos = _selector_destinos(rotulo_p, lst_p, etiq_sel, f"pers_{rol_pers}_{rol_contexto}_{clave_hilo}",
+                                          [destino_resp] if (respondiendo and destino_resp in lst_p) else None, activos=activos_p)
+            st.caption("🔒 Cada persona recibe el mensaje en privado: los demás no lo ven.")
+    if not destinos and destinatario and destinatario not in ({OPC_VIG, OPC_ELEGIR} | {e for e, _ in PERSONAS.values()}):
+        destinos = [destinatario]
+    _para_txt = (", ".join(destinos[:5]) + (f" y {len(destinos) - 5} más" if len(destinos) > 5 else "")) if destinos else "— elegí a quién enviar —"
 
     with st.form(key=f"form_msg_{rol_contexto}", clear_on_submit=True):
         if st.session_state.asunto_respuesta:
@@ -1264,21 +1370,22 @@ def renderizar_mensajeria_global(rol_contexto):
         col_a, col_b = st.columns([3, 1])
         with col_a:
             txt_msg = st.text_input("MENSAJE:")
-            st.caption(f"PARA: **{destinatario or '— elegí a quién enviar —'}**")
+            st.caption(f"PARA: **{_para_txt}**")
         with col_b:
             gravedad = st.selectbox("GRAVEDAD:", ["VERDE", "AMARILLO", "ROJA"], key=f"grav_{rol_contexto}_{clave_hilo}",
                                     format_func=lambda g: f"{GRAVEDADES_MENSAJE[g]} {g}")
 
         if st.form_submit_button("TRANSMITIR A LA RED"):
             _etiquetas_grupo = {OPC_VIG, OPC_ELEGIR} | {e for e, _ in PERSONAS.values()}
-            if destinatario in _etiquetas_grupo:
-                destinatario = None   # nunca mandar a una opción-menú: tiene que ser una persona o un grupo real
-            if not destinatario:
-                st.warning("⚠️ Elegí a quién enviar el mensaje (una persona, un grupo o TODOS).")
+            # nunca mandar a una opción-menú ni a uno mismo: tiene que ser una persona o un grupo real
+            _dest_final = [d for d in destinos if d and d not in _etiquetas_grupo and d not in yo_ids]
+            if not _dest_final:
+                st.warning("⚠️ Elegí a quién enviar el mensaje (una o varias personas, un grupo o TODOS).")
             elif txt_msg.strip():
-                escribir_registro_nube("MENSAJERIA", [
-                    obtener_hora_argentina(), yo, destinatario,
-                    (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad
+                _fh = obtener_hora_argentina()
+                escribir_registros_nube("MENSAJERIA", [
+                    [_fh, yo, d, (asunto_input or "GENERAL").upper(), txt_msg.upper(), "PENDIENTE", gravedad]
+                    for d in _dest_final
                 ])
                 st.session_state.mensaje_enviado = "RESPUESTA" if st.session_state.asunto_respuesta else "MENSAJE"
                 st.session_state.mensaje_enviado_grav = gravedad
@@ -2778,7 +2885,12 @@ def renderizar_recorrido_vigilador(objetivo, nombre, dni):
         quien = str(nombre).strip().upper()
         asunto = f"ALERTA DE FRAUDE QR - {quien} ({fecha[11:16]})"
         texto = f"🚩 POSIBLE FRAUDE QR ({tipo}): {quien} - OBJ: {obj_u} - PUNTO: {ctx['id_punto']}. {detalle}"
-        destinos = [d for d in ["JEFE DE OPERACIONES", "GERENCIA", sup] if d and d not in ("N/A", "MONITOREO")]
+        # Solo jefaturas: Monitoreo, Jefe de Operaciones, Gerencia y el supervisor del objetivo. Nunca el vigilador ni quien lo originó.
+        destinos = []
+        for d in ["MONITOREO", "JEFE DE OPERACIONES", "GERENCIA", sup]:
+            d = str(d).strip().upper()
+            if d and d not in ("N/A", "NAN") and d != quien and d not in destinos:
+                destinos.append(d)
         escribir_registros_nube("MENSAJERIA", [[fecha, quien, d, asunto, texto, "PENDIENTE", "ROJA"] for d in destinos])
         escribir_registro_nube("ALERTAS", [fecha, quien, "FRAUDE QR", "REGISTRADO", obj_u, sup])
         pref = _prefijo_ntfy()
