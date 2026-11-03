@@ -6,7 +6,7 @@ import pandas as pd
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from streamlit_js_eval import get_geolocation
+#from streamlit_js_eval import get_geolocation
 import rastro_gps
 import osmnx as ox
 import networkx as nx
