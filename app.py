@@ -27,7 +27,15 @@ from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 import streamlit.components.v1 as components
 import os, tempfile
-from aion_mentor import AionMentor
+# --- CLASE AION MENTOR INTEGRADA ---
+class AionMentor:
+    def __init__(self):
+        self.nombre_usuario = st.session_state.get("user_sel", "Operador Central")
+        self.rol_usuario = st.session_state.get("rol_sel", "MONITOREO")
+        self.ubicacion_actual = "Central Operativa - Base Principal"
+
+    def hablar_alerta(self, mensaje):
+        st.toast(f"🔊 ALERTA DE VOZ: {mensaje}")
 
 # --- 1. CLASE PARA NUMERACIÓN DE PÁGINAS EN PDF ---
 class NumberedCanvas(canvas.Canvas):
