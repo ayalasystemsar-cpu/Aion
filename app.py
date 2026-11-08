@@ -6,7 +6,7 @@ import pandas as pd
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-#from streamlit_js_eval import get_geolocation
+from streamlit_js_eval import get_geolocation
 import rastro_gps
 import osmnx as ox
 import networkx as nx
@@ -27,15 +27,6 @@ from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 import streamlit.components.v1 as components
 import os, tempfile
-# --- CLASE AION MENTOR INTEGRADA ---
-class AionMentor:
-    def __init__(self):
-        self.nombre_usuario = st.session_state.get("user_sel", "Operador Central")
-        self.rol_usuario = st.session_state.get("rol_sel", "MONITOREO")
-        self.ubicacion_actual = "Central Operativa - Base Principal"
-
-    def hablar_alerta(self, mensaje):
-        st.toast(f"🔊 ALERTA DE VOZ: {mensaje}")
 
 # --- 1. CLASE PARA NUMERACIÓN DE PÁGINAS EN PDF ---
 class NumberedCanvas(canvas.Canvas):
@@ -86,8 +77,6 @@ if 'sup_autenticado' not in st.session_state:
 
 if 'admin_autenticado' not in st.session_state:
     st.session_state.admin_autenticado = query_params.get("admin_auth", "false") == "true"
-     # Inicializamos el núcleo cognitivo con los datos de sesión ya listos
-mentor = AionMentor()
 
 if 'ultimo_mensaje_qr' not in st.session_state: 
     st.session_state.ultimo_mensaje_qr = ""
@@ -6287,17 +6276,6 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
     with st.sidebar:
         st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO%20-%20AION-YAROKU.jpeg" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
         st.subheader("⚙️ NÚCLEO MAESTRO")
-        # --- PANEL VISIBLE DEL MENTOR ---
-    st.markdown("---")
-    st.info(f"""
-    * **Operador:** {mentor.nombre_usuario}
-    * **Rol:** {mentor.rol_usuario}
-    * **Ubicación:** {mentor.ubicacion_actual}
-    """)
-
-    # Botón de prueba para verificar la síntesis de voz en el navegador
-    if st.button("🚨 Probar Alerta Operativa"):
-        mentor.hablar_alerta("Sistema sincronizado y operando correctamente.")
          
         vista_admin_sel = st.selectbox(
             "MODO DE VISTA ACTIVO:", 
