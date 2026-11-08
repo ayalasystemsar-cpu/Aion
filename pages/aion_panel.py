@@ -1,5 +1,5 @@
 import streamlit as st
-from aion_mentor import AionMentor
+
 
 st.set_page_config(page_title="Aion Mentor", page_icon="🛡️", layout="wide")
 
