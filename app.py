@@ -61,6 +61,27 @@ class NumberedCanvas(canvas.Canvas):
 # --- 2. CONFIGURACIÓN E INICIALIZACIÓN CON PERSISTENCIA POR URL ---
 st.set_page_config(page_title="AION-YAROKU | COMMAND", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 
+
+# --- LOGO: se lee desde el archivo del proyecto (carpeta assets) y se incrusta en la página ---
+def _cargar_logo_src():
+    import os, base64, glob
+    base = os.path.dirname(os.path.abspath(__file__))
+    candidatos = [os.path.join(base, "assets", "LOGO-AION-FENIX.png"), os.path.join(base, "LOGO-AION-FENIX.png")]
+    candidatos += glob.glob(os.path.join(base, "assets", "*[Ff][Ee][Nn][Ii][Xx]*"))
+    candidatos += glob.glob(os.path.join(base, "*[Ff][Ee][Nn][Ii][Xx]*.png"))
+    for ruta in candidatos:
+        try:
+            if os.path.isfile(ruta):
+                ext = os.path.splitext(ruta)[1].lower().replace(".", "") or "png"
+                ext = "jpeg" if ext == "jpg" else ext
+                with open(ruta, "rb") as f:
+                    return f"data:image/{ext};base64," + base64.b64encode(f.read()).decode()
+        except Exception:
+            pass
+    return "https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO-AION-FENIX.png"
+
+LOGO_SRC = _cargar_logo_src()
+
 query_params = st.query_params
 
 if 'usuario_logueado' not in st.session_state:
@@ -6097,7 +6118,7 @@ def mostrar_boton_personal_supervisor():
 
 def mostrar_landing():
     aplicar_identidad_alfa()
-    st.markdown('<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO-AION-FENIX.png" class="logo-phoenix"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="contenedor-logo-central"><img src="' + LOGO_SRC + '" class="logo-phoenix"></div>', unsafe_allow_html=True)
     st.markdown('<div class="estacion-titulo">AION-YAROKU | COMMAND</div>', unsafe_allow_html=True)
      
     modo = st.radio("Acceso al Sistema:", ["Iniciar Sesión", "Crear Cuenta"], horizontal=True, key="radio_modo")
@@ -6274,7 +6295,7 @@ def _perfil_visible():
 
 if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_autenticado", False):
     with st.sidebar:
-        st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO-AION-FENIX.png" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="contenedor-logo-sidebar"><img src="' + LOGO_SRC + '" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
         st.subheader("⚙️ NÚCLEO MAESTRO")
          
         vista_admin_sel = st.selectbox(
@@ -6334,7 +6355,7 @@ if st.session_state.rol_sel == "ADMINISTRADOR" or st.session_state.get("admin_au
             st.rerun()
 else:
     with st.sidebar:
-        st.markdown('<div class="contenedor-logo-sidebar"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO-AION-FENIX.png" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="contenedor-logo-sidebar"><img src="' + LOGO_SRC + '" style="width:180px; border:1px solid #00e5ff; border-radius:4px;"></div>', unsafe_allow_html=True)
         st.markdown("---")
         st.markdown(f"**PERFIL:** {st.session_state.rol_sel}")
         _nom_perfil, _leg_perfil = _perfil_visible()
@@ -6362,7 +6383,7 @@ else:
             st.query_params.clear()
             st.rerun()
 
-_LOGO_CENTRAL_HTML = '<div class="contenedor-logo-central"><img src="https://raw.githubusercontent.com/ayalasystemsar-cpu/Aion/main/assets/LOGO-AION-FENIX.png" class="logo-phoenix"></div>'
+_LOGO_CENTRAL_HTML = '<div class="contenedor-logo-central"><img src="' + LOGO_SRC + '" class="logo-phoenix"></div>'
 if st.session_state.rol_sel == "MONITOREO":
     try:
         _c_izq, _c_logo, _c_pan = st.columns([1, 3, 1], vertical_alignment="center")
